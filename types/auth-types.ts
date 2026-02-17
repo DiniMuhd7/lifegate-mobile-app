@@ -3,6 +3,11 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
+  phone: string;
+  dob: string;
+  gender: string;
+  language: string;
+  healthHistory: string;
 };
 
 // Data sent to backend

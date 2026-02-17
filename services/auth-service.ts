@@ -7,6 +7,11 @@ const USERS_DB = [
     name: 'Test User',
     email: 'admin@lifegate.com',
     password: '123456',
+    phone: '123-456-7890',
+    dob: '1990-01-01',
+    gender: 'Male',
+    language: 'English',
+    healthHistory: 'None',
   },
 ];
 
@@ -15,14 +20,12 @@ export const AuthService = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     console.log('Sending login request to server...');
 
-    await new Promise(res => setTimeout(res, 1200));
+    await new Promise((res) => setTimeout(res, 1200));
 
-    const user = USERS_DB.find(
-      u => u.email === payload.email && u.password === payload.password
-    );
+    const user = USERS_DB.find((u) => u.email === payload.email && u.password === payload.password);
 
     if (user) {
-      console.log('✅ Login successful (server validated credentials)');
+      console.log('Login successful (server validated credentials)');
 
       return {
         success: true,
@@ -30,6 +33,11 @@ export const AuthService = {
           id: user.id,
           name: user.name,
           email: user.email,
+          phone: user.phone,
+          dob: user.dob,
+          gender: user.gender,
+          language: user.language,
+          healthHistory: user.healthHistory,
         },
       };
     } else {
@@ -43,13 +51,18 @@ export const AuthService = {
     name: string;
     email: string;
     password: string;
+    phone: string;
+    dob: string;
+    gender: string;
+    language: string;
+    healthHistory: string;
   }): Promise<LoginResponse> {
     console.log('Sending registration request to server...');
 
-    await new Promise(res => setTimeout(res, 1500));
+    await new Promise((res) => setTimeout(res, 1500));
 
     // check if email already exists
-    const existingUser = USERS_DB.find(u => u.email === payload.email);
+    const existingUser = USERS_DB.find((u) => u.email === payload.email);
     if (existingUser) {
       console.log('Registration failed: Email already in use');
       return { success: false, message: 'Email already in use' };
@@ -61,6 +74,11 @@ export const AuthService = {
       name: payload.name,
       email: payload.email,
       password: payload.password,
+      phone: payload.phone,
+      dob: payload.dob,
+      gender: payload.gender,
+      language: payload.language,
+      healthHistory: payload.healthHistory,
     };
 
     USERS_DB.push(newUser);
@@ -73,6 +91,11 @@ export const AuthService = {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
+        phone: newUser.phone,
+        dob: newUser.dob,
+        gender: newUser.gender,
+        language: newUser.language,
+        healthHistory: newUser.healthHistory,
       },
     };
   },

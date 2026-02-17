@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 type InputProps = React.ComponentProps<typeof TextInput> & {
   label: string;
@@ -7,16 +8,21 @@ type InputProps = React.ComponentProps<typeof TextInput> & {
   secureToggle?: boolean;
 };
 
-export const LabeledInput: React.FC<InputProps> = ({ label, required, secureToggle, ...inputProps }) => {
+export const LabeledInput: React.FC<InputProps> = ({
+  label,
+  required,
+  secureToggle,
+  ...inputProps
+}) => {
   const [hidden, setHidden] = useState<boolean>(!!secureToggle);
 
   return (
     <View className="mb-5">
-      <Text className="text-gray-700 text-sm mb-1.5">
+      <Text className="mb-1.5 text-sm text-gray-700">
         {label} {required && <Text className="text-red-500">*</Text>}
       </Text>
 
-      <View className="flex-row items-center bg-gray-200 rounded-xl h-12 px-3">
+      <View className="h-12 flex-row items-center rounded-xl bg-gray-200 px-3">
         <TextInput
           {...inputProps}
           secureTextEntry={secureToggle ? hidden : inputProps.secureTextEntry}
@@ -26,7 +32,11 @@ export const LabeledInput: React.FC<InputProps> = ({ label, required, secureTogg
 
         {secureToggle && (
           <Pressable onPress={() => setHidden((v) => !v)} className="px-1">
-            <Text className="text-base">{hidden ? '👁' : '🙈'}</Text>
+            <Ionicons
+              name={hidden ? 'eye' : 'eye-off'}
+              size={20} // adjust size as needed
+              color="#0EA5A4" // match your theme color
+            />
           </Pressable>
         )}
       </View>

@@ -1,14 +1,15 @@
 // File: app/(auth)/login.tsx
 import React, { useState } from 'react';
-import { View, Text,Pressable } from 'react-native';
-import { LabeledInput  } from 'components/input';
+import { View, Text, Pressable } from 'react-native';
+import { LabeledInput } from 'components/input';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth-store';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 // ---------------- Login Screen ----------------
 export default function LoginScreen() {
   const [remember, setRemember] = useState(false);
-   const { userDraft, setField, login } = useAuthStore();
+  const { userDraft, setField, login } = useAuthStore();
 
   const onLogin = async () => {
     console.log('Logging in with:', userDraft);
@@ -16,13 +17,16 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0EA5A4]">
+    <LinearGradient
+      colors={['#0AADA2', '#043B3C']}
+      className="flex-1"
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 0.4 }}
+      style={{ flex: 1 }}>
       <View className="h-56" />
 
-      <View className="flex-1 bg-gray-100 rounded-t-[36px] px-6 pt-7">
-        <Text className="text-center text-[#0EA5A4] text-2xl font-bold mb-6">
-          Welcome Back!
-        </Text>
+      <View className="flex-1 rounded-t-[36px] bg-gray-100 px-6 pt-7">
+        <Text className="mb-6 text-center text-2xl font-bold text-[#0EA5A4]">Welcome Back!</Text>
 
         <LabeledInput
           label="Email Address"
@@ -43,18 +47,18 @@ export default function LoginScreen() {
           onChangeText={(value) => setField('password', value)}
         />
 
-        <View className="flex-row items-center justify-between mt-1">
+        <View className="mt-1 flex-row items-center justify-between">
           <Pressable className="flex-row items-center" onPress={() => setRemember((v) => !v)}>
             <View
-              className={`w-4 h-4 rounded border border-[#0EA5A4] mr-2 ${
+              className={`mr-2 h-4 w-4 rounded border border-[#0EA5A4] ${
                 remember ? 'bg-[#0EA5A4]' : 'bg-transparent'
               }`}
             />
-            <Text className="text-gray-700 text-xs">Remember me</Text>
+            <Text className="text-xs text-gray-700">Remember me</Text>
           </Pressable>
 
           <Pressable>
-            <Text className="text-[#0EA5A4] font-semibold text-xs">Forgot Password?</Text>
+            <Text className="text-xs font-semibold text-[#0EA5A4]">Forgot Password?</Text>
           </Pressable>
         </View>
 
@@ -62,13 +66,13 @@ export default function LoginScreen() {
           <PrimaryButton title="Login" onPress={onLogin} />
         </View>
 
-        <View className="flex-row justify-center mt-5">
+        <View className="mt-5 flex-row justify-center">
           <Text className="text-gray-500">Don’t have an account? </Text>
           <Pressable onPress={() => router.push('/register')}>
-            <Text className="text-[#0EA5A4] font-semibold">Create an account</Text>
+            <Text className="font-semibold text-[#0EA5A4]">Create an account</Text>
           </Pressable>
         </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
