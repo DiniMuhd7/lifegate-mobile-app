@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { PrimaryButton } from 'components/Button';
 import { LabeledInput } from 'components/input';
+import { useAuthStore } from 'store/userStore';
 
 // ---------------- Register Screen ----------------
 export default function RegisterScreen() {
@@ -10,6 +11,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  
 
   const onRegister = () => {
     console.log({ name, email, password, confirm });
