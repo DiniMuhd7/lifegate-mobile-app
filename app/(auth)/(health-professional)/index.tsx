@@ -1,11 +1,11 @@
 import { View } from "react-native";
 import { router } from "expo-router";
-import { LabeledInput } from "components/input";
+import { LabeledInput } from "components/LabeledInput";
 import { PrimaryButton } from "components/Button";
 import { useAuthStore } from "stores/auth-store";
 
 export default function AccountScreen() {
-  const { userDraft, setField } = useAuthStore();
+  const { userDraft, setUserField } = useAuthStore();
 
   const next = () => {
     if (!userDraft.email || !userDraft.password || !userDraft.name)
@@ -24,7 +24,7 @@ export default function AccountScreen() {
         required
         placeholder="Enter your full name"
         value={userDraft.name}
-        onChangeText={(v) => setField("name", v)}
+        onChangeText={(v) => setUserField("name", v)}
       />
 
       <LabeledInput
@@ -33,21 +33,21 @@ export default function AccountScreen() {
         placeholder="Enter your email address"
         type="email"
         value={userDraft.email}
-        onChangeText={(v) => setField("email", v)}
+        onChangeText={(v) => setUserField("email", v)}
       />
 
       <LabeledInput
         label="Password"
         secureToggle
         value={userDraft.password}
-        onChangeText={(v) => setField("password", v)}
+        onChangeText={(v) => setUserField("password", v)}
       />
 
       <LabeledInput
         label="Confirm Password"
         secureToggle
         value={userDraft.confirm}
-        onChangeText={(v) => setField("confirm", v)}
+        onChangeText={(v) => setUserField("confirm", v)}
       />
 
       <PrimaryButton title="Next" onPress={next} type="secondary" />

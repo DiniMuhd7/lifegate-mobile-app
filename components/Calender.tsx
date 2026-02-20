@@ -7,7 +7,6 @@ import {
 } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
-
 export const PrimaryCalendar = ({ label = 'Date of Birth', value, onChange }: any) => {
   const [open, setOpen] = useStateReact(false);
   const today = new Date();

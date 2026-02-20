@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
-import { LabeledInput } from 'components/input';
+import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryCalendar } from 'components/Calender';
 
 export default function LicenseScreen() {
-  const { userDraft, setField } = useAuthStore();
+  const { healthProfessionalDraft, setHealthProfessionalField } = useAuthStore();
   const [isAdding, setIsAdding] = useState(false);
 
   if (!isAdding) {
@@ -39,22 +39,22 @@ export default function LicenseScreen() {
       <LabeledInput
         label="Certificate Name"
         placeholder="Type certificate name"
-        value={userDraft.certificateName}
-        onChangeText={(v) => setField('certificateName', v)}
+        value={healthProfessionalDraft.certificateName}
+        onChangeText={(v) => setHealthProfessionalField('certificateName', v)}
         // If LabeledInput supports an asterisk prop, use it here
       />
 
       <LabeledInput
         label="Certificate ID"
         placeholder="Type certificate ID"
-        value={userDraft.certificateId}
-        onChangeText={(v) => setField('certificateId', v)}
+        value={healthProfessionalDraft.certificateId}
+        onChangeText={(v) => setHealthProfessionalField('certificateId', v)}
       />
 
       <PrimaryCalendar
         label="Issue Date"
-        value={userDraft.certificateIssueDate}
-        onChange={(date: string) => setField('certificateIssueDate', date)}
+        value={healthProfessionalDraft.certificateIssueDate}
+        onChange={(date: string) => setHealthProfessionalField('certificateIssueDate', date)}
       />
 
       <View className="mb-6">

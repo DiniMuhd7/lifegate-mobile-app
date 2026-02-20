@@ -1,7 +1,7 @@
 // File: app/(auth)/login.tsx
 import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { LabeledInput } from 'components/input';
+import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth-store';
 import { router } from 'expo-router';
@@ -9,14 +9,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Dropdown } from 'components/DropDown';
 import { USER_TYPE_OPTIONS } from 'constants/constants';
 
+
 // ---------------- Login Screen ----------------
 export default function LoginScreen() {
   const [remember, setRemember] = useState(false);
-  const { userDraft, setField, login } = useAuthStore();
+  const { userDraft, setUserField, UserLogin } = useAuthStore();
 
   const onLogin = async () => {
     console.log('Logging in with:', userDraft);
-    await login(userDraft.email, userDraft.password);
+    await UserLogin(userDraft.email, userDraft.password);
   };
 
   return (
@@ -34,11 +35,10 @@ export default function LoginScreen() {
         <Dropdown
           label="User Type"
           value={userDraft.role || ''}
-          onChange={(value: string) => setField('role', value)}
+          onChange={(value: string) => setUserField('role', value)}
           options={USER_TYPE_OPTIONS}
           placeholder="Select user type"
         />
-
         <LabeledInput
           label="Email Address"
           required
@@ -46,7 +46,7 @@ export default function LoginScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
           value={userDraft.email}
-          onChangeText={(value) => setField('email', value)}
+          onChangeText={(value) => setUserField('email', value)}
         />
 
         <LabeledInput
@@ -55,7 +55,7 @@ export default function LoginScreen() {
           placeholder="Password"
           secureToggle
           value={userDraft.password}
-          onChangeText={(value) => setField('password', value)}
+          onChangeText={(value) => setUserField('password', value)}
         />
 
         <View className="mt-1 flex-row items-center justify-between">
@@ -87,4 +87,3 @@ export default function LoginScreen() {
     </LinearGradient>
   );
 }
-

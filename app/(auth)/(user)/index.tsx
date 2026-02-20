@@ -1,7 +1,7 @@
 import React from "react";
 import { View } from "react-native";
 import { PrimaryButton } from "components/Button";
-import { LabeledInput } from "components/input";
+import { LabeledInput } from "components/LabeledInput";
 import { useAuthStore } from "stores/auth-store";
 import { router } from "expo-router";
 

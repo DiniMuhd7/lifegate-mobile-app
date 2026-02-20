@@ -1,6 +1,6 @@
-import { LoginPayload, LoginResponse } from 'types/auth-types';
+import { LoginPayload, LoginResponse, HealthProfessionalLoginPayload, HealthProfessionalLoginResponse } from 'types/auth-types';
 
-// pretend "database"
+// pretend "database" for regular users
 const USERS_DB = [
   {
     id: '1',
@@ -12,6 +12,29 @@ const USERS_DB = [
     gender: 'Male',
     language: 'English',
     healthHistory: 'None',
+  },
+];
+
+
+
+// pretend "database" for health professionals
+const HEALTH_PROFESSIONALS_DB = [
+  {
+    id: 'hp-1',
+    name: 'Dr. John Smith',
+    email: 'doctor@lifegate.com',
+    password: '123456',
+    phone: '123-456-7891',
+    dob: '1985-05-15',
+    gender: 'Male',
+    language: 'English',
+    healthHistory: 'None',
+    specialization: 'Cardiology',
+    licenseNumber: 'LIC-12345',
+    certificateName: 'MD',
+    certificateId: 'CERT-12345',
+    certificateIssueDate: '2015-06-01',
+    yearsOfExperience: '10',
   },
 ];
 
@@ -96,6 +119,116 @@ export const AuthService = {
         gender: newUser.gender,
         language: newUser.language,
         healthHistory: newUser.healthHistory,
+      },
+    };
+  },
+
+  // ============ HEALTH PROFESSIONAL LOGIN ============
+  async healthProfessionalLogin(payload: HealthProfessionalLoginPayload): Promise<HealthProfessionalLoginResponse> {
+    console.log('Sending health professional login request to server...');
+
+    await new Promise((res) => setTimeout(res, 1200));
+
+    const healthProfessional = HEALTH_PROFESSIONALS_DB.find(
+      (hp) => hp.email === payload.email && hp.password === payload.password
+    );
+
+    if (healthProfessional) {
+      console.log('Health professional login successful (server validated credentials)');
+
+      return {
+        success: true,
+        user: {
+          id: healthProfessional.id,
+          name: healthProfessional.name,
+          email: healthProfessional.email,
+          phone: healthProfessional.phone,
+          dob: healthProfessional.dob,
+          gender: healthProfessional.gender,
+          language: healthProfessional.language,
+          healthHistory: healthProfessional.healthHistory,
+          specialization: healthProfessional.specialization,
+          licenseNumber: healthProfessional.licenseNumber,
+          certificateName: healthProfessional.certificateName,
+          certificateId: healthProfessional.certificateId,
+          certificateIssueDate: healthProfessional.certificateIssueDate,
+          yearsOfExperience: healthProfessional.yearsOfExperience,
+        },
+      };
+    } else {
+      console.log('Health professional login failed: Invalid email or password');
+      return { success: false, message: 'Invalid email or password' };
+    }
+  },
+
+  // ============ HEALTH PROFESSIONAL REGISTER ============
+  async healthProfessionalRegister(payload: {
+    name: string;
+    email: string;
+    password: string;
+    phone: string;
+    dob: string;
+    gender: string;
+    language: string;
+    healthHistory: string;
+    specialization: string;
+    licenseNumber: string;
+    certificateName: string;
+    certificateId: string;
+    certificateIssueDate?: string;
+    yearsOfExperience?: string;
+  }): Promise<HealthProfessionalLoginResponse> {
+    console.log('Sending health professional registration request to server...');
+
+    await new Promise((res) => setTimeout(res, 1500));
+
+    // check if email already exists
+    const existingHealthProfessional = HEALTH_PROFESSIONALS_DB.find((hp) => hp.email === payload.email);
+    if (existingHealthProfessional) {
+      console.log('Registration failed: Email already in use');
+      return { success: false, message: 'Email already in use' };
+    }
+
+    // create new health professional
+    const newHealthProfessional = {
+      id: `hp-${HEALTH_PROFESSIONALS_DB.length + 1}`,
+      name: payload.name,
+      email: payload.email,
+      password: payload.password,
+      phone: payload.phone,
+      dob: payload.dob,
+      gender: payload.gender,
+      language: payload.language,
+      healthHistory: payload.healthHistory,
+      specialization: payload.specialization,
+      licenseNumber: payload.licenseNumber,
+      certificateName: payload.certificateName,
+      certificateId: payload.certificateId,
+      certificateIssueDate: payload.certificateIssueDate,
+      yearsOfExperience: payload.yearsOfExperience,
+    };
+
+    HEALTH_PROFESSIONALS_DB.push(newHealthProfessional);
+
+    console.log('Health professional registration successful');
+
+    return {
+      success: true,
+      user: {
+        id: newHealthProfessional.id,
+        name: newHealthProfessional.name,
+        email: newHealthProfessional.email,
+        phone: newHealthProfessional.phone,
+        dob: newHealthProfessional.dob,
+        gender: newHealthProfessional.gender,
+        language: newHealthProfessional.language,
+        healthHistory: newHealthProfessional.healthHistory,
+        specialization: newHealthProfessional.specialization,
+        licenseNumber: newHealthProfessional.licenseNumber,
+        certificateName: newHealthProfessional.certificateName,
+        certificateId: newHealthProfessional.certificateId,
+        certificateIssueDate: newHealthProfessional.certificateIssueDate,
+        yearsOfExperience: newHealthProfessional.yearsOfExperience,
       },
     };
   },

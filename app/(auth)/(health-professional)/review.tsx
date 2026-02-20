@@ -5,15 +5,15 @@ import { useAuthStore } from "stores/auth-store";
 import { router } from "expo-router";
 
 export default function ReviewScreen() {
-  const { userDraft, register } = useAuthStore();
+  const { healthProfessionalDraft, HealthProfessionalRegister } = useAuthStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleFinalSubmit = async () => {
     setLoading(true);
     try {
-      console.log("Final submission data:", userDraft);
-      await register(); // call your store's register function
+      console.log("Final submission data:", healthProfessionalDraft);
+      await HealthProfessionalRegister(); // call your store's register function with healthProfessionalDraft
       setModalVisible(true); // show confirmation modal
     } catch (error) {
       console.error("Registration failed", error);
@@ -35,11 +35,11 @@ export default function ReviewScreen() {
 
       {/* Optional: summary of filled details */}
       <View className="mb-6 px-3 w-full bg-gray-100 rounded-lg">
-        <Text>Name: {userDraft.name}</Text>
-        <Text>Email: {userDraft.email}</Text>
-        <Text>Phone: {userDraft.phone}</Text>
-        <Text>Specialization: {userDraft.specialization}</Text>
-        <Text>Language: {userDraft.language}</Text>
+        <Text>Name: {healthProfessionalDraft.name}</Text>
+        <Text>Email: {healthProfessionalDraft.email}</Text>
+        <Text>Phone: {healthProfessionalDraft.phone}</Text>
+        <Text>Specialization: {healthProfessionalDraft.specialization}</Text>
+        <Text>Language: {healthProfessionalDraft.language}</Text>
       </View>
 
       <PrimaryButton
