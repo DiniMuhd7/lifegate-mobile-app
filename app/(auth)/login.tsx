@@ -15,7 +15,6 @@ export default function LoginScreen() {
   const { userDraft, setUserField, UserLogin } = useAuthStore();
 
   const onLogin = async () => {
-    console.log('Logging in with:', userDraft);
     await UserLogin(userDraft.email, userDraft.password);
   };
 

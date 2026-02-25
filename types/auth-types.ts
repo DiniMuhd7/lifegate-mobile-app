@@ -38,26 +38,27 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  dob: string;
-  gender: string;
-  language: string;
-  healthHistory: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  language?: string;
+  healthHistory?: string;
+  role?: string;
 };
 
 export type HealthProfessionalUser = {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  dob: string;
-  gender: string;
-  language: string;
-  healthHistory: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  language?: string;
+  healthHistory?: string;
   specialization?: string;
-  licenseNumber: string;
-  certificateName: string;
-  certificateId: string;
+  licenseNumber?: string;
+  certificateName?: string;
+  certificateId?: string;
   certificateIssueDate?: string;
   yearsOfExperience?: string;
   role?: string;
@@ -74,7 +75,16 @@ export type HealthProfessionalLoginPayload = {
   password: string;
 };
 
-// Standard API response
+// Standard API response - Backend format with token
+export type BackendLoginResponse = {
+  success: boolean;
+  message: string;
+  data?: {
+    token: string;
+    user: AuthUser | HealthProfessionalUser;
+  };
+};
+
 export type LoginResponse = {
   success: boolean;
   user?: AuthUser;

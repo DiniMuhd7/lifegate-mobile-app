@@ -1,302 +1,206 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LoginPayload, LoginResponse, HealthProfessionalLoginPayload, HealthProfessionalLoginResponse } from 'types/auth-types';
+import api from './api';
+import { saveToken, removeToken } from '../utils/tokenStorage';
+import { AuthUser, HealthProfessionalUser, BackendLoginResponse } from '../types/auth-types';
 
-// Storage keys
-const USER_STORAGE_KEY = '@lifegate_user';
-const USER_ROLE_STORAGE_KEY = '@lifegate_user_role';
-const HEALTH_PROFESSIONAL_STORAGE_KEY = '@lifegate_health_professional';
+/**
+ * Login request payload
+ */
+interface LoginPayload {
+  email: string;
+  password: string;
+}
 
-// pretend "database" for regular users
-const USERS_DB = [
-  {
-    id: '1',
-    name: 'Test User',
-    email: 'admin@lifegate.com',
-    password: '123456',
-    phone: '123-456-7890',
-    dob: '1990-01-01',
-    gender: 'Male',
-    language: 'English',
-    healthHistory: 'None',
-  },
-];
+/**
+ * Register request payload
+ */
+interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  dob: string;
+  gender: string;
+  language: string;
+  healthHistory: string;
+  role: 'user' | 'health_professional';
+  specialization?: string;
+  licenseNumber?: string;
+  certificateName?: string;
+  certificateId?: string;
+  certificateIssueDate?: string;
+  yearsOfExperience?: string;
+}
 
-
-
-// pretend "database" for health professionals
-const HEALTH_PROFESSIONALS_DB = [
-  {
-    id: 'hp-1',
-    name: 'Dr. John Smith',
-    email: 'doctor@lifegate.com',
-    password: '123456',
-    phone: '123-456-7891',
-    dob: '1985-05-15',
-    gender: 'Male',
-    language: 'English',
-    healthHistory: 'None',
-    specialization: 'Cardiology',
-    licenseNumber: 'LIC-12345',
-    certificateName: 'MD',
-    certificateId: 'CERT-12345',
-    certificateIssueDate: '2015-06-01',
-    yearsOfExperience: '10',
-  },
-];
+/**
+ * Response with user data (token already saved separately)
+ */
+interface AuthResponse {
+  success: boolean;
+  user?: AuthUser | HealthProfessionalUser;
+  message?: string;
+}
 
 export const AuthService = {
-  // Utility function to save user to async storage
-  async saveUserToStorage(user: any, userRole: 'user' | 'health_professional') {
-    try {
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-      await AsyncStorage.setItem(USER_ROLE_STORAGE_KEY, userRole);
-      console.log(`${userRole} saved to async storage`);
-    } catch (error) {
-      console.error('Failed to save user to async storage:', error);
-    }
-  },
 
-  // Utility function to clear user from async storage
-  async clearUserFromStorage() {
+  /**
+   * Login user with email and password
+   * Calls POST /auth/login
+   * Saves token to secure storage
+   * Returns user data
+   */
+  async login(payload: LoginPayload): Promise<AuthResponse> {
     try {
-      await AsyncStorage.removeItem(USER_STORAGE_KEY);
-      await AsyncStorage.removeItem(USER_ROLE_STORAGE_KEY);
-      await AsyncStorage.removeItem(HEALTH_PROFESSIONAL_STORAGE_KEY);
-      console.log('User cleared from async storage');
-    } catch (error) {
-      console.error('Failed to clear user from async storage:', error);
-    }
-  },
+      console.log('Sending login request to backend...');
 
-  // Utility function to get stored user
-  async getStoredUser() {
-    try {
-      const user = await AsyncStorage.getItem(USER_STORAGE_KEY);
-      const userRole = await AsyncStorage.getItem(USER_ROLE_STORAGE_KEY);
-      
-      if (user && userRole) {
+      const response = await api.post<BackendLoginResponse>('/auth/login', payload);
+
+      if (!response.data.success || !response.data.data) {
+        console.log('Login failed:', response.data.message);
         return {
-          user: JSON.parse(user),
-          userRole: userRole as 'user' | 'health_professional',
+          success: false,
+          message: response.data.message || 'Login failed',
         };
       }
-      return null;
-    } catch (error) {
-      console.error('Failed to get stored user:', error);
-      return null;
-    }
-  },
 
-  // ---------------- LOGIN ----------------
-  async login(payload: LoginPayload): Promise<LoginResponse> {
-    console.log('Sending login request to server...');
+      const { token, user } = response.data.data;
 
-    await new Promise((res) => setTimeout(res, 1200));
+      // Save token to secure storage
+      await saveToken(token);
 
-    const user = USERS_DB.find((u) => u.email === payload.email && u.password === payload.password);
-
-    if (user) {
-      console.log('Login successful (server validated credentials)');
-
-      const responseUser = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        dob: user.dob,
-        gender: user.gender,
-        language: user.language,
-        healthHistory: user.healthHistory,
-      };
-
-      // Save to async storage
-      await this.saveUserToStorage(responseUser, 'user');
+      console.log('Login successful - token saved');
 
       return {
         success: true,
-        user: responseUser,
+        user,
       };
-    } else {
-      console.log('Login failed: Invalid email or password');
-      return { success: false, message: 'Invalid email or password' };
+    } catch (error: any) {
+      console.error('Login error:', error.message);
+      const message = error.response?.data?.message || 'Network error. Please try again.';
+      return {
+        success: false,
+        message,
+      };
     }
   },
 
-  // ---------------- REGISTER ----------------
-  async register(payload: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
-    dob: string;
-    gender: string;
-    language: string;
-    healthHistory: string;
-  }): Promise<LoginResponse> {
-    console.log('Sending registration request to server...');
+  /**
+   * Register new user
+   * Calls POST /auth/register
+   * Saves token to secure storage
+   * Returns user data
+   */
+  async register(payload: RegisterPayload): Promise<AuthResponse> {
+    try {
+      console.log('Sending registration request to backend...');
 
-    await new Promise((res) => setTimeout(res, 1500));
+      const response = await api.post<BackendLoginResponse>('/auth/register', payload);
 
-    // check if email already exists
-    const existingUser = USERS_DB.find((u) => u.email === payload.email);
-    if (existingUser) {
-      return { success: false, message: 'Email already in use' };
-    }
+      if (!response.data.success || !response.data.data) {
+        console.log('Registration failed:', response.data.message);
+        return {
+          success: false,
+          message: response.data.message || 'Registration failed',
+        };
+      }
 
-    // create new user
-    const newUser = {
-      id: (USERS_DB.length + 1).toString(), // simple auto-increment id
-      name: payload.name,
-      email: payload.email,
-      password: payload.password,
-      phone: payload.phone,
-      dob: payload.dob,
-      gender: payload.gender,
-      language: payload.language,
-      healthHistory: payload.healthHistory,
-    };
+      const { token, user } = response.data.data;
 
-    USERS_DB.push(newUser);
+      // Save token to secure storage
+      await saveToken(token);
 
-    console.log('Registration successful');
-
-    const responseUser = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      phone: newUser.phone,
-      dob: newUser.dob,
-      gender: newUser.gender,
-      language: newUser.language,
-      healthHistory: newUser.healthHistory,
-    };
-
-    // Save to async storage
-    await this.saveUserToStorage(responseUser, 'user');
-
-    return {
-      success: true,
-      user: responseUser,
-    };
-  },
-
-  // ============ HEALTH PROFESSIONAL LOGIN ============
-  async healthProfessionalLogin(payload: HealthProfessionalLoginPayload): Promise<HealthProfessionalLoginResponse> {
-    console.log('Sending health professional login request to server...');
-
-    await new Promise((res) => setTimeout(res, 1200));
-
-    const healthProfessional = HEALTH_PROFESSIONALS_DB.find(
-      (hp) => hp.email === payload.email && hp.password === payload.password
-    );
-
-    if (healthProfessional) {
-      console.log('Health professional login successful (server validated credentials)');
-
-      const responseUser = {
-        id: healthProfessional.id,
-        name: healthProfessional.name,
-        email: healthProfessional.email,
-        phone: healthProfessional.phone,
-        dob: healthProfessional.dob,
-        gender: healthProfessional.gender,
-        language: healthProfessional.language,
-        healthHistory: healthProfessional.healthHistory,
-        specialization: healthProfessional.specialization,
-        licenseNumber: healthProfessional.licenseNumber,
-        certificateName: healthProfessional.certificateName,
-        certificateId: healthProfessional.certificateId,
-        certificateIssueDate: healthProfessional.certificateIssueDate,
-        yearsOfExperience: healthProfessional.yearsOfExperience,
-      };
-
-      // Save to async storage
-      await this.saveUserToStorage(responseUser, 'health_professional');
+      console.log('Registration successful - token saved');
 
       return {
         success: true,
-        user: responseUser,
+        user,
       };
-    } else {
-      console.log('Health professional login failed: Invalid email or password');
-      return { success: false, message: 'Invalid email or password' };
+    } catch (error: any) {
+      console.error('Registration error:', error.message);
+      const message = error.response?.data?.message || 'Network error. Please try again.';
+      return {
+        success: false,
+        message,
+      };
     }
   },
 
-  // ============ HEALTH PROFESSIONAL REGISTER ============
-  async healthProfessionalRegister(payload: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
-    dob: string;
-    gender: string;
-    language: string;
-    healthHistory: string;
-    specialization: string;
-    licenseNumber: string;
-    certificateName: string;
-    certificateId: string;
-    certificateIssueDate?: string;
-    yearsOfExperience?: string;
-  }): Promise<HealthProfessionalLoginResponse> {
-    console.log('Sending health professional registration request to server...');
+  /**
+   * Health professional login
+   * Uses same endpoint as regular login - backend differentiates by credentials/response role
+   */
+  async healthProfessionalLogin(payload: LoginPayload): Promise<AuthResponse> {
+    try {
+      console.log('Sending health professional login request to backend...');
 
-    await new Promise((res) => setTimeout(res, 1500));
+      const response = await api.post<BackendLoginResponse>('/auth/login', payload);
 
-    // check if email already exists
-    const existingHealthProfessional = HEALTH_PROFESSIONALS_DB.find((hp) => hp.email === payload.email);
-    if (existingHealthProfessional) {
-      console.log('Registration failed: Email already in use');
-      return { success: false, message: 'Email already in use' };
+      if (!response.data.success || !response.data.data) {
+        console.log('Health professional login failed:', response.data.message);
+        return {
+          success: false,
+          message: response.data.message || 'Login failed',
+        };
+      }
+
+      const { token, user } = response.data.data;
+
+      // Save token to secure storage
+      await saveToken(token);
+
+      console.log('Health professional login successful - token saved');
+
+      return {
+        success: true,
+        user,
+      };
+    } catch (error: any) {
+      console.error('Health professional login error:', error.message);
+      const message = error.response?.data?.message || 'Network error. Please try again.';
+      return {
+        success: false,
+        message,
+      };
     }
+  },
 
-    // create new health professional
-    const newHealthProfessional = {
-      id: `hp-${HEALTH_PROFESSIONALS_DB.length + 1}`,
-      name: payload.name,
-      email: payload.email,
-      password: payload.password,
-      phone: payload.phone,
-      dob: payload.dob,
-      gender: payload.gender,
-      language: payload.language,
-      healthHistory: payload.healthHistory,
-      specialization: payload.specialization,
-      licenseNumber: payload.licenseNumber,
-      certificateName: payload.certificateName,
-      certificateId: payload.certificateId,
-      certificateIssueDate: payload.certificateIssueDate,
-      yearsOfExperience: payload.yearsOfExperience,
-    };
+  /**
+   * Register health professional
+   * Uses same endpoint as regular registration - backend differentiates by role in request
+   * Saves token to secure storage
+   * Returns user data with professional details
+   */
+  async healthProfessionalRegister(payload: RegisterPayload): Promise<AuthResponse> {
+    try {
+      console.log('Sending health professional registration request to backend...');
 
-    HEALTH_PROFESSIONALS_DB.push(newHealthProfessional);
+      const response = await api.post<BackendLoginResponse>('/auth/register', payload);
 
-    console.log('Health professional registration successful');
+      if (!response.data.success || !response.data.data) {
+        console.log('Health professional registration failed:', response.data.message);
+        return {
+          success: false,
+          message: response.data.message || 'Registration failed',
+        };
+      }
 
-    const responseUser = {
-      id: newHealthProfessional.id,
-      name: newHealthProfessional.name,
-      email: newHealthProfessional.email,
-      phone: newHealthProfessional.phone,
-      dob: newHealthProfessional.dob,
-      gender: newHealthProfessional.gender,
-      language: newHealthProfessional.language,
-      healthHistory: newHealthProfessional.healthHistory,
-      specialization: newHealthProfessional.specialization,
-      licenseNumber: newHealthProfessional.licenseNumber,
-      certificateName: newHealthProfessional.certificateName,
-      certificateId: newHealthProfessional.certificateId,
-      certificateIssueDate: newHealthProfessional.certificateIssueDate,
-      yearsOfExperience: newHealthProfessional.yearsOfExperience,
-    };
+      const { token, user } = response.data.data;
 
-    // Save to async storage
-    await this.saveUserToStorage(responseUser, 'health_professional');
+      // Save token to secure storage
+      await saveToken(token);
 
-    return {
-      success: true,
-      user: responseUser,
-    };
+      console.log('Health professional registration successful - token saved');
+
+      return {
+        success: true,
+        user,
+      };
+    } catch (error: any) {
+      console.error('Health professional registration error:', error.message);
+      const message = error.response?.data?.message || 'Network error. Please try again.';
+      return {
+        success: false,
+        message,
+      };
+    }
   },
 };

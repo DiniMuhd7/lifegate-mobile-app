@@ -5,10 +5,10 @@
 // ============================================================
 
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from 'services/auth-service';
-import { AuthUser , UserDraft , HealthProfessionalDraft, HealthProfessionalUser, HealthProfessionalLoginResponse } from 'types/auth-types';
+import { AuthUser , UserDraft , HealthProfessionalDraft, HealthProfessionalUser } from 'types/auth-types';
 import { router } from 'expo-router';
+import { getToken, removeToken } from 'utils/tokenStorage';
 
 
 // ---------------------------
@@ -25,11 +25,9 @@ type AuthState = {
   userDraft: UserDraft;
   healthProfessionalDraft: HealthProfessionalDraft;
 
-  // authenticated user
-  user: AuthUser | null;
-  healthProfessionalUser: HealthProfessionalUser | null;
+  // authenticated user (single field - role is in user.role)
+  user: AuthUser | HealthProfessionalUser | null;
   isAuthenticated: boolean;
-  userRole: 'user' | 'health_professional' | null; // track current user type
 
   // UI state
   loading: boolean;
@@ -46,7 +44,7 @@ type AuthState = {
   HealthProfessionalLogin: (email: string, password: string) => Promise<boolean>;
   HealthProfessionalRegister: () => Promise<void>;
   HealthProfessionalLogout: () => Promise<void>;
-  restoreSession: () => Promise<void>; // Restore user session from async storage
+  restoreSession: () => Promise<void>;
 };
 
 // ---------------------------
@@ -90,9 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   userDraft: emptyDraft,
   healthProfessionalDraft: emptyHealthProfessionalDraft,
   user: null,
-  healthProfessionalUser: null,
   isAuthenticated: false,
-  userRole: null,
   loading: false,
   error: null,
 
@@ -116,29 +112,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // clear any error
   clearError: () => set({ error: null }),
 
-  // Restore session from async storage
+  // Restore session from secure storage and token
   restoreSession: async () => {
     try {
-      const storedSession = await AuthService.getStoredUser();
-      if (storedSession) {
-        const { user, userRole } = storedSession;
-        if (userRole === 'health_professional') {
-          set({
-            healthProfessionalUser: user,
-            isAuthenticated: true,
-            userRole,
-          });
-        } else {
-          set({
-            user,
-            isAuthenticated: true,
-            userRole,
-          });
-        }
-        console.log('Session restored from async storage');
+      const token = await getToken();
+      if (token) {
+        // Token exists - user is authenticated
+        // In a real app, you might call a /auth/me endpoint to get current user data
+        // For now, we trust the token and mark as authenticated
+        // The next protected API call will validate the token via 401 check
+        console.log('Token found - user session valid');
+        set({
+          isAuthenticated: true,
+          // User data could be fetched here from /auth/me endpoint if needed
+        });
+      } else {
+        // No token - user not authenticated
+        console.log('No token found - user needs to login');
+        set({
+          isAuthenticated: false,
+        });
       }
     } catch (error) {
       console.error('Failed to restore session:', error);
+      set({ isAuthenticated: false });
     }
   },
 
@@ -159,7 +156,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       router.push('/(tab)/homescreen');
       return true;
-    } catch (err) {
+    } catch {
       set({
         loading: false,
         error: 'Network error. Please try again.',
@@ -170,12 +167,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // ---------------- LOGOUT ----------------
   UserLogout: async () => {
-    await AuthService.clearUserFromStorage();
+    await removeToken();
     set({
       user: null,
-      healthProfessionalUser: null,
       isAuthenticated: false,
-      userRole: null,
       error: null,
       userDraft: emptyDraft,
       healthProfessionalDraft: emptyHealthProfessionalDraft,
@@ -216,10 +211,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         password,
         phone,
         dob,
+        role: 'user',
         gender,
         language,
         healthHistory,
       });
+      console.log('Registration response:', response);
 
       if (!response.success || !response.user) {
         set({ loading: false, error: response.message ?? 'Registration failed' });
@@ -233,7 +230,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       // Reset form after successful registration
       get().resetForm();
-    } catch (err) {
+    } catch {
       set({
         loading: false,
         error: 'Network error. Please try again.',
@@ -254,17 +251,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       set({
-        healthProfessionalUser: response.user,
+        user: response.user,
         isAuthenticated: true,
-        userRole: 'health_professional',
         loading: false,
       });
 
       console.log('Health Professional logged in successfully');
-      console.log('Health Professional logged in successfully: ', response.user);
       router.push('/(tab)/homescreen');
       return true;
-    } catch (err) {
+    } catch {
       set({
         loading: false,
         error: 'Network error. Please try again.',
@@ -325,6 +320,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         password,
         phone,
         dob,
+        role: 'health_professional',
         gender,
         language,
         healthHistory,
@@ -342,14 +338,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       // registration successful → set health professional session
       set({
-        healthProfessionalUser: response.user,
+        user: response.user,
         isAuthenticated: true,
-        userRole: 'health_professional',
         loading: false,
       });
       // Reset form after successful registration
       get().resetForm();
-    } catch (err) {
+    } catch {
       set({
         loading: false,
         error: 'Network error. Please try again.',
@@ -359,12 +354,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   // ============ HEALTH PROFESSIONAL LOGOUT ============
   HealthProfessionalLogout: async () => {
-    await AuthService.clearUserFromStorage();
+    await removeToken();
     set({
-      healthProfessionalUser: null,
       user: null,
       isAuthenticated: false,
-      userRole: null,
       error: null,
       userDraft: emptyDraft,
       healthProfessionalDraft: emptyHealthProfessionalDraft,

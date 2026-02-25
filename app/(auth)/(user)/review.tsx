@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useDeferredValue, useState } from "react";
 import { View, Text, Modal, Pressable } from "react-native";
 import { PrimaryButton } from "components/Button";
 import { useAuthStore } from "stores/auth-store";
@@ -9,16 +9,20 @@ export default function UserReviewStep() {
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleFinalSubmit = async () => {
-    setLoading(true);
-    try {
-      await UserRegister();
-      setModalVisible(true);
-    } catch (error) {
-      console.error("Registration failed", error);
-    } finally {
-      setLoading(false);
-    }
+  const handleFinalSubmit =  async () => {
+    // console.log(userDraft)
+    await UserRegister();
+    // setLoading(true);
+    // try {
+    //   await UserRegister();
+    //   console.log(userDraft)
+    //   setModalVisible(true);
+    // } catch (error) {
+    //   console.error("Registration failed", error);
+    // } finally {
+    //   setLoading(false);
+    //   handleModalConfirm()
+    // }
   };
 
   const handleModalConfirm = () => {
@@ -43,7 +47,6 @@ export default function UserReviewStep() {
       <PrimaryButton
         title={loading ? "Submitting..." : "Submit Application"}
         onPress={handleFinalSubmit}
-        disabled={loading}
       />
 
       <Modal visible={modalVisible} transparent animationType="fade">
@@ -56,7 +59,7 @@ export default function UserReviewStep() {
               We’ve received your application. We’ll get back to you soon!
             </Text>
             <Pressable
-              onPress={handleModalConfirm}
+              onPress={handleFinalSubmit}
               className="bg-[#0EA5A4] px-6 py-2 rounded"
             >
               <Text className="text-white font-semibold text-center">OK</Text>
