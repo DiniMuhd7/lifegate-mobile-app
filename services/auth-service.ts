@@ -1,4 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginPayload, LoginResponse, HealthProfessionalLoginPayload, HealthProfessionalLoginResponse } from 'types/auth-types';
+
+// Storage keys
+const USER_STORAGE_KEY = '@lifegate_user';
+const USER_ROLE_STORAGE_KEY = '@lifegate_user_role';
+const HEALTH_PROFESSIONAL_STORAGE_KEY = '@lifegate_health_professional';
 
 // pretend "database" for regular users
 const USERS_DB = [
@@ -39,6 +45,48 @@ const HEALTH_PROFESSIONALS_DB = [
 ];
 
 export const AuthService = {
+  // Utility function to save user to async storage
+  async saveUserToStorage(user: any, userRole: 'user' | 'health_professional') {
+    try {
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      await AsyncStorage.setItem(USER_ROLE_STORAGE_KEY, userRole);
+      console.log(`${userRole} saved to async storage`);
+    } catch (error) {
+      console.error('Failed to save user to async storage:', error);
+    }
+  },
+
+  // Utility function to clear user from async storage
+  async clearUserFromStorage() {
+    try {
+      await AsyncStorage.removeItem(USER_STORAGE_KEY);
+      await AsyncStorage.removeItem(USER_ROLE_STORAGE_KEY);
+      await AsyncStorage.removeItem(HEALTH_PROFESSIONAL_STORAGE_KEY);
+      console.log('User cleared from async storage');
+    } catch (error) {
+      console.error('Failed to clear user from async storage:', error);
+    }
+  },
+
+  // Utility function to get stored user
+  async getStoredUser() {
+    try {
+      const user = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      const userRole = await AsyncStorage.getItem(USER_ROLE_STORAGE_KEY);
+      
+      if (user && userRole) {
+        return {
+          user: JSON.parse(user),
+          userRole: userRole as 'user' | 'health_professional',
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get stored user:', error);
+      return null;
+    }
+  },
+
   // ---------------- LOGIN ----------------
   async login(payload: LoginPayload): Promise<LoginResponse> {
     console.log('Sending login request to server...');
@@ -50,18 +98,23 @@ export const AuthService = {
     if (user) {
       console.log('Login successful (server validated credentials)');
 
+      const responseUser = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        dob: user.dob,
+        gender: user.gender,
+        language: user.language,
+        healthHistory: user.healthHistory,
+      };
+
+      // Save to async storage
+      await this.saveUserToStorage(responseUser, 'user');
+
       return {
         success: true,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          dob: user.dob,
-          gender: user.gender,
-          language: user.language,
-          healthHistory: user.healthHistory,
-        },
+        user: responseUser,
       };
     } else {
       console.log('Login failed: Invalid email or password');
@@ -87,7 +140,6 @@ export const AuthService = {
     // check if email already exists
     const existingUser = USERS_DB.find((u) => u.email === payload.email);
     if (existingUser) {
-      console.log('Registration failed: Email already in use');
       return { success: false, message: 'Email already in use' };
     }
 
@@ -108,18 +160,23 @@ export const AuthService = {
 
     console.log('Registration successful');
 
+    const responseUser = {
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone,
+      dob: newUser.dob,
+      gender: newUser.gender,
+      language: newUser.language,
+      healthHistory: newUser.healthHistory,
+    };
+
+    // Save to async storage
+    await this.saveUserToStorage(responseUser, 'user');
+
     return {
       success: true,
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        phone: newUser.phone,
-        dob: newUser.dob,
-        gender: newUser.gender,
-        language: newUser.language,
-        healthHistory: newUser.healthHistory,
-      },
+      user: responseUser,
     };
   },
 
@@ -136,24 +193,29 @@ export const AuthService = {
     if (healthProfessional) {
       console.log('Health professional login successful (server validated credentials)');
 
+      const responseUser = {
+        id: healthProfessional.id,
+        name: healthProfessional.name,
+        email: healthProfessional.email,
+        phone: healthProfessional.phone,
+        dob: healthProfessional.dob,
+        gender: healthProfessional.gender,
+        language: healthProfessional.language,
+        healthHistory: healthProfessional.healthHistory,
+        specialization: healthProfessional.specialization,
+        licenseNumber: healthProfessional.licenseNumber,
+        certificateName: healthProfessional.certificateName,
+        certificateId: healthProfessional.certificateId,
+        certificateIssueDate: healthProfessional.certificateIssueDate,
+        yearsOfExperience: healthProfessional.yearsOfExperience,
+      };
+
+      // Save to async storage
+      await this.saveUserToStorage(responseUser, 'health_professional');
+
       return {
         success: true,
-        user: {
-          id: healthProfessional.id,
-          name: healthProfessional.name,
-          email: healthProfessional.email,
-          phone: healthProfessional.phone,
-          dob: healthProfessional.dob,
-          gender: healthProfessional.gender,
-          language: healthProfessional.language,
-          healthHistory: healthProfessional.healthHistory,
-          specialization: healthProfessional.specialization,
-          licenseNumber: healthProfessional.licenseNumber,
-          certificateName: healthProfessional.certificateName,
-          certificateId: healthProfessional.certificateId,
-          certificateIssueDate: healthProfessional.certificateIssueDate,
-          yearsOfExperience: healthProfessional.yearsOfExperience,
-        },
+        user: responseUser,
       };
     } else {
       console.log('Health professional login failed: Invalid email or password');
@@ -212,24 +274,29 @@ export const AuthService = {
 
     console.log('Health professional registration successful');
 
+    const responseUser = {
+      id: newHealthProfessional.id,
+      name: newHealthProfessional.name,
+      email: newHealthProfessional.email,
+      phone: newHealthProfessional.phone,
+      dob: newHealthProfessional.dob,
+      gender: newHealthProfessional.gender,
+      language: newHealthProfessional.language,
+      healthHistory: newHealthProfessional.healthHistory,
+      specialization: newHealthProfessional.specialization,
+      licenseNumber: newHealthProfessional.licenseNumber,
+      certificateName: newHealthProfessional.certificateName,
+      certificateId: newHealthProfessional.certificateId,
+      certificateIssueDate: newHealthProfessional.certificateIssueDate,
+      yearsOfExperience: newHealthProfessional.yearsOfExperience,
+    };
+
+    // Save to async storage
+    await this.saveUserToStorage(responseUser, 'health_professional');
+
     return {
       success: true,
-      user: {
-        id: newHealthProfessional.id,
-        name: newHealthProfessional.name,
-        email: newHealthProfessional.email,
-        phone: newHealthProfessional.phone,
-        dob: newHealthProfessional.dob,
-        gender: newHealthProfessional.gender,
-        language: newHealthProfessional.language,
-        healthHistory: newHealthProfessional.healthHistory,
-        specialization: newHealthProfessional.specialization,
-        licenseNumber: newHealthProfessional.licenseNumber,
-        certificateName: newHealthProfessional.certificateName,
-        certificateId: newHealthProfessional.certificateId,
-        certificateIssueDate: newHealthProfessional.certificateIssueDate,
-        yearsOfExperience: newHealthProfessional.yearsOfExperience,
-      },
+      user: responseUser,
     };
   },
 };

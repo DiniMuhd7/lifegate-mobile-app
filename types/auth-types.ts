@@ -34,10 +34,6 @@ export type HealthProfessionalDraft = {
 };
 
 
-
-
-
-
 export type AuthUser = {
   id: string;
   name: string;
@@ -64,6 +60,7 @@ export type HealthProfessionalUser = {
   certificateId: string;
   certificateIssueDate?: string;
   yearsOfExperience?: string;
+  role?: string;
 }
 
 // Data sent to backend

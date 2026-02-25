@@ -8,6 +8,7 @@ interface PrimaryButtonProps {
   onPress?: () => void;
   loading?: boolean;
   type?: ButtonType; // new prop
+  width?: number;
 }
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({

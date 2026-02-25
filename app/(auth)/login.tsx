@@ -6,11 +6,10 @@ import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth-store';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Dropdown } from 'components/DropDown';
-import { USER_TYPE_OPTIONS } from 'constants/constants';
+import Logo from 'assets/logo.svg';
 
 
-// ---------------- Login Screen ----------------
+
 export default function LoginScreen() {
   const [remember, setRemember] = useState(false);
   const { userDraft, setUserField, UserLogin } = useAuthStore();
@@ -25,20 +24,14 @@ export default function LoginScreen() {
       colors={['#0AADA2', '#043B3C']}
       className="flex-1"
       start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 0.4 }}
+      end={{ x: 0, y: 0.2 }}
       style={{ flex: 1 }}>
-      <View className="h-56" />
-
+      <View className="h-12" />
+        <View className="items-center mb-6">
+          <Logo width={72} height={72} />
+        </View>
       <View className="flex-1 rounded-t-[36px] bg-gray-100 px-6 pt-7">
         <Text className="mb-6 text-center text-2xl font-bold text-[#0EA5A4]">Welcome Back!</Text>
-
-        <Dropdown
-          label="User Type"
-          value={userDraft.role || ''}
-          onChange={(value: string) => setUserField('role', value)}
-          options={USER_TYPE_OPTIONS}
-          placeholder="Select user type"
-        />
         <LabeledInput
           label="Email Address"
           required
@@ -61,7 +54,7 @@ export default function LoginScreen() {
         <View className="mt-1 flex-row items-center justify-between">
           <Pressable className="flex-row items-center" onPress={() => setRemember((v) => !v)}>
             <View
-              className={`mr-2 h-4 w-4 rounded border border-[#0EA5A4] ${
+              className={`mr-2 h-6 w-6 rounded-full border border-[#0EA5A4] ${
                 remember ? 'bg-[#0EA5A4]' : 'bg-transparent'
               }`}
             />

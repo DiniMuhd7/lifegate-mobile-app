@@ -5,14 +5,14 @@ import { useAuthStore } from "stores/auth-store";
 import { router } from "expo-router";
 
 export default function UserReviewStep() {
-  const { userDraft, register } = useAuthStore();
+  const { userDraft, UserRegister } = useAuthStore();
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleFinalSubmit = async () => {
     setLoading(true);
     try {
-      await register();
+      await UserRegister();
       setModalVisible(true);
     } catch (error) {
       console.error("Registration failed", error);

@@ -5,6 +5,7 @@
 // ============================================================
 
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from 'services/auth-service';
 import { AuthUser , UserDraft , HealthProfessionalDraft, HealthProfessionalUser, HealthProfessionalLoginResponse } from 'types/auth-types';
 import { router } from 'expo-router';
@@ -39,12 +40,13 @@ type AuthState = {
   setHealthProfessionalField: (field: keyof HealthProfessionalDraft, value: string) => void;
   resetForm: () => void;
   UserLogin: (email: string, password: string) => Promise<boolean>;
-  UserLogout: () => void;
+  UserLogout: () => Promise<void>;
   clearError: () => void;
   UserRegister: () => Promise<void>;
   HealthProfessionalLogin: (email: string, password: string) => Promise<boolean>;
   HealthProfessionalRegister: () => Promise<void>;
-  HealthProfessionalLogout: () => void;
+  HealthProfessionalLogout: () => Promise<void>;
+  restoreSession: () => Promise<void>; // Restore user session from async storage
 };
 
 // ---------------------------
@@ -114,13 +116,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // clear any error
   clearError: () => set({ error: null }),
 
+  // Restore session from async storage
+  restoreSession: async () => {
+    try {
+      const storedSession = await AuthService.getStoredUser();
+      if (storedSession) {
+        const { user, userRole } = storedSession;
+        if (userRole === 'health_professional') {
+          set({
+            healthProfessionalUser: user,
+            isAuthenticated: true,
+            userRole,
+          });
+        } else {
+          set({
+            user,
+            isAuthenticated: true,
+            userRole,
+          });
+        }
+        console.log('Session restored from async storage');
+      }
+    } catch (error) {
+      console.error('Failed to restore session:', error);
+    }
+  },
+
   // ---------------- LOGIN ----------------
   UserLogin: async (email, password) => {
     set({ loading: true, error: null });
-
     try {
       const response = await AuthService.login({ email, password });
-
       if (!response.success || !response.user) {
         set({ loading: false, error: response.message ?? 'Login failed' });
         return false;
@@ -131,9 +157,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         loading: false,
       });
-
-      console.log('User logged in successfully');
-      console.log('User logged in successfully: ', response.user);
       router.push('/(tab)/homescreen');
       return true;
     } catch (err) {
@@ -146,7 +169,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   // ---------------- LOGOUT ----------------
-  UserLogout: () => {
+  UserLogout: async () => {
+    await AuthService.clearUserFromStorage();
     set({
       user: null,
       healthProfessionalUser: null,
@@ -334,7 +358,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   // ============ HEALTH PROFESSIONAL LOGOUT ============
-  HealthProfessionalLogout: () => {
+  HealthProfessionalLogout: async () => {
+    await AuthService.clearUserFromStorage();
     set({
       healthProfessionalUser: null,
       user: null,

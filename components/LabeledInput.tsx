@@ -6,6 +6,7 @@ type InputProps = React.ComponentProps<typeof TextInput> & {
   label: string;
   required?: boolean;
   secureToggle?: boolean;
+  
   type?: 'default' | 'email' | 'password';
 };
 

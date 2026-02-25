@@ -9,20 +9,20 @@ import { useAuthStore } from "stores/auth-store";
 import { router } from "expo-router";
 
 export default function UserProfileStep() {
-  const { userDraft, setField } = useAuthStore();
+  const { userDraft, setUserField } = useAuthStore();
 
   return (
     <View className="px-6">
       <PrimaryCalendar
         label="Date of Birth"
         value={userDraft.dob}
-        onChange={(value: string) => setField("dob", value)}
+        onChange={(value: string) => setUserField("dob", value)}
       />
 
       <Dropdown
         label="Gender"
         value={userDraft.gender || ""}
-        onChange={(value: string) => setField("gender", value)}
+        onChange={(value: string) => setUserField("gender", value)}
         options={GENDER_OPTIONS}
         placeholder="Select gender"
       />
@@ -33,8 +33,8 @@ export default function UserProfileStep() {
         placeholder="Enter phone number"
         keyboardType="phone-pad"
         value={userDraft.phone}
-        onChangeText={(v) => setField("phone", v)}
-      />
+        onChangeText={(v) => setUserField("phone", v)}
+      />  
 
       <View className="mt-8">
         <PrimaryButton

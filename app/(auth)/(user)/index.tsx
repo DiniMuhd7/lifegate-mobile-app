@@ -6,7 +6,7 @@ import { useAuthStore } from "stores/auth-store";
 import { router } from "expo-router";
 
 export default function UserAccountStep() {
-  const { userDraft, setField } = useAuthStore();
+  const { userDraft, setUserField } = useAuthStore();
 
   return (
     <View className="px-6">
@@ -15,14 +15,14 @@ export default function UserAccountStep() {
         required
         placeholder="Enter your full name"
         value={userDraft.name}
-        onChangeText={(v) => setField("name", v)}
+        onChangeText={(v) => setUserField("name", v)}
       />
       <LabeledInput
         label="Email"
         required
         placeholder="Enter your email"
         value={userDraft.email}
-        onChangeText={(v) => setField("email", v)}
+        onChangeText={(v) => setUserField("email", v)}
       />
       <LabeledInput
         label="Password"
@@ -30,7 +30,7 @@ export default function UserAccountStep() {
         placeholder="Password"
         secureToggle
         value={userDraft.password}
-        onChangeText={(v) => setField("password", v)}
+        onChangeText={(v) => setUserField("password", v)}
       />
       <LabeledInput
         label="Confirm Password"
@@ -38,7 +38,7 @@ export default function UserAccountStep() {
         placeholder="Confirm Password"
         secureToggle
         value={userDraft.confirm}
-        onChangeText={(v) => setField("confirm", v)}
+        onChangeText={(v) => setUserField("confirm", v)}
       />
 
       <View className="mt-8">
