@@ -1,7 +1,8 @@
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import { LabeledInput } from "components/LabeledInput";
 import { PrimaryButton } from "components/Button";
+import { ErrorMessage } from "components/ErrorMessage";
 import { useAuthStore } from "stores/auth-store";
 import { useState } from "react";
 import { validateSingleField } from "utils/validation";
@@ -38,12 +39,6 @@ export default function AccountScreen() {
     }));
   };
 
-  const renderErrorMessage = (fieldName: string) => {
-    return fieldErrors[fieldName] ? (
-      <Text className="text-red-500 text-xs mt-1">{fieldErrors[fieldName]}</Text>
-    ) : null;
-  };
-
   const canProceed = () => {
     return (
       userDraft.name &&
@@ -67,7 +62,7 @@ export default function AccountScreen() {
         value={userDraft.name}
         onChangeText={(v) => handleFieldChange("name", v)}
       />
-      {renderErrorMessage("name")}
+      <ErrorMessage fieldName="name" fieldErrors={fieldErrors} />
 
       <LabeledInput
         label="Email"
@@ -77,7 +72,7 @@ export default function AccountScreen() {
         value={userDraft.email}
         onChangeText={(v) => handleFieldChange("email", v)}
       />
-      {renderErrorMessage("email")}
+      <ErrorMessage fieldName="email" fieldErrors={fieldErrors} />
 
       <LabeledInput
         label="Password"
@@ -87,7 +82,7 @@ export default function AccountScreen() {
         value={userDraft.password}
         onChangeText={(v) => handleFieldChange("password", v)}
       />
-      {renderErrorMessage("password")}
+      <ErrorMessage fieldName="password" fieldErrors={fieldErrors} />
 
       <LabeledInput
         label="Confirm Password"
@@ -97,7 +92,7 @@ export default function AccountScreen() {
         value={userDraft.confirmPassword}
         onChangeText={(v) => handleFieldChange("confirmPassword", v)}
       />
-      {renderErrorMessage("confirmPassword") || renderErrorMessage("confirm")}
+      <ErrorMessage fieldName="confirmPassword" fieldErrors={fieldErrors} />
 
       <PrimaryButton 
         title="Next" 

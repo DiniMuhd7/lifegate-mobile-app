@@ -1,8 +1,9 @@
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
+import { ErrorMessage } from 'components/ErrorMessage';
 import { PrimaryButton } from 'components/Button';
 import { GENDER_OPTIONS, SPECIALTY_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
 import { DOBInput } from 'components/DobPicker';
@@ -50,12 +51,6 @@ export default function ProfessionalScreen() {
     console.log('New Date set:', new_date);
   };
 
-  const renderErrorMessage = (fieldName: string) => {
-    return fieldErrors[fieldName] ? (
-      <Text className="text-red-500 text-xs mt-1">{fieldErrors[fieldName]}</Text>
-    ) : null;
-  };
-
   const canProceed = () => {
     return (
       userDraft.phone &&
@@ -78,14 +73,14 @@ export default function ProfessionalScreen() {
         value={userDraft.phone}
         onChangeText={(v) => handleFieldChange('phone', v)}
       />
-      {renderErrorMessage('phone')}
+      <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
 
       <DOBInput
         label="Date of Birth"
         value={userDraft.dob ? new Date(userDraft.dob) : null}
         onChange={(date: Date) => handleDateChange('dob', date)}
       />
-      {renderErrorMessage('dob')}
+      <ErrorMessage fieldName="dob" fieldErrors={fieldErrors} />
 
       <Dropdown
         label="Gender"
@@ -94,7 +89,7 @@ export default function ProfessionalScreen() {
         placeholder="Select Gender"
         options={GENDER_OPTIONS}
       />
-      {renderErrorMessage('gender')}
+      <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
 
       <Dropdown
         label='Preferred Language'
@@ -103,7 +98,7 @@ export default function ProfessionalScreen() {
         placeholder="Select Preferred Language"
         options={LANGUAGE_OPTIONS}
       />
-      {renderErrorMessage('language')}
+      <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
 
       <LabeledInput
         label="Years of Practice"
@@ -113,7 +108,7 @@ export default function ProfessionalScreen() {
         keyboardType="numeric"
         onChangeText={(v) => handleFieldChange('yearsOfExperience', v)}
       />
-      {renderErrorMessage('yearsOfExperience')}
+      <ErrorMessage fieldName="yearsOfExperience" fieldErrors={fieldErrors} />
 
       <Dropdown
         label="Specialization"
@@ -123,7 +118,7 @@ export default function ProfessionalScreen() {
         placeholder="Select Specialization"
         options={SPECIALTY_OPTIONS}
       />
-      {renderErrorMessage('specialization')}
+      <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
 
       <PrimaryButton title="Next" onPress={() => router.push('/(auth)/(health-professional)/license')} type="secondary" disabled={!canProceed()} />
     </View>

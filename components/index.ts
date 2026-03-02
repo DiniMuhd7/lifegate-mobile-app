@@ -8,3 +8,4 @@ export { ChatInputBar } from './ChatInputBar';
 export { ConversationDrawer } from './ConversationDrawer';
 export { MessageList } from './MessageList';
 export { MessageBubble } from './MessageBubble';
+export { ErrorMessage } from './ErrorMessage';

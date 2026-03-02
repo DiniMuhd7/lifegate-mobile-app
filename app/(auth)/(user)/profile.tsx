@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
+import { ErrorMessage } from 'components/ErrorMessage';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
 import { useAuthStore } from 'stores/auth-store';
 import { router } from 'expo-router';
@@ -31,9 +32,9 @@ export default function UserProfileStep() {
     if (!isValidField(fieldName)) return;
     setUserField(fieldName, value);
     const error = validateSingleField(fieldName, value, false);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
-      [fieldName]: error || ''
+      [fieldName]: error || '',
     }));
   };
 
@@ -42,17 +43,11 @@ export default function UserProfileStep() {
     const new_date = date.toISOString().split('T')[0];
     setUserField(fieldName, new_date);
     const error = validateSingleField(fieldName, new_date, false);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
-      [fieldName]: error || ''
+      [fieldName]: error || '',
     }));
     console.log('New Date set:', new_date);
-  };
-
-  const renderErrorMessage = (fieldName: string) => {
-    return fieldErrors[fieldName] ? (
-      <Text className="text-red-500 text-xs mt-1">{fieldErrors[fieldName]}</Text>
-    ) : null;
   };
 
   return (
@@ -65,14 +60,14 @@ export default function UserProfileStep() {
         value={userDraft.phone}
         onChangeText={(v) => handleFieldChange('phone', v)}
       />
-      {renderErrorMessage('phone')}
+      <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
 
       <DOBInput
         label="Enter Date of Birth"
         value={userDraft.dob ? new Date(userDraft.dob) : null}
         onChange={(date: Date) => handleDateChange('dob', date)}
       />
-      {renderErrorMessage('dob')}
+      <ErrorMessage fieldName="dob" fieldErrors={fieldErrors} />
 
       <Dropdown
         label="Gender"
@@ -81,15 +76,25 @@ export default function UserProfileStep() {
         options={GENDER_OPTIONS}
         placeholder="Select gender"
       />
-      {renderErrorMessage('gender')}
+      <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
 
-      <LabeledInput
-        label="Health History"
-        required
-        placeholder="Tell a brief story about your health history"
-        onChangeText={(value: string) => handleFieldChange('healthHistory', value)}
-      />
-      {renderErrorMessage('healthHistory')}
+      <View className="mb-2 mt-2">
+        <Text className="mb-2 font-semibold text-gray-700">
+          Health History <Text className="text-red-500">*</Text>
+        </Text>
+        <TextInput
+          value={userDraft.healthHistory}
+          onChangeText={(value: string) => handleFieldChange('healthHistory', value)}
+          placeholder="Tell a brief story about your health history"
+          placeholderTextColor="#999"
+          multiline
+          numberOfLines={6}
+          textAlignVertical="top"
+          className="rounded-lg border border-gray-300 p-3 text-base text-gray-800"
+          style={{ minHeight:75, paddingVertical: 12 }}
+        />
+      </View>
+      <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
 
       <Dropdown
         label="Preferred Language"
@@ -98,7 +103,7 @@ export default function UserProfileStep() {
         options={LANGUAGE_OPTIONS}
         placeholder="Select preferred language"
       />
-      {renderErrorMessage('language')}
+      <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
 
       <View className="mt-8">
         <PrimaryButton

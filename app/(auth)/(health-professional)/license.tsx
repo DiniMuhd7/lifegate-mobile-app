@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
+import { ErrorMessage } from 'components/ErrorMessage';
 import { Ionicons } from '@expo/vector-icons';
 import { DOBInput } from 'components/DobPicker';
 import { validateSingleField } from 'utils/validation';
@@ -48,12 +49,6 @@ export default function LicenseScreen() {
     console.log('New Date set:', new_date);
   };
 
-  const renderErrorMessage = (fieldName: string) => {
-    return fieldErrors[fieldName] ? (
-      <Text className="text-red-500 text-xs mt-1">{fieldErrors[fieldName]}</Text>
-    ) : null;
-  };
-
   if (!isAdding) {
     // --- EMPTY STATE (Add Certification Screen) ---
     return (
@@ -86,7 +81,7 @@ export default function LicenseScreen() {
         value={userDraft.certificateName}
         onChangeText={(v) => handleFieldChange('certificateName', v)}
       />
-      {renderErrorMessage('certificateName')}
+      <ErrorMessage fieldName="certificateName" fieldErrors={fieldErrors} />
 
       <LabeledInput
         label="Certificate ID"
@@ -95,7 +90,7 @@ export default function LicenseScreen() {
         value={userDraft.certificateId}
         onChangeText={(v) => handleFieldChange('certificateId', v)}
       />
-      {renderErrorMessage('certificateId')}
+      <ErrorMessage fieldName="certificateId" fieldErrors={fieldErrors} />
 
       <LabeledInput
         label='License Id'
@@ -104,14 +99,14 @@ export default function LicenseScreen() {
         value={userDraft.licenseNumber}
         onChangeText={(v) => handleFieldChange('licenseNumber', v)}
       />
-      {renderErrorMessage('licenseNumber')}
+      <ErrorMessage fieldName="licenseNumber" fieldErrors={fieldErrors} />
 
       <DOBInput
         label="Issue Date"
         value={userDraft.certificateIssueDate ? new Date(userDraft.certificateIssueDate) : null}
         onChange={(date: Date) => handleDateChange('certificateIssueDate', date)}
       />
-      {renderErrorMessage('certificateIssueDate')}
+      <ErrorMessage fieldName="certificateIssueDate" fieldErrors={fieldErrors} />
 
       <View className="mb-6">
         <Text className="mb-2 font-medium text-[#475569]">
