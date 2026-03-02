@@ -18,7 +18,7 @@ type ChatState = {
   conversations: Conversation[];
   activeConversationId: string | null;
   isThinking: boolean; // AI is processing
-  error: string | null;
+  error: string | null; 
 
   // Derived
   activeConversation: Conversation | null;

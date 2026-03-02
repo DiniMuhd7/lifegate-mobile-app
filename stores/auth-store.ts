@@ -121,7 +121,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         loading: false,
       });
-      router.push('/(tab)/homescreen');
+      router.push('/(tab)/chatScreen');
       return true;
     } catch {
       set({

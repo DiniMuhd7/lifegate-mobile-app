@@ -6,11 +6,38 @@ import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { Ionicons } from '@expo/vector-icons';
 import { DOBInput } from 'components/DobPicker';
+import { validateSingleField } from 'utils/validation';
 
 export default function LicenseScreen() {
   const { userDraft, setUserField } = useAuthStore();
   const [isAdding, setIsAdding] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const handleFieldChange = (fieldName: string, value: string) => {
+    setUserField(fieldName, value);
+    const error = validateSingleField(fieldName, value, true);
+    setFieldErrors(prev => ({
+      ...prev,
+      [fieldName]: error || ''
+    }));
+  };
+
+  const handleDateChange = (fieldName: string, date: Date) => {
+    const new_date = date.toISOString().split('T')[0];
+    setUserField(fieldName, new_date);
+    const error = validateSingleField(fieldName, new_date, true);
+    setFieldErrors(prev => ({
+      ...prev,
+      [fieldName]: error || ''
+    }));
+    console.log('New Date set:', new_date);
+  };
+
+  const renderErrorMessage = (fieldName: string) => {
+    return fieldErrors[fieldName] ? (
+      <Text className="text-red-500 text-xs mt-1">{fieldErrors[fieldName]}</Text>
+    ) : null;
+  };
 
   if (!isAdding) {
     // --- EMPTY STATE (Add Certification Screen) ---
@@ -39,33 +66,37 @@ export default function LicenseScreen() {
     <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24 }}>
       <LabeledInput
         label="Certificate Name"
+        required
         placeholder="Type certificate name"
         value={userDraft.certificateName}
-        onChangeText={(v) => setUserField('certificateName', v)}
+        onChangeText={(v) => handleFieldChange('certificateName', v)}
       />
+      {renderErrorMessage('certificateName')}
 
       <LabeledInput
         label="Certificate ID"
+        required
         placeholder="Type certificate ID"
         value={userDraft.certificateId}
-        onChangeText={(v) => setUserField('certificateId', v)}
+        onChangeText={(v) => handleFieldChange('certificateId', v)}
       />
+      {renderErrorMessage('certificateId')}
 
       <LabeledInput
-      label='License Id'
+        label='License Id'
+        required
         placeholder="Type license ID"
         value={userDraft.licenseNumber}
-        onChangeText={(v) => setUserField('licenseNumber', v)}
+        onChangeText={(v) => handleFieldChange('licenseNumber', v)}
       />
+      {renderErrorMessage('licenseNumber')}
 
-        <DOBInput
+      <DOBInput
         label="Issue Date"
         value={userDraft.certificateIssueDate ? new Date(userDraft.certificateIssueDate) : null}
-        onChange={(date: Date) => {
-          const new_date = date.toISOString().split('T')[0];
-          setUserField('certificateIssueDate', new_date);
-          console.log('New Date set:', new_date);}}
+        onChange={(date: Date) => handleDateChange('certificateIssueDate', date)}
       />
+      {renderErrorMessage('certificateIssueDate')}
 
       <View className="mb-6">
         <Text className="mb-2 font-medium text-[#475569]">

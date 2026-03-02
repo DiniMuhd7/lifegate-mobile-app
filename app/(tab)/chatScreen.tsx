@@ -16,9 +16,8 @@ import type { Message as ChatMessage } from 'components/MessageList';
 import { ChatInputBar } from 'components/ChatInputBar';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth-store';
-
-const WELCOME_MESSAGE =
-  "Hi there! 👋 I'm LifeGate, your AI health assistant. Tell me how you're feeling today, and I'll help guide you through understanding your symptoms.";
+import { GreetingSection } from 'components';
+import { router } from 'expo-router';
 
 const ChatScreen: React.FC = () => {
   // ✅ Zustand selectors (optimized)
@@ -32,7 +31,7 @@ const ChatScreen: React.FC = () => {
   const clearError = useChatStore((state) => state.clearError);
   const initializeChat = useChatStore((state) => state.initializeChat);
 
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   const messages = activeConversation?.messages || [];
 
@@ -91,24 +90,27 @@ const ChatScreen: React.FC = () => {
 
   return (
     <>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="white" />
       <Background>
         <SafeAreaView className="flex-1">
           <KeyboardAvoidingView
             className="flex-1"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-          >
-            <Header
-              onProfilePress={() => console.log('Profile pressed')}
-              onMenuPress={() => console.log('Menu pressed')}
-            />
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+            <View className="pt-4">
+              <Header
+                onProfilePress={() => console.log('Profile pressed')}
+                onMenuPress={() => console.log('Menu pressed')}
+                onLogout={async () => {
+                  await logout();
+                  router.replace('/(auth)/login');
+                }}
+              />
+            </View>
 
             {showWelcome ? (
-              <View className="flex-1 justify-center items-center px-6">
-                <Text className="text-lg text-gray-700 text-center leading-7">
-                  {WELCOME_MESSAGE}
-                </Text>
+              <View className="flex-1 items-center justify-center px-6">
+                <GreetingSection userName={user?.name || 'there'} />
               </View>
             ) : (
               <MessageList messages={displayMessages} />
@@ -130,19 +132,15 @@ const ChatScreen: React.FC = () => {
 
 export default ChatScreen;
 
-/* ============================= */
-/* Typing Indicator Component    */
-/* ============================= */
-
-const TypingIndicator = () => {
+export const TypingIndicator = () => {
   return (
-    <View className="px-4 py-2 flex-row items-center gap-2">
-      <Text className="text-gray-500 text-sm">LifeGate is typing</Text>
+    <View className="flex-row items-center gap-2 px-4 py-2">
+      <Text className="text-sm text-gray-500">LifeGate is typing</Text>
       <View className="flex-row gap-1">
         {[0, 1, 2].map((i) => (
           <View
             key={i}
-            className="w-2 h-2 rounded-full bg-teal-500"
+            className="h-2 w-2 rounded-full bg-teal-500"
             style={{ opacity: 0.4 + i * 0.2 }}
           />
         ))}

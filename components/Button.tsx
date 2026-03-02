@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, Text } from "react-native";
 
 type ButtonType = "primary" | "secondary";
@@ -7,24 +7,48 @@ interface PrimaryButtonProps {
   title: string;
   onPress?: () => void;
   loading?: boolean;
-  type?: ButtonType; // new prop
+  type?: ButtonType;
   width?: number;
+  disabled?: boolean;
 }
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   title,
   onPress,
   loading,
-  type = "primary", // default to primary
+  type = "primary",
+  disabled,
 }) => {
-  // Styles based on button type
+  const [dots, setDots] = useState(".");
+
+  // Animate loading dots
+  useEffect(() => {
+    if (!loading) {
+      setDots(".");
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setDots((prev) => {
+        if (prev === ".") return "..";
+        if (prev === "..") return "...";
+        return ".";
+      });
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const isPrimary = type === "primary";
+  const isDisabled = disabled || loading;
 
   return (
     <Pressable
       onPress={onPress}
-      disabled={loading}
+      disabled={isDisabled}
       className={`p-6 rounded-2xl items-center justify-center active:opacity-80 ${
+        isDisabled ? "opacity-60" : ""
+      } ${
         isPrimary
           ? "bg-[#0EA5A4]"
           : "bg-transparent border border-[#0EA5A4]"
@@ -35,7 +59,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
           isPrimary ? "text-white" : "text-[#0EA5A4]"
         }`}
       >
-        {loading ? "Please wait…" : title}
+        {loading ? `Loading${dots}` : title}
       </Text>
     </Pressable>
   );

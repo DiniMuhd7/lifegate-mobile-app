@@ -1,26 +1,47 @@
-import React from "react";
-import { View, Alert } from "react-native";
+import React, { useState } from "react";
+import { View, Alert, Text } from "react-native";
 import { PrimaryButton } from "components/Button";
 import { LabeledInput } from "components/LabeledInput";
 import { useAuthStore } from "stores/auth-store";
 import { router } from "expo-router";
+import { validateSingleField } from "utils/validation";
 
 export default function UserAccountStep() {
   const { userDraft, setUserField } = useAuthStore();
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const handleNext = () => {
-    // Frontend password validation (only frontend check)
-    if (!userDraft.password || !userDraft.confirmPassword) {
-      Alert.alert("Validation Error", "Please enter and confirm your password");
-      return;
-    }
+  const handleFieldChange = (fieldName: string, value: string) => {
+    setUserField(fieldName, value);
+    
+    const additionalData = fieldName === 'confirm' || fieldName === 'confirmPassword' 
+      ? { password: userDraft.password }
+      : undefined;
+    
+    const error = validateSingleField(fieldName, value, false, additionalData);
+    setFieldErrors(prev => ({
+      ...prev,
+      [fieldName]: error || ''
+    }));
+  };
 
-    if (userDraft.password !== userDraft.confirmPassword) {
-      Alert.alert("Validation Error", "Passwords do not match");
-      return;
-    }
+  const renderErrorMessage = (fieldName: string) => {
+    return fieldErrors[fieldName] ? (
+      <Text className="text-red-500 text-xs mt-1">{fieldErrors[fieldName]}</Text>
+    ) : null;
+  };
 
-    router.push("/(auth)/(user)/profile");
+  const canProceed = () => {
+    return (
+      userDraft.name &&
+      userDraft.email &&
+      userDraft.password &&
+      userDraft.confirmPassword &&
+      !fieldErrors.name &&
+      !fieldErrors.email &&
+      !fieldErrors.password &&
+      !fieldErrors.confirmPassword &&
+      !fieldErrors.confirm
+    );
   };
 
   return (
@@ -30,37 +51,45 @@ export default function UserAccountStep() {
         required
         placeholder="Enter your full name"
         value={userDraft.name}
-        onChangeText={(v) => setUserField("name", v)}
+        onChangeText={(v) => handleFieldChange("name", v)}
       />
+      {renderErrorMessage("name")}
+
       <LabeledInput
         label="Email"
         required
         placeholder="Enter your email"
         value={userDraft.email}
-        onChangeText={(v) => setUserField("email", v)}
+        onChangeText={(v) => handleFieldChange("email", v)}
       />
+      {renderErrorMessage("email")}
+
       <LabeledInput
         label="Password"
         required
         placeholder="Password"
         secureToggle
         value={userDraft.password}
-        onChangeText={(v) => setUserField("password", v)}
+        onChangeText={(v) => handleFieldChange("password", v)}
       />
+      {renderErrorMessage("password")}
+
       <LabeledInput
         label="Confirm Password"
         required
         placeholder="Confirm Password"
         secureToggle
         value={userDraft.confirmPassword}
-        onChangeText={(v) => setUserField("confirmPassword", v)}
+        onChangeText={(v) => handleFieldChange("confirmPassword", v)}
       />
+      {renderErrorMessage("confirmPassword") || renderErrorMessage("confirm")}
 
       <View className="mt-8">
         <PrimaryButton
           title="Next"
-          onPress={handleNext}
+          onPress={() => router.push("/(auth)/(user)/profile")}
           type="secondary"
+          disabled={!canProceed()}
         />
       </View>
     </View>

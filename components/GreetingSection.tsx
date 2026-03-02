@@ -6,7 +6,7 @@ interface GreetingSectionProps {
   userName?: string;
 }
 
-export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName = 'Chioma' }) => {
+export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) => {
   const headingFade = useRef(new Animated.Value(0)).current;
   const headingSlide = useRef(new Animated.Value(30)).current;
   const subtitleFade = useRef(new Animated.Value(0)).current;

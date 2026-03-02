@@ -350,3 +350,69 @@ export const getFieldError = (errors: ValidationError[], field: string): string 
 export const hasErrors = (errors: ValidationError[]): boolean => {
   return errors.length > 0;
 };
+
+/**
+ * Validate a single field in real-time
+ * Returns error message or null if valid
+ */
+export const validateSingleField = (
+  fieldName: string,
+  value: string,
+  isHealthProfessional: boolean = false,
+  additionalData?: { password?: string }
+): string | null => {
+  let errors: ValidationError[] = [];
+
+  switch (fieldName) {
+    case 'name':
+      errors = validateName(value);
+      break;
+    case 'email':
+      errors = validateEmail(value);
+      break;
+    case 'password':
+      errors = validatePassword(value);
+      break;
+    case 'confirm':
+    case 'confirmPassword':
+      errors = validateConfirmPassword(value, additionalData?.password || '');
+      break;
+    case 'phone':
+      errors = validatePhone(value);
+      break;
+    case 'dob':
+      errors = validateDob(value);
+      break;
+    case 'gender':
+      errors = validateGender(value);
+      break;
+    case 'language':
+      errors = validateLanguage(value);
+      break;
+    case 'healthHistory':
+      errors = validateHealthHistory(value);
+      break;
+    case 'specialization':
+      errors = validateSpecialization(value, isHealthProfessional);
+      break;
+    case 'licenseNumber':
+      errors = validateLicenseNumber(value, isHealthProfessional);
+      break;
+    case 'certificateName':
+      errors = validateCertificateName(value, isHealthProfessional);
+      break;
+    case 'certificateId':
+      errors = validateCertificateId(value, isHealthProfessional);
+      break;
+    case 'certificateIssueDate':
+      errors = validateCertificateIssueDate(value, isHealthProfessional);
+      break;
+    case 'yearsOfExperience':
+      errors = validateYearsOfExperience(value, isHealthProfessional);
+      break;
+    default:
+      break;
+  }
+
+  return getFieldError(errors, fieldName);
+};

@@ -5,15 +5,17 @@ import { Header } from 'components/Header';
 import { GreetingSection } from 'components/GreetingSection';
 import { SymptomGrid } from 'components/SymptomGrid';
 import { ChatInputBar } from 'components/ChatInputBar';
-import {router} from 'expo-router';
+import { useAuthStore } from 'stores/auth-store';
+import { router } from 'expo-router';
 
 const HomeScreen: React.FC = () => {
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const { logout } = useAuthStore();
 
   const handleSend = (message: string) => {
     console.log('Message sent:', message);
     console.log('Selected symptoms:', selectedSymptoms);
-    
+
     // Navigate to chat screen with symptoms context
     // The drawer will handle smooth transition
     router.push('/(tab)/chatScreen');
@@ -21,19 +23,24 @@ const HomeScreen: React.FC = () => {
 
   return (
     <>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="red" />
       <Background>
         <SafeAreaView className="flex-1">
           <KeyboardAvoidingView
             className="flex-1"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-          >
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
             {/* Header */}
-            <Header
-              onProfilePress={() => console.log('Profile pressed')}
-              onMenuPress={() => console.log('Menu pressed')}
-            />
+            <View className="pt-4">
+              <Header
+                onProfilePress={() => console.log('Profile pressed')}
+                onMenuPress={() => console.log('Menu pressed')}
+                onLogout={async () => {
+                  await logout();
+                  router.replace('/(auth)/login');
+                }}
+              />
+            </View>
 
             {/* Main content — vertically centred */}
             <View className="flex-1 justify-center pb-5">

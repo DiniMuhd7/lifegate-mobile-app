@@ -34,7 +34,7 @@ export default function LoginScreen() {
         <LabeledInput
           label="Email Address"
           required
-          placeholder="xyz1@gmail.com"
+          placeholder="Enter your email address"
           autoCapitalize="none"
           keyboardType="email-address"
           value={userDraft.email}
