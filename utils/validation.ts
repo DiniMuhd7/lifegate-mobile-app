@@ -302,6 +302,79 @@ const validateYearsOfExperience = (yearsOfExperience: string, isHealthProfession
 };
 
 /**
+ * Validate OTP (5 digit code)
+ */
+export const validateOtp = (otp: string): string | null => {
+  if (!otp || otp.trim().length === 0) {
+    return 'OTP is required';
+  }
+
+  if (!/^\d{5}$/.test(otp)) {
+    return 'OTP must be exactly 5 digits';
+  }
+
+  return null;
+};
+
+/**
+ * Validate email for password recovery
+ */
+export const validateRecoveryEmail = (email: string): string | null => {
+  if (!email || email.trim().length === 0) {
+    return 'Email address is required';
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return 'Please enter a valid email address';
+  }
+
+  return null;
+};
+
+/**
+ * Validate new password for password reset
+ */
+export const validateNewPassword = (password: string): string | null => {
+  if (!password) {
+    return 'Password is required';
+  }
+
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters';
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must contain an uppercase letter';
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return 'Password must contain a lowercase letter';
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return 'Password must contain a number';
+  }
+
+  return null;
+};
+
+/**
+ * Validate password confirmation matches new password
+ */
+export const validateNewPasswordMatch = (confirmPassword: string, newPassword: string): string | null => {
+  if (!confirmPassword) {
+    return 'Please confirm your password';
+  }
+
+  if (confirmPassword !== newPassword) {
+    return 'Passwords do not match';
+  }
+
+  return null;
+};
+
+/**
  * Comprehensive validation for registration form
  * Returns array of validation errors, empty array if all valid
  */

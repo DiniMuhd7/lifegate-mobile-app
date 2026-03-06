@@ -23,7 +23,6 @@ export default function UserReviewStep() {
 
     setLoading(true);
     setValidationErrors([]);
-
     // Pre-validation before submission
     const errors = validateRegistration(userDraft, 'user');
     if (errors.length > 0) {

@@ -81,7 +81,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             onPress={handleSend}
             activeOpacity={0.85}
             disabled={disabled || !hasText}
-            className={`w-11 h-11 rounded-full justify-center items-center ${hasText && !disabled ? 'bg-teal-900' : 'bg-teal-600'}`}
+            className={`w-11 h-11 rounded-full justify-center items-center ${hasText && !disabled ? 'bg-[teal-900]' : 'bg-[#0C5352]'}`}
             style={{
               shadowColor: '#0d4a40',
               shadowOffset: { width: 0, height: 3 },

@@ -38,12 +38,12 @@ export default function LoginScreen() {
       <View className="flex-1 rounded rounded-t-[36px] bg-[#F7FEFD] px-10 pt-7">
         <Text className="mb-6 text-center text-2xl font-bold text-[#0EA5A4]">Welcome Back!</Text>
         
-        {/* Backend Error Message */}
+        {/* Backend Error Message
         {error && (
           <View className="bg-red-100 border border-red-400 rounded-lg p-3 mb-4">
             <Text className="text-red-700 text-sm">{error}</Text>
           </View>
-        )}
+        )} */}
 
         <LabeledInput
           label="Email Address"
@@ -73,7 +73,7 @@ export default function LoginScreen() {
             <Text className="text-xs text-gray-700">Remember me</Text>
           </Pressable>
 
-          <Pressable>
+          <Pressable onPress={() => router.push('/(auth)/forgot-password')}>
             <Text className="text-xs font-semibold text-[#0EA5A4]">Forgot Password?</Text>
           </Pressable>
         </View>

@@ -96,7 +96,10 @@ export default function AccountScreen() {
 
       <PrimaryButton 
         title="Next" 
-        onPress={() => router.push("/(auth)/(health-professional)/professional")} 
+        onPress={() => router.push({
+          pathname: '/(auth)/verify-signup-otp',
+          params: { email: userDraft.email, role: 'professional' }
+        })} 
         type="secondary"
         disabled={!canProceed()}
       />

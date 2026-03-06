@@ -28,6 +28,10 @@ type AuthState = {
   loading: boolean;
   error: string | null;
 
+  // Password Recovery state
+  passwordRecoveryEmail: string | null;
+  signupOtpEmail: string | null;
+
   // Actions
   setUserField: (field: keyof UserDraft, value: string) => void;
   resetForm: () => void;
@@ -36,6 +40,17 @@ type AuthState = {
   logout: () => Promise<void>;
   clearError: () => void;
   restoreSession: () => Promise<void>;
+  setPasswordRecoveryEmail: (email: string) => void;
+  clearPasswordRecoveryState: () => void;
+  setSignupOtpEmail: (email: string | null) => void;
+  // Password recovery actions
+  sendOtpForPasswordRecovery: (email: string) => Promise<boolean>;
+  verifyOtpForPasswordRecovery: (email: string, otp: string) => Promise<boolean>;
+  resetPassword: (email: string, newPassword: string, otp: string) => Promise<boolean>;
+  // Signup OTP actions
+  sendOtpForSignup: (email: string) => Promise<boolean>;
+  verifyOtpForSignup: (email: string, otp: string) => Promise<boolean>;
+  resendOtp: (email: string, type: 'password-reset' | 'signup') => Promise<boolean>;
 };
 
 // ---------------------------
@@ -70,6 +85,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   loading: false,
   error: null,
+  passwordRecoveryEmail: null,
+  signupOtpEmail: null,
 
   // -------- Actions --------
 
@@ -221,7 +238,146 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       error: null,
       userDraft: emptyDraft,
+      passwordRecoveryEmail: null,
+      signupOtpEmail: null,
     });
     console.log('User logged out');
+  },
+
+  // -------- PASSWORD RECOVERY --------
+  setPasswordRecoveryEmail: (email: string) =>
+    set({ passwordRecoveryEmail: email }),
+
+  clearPasswordRecoveryState: () =>
+    set({ passwordRecoveryEmail: null, error: null }),
+
+  // -------- SIGNUP OTP --------
+  setSignupOtpEmail: (email: string | null) =>
+    set({ signupOtpEmail: email }),
+
+  // -------- PASSWORD RECOVERY: SEND OTP --------
+  sendOtpForPasswordRecovery: async (email: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.sendOtpForPasswordRecovery(email);
+      if (!response.success) {
+        set({ loading: false, error: response.message });
+        return false;
+      }
+      set({ 
+        passwordRecoveryEmail: email, 
+        loading: false, 
+        error: null 
+      });
+      console.log('OTP sent for password recovery');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to send OTP';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- PASSWORD RECOVERY: VERIFY OTP --------
+  verifyOtpForPasswordRecovery: async (email: string, otp: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.verifyOtpForPasswordRecovery(email, otp);
+      if (!response.success) {
+        set({ loading: false, error: response.message });
+        return false;
+      }
+      set({ loading: false, error: null });
+      console.log('OTP verified for password recovery');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to verify OTP';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- PASSWORD RECOVERY: RESET PASSWORD --------
+  resetPassword: async (email: string, newPassword: string, otp: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.resetPassword(email, newPassword, otp);
+      if (!response.success) {
+        set({ loading: false, error: response.message });
+        return false;
+      }
+      set({ 
+        loading: false, 
+        error: null, 
+        passwordRecoveryEmail: null 
+      });
+      console.log('Password reset successfully');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to reset password';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- SIGNUP: SEND OTP --------
+  sendOtpForSignup: async (email: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.sendOtpForSignup(email);
+      if (!response.success) {
+        set({ loading: false, error: response.message });
+        return false;
+      }
+      set({ 
+        signupOtpEmail: email, 
+        loading: false, 
+        error: null 
+      });
+      console.log('OTP sent for signup');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to send verification code';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- SIGNUP: VERIFY OTP --------
+  verifyOtpForSignup: async (email: string, otp: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.verifyOtpForSignup(email, otp);
+      if (!response.success) {
+        set({ loading: false, error: response.message });
+        return false;
+      }
+      set({ loading: false, error: null });
+      console.log('OTP verified for signup');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to verify email';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- OTP: RESEND --------
+  resendOtp: async (email: string, type: 'password-reset' | 'signup') => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.resendOtp(email, type);
+      if (!response.success) {
+        set({ loading: false, error: response.message });
+        return false;
+      }
+      set({ loading: false, error: null });
+      console.log(`Code resent for ${type}`);
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to resend code';
+      set({ loading: false, error: message });
+      return false;
+    }
   },
 }));

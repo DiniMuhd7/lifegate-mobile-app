@@ -52,14 +52,14 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <Text className="ml-3 text-gray-700">Settings</Text>
             </TouchableOpacity>
 
-            {/* Help Option */}
+            {/* Help Option
             <TouchableOpacity
               onPress={() => handleMenuItemPress(onHelpPress)}
               className="px-4 py-3 flex-row items-center border-b border-gray-200"
             >
               <Ionicons name="help-circle-outline" size={18} color="#0AADA2" />
               <Text className="ml-3 text-gray-700">Help & Support</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             {/* Logout Option */}
             <TouchableOpacity

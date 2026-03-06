@@ -126,4 +126,160 @@ export const AuthService = {
       };
     }
   },
+
+  /**
+   * Send OTP for password recovery
+   * TODO: Call POST /auth/forgot-password/send-otp when backend is ready
+   */
+  async sendOtpForPasswordRecovery(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Sending OTP for password recovery to:', email);
+      
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/forgot-password/send-otp', { email });
+      // return { success: response.data.success, message: response.data.message };
+      
+      // Placeholder: Simulate success
+      return {
+        success: true,
+        message: 'OTP sent successfully',
+      };
+    } catch (error: any) {
+      console.error('Send OTP error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Verify OTP for password recovery
+   * TODO: Call POST /auth/forgot-password/verify-otp when backend is ready
+   */
+  async verifyOtpForPasswordRecovery(email: string, otp: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Verifying OTP for password recovery:', { email, otp });
+      
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/forgot-password/verify-otp', { email, otp });
+      // return { success: response.data.success, message: response.data.message };
+      
+      // Placeholder: Simulate success
+      return {
+        success: true,
+        message: 'OTP verified successfully',
+      };
+    } catch (error: any) {
+      console.error('Verify OTP error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Reset password with verified OTP
+   * TODO: Call POST /auth/forgot-password/reset when backend is ready
+   */
+  async resetPassword(email: string, newPassword: string, otp: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Resetting password for:', email);
+      
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/forgot-password/reset', { email, newPassword, otp });
+      // return { success: response.data.success, message: response.data.message };
+      
+      // Placeholder: Simulate success
+      return {
+        success: true,
+        message: 'Password reset successfully',
+      };
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Send OTP during signup for email verification
+   * TODO: Call POST /auth/signup/send-otp when backend is ready
+   */
+  async sendOtpForSignup(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Sending OTP for signup to:', email);
+      
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/signup/send-otp', { email });
+      // return { success: response.data.success, message: response.data.message };
+      
+      // Placeholder: Simulate success
+      return {
+        success: true,
+        message: 'Verification code sent',
+      };
+    } catch (error: any) {
+      console.error('Send signup OTP error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Verify OTP during signup
+   * TODO: Call POST /auth/signup/verify-otp when backend is ready
+   */
+  async verifyOtpForSignup(email: string, otp: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Verifying OTP for signup:', { email, otp });
+      
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/signup/verify-otp', { email, otp });
+      // return { success: response.data.success, message: response.data.message };
+      
+      // Placeholder: Simulate success
+      return {
+        success: true,
+        message: 'Email verified successfully',
+      };
+    } catch (error: any) {
+      console.error('Verify signup OTP error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Resend OTP (both password reset and signup)
+   * TODO: Call POST /auth/otp/resend when backend is ready
+   */
+  async resendOtp(email: string, type: 'password-reset' | 'signup'): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`Resending OTP for ${type} to:`, email);
+      
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/otp/resend', { email, type });
+      // return { success: response.data.success, message: response.data.message };
+      
+      // Placeholder: Simulate success
+      return {
+        success: true,
+        message: 'Code resent successfully',
+      };
+    } catch (error: any) {
+      console.error('Resend OTP error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
 };

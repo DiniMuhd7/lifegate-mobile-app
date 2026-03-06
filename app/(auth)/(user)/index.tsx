@@ -96,7 +96,10 @@ export default function UserAccountStep() {
       <View className="mt-8">
         <PrimaryButton
           title="Next"
-          onPress={() => router.push("/(auth)/(user)/profile")}
+          onPress={() => router.push({
+            pathname: '/(auth)/verify-signup-otp',
+            params: { email: userDraft.email, role: 'user' }
+          })}
           type="secondary"
           disabled={!canProceed()}
         />

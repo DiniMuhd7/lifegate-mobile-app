@@ -84,7 +84,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         {timestamp && (
           <Text
             className={`mt-1 ${
-              isSent ? 'text-teal-200 text-right' : 'text-black text-left'
+              isSent ? 'text-white text-right' : 'text-black text-left'
             }`}
             style={{ fontSize: UI_FONT_SIZES.MESSAGE_TIMESTAMP }}
           >
