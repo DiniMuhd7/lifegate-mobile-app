@@ -65,6 +65,7 @@ export default function UserProfileStep() {
       <PhoneNumberInput
         label="Phone Number"
         required
+        
         value={userDraft.phone}
         onChangePhoneNumber={(value) => handleFieldChange('phone', value)}
         error={fieldErrors.phone}
@@ -83,10 +84,17 @@ export default function UserProfileStep() {
         value={userDraft.gender || ''}
         onChange={(value: string) => handleFieldChange('gender', value)}
         options={GENDER_OPTIONS}
-        placeholder="Select gender"
+        placeholder="Select your gender"
       />
       <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
-
+      <Dropdown
+        label="Preferred Language"
+        value={userDraft.language || ''}
+        onChange={(value: string) => handleFieldChange('language', value)}
+        options={LANGUAGE_OPTIONS}
+        placeholder="Select preferred language"
+      />
+      <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
       <View className="mb-2 mt-2">
         <Text className="mb-2 font-semibold text-gray-700">
           Health History <Text className="text-red-500">*</Text>
@@ -99,21 +107,11 @@ export default function UserProfileStep() {
           multiline
           numberOfLines={6}
           textAlignVertical="top"
-          className="rounded-lg border border-gray-300 p-3 text-base text-gray-800"
+          className="rounded-lg bg-[#F2F4F7] p-3 text-base text-gray-800"
           style={{ minHeight: 75, paddingVertical: 12 }}
         />
       </View>
       <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
-
-      <Dropdown
-        label="Preferred Language"
-        value={userDraft.language || ''}
-        onChange={(value: string) => handleFieldChange('language', value)}
-        options={LANGUAGE_OPTIONS}
-        placeholder="Select preferred language"
-      />
-      <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
-
       <View className="mt-8">
         <PrimaryButton
           title="Next"

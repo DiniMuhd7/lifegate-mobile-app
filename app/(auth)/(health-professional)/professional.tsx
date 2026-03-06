@@ -9,7 +9,7 @@ import { GENDER_OPTIONS, SPECIALTY_OPTIONS, LANGUAGE_OPTIONS } from 'constants/c
 import { DOBInput } from 'components/DobPicker';
 import { useState } from 'react';
 import { validateSingleField } from 'utils/validation';
-
+import PhoneInput from 'react-native-international-phone-number';
 const VALID_FIELDS = {
   phone: true,
   dob: true,
@@ -33,9 +33,9 @@ export default function ProfessionalScreen() {
     if (!isValidField(fieldName)) return;
     setUserField(fieldName, value);
     const error = validateSingleField(fieldName, value, true);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
-      [fieldName]: error || ''
+      [fieldName]: error || '',
     }));
   };
 
@@ -44,9 +44,9 @@ export default function ProfessionalScreen() {
     const new_date = date.toISOString().split('T')[0];
     setUserField(fieldName, new_date);
     const error = validateSingleField(fieldName, new_date, true);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
-      [fieldName]: error || ''
+      [fieldName]: error || '',
     }));
     console.log('New Date set:', new_date);
   };
@@ -66,9 +66,10 @@ export default function ProfessionalScreen() {
   };
 
   return (
-    <View className="flex-1 justify-start bg-white p-3">
+    <View className="flex-1 justify-start bg-white p-6">
       <LabeledInput
-        label="Phone"
+        label="Phone Number"
+        placeholder="Enter your Phone Number"
         required
         value={userDraft.phone}
         onChangeText={(v) => handleFieldChange('phone', v)}
@@ -86,13 +87,13 @@ export default function ProfessionalScreen() {
         label="Gender"
         value={userDraft.gender}
         onChange={(v) => handleFieldChange('gender', v)}
-        placeholder="Select Gender"
+        placeholder="Select your gender"
         options={GENDER_OPTIONS}
       />
       <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
 
       <Dropdown
-        label='Preferred Language'
+        label="Preferred Language"
         value={userDraft.language || ''}
         onChange={(v) => handleFieldChange('language', v)}
         placeholder="Select Preferred Language"
@@ -104,13 +105,22 @@ export default function ProfessionalScreen() {
         label="Years of Practice"
         required
         value={userDraft.yearsOfExperience || ''}
-        placeholder="Years of Experience"
+        placeholder="Enter years of medical practice"
         keyboardType="numeric"
         onChangeText={(v) => handleFieldChange('yearsOfExperience', v)}
       />
       <ErrorMessage fieldName="yearsOfExperience" fieldErrors={fieldErrors} />
 
-      <Dropdown
+      <LabeledInput
+        label="Medical Specialty"
+        required
+        value={userDraft.specialization || ''}
+        placeholder="Type your medical specialty"
+        onChangeText={(v) => handleFieldChange('specialization', v)}
+      />
+      <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
+
+      {/* <Dropdown
         label="Specialization"
 
         value={userDraft.specialization || ''}
@@ -118,9 +128,14 @@ export default function ProfessionalScreen() {
         placeholder="Select Specialization"
         options={SPECIALTY_OPTIONS}
       />
-      <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
+      <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} /> */}
 
-      <PrimaryButton title="Next" onPress={() => router.push('/(auth)/(health-professional)/license')} type="secondary" disabled={!canProceed()} />
+      <PrimaryButton
+        title="Next"
+        onPress={() => router.push('/(auth)/(health-professional)/license')}
+        type="secondary"
+        disabled={!canProceed()}
+      />
     </View>
   );
 }

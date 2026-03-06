@@ -29,7 +29,7 @@ export default function RegisterChoiceScreen() {
       style={{ flex: 1 }}>
       <View className="h-56" />
 
-      <View className="flex-1 rounded-t-[36px] bg-gray-100 px-6 pt-7">
+      <View className="flex-1 rounded-t-[36px] bg-gray-100 px-12 pt-7">
         <Text className="mb-12 text-center text-2xl font-bold text-[#0EA5A4]">Create Your Account</Text>
 
         <Text className="mb-8 text-center text-gray-600">

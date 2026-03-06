@@ -37,7 +37,7 @@ export default function SplashScreen() {
     initializeApp();
   }, []);
 
-  return (
+  return ( 
     <LinearGradient
       colors={['#0AADA2', '#043B3C']}
       className="flex-1"

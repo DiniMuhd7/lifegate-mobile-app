@@ -1,54 +1,80 @@
-import { View } from 'react-native';
-import { useEffect } from 'react';
-import { useProfessionalStore } from '../../stores/professional-store';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { useReviewStore } from '../../stores/review-store';
 import {
-  PhysicianHeader,
+  ReviewHeader,
+  ConsultationSummary,
+  ActivityChart,
+  ActivityList,
   SearchBar,
-  ReportList,
 } from '../../components';
 
 export default function ReviewScreen() {
   const {
-    fetchReports,
-    searchReports,
-    clearSearch,
-    setFilter,
-    filteredReports,
-    selectedFilter,
-    searchQuery,
+    fetchReviewAnalysis,
+    date: storeDate,
+    totalReview,
+    pendingCases,
+    activeCases,
+    completedCases,
+    activities,
+    metrics,
     loading,
-  } = useProfessionalStore();
+  } = useReviewStore();
 
+  const selectedDateRef = useRef(new Date());
+
+  // Fetch data when component mounts
   useEffect(() => {
-    fetchReports();
-  }, [fetchReports]);
+    fetchReviewAnalysis(selectedDateRef.current);
+  }, []); // Empty dependency array - only run once on mount
 
-  const handleReportPress = (reportId: string) => {
-    // Navigate to report detail screen
-    console.log('Report pressed:', reportId);
+  const handleDateChange = (date: Date) => {
+    selectedDateRef.current = date;
+    // Always fetch new data when date changes
+    fetchReviewAnalysis(date);
+  };
+
+  const handleActivityPress = (activity: any) => {
+    console.log('Activity pressed:', activity);
+    // Navigate to activity details if needed
   };
 
   return (
     <View className="flex-1 bg-gray-50">
       {/* Header */}
-      <PhysicianHeader />
+      <ReviewHeader selectedDate={selectedDateRef.current} onDateChange={handleDateChange} />
 
       {/* Search Bar */}
       <SearchBar
-        placeholder="Search..."
-        value={searchQuery}
-        onChangeText={searchReports}
-        onClear={clearSearch}
+        placeholder="Search activities..."
+        value=""
+        onChangeText={() => {}}
+        onClear={() => {}}
       />
 
-      {/* Reports List with Filtering */}
-      <ReportList
-        reports={filteredReports}
-        selectedFilter={selectedFilter}
-        onFilterChange={setFilter}
-        onReportPress={handleReportPress}
-        loading={loading}
-      />
+      {/* Main Content */}
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#0AADA2" />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-gray-50">
+          {/* Consultation Summary */}
+          <ConsultationSummary
+            totalReview={totalReview}
+            pendingCases={pendingCases}
+            activeCases={activeCases}
+            completedCases={completedCases}
+          />
+
+          {/* Activity Chart */}
+          <ActivityChart metrics={metrics} total={totalReview} />
+
+          {/* Activity List */}
+          <ActivityList activities={activities} onActivityPress={handleActivityPress} />
+        </ScrollView>
+      )}
     </View>
   );
 }

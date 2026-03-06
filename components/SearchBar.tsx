@@ -15,17 +15,15 @@ export const SearchBar = ({
   onClear,
 }: SearchBarProps) => {
   return (
-    <View className="mx-6 my-4 flex-row items-center bg-gray-100 rounded-full px-4 py-3 border border-gray-200">
-      <Ionicons name="search" size={20} color="#98A2B3" />
-      
+    <View className="mx-6 my-4 flex-row items-center bg-gray-200 rounded-sm px-4 py-1 border border-gray-200">
+      <Ionicons name="search" size={30} color="#98A2B3" />
       <TextInput
         placeholder={placeholder}
         placeholderTextColor="#98A2B3"
         value={value}
         onChangeText={onChangeText}
-        className="flex-1 ml-3 text-gray-800 text-base"
+        className="flex-1 ml-2 text-gray-800 text-base"
       />
-      
       {value.length > 0 && (
         <Pressable onPress={onClear} className="p-1">
           <Ionicons name="close" size={20} color="#98A2B3" />

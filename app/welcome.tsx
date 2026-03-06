@@ -38,7 +38,7 @@ export default function WelcomeScreen() {
           <PrimaryButton
             title="For Physicians"
             type="secondary"
-            onPress={() => {}}
+            onPress={() => router.push('/(prof-tab)/review')}
           />
         </View>
 

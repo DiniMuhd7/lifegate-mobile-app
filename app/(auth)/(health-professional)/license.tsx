@@ -7,7 +7,9 @@ import { PrimaryButton } from 'components/Button';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { Ionicons } from '@expo/vector-icons';
 import { DOBInput } from 'components/DobPicker';
+import { Dropdown } from 'components/DropDown';
 import { validateSingleField } from 'utils/validation';
+import { CERTIFICATE_TYPE_OPTIONS } from 'constants/constants';
 
 const VALID_FIELDS = {
   certificateName: true,
@@ -31,9 +33,9 @@ export default function LicenseScreen() {
     if (!isValidField(fieldName)) return;
     setUserField(fieldName, value);
     const error = validateSingleField(fieldName, value, true);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
-      [fieldName]: error || ''
+      [fieldName]: error || '',
     }));
   };
 
@@ -42,9 +44,9 @@ export default function LicenseScreen() {
     const new_date = date.toISOString().split('T')[0];
     setUserField(fieldName, new_date);
     const error = validateSingleField(fieldName, new_date, true);
-    setFieldErrors(prev => ({
+    setFieldErrors((prev) => ({
       ...prev,
-      [fieldName]: error || ''
+      [fieldName]: error || '',
     }));
     console.log('New Date set:', new_date);
   };
@@ -91,31 +93,29 @@ export default function LicenseScreen() {
         onChangeText={(v) => handleFieldChange('certificateId', v)}
       />
       <ErrorMessage fieldName="certificateId" fieldErrors={fieldErrors} />
-
-      <LabeledInput
-        label='License Id'
-        required
-        placeholder="Type license ID"
-        value={userDraft.licenseNumber}
-        onChangeText={(v) => handleFieldChange('licenseNumber', v)}
-      />
-      <ErrorMessage fieldName="licenseNumber" fieldErrors={fieldErrors} />
-
       <DOBInput
         label="Issue Date"
         value={userDraft.certificateIssueDate ? new Date(userDraft.certificateIssueDate) : null}
         onChange={(date: Date) => handleDateChange('certificateIssueDate', date)}
       />
       <ErrorMessage fieldName="certificateIssueDate" fieldErrors={fieldErrors} />
+      {/* <LabeledInput
+        label="License ID"
+        required
+        placeholder="Type license ID"
+        value={userDraft.licenseNumber}
+        onChangeText={(v) => handleFieldChange('licenseNumber', v)}
+      />
+      <ErrorMessage fieldName="licenseNumber" fieldErrors={fieldErrors} /> */}
 
       <View className="mb-6">
-        <Text className="mb-2 font-medium text-[#475569]">
-          Select Certificate Type <Text className="text-red-500">*</Text>
-        </Text>
-        <TouchableOpacity className="flex-row items-center justify-between rounded-xl bg-[#F1F5F9] p-4">
-          <Text className="text-gray-400">Select Certificate Type</Text>
-          <Ionicons name="chevron-down" size={20} color="#475569" />
-        </TouchableOpacity>
+        <Dropdown
+          label="Certificate Type"
+          value={userDraft?.certificateName || ''}
+          onChange={(v) => handleFieldChange('certificateName', v)}
+          placeholder="Select certificate type"
+          options={CERTIFICATE_TYPE_OPTIONS}
+        />
       </View>
 
       <View className="mb-8">

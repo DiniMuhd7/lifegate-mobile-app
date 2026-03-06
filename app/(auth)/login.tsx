@@ -35,7 +35,7 @@ export default function LoginScreen() {
         <View className="items-center mb-6">
           <Logo width={72} height={72} />
         </View>
-      <View className="flex-1 rounded-t-[36px] bg-gray-100 px-6 pt-7">
+      <View className="flex-1 rounded rounded-t-[36px] bg-[#F7FEFD] px-10 pt-7">
         <Text className="mb-6 text-center text-2xl font-bold text-[#0EA5A4]">Welcome Back!</Text>
         
         {/* Backend Error Message */}

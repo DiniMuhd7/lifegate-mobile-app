@@ -1,14 +1,52 @@
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { useEffect } from 'react';
+import { useProfessionalStore } from '../../stores/professional-store';
+import {
+  PhysicianHeader,
+  SearchBar,
+  ReportList,
+} from '../../components';
 
 export default function ConsultationScreen() {
+  const {
+    fetchReports,
+    searchReports,
+    clearSearch,
+    setFilter,
+    filteredReports,
+    selectedFilter,
+    searchQuery,
+    loading,
+  } = useProfessionalStore();
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const handleReportPress = (reportId: string) => {
+    // Navigate to report detail screen
+    console.log('Report pressed:', reportId);
+  };
+
   return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <Text className="text-xl font-semibold text-gray-800 mb-2">
-        Consultation
-      </Text>
-      <Text className="text-gray-500 text-center px-6">
-        Coming soon...
-      </Text>
+    <View className="flex-1 bg-gray-50">
+      {/* Header */}
+      <PhysicianHeader />
+      {/* Search Bar */}
+      <SearchBar
+        placeholder="Search..."
+        value={searchQuery}
+        onChangeText={searchReports}
+        onClear={clearSearch}
+      />
+      {/* Reports List with Filtering */}
+      <ReportList
+        reports={filteredReports}
+        selectedFilter={selectedFilter}
+        onFilterChange={setFilter}
+        onReportPress={handleReportPress}
+        loading={loading}
+      />
     </View>
   );
 }

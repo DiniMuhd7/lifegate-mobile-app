@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, Alert, ScrollView } from 'react-native';
+import { View, Text, Pressable, Alert, ScrollView, Linking } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { SubmissionModal } from 'components/SubmissionModal';
 import { useAuthStore } from 'stores/auth-store';
@@ -91,19 +91,28 @@ export default function ReviewScreen() {
       <Text className="mb-6 text-center font-light">
         I have the information is accurate and I consent to the lifeGate Privacy and policy
       </Text>
-            <View className="mt-8 flex-row justify-center">
-              <Pressable onPress={() => setAgreed(!agreed)} className="mb-8 flex-row items-center">
-                <View
-                  className={`mr-3 h-5 w-5 rounded border ${
-                    agreed ? 'border-teal-600 bg-teal-600' : 'border-gray-400'
-                  }`}
-                />
-                <Text className="font-bold text-gray-700">
-                  I have read the <Text className="font-semibold text-teal-600">Privacy Policy</Text> and
-                  I agree.
-                </Text>
-              </Pressable>
-            </View>
+      <View className="mt-15 flex-row justify-center">
+        <Pressable onPress={() => setAgreed(!agreed)} className="mb-8 flex-row items-center">
+          {/* Outer Circle */}
+          <View
+            className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${
+              agreed ? 'border-teal-600' : 'border-gray-400'
+            }`}>
+            {/* Inner Circle (only when active) */}
+            {agreed && <View className="h-2.5 w-2.5 rounded-full bg-teal-600" />}
+          </View>
+
+          <Text className="font-bold text-gray-700">
+            I have read the{' '}
+            <Text
+              className="font-semibold text-teal-600"
+              onPress={() => Linking.openURL('https://www.lifegate.com/privacy-policy')}>
+              Privacy Policy
+            </Text>{' '}
+            and I agree.
+          </Text>
+        </Pressable>
+      </View>
       <PrimaryButton
         title={loading ? 'Submitting...' : 'Submit Application'}
         onPress={handleFinalSubmit}
@@ -114,7 +123,11 @@ export default function ReviewScreen() {
           visible={modalVisible}
           isSuccess={submissionSuccess}
           title={submissionSuccess ? 'Application Submitted' : 'Submission Failed'}
-          message={submissionSuccess ? "We've received your application. We'll get back to you soon!" : (backendError || 'An error occurred. Please try again.')}
+          message={
+            submissionSuccess
+              ? "We've received your application. We'll get back to you soon!"
+              : backendError || 'An error occurred. Please try again.'
+          }
           onConfirm={handleModalConfirm}
           confirmButtonText={submissionSuccess ? 'Go to Login' : 'Try Again'}
         />

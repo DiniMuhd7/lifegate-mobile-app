@@ -22,11 +22,13 @@ export const Dropdown = ({ label, value, onChange, options, placeholder = 'Selec
 
   return (
     <View className="mb-5">
-      <Text className="text-gray-600 mb-1 font-medium">{label}</Text>
-
+      <View className='flex-row max-w-50 justify-between'>
+      <Text className="text-gray-600 mb-1 font-bold">{label} </Text>
+      <Text className="text-red-500">*</Text>
+        </View>  
       <Pressable
         onPress={() => setOpen(true)}
-        className="border border-gray-300 rounded-xl px-3 py-3 bg-white">
+        className=" rounded-xl px-3 py-3 bg-[#F2F4F7]">
         <Text className={`${value ? 'text-black' : 'text-gray-400'}`}>{selectedLabel}</Text>
         <Ionicons name="chevron-down" size={16} color="#0EA5A4" className="absolute right-3 top-3" />
       </Pressable>

@@ -10,14 +10,14 @@ interface PatientReportCardProps {
 export const PatientReportCard = ({ report, onPress }: PatientReportCardProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Pending':
-        return '#FF9800';
-      case 'Active':
-        return '#0AADA2';
-      case 'Completed':
-        return '#4CAF50';
+      // case 'Pending':
+      //   return '#FF9800';
+      // case 'Active':
+      //   return '#0AADA2';
+      // case 'Completed':
+      //   return '#4CAF50';
       default:
-        return '#9E9E9E';
+        return "#0d9488";
     }
   };
 

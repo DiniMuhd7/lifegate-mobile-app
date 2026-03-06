@@ -31,7 +31,7 @@ export const PhoneNumberInput: React.FC<PhoneInputProps> = ({
   }
 
   return (
-    <View className="w-full mb-4">
+    <View className="w-full mb-4 bg-[#F2F4F7]">
       <Text className="text-gray-700 font-semibold mb-2">
         {label} {required && <Text className="text-red-500">*</Text>}
       </Text>
@@ -42,6 +42,7 @@ export const PhoneNumberInput: React.FC<PhoneInputProps> = ({
           selectedCountry={selectedCountry}
           onChangeSelectedCountry={handleSelectedCountry}
           defaultValue=""
+          className='bg-[#F2F4F7] border-none'
         />
       </View>
       {error && <Text className="text-red-500 text-xs mt-1">{error}</Text>}

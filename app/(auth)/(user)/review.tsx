@@ -83,14 +83,19 @@ export default function UserReviewStep() {
         </View>
       )}
 
-      <View className="mb-16 rounded-lg bg-gray-200 p-4">
+      <View className="mb-16 rounded-lg bg-[#F2F4F7] p-4">
         <InfoRow label="Full Name" value={userDraft.name} />
         <InfoRow label="Email" value={userDraft.email} />
         <InfoRow label="Phone Number" value={userDraft.phone} />
+        <InfoRow label="Date of Birth" value={userDraft.dob} />
         <InfoRow label="Gender" value={userDraft.gender} />
         <InfoRow label="Language" value={userDraft.language} />
-        <InfoRow label="Health History" value={userDraft.healthHistory} />
-        <InfoRow label="Date of Birth" value={userDraft.dob} />
+        <View className="mb-3 flex-col justify-between px-3">
+          <Text className="max-w-[55%] text-left font-medium text-gray-800">History:</Text>
+          <Text lineBreakMode="head" className="max-w-[100%] flex-1 text-left text-gray-800">
+            {userDraft.healthHistory}
+          </Text>
+        </View>
       </View>
       <Text className="mb-6 text-center font-light">
         I have the information is accurate and I consent to the lifeGate Privacy and policy
@@ -98,18 +103,27 @@ export default function UserReviewStep() {
 
       <View className="mt-15 flex-row justify-center">
         <Pressable onPress={() => setAgreed(!agreed)} className="mb-8 flex-row items-center">
+          {/* Outer Circle */}
           <View
-            className={`mr-3 h-5 w-5 rounded border ${
-              agreed ? 'border-teal-600 bg-teal-600' : 'border-gray-400'
-            }`}
-          />
+            className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${
+              agreed ? 'border-teal-600' : 'border-gray-400'
+            }`}>
+            {/* Inner Circle (only when active) */}
+            {agreed && <View className="h-2.5 w-2.5 rounded-full bg-teal-600" />}
+          </View>
+
           <Text className="font-bold text-gray-700">
-            I have read the <Text className="font-semibold text-teal-600" onPress={() => Linking.openURL('https://www.lifegate.com/privacy-policy')}>Privacy Policy</Text> and
-            I agree.
+            I have read the{' '}
+            <Text
+              className="font-semibold text-teal-600"
+              onPress={() => Linking.openURL('https://www.lifegate.com/privacy-policy')}>
+              Privacy Policy
+            </Text>{' '}
+            and I agree.
           </Text>
         </Pressable>
       </View>
-      
+
       <PrimaryButton
         title={loading ? 'Submitting...' : 'Submit Application'}
         onPress={handleFinalSubmit}
@@ -121,7 +135,11 @@ export default function UserReviewStep() {
           visible={modalVisible}
           isSuccess={submissionSuccess}
           title={submissionSuccess ? 'Application Submitted' : 'Submission Failed'}
-          message={submissionSuccess ? "We've received your application. We'll get back to you soon!" : (backendError || 'An error occurred. Please try again.')}
+          message={
+            submissionSuccess
+              ? "We've received your application. We'll get back to you soon!"
+              : backendError || 'An error occurred. Please try again.'
+          }
           onConfirm={handleModalConfirm}
           confirmButtonText={submissionSuccess ? 'Go to Login' : 'Try Again'}
         />

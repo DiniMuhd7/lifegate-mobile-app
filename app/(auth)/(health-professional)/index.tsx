@@ -54,7 +54,7 @@ export default function AccountScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white p-6 justify-start">
+    <View className="flex-1  p-6 justify-start">
       <LabeledInput
         label="Full Name"
         required

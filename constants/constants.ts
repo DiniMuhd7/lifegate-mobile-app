@@ -15,11 +15,10 @@ export const LANGUAGE_OPTIONS = [
   { label: 'Igbo', value: 'Igbo' },
 ];
 
-export const SPECIALTY_OPTIONS = [
-  { label: 'General Practitioner', value: 'General' },
-  { label: 'Cardiologist', value: 'Cardiology' },
-  { label: 'Dermatologist', value: 'Dermatology' },
-  { label: 'Pediatrician', value: 'Pediatrics' },
+export const CERTIFICATE_TYPE_OPTIONS = [
+  { label: 'General', value: 'General' },
+  { label: 'Specialist', value: 'Specialist' }
+
 ];
 
 export const STEP_TITLES: Record<number, string> = {
@@ -28,6 +27,8 @@ export const STEP_TITLES: Record<number, string> = {
   3: 'Add Certification',
   4: 'Review & Submit',
 };
+
+
 
 /**
  * UI Font Sizes - Modifiable for consistent sizing across chat screen

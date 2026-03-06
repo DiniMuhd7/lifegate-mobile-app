@@ -65,7 +65,7 @@ export default function UserAccountStep() {
       <ErrorMessage fieldName="name" fieldErrors={fieldErrors} />
 
       <LabeledInput
-        label="Email"
+        label="Email Address"
         required
         placeholder="Enter your email"
         value={userDraft.email}

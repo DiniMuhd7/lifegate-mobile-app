@@ -15,3 +15,7 @@ export { SearchBar } from './SearchBar';
 export { PatientReportCard } from './PatientReportCard';
 export { ReportList } from './ReportList';
 export { BottomTabBar } from './BottomTabBar';
+export { ReviewHeader } from './ReviewHeader';
+export { ConsultationSummary } from './ConsultationSummary';
+export { ActivityChart } from './ActivityChart';
+export { ActivityList } from './ActivityList';

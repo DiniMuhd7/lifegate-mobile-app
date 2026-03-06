@@ -21,11 +21,17 @@ export const DOBInput = ({ label, value, onChange }: Props) => {
     }
   };
 
-  // Converts date into readable format
+  // Converts date into readable format (Day Month Year)
   const formatDate = (date: Date | null) => {
     if (!date) return 'Select your date of birth';
 
-    return date.toDateString();
+    const options: Intl.DateTimeFormatOptions = {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    };
+    
+    return date.toLocaleDateString('en-US', options);
   };
 
   return (
@@ -36,7 +42,7 @@ export const DOBInput = ({ label, value, onChange }: Props) => {
       </Text>
       <Pressable
         onPress={() => setShow(true)}
-        className="rounded-xl border border-gray-300 bg-white px-4 py-4">
+        className="rounded-xl  bg-[#F2F4F7] px-4 py-4">
         <Text className="text-gray-800">{formatDate(value)}</Text>
       </Pressable>
       {/* Date Picker Modal */}

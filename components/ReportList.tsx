@@ -21,27 +21,27 @@ export const ReportList = ({
 }: ReportListProps) => {
 
   return (
-    <View className="flex-1">
+    <View> 
       {/* Filter tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         className="px-6 py-4"
-        contentContainerStyle={{ gap: 16 }}
+        contentContainerStyle={{ gap: 2 }}
       >
         {FILTERS.map(filter => (
           <Pressable
             key={filter}
             onPress={() => onFilterChange(filter)}
-            className={`px-4 py-2 rounded-full border ${
-              selectedFilter === filter
-                ? 'bg-teal-600 border-teal-600'
-                : 'bg-white border-gray-200'
+            className={`px-4 py-2 border-b-2 ${
+              selectedFilter === filter ? 'border-teal-600' : 'border-transparent'
             }`}
           >
             <Text
-              className={`text-sm font-medium ${
-                selectedFilter === filter ? 'text-white' : 'text-gray-700'
+              className={`text-sm ${
+                selectedFilter === filter
+                  ? 'text-teal-600 font-bold'
+                  : 'text-gray-700 font-medium'
               }`}
             >
               {filter}
@@ -52,9 +52,7 @@ export const ReportList = ({
 
       {/* Reports list */}
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#0AADA2" />
-        </View>
+        <ActivityIndicator size="large" color="#0AADA2" className="py-10" /> 
       ) : reports.length > 0 ? (
         <FlatList
           data={reports}
@@ -66,13 +64,12 @@ export const ReportList = ({
             />
           )}
           contentContainerStyle={{ paddingBottom: 20 }}
-          scrollEnabled={true}
+          scrollEnabled={false}
+          nestedScrollEnabled={false}
         />
       ) : (
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-gray-500 text-base text-center">
-            No reports found
-          </Text>
+        <View className="items-center px-6 pt-6">
+          <Text className="text-gray-500 text-base text-center">No reports found</Text>
         </View>
       )}
     </View>

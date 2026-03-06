@@ -39,7 +39,7 @@ export default function RegisterLayout() {
       style={{ flex: 1 }}
     >
       {/* HEADER */}
-      <View className="h-56 px-6 pt-12">
+      <View className="h-56 px-6 pt-12 ">
         <Pressable onPress={goBack}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </Pressable>
@@ -52,7 +52,7 @@ export default function RegisterLayout() {
       </View>
 
       {/* STACK RENDERING */}
-      <View className="flex-1 rounded-t-[40px] bg-gray-50 pt-12">
+      <View className="flex-1 rounded-t-[40px] bg-gray-50 pt-12 px-6">
         <Stack
           screenOptions={{
             headerShown: false,
