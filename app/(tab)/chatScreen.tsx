@@ -46,12 +46,12 @@ const ChatScreen: React.FC = () => {
     }
   }, [user?.id, initializeChat]);
 
-  // ✅ Welcome toggle
+
   useEffect(() => {
     setShowWelcome(messages.length === 0);
   }, [messages.length]);
 
-  // ✅ FIX 2: Memoized message transformation
+
   const displayMessages: ChatMessage[] = useMemo(() => {
     return messages.map((msg) => ({
       id: msg.id,
@@ -95,7 +95,7 @@ const ChatScreen: React.FC = () => {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
             <View className="pt-4">
               <Header
-                onProfilePress={() => console.log('Profile pressed')}
+                onProfilePress={() => router.replace('/(tab)/profile')}
                 onMenuPress={() => console.log('Menu pressed')}
                 onLogout={async () => {
                   await logout();

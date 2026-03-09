@@ -58,6 +58,18 @@ export default function TabLayout() {
             ),
           }}
         />
+
+        {/* Patient Profile Screen */}
+        <Drawer.Screen
+          name="profile"
+          options={{
+            title: 'Patient Profile',
+            drawerLabel: 'Profile',
+            drawerIcon: ({ color, size }) => (
+              <Ionicons name="person-circle" size={size} color={color} />
+            ),
+          }}
+        />
       </Drawer>
     </GestureHandlerRootView>
   );

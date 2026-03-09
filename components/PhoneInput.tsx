@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import PhoneInput, {
   ICountry,
-  isValidPhoneNumber,
 } from 'react-native-international-phone-number';
 
 interface PhoneInputProps {
@@ -48,4 +47,4 @@ export const PhoneNumberInput: React.FC<PhoneInputProps> = ({
       {error && <Text className="text-red-500 text-xs mt-1">{error}</Text>}
     </View>
   );
-} 
+}

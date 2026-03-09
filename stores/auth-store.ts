@@ -7,7 +7,6 @@
 import { create } from 'zustand';
 import { AuthService } from 'services/auth-service';
 import { User, UserDraft } from 'types/auth-types';
-import { router } from 'expo-router';
 import { getToken, removeToken } from 'utils/tokenStorage';
 import { validateRegistration, hasErrors } from 'utils/validation';
 import { Alert } from 'react-native';
@@ -51,6 +50,9 @@ type AuthState = {
   sendOtpForSignup: (email: string) => Promise<boolean>;
   verifyOtpForSignup: (email: string, otp: string) => Promise<boolean>;
   resendOtp: (email: string, type: 'password-reset' | 'signup') => Promise<boolean>;
+  // Profile actions
+  getProfile: () => Promise<boolean>;
+  changePassword: (currentPassword: string, newPassword: string, confirmPassword: string) => Promise<boolean>;
 };
 
 // ---------------------------
@@ -190,8 +192,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         confirmPassword,
         phone,
         dob,
-        gender,
-        language,
+        gender: gender.toLowerCase(),
+        language: language.toLowerCase(),
         healthHistory,
         role,
         ...(role === 'professional' && {
@@ -376,6 +378,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     } catch (err: any) {
       const message = err.message || 'Failed to resend code';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- PROFILE: GET PROFILE --------
+  getProfile: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.getProfile();
+      if (!response.success || !response.user) {
+        set({ loading: false, error: response.message ?? 'Failed to fetch profile' });
+        return false;
+      }
+      set({ user: response.user, loading: false, error: null });
+      console.log('Profile fetched successfully');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to fetch profile';
+      set({ loading: false, error: message });
+      return false;
+    }
+  },
+
+  // -------- PROFILE: CHANGE PASSWORD --------
+  changePassword: async (currentPassword: string, newPassword: string, confirmPassword: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.changePassword(currentPassword, newPassword, confirmPassword);
+      if (!response.success) {
+        set({ loading: false, error: response.message ?? 'Failed to change password' });
+        return false;
+      }
+      set({ loading: false, error: null });
+      console.log('Password changed successfully');
+      return true;
+    } catch (err: any) {
+      const message = err.message || 'Failed to change password';
       set({ loading: false, error: message });
       return false;
     }

@@ -120,6 +120,7 @@ export const AuthService = {
     } catch (error: any) {
       console.error('Registration error:', error);
       const message = extractErrorMessage(error);
+      console.log("extracted message: ",message)
       return {
         success: false,
         message,
@@ -276,6 +277,64 @@ export const AuthService = {
       };
     } catch (error: any) {
       console.error('Resend OTP error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Get user profile
+   * Calls GET /me
+   * Returns user profile data
+   */
+  async getProfile(): Promise<AuthResponse> {
+    try {
+      console.log('Fetching user profile...');
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.get<BackendLoginResponse>('/me');
+      // if (!response.data.success || !response.data.data) {
+      //   return { success: false, message: response.data.message || 'Failed to fetch profile' };
+      // }
+      // return { success: true, user: response.data.data.user };
+      return {
+        success: true,
+        message: 'Profile fetched successfully',
+      };
+    } catch (error: any) {
+      console.error('Get profile error:', error);
+      return {
+        success: false,
+        message: extractErrorMessage(error),
+      };
+    }
+  },
+
+  /**
+   * Change user password
+   * Calls POST /auth/change-password
+   */
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('Changing password...');
+      // TODO: Implement actual API call when backend is ready
+      // const response = await api.post('/auth/change-password', {
+      //   currentPassword,
+      //   newPassword,
+      //   confirmPassword,
+      // });
+      // return { success: response.data.success, message: response.data.message };
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (error: any) {
+      console.error('Change password error:', error);
       return {
         success: false,
         message: extractErrorMessage(error),

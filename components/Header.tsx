@@ -3,6 +3,7 @@ import { View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ProfileMenu } from './ProfileMenu';
 
+
 interface HeaderProps {
   onProfilePress?: () => void;
   onMenuPress?: () => void;
