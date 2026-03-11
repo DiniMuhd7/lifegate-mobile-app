@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { PrimaryButton } from 'components/Button';
-import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
@@ -53,15 +52,6 @@ export default function UserProfileStep() {
 
   return (
     <View className="px-6">
-      {/* <LabeledInput
-        label="Phone Number"
-        required
-        placeholder="Enter phone number"
-        keyboardType="phone-pad"
-        value={userDraft.phone}
-        onChangeText={(v) => handleFieldChange('phone', v)}
-      /> */}
-      {/* Phone Number Input */}
       <PhoneNumberInput
         label="Phone Number"
         required
@@ -114,7 +104,7 @@ export default function UserProfileStep() {
       <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
       <View className="mt-8">
         <PrimaryButton
-          title="Next"
+          title="Next  →"
           type="secondary"
           onPress={() => router.push('/(auth)/(user)/review')}
         />

@@ -37,7 +37,7 @@ export const LabeledInput: React.FC<InputProps> = ({
             <Ionicons
               name={hidden ? 'eye' : 'eye-off'}
               size={20} // adjust size as needed
-              color="#0EA5A4" // match your theme color
+              color="#9CA3AF" // match your theme color
             />
           </Pressable>
         )}

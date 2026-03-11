@@ -6,25 +6,25 @@ import {
   StatusBar,
   View,
   Text,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 import { Background } from 'components/Background';
-import { Header } from 'components/Header';
 import { MessageList } from 'components/MessageList';
 import type { Message as ChatMessage } from 'components/MessageList';
 import { ChatInputBar } from 'components/ChatInputBar';
+import { ProfileMenu } from 'components/ProfileMenu';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth-store';
 import { GreetingSection } from 'components';
-import { router } from 'expo-router';
-import { UI_SPACING } from 'constants/constants';
+import { TypingIndicator } from 'components/TypingIndicator';
 
 const ChatScreen: React.FC = () => {
-  // ✅ Zustand selectors (optimized)
   const activeConversation = useChatStore((state) =>
     state.conversations.find((c) => c.id === state.activeConversationId)
   );
-
   const sendMessage = useChatStore((state) => state.sendMessage);
   const isThinking = useChatStore((state) => state.isThinking);
   const error = useChatStore((state) => state.error);
@@ -34,11 +34,10 @@ const ChatScreen: React.FC = () => {
   const { user, logout } = useAuthStore();
 
   const messages = activeConversation?.messages || [];
-
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const hasInitialized = useRef(false);
 
-  // ✅ FIX 1: Initialize when user becomes available
   useEffect(() => {
     if (user?.id && !hasInitialized.current) {
       hasInitialized.current = true;
@@ -46,26 +45,32 @@ const ChatScreen: React.FC = () => {
     }
   }, [user?.id, initializeChat]);
 
-
   useEffect(() => {
     setShowWelcome(messages.length === 0);
   }, [messages.length]);
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => clearError(), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, clearError]);
 
-  const displayMessages: ChatMessage[] = useMemo(() => {
-    return messages.map((msg) => ({
-      id: msg.id,
-      text: msg.text,
-      type: msg.role === 'USER' ? 'sent' : 'received',
-      timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      status: msg.status,
-    }));
-  }, [messages]);
+  const displayMessages: ChatMessage[] = useMemo(
+    () =>
+      messages.map((msg) => ({
+        id: msg.id,
+        text: msg.text,
+        type: msg.role === 'USER' ? 'sent' : 'received',
+        timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        status: msg.status,
+      })),
+    [messages]
+  );
 
-  // ✅ FIX 3: Stable callback
   const handleSend = useCallback(
     (text: string) => {
       if (!text.trim()) return;
@@ -73,16 +78,6 @@ const ChatScreen: React.FC = () => {
     },
     [sendMessage]
   );
-
-  // ✅ Error auto-dismiss after 4 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        clearError();
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [error, clearError]);
 
   return (
     <>
@@ -92,18 +87,37 @@ const ChatScreen: React.FC = () => {
           <KeyboardAvoidingView
             className="flex-1"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-            <View className="pt-4">
-              <Header
-                onProfilePress={() => router.replace('/(tab)/profile')}
-                onMenuPress={() => console.log('Menu pressed')}
-                onLogout={async () => {
-                  await logout();
-                  router.replace('/(auth)/login');
-                }}
-              />
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            {/* ── Header ── */}
+            <View className="flex-row items-center justify-between px-5 pb-2 pt-8">
+              <View className="h-11 w-11 items-center justify-center rounded-full border-2 border-teal-700 bg-white/30">
+                <Ionicons name="person" size={22} color="#1a6b5e" />
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowProfileMenu(true)}
+                activeOpacity={0.7}
+                className="p-1"
+              >
+                <View className="h-11 w-11 items-center justify-center">
+                  <Ionicons name="menu" size={40} color="#1a6b5e" />
+                </View>
+              </TouchableOpacity>
             </View>
 
+            <ProfileMenu
+              visible={showProfileMenu}
+              onClose={() => setShowProfileMenu(false)}
+              onProfilePress={() => router.replace('/(tab)/profile')}
+              onSettingsPress={() => console.log('Settings pressed')}
+              onHelpPress={() => console.log('Help pressed')}
+              onLogout={async () => {
+                await logout();
+                router.replace('/(auth)/login');
+              }}
+            />
+
+            {/* ── Body ── */}
             {showWelcome ? (
               <View className="flex-1 items-center justify-center px-6">
                 <GreetingSection userName={user?.name || 'there'} />
@@ -116,10 +130,9 @@ const ChatScreen: React.FC = () => {
 
             {isThinking && <TypingIndicator />}
 
-            {/* Error banner - shows inline instead of Alert */}
             {error && (
-              <View className="mx-4 mb-3 bg-red-100 border border-red-400 rounded-lg px-3 py-2">
-                <Text className="text-red-700 text-sm font-medium">{error}</Text>
+              <View className="mx-4 mb-3 rounded-lg border border-red-400 bg-red-100 px-3 py-2">
+                <Text className="text-sm font-medium text-red-700">{error}</Text>
               </View>
             )}
 
@@ -136,19 +149,3 @@ const ChatScreen: React.FC = () => {
 };
 
 export default ChatScreen;
-
-export const TypingIndicator = () => {
-  return (
-    <View className="flex-row items-center gap-2 px-4 py-2">
-      <View className="flex-row gap-1">
-        {[0, 1, 2].map((i) => (
-          <View
-            key={i}
-            className="h-2 w-2 rounded-full bg-teal-500"
-            style={{ opacity: 0.4 + i * 0.2 }}
-          />
-        ))}
-      </View>
-    </View>
-  );
-};

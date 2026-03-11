@@ -1,9 +1,7 @@
 export { Background } from './Background';
-export { Header } from './Header';
 export { ProfileMenu } from './ProfileMenu';
 export { GreetingSection } from './GreetingSection';
 export { SymptomChip } from './SymptomChip';
-export { SymptomGrid } from './SymptomGrid';
 export { ChatInputBar } from './ChatInputBar';
 export { ConversationDrawer } from './ConversationDrawer';
 export { MessageList } from './MessageList';
@@ -19,3 +17,4 @@ export { ReviewHeader } from './ReviewHeader';
 export { ConsultationSummary } from './ConsultationSummary';
 export { ActivityChart } from './ActivityChart';
 export { ActivityList } from './ActivityList';
+export { ProfileSkeleton } from './ProfileSkeleton';

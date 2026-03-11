@@ -46,19 +46,6 @@ export default function TabLayout() {
             ),
           }}
         />
-
-        {/* HomeScreen - Secondary screen (symptom dashboard) */}
-        <Drawer.Screen
-          name="homescreen"
-          options={{
-            title: 'Health Dashboard',
-            drawerLabel: 'Dashboard',
-            drawerIcon: ({ color, size }) => (
-              <Ionicons name="pulse" size={size} color={color} />
-            ),
-          }}
-        />
-
         {/* Patient Profile Screen */}
         <Drawer.Screen
           name="profile"

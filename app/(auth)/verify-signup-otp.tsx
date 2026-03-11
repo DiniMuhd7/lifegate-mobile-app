@@ -92,7 +92,7 @@ export default function VerifySignupOtpScreen() {
 
       if (success) {
         // User is now logged in - navigate to authenticated home screen
-        router.replace('/(tab)/homescreen');
+        router.replace('/(tab)/chatScreen');
       } else {
         const { error: storeError } = useAuthStore.getState();
         setError(storeError || 'Verification failed');

@@ -252,14 +252,14 @@ export const AuthService = {
       console.log('Sending OTP for password recovery to:', email);
 
       // TODO: Implement actual API call when backend is ready
-      // const response = await api.post('/auth/forgot-password/send-otp', { email });
-      // return { success: response.data.success, message: response.data.message };
+      const response = await api.post('/auth/password/send-reset-code', { email });
+      return { success: response.data.success, message: response.data.message };
 
-      // Placeholder: Simulate success
-      return {
-        success: true,
-        message: 'OTP sent successfully',
-      };
+      // // Placeholder: Simulate success
+      // return {
+      //   success: true,
+      //   message: 'OTP sent successfully',
+      // };
     } catch (error: any) {
       console.error('Send OTP error:', error);
       return {
@@ -281,14 +281,14 @@ export const AuthService = {
       console.log('Verifying OTP for password recovery:', { email, otp });
 
       // TODO: Implement actual API call when backend is ready
-      // const response = await api.post('/auth/forgot-password/verify-otp', { email, otp });
-      // return { success: response.data.success, message: response.data.message };
+      const response = await api.post('/auth/password/verify-reset-code', { email, otp });
+      return { success: response.data.success, message: response.data.message };
 
-      // Placeholder: Simulate success
-      return {
-        success: true,
-        message: 'OTP verified successfully',
-      };
+      // // Placeholder: Simulate success
+      // return {
+      //   success: true,
+      //   message: 'OTP verified successfully',
+      // };
     } catch (error: any) {
       console.error('Verify OTP error:', error);
       return {
@@ -311,14 +311,14 @@ export const AuthService = {
       console.log('Resetting password for:', email);
 
       // TODO: Implement actual API call when backend is ready
-      // const response = await api.post('/auth/forgot-password/reset', { email, newPassword, otp });
-      // return { success: response.data.success, message: response.data.message };
+      const response = await api.post('/auth/password/reset', { email, newPassword, otp });
+      return { success: response.data.success, message: response.data.message };
 
-      // Placeholder: Simulate success
-      return {
-        success: true,
-        message: 'Password reset successfully',
-      };
+      // // Placeholder: Simulate success
+      // return {
+      //   success: true,
+      //   message: 'Password reset successfully',
+      // };
     } catch (error: any) {
       console.error('Reset password error:', error);
       return {
@@ -420,24 +420,32 @@ export const AuthService = {
   async getProfile(): Promise<AuthResponse> {
     try {
       console.log('Fetching user profile...');
-      // TODO: Implement actual API call when backend is ready
-      // const response = await api.get<BackendLoginResponse>('/me');
-      // if (!response.data.success || !response.data.data) {
-      //   return { success: false, message: response.data.message || 'Failed to fetch profile' };
-      // }
-      // return { success: true, user: response.data.data.user };
+      const response = await api.get<BackendLoginResponse>('auth/me');
+
+      if (!response.data.success || !response.data.data) {
+        console.log('Failed to fetch profile:', response.data.message);
+        return {
+          success: false,
+          message: response.data.message || 'Failed to fetch profile',
+        };
+      }
+
+      console.log('Profile fetched successfully');
+      const user = response.data.data;
+      console.log('User profile:', user);
       return {
         success: true,
-        message: 'Profile fetched successfully',
+        user: user,
       };
     } catch (error: any) {
-      console.error('Get profile error:', error);
+      console.error('Get profile error:', extractErrorMessage(error));
       return {
         success: false,
         message: extractErrorMessage(error),
       };
     }
   },
+
 
   /**
    * Change user password

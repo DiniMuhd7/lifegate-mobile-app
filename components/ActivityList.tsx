@@ -50,11 +50,11 @@ const ActivityItemComponent = ({ item, onPress }: { item: Activity; onPress?: ()
     </View>
 
     <View className="flex-1">
-      <Text className="text-xs font-semibold text-teal-600 mb-1">Patient ID {item.patientId}</Text>
+      {/* <Text className="text-xs font-semibold text-teal-600 mb-1">Patient ID {item.patientId}</Text> */}
       <Text className="text-sm font-semibold text-gray-900 mb-1">
         {item.caseType} Case
       </Text>
-      <Text className="text-xs text-gray-500">{item.condition}</Text>
+      {/* <Text className="text-xs text-gray-500">{item.condition}</Text> */}
     </View>
 
     <View className="items-end">

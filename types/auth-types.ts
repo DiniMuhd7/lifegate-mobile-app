@@ -1,14 +1,33 @@
 // Centralized User Type - Single user with role-based data
 export type User = {
+  // Primary identifiers
   id: string;
+  user_id: string;
+  patient_id: string;
+  
+  // Basic info
   name: string;
   email: string;
+  role: 'user' | 'professional';
+  
+  // Contact & Demographics
   phone?: string;
   dob?: string;
   gender?: string;
   language?: string;
-  healthHistory?: string;
-  role: 'user' | 'professional'; // Required role field
+  
+  // Health information
+  health_history?: string;
+  blood_type?: string | null;
+  allergies?: string | null;
+  medical_history?: string | null;
+  current_medications?: string | null;
+  emergency_contact?: string | null;
+  
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+  
   // Health professional specific fields
   specialization?: string;
   licenseNumber?: string;
