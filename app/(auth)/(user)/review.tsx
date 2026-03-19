@@ -16,23 +16,16 @@ export default function UserReviewStep() {
     if (!agreed) {
       Alert.alert('Agreement Required', 'Please agree to the Privacy Policy.');
       return;
+
     }
 
     setLoading(true);
     setValidationErrors([]);
     // Pre-validation before submission
+    
     const errors = validateRegistration(userDraft, 'user');
-    // if (errors.length > 0) {
-    //   setValidationErrors(errors);
-    //   const errorMessages = errors.map((err) => err.message).join('\n');
-    //   Alert.alert('Validation Error', errorMessages);
-    //   setLoading(false);
-    //   return;
-    // }
-
     try {
       clearError();
-      // Call startRegistration (NEW OTP FLOW)
       const success = await startRegistration('user');
 
       if (success) {
@@ -59,7 +52,7 @@ export default function UserReviewStep() {
     <ScrollView className="flex-1 px-6">
       <Text className="mb-3 mt-4 text-center text-lg font-semibold">
         Review your information before submitting.
-      </Text>
+      </Text>AB
 
       {backendError && (
         <View className="mb-3">

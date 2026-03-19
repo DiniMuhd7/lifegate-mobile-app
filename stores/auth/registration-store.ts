@@ -82,7 +82,6 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
     if (hasErrors(validationErrors)) {
       const errorMessages = validationErrors.map((err) => err.message).join('\n');
       set({ loading: false, error: errorMessages });
-      Alert.alert('Validation Error', errorMessages);
       return false;
     }
 

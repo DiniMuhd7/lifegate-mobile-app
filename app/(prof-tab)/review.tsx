@@ -1,5 +1,7 @@
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View,Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
+import { router } from 'expo-router';
 import { useReviewStore } from '../../stores/review-store';
 import {
   ReviewHeader,
@@ -8,6 +10,7 @@ import {
   ActivityList,
   SearchBar,
 } from '../../components';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ReviewScreen() {
   const {
@@ -42,9 +45,17 @@ export default function ReviewScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
+      <SafeAreaView />
       {/* Header */}
-      <ReviewHeader selectedDate={selectedDateRef.current} onDateChange={handleDateChange} />
-
+      <View className="border-b border-gray-200 bg-white px-6 py-4">
+        <View className="flex-row items-center">
+          <Pressable className="-ml-2 p-2" onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="#0AADA2" />
+          </Pressable>
+          <Text className="flex-1 text-2xl font-bold text-gray-900">Review Analysis</Text>
+        </View>
+      </View>
+      
       {/* Search Bar */}
       <SearchBar
         placeholder="Search activities..."

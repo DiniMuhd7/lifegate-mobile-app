@@ -58,19 +58,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             : 'bg-teal-50 border border-teal-100 rounded-3xl rounded-bl-md '
           }
         `}
-        style={
-          isSent
-            ? {
-                // shadowColor: '#0d4a40',
-                // shadowOffset: { width: 0, height: 2 },
-                // shadowOpacity: 0.18,
-                // shadowRadius: 6,
-                // elevation: 3,
-              }
-            : {
-                
-              }
-        }
       >
         <Text
           className={`leading-5 ${

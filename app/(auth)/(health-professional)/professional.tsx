@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { useAuthStore } from 'stores/auth-store';
+import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
@@ -26,7 +26,7 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 };
 
 export default function ProfessionalScreen() {
-  const { userDraft, setUserField } = useAuthStore();
+  const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleFieldChange = (fieldName: string, value: string) => {

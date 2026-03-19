@@ -6,6 +6,7 @@ import {
   SearchBar,
   ReportList,
 } from '../../components';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ConsultationScreen() {
   const {
@@ -29,6 +30,7 @@ export default function ConsultationScreen() {
   };
 
   return (
+    <SafeAreaView className='flex-1'>
     <View className="flex-1 bg-gray-50">
       {/* Header */}
       <PhysicianHeader />
@@ -48,5 +50,6 @@ export default function ConsultationScreen() {
         loading={loading}
       />
     </View>
+    </SafeAreaView>
   );
 }

@@ -34,7 +34,7 @@ export const ReviewHeader = ({ selectedDate, onDateChange }: ReviewHeaderProps) 
 
   return (
     <View className="px-6 py-4 border-b border-gray-200 bg-white">
-      <View className="flex-row items-center mt-4">
+      <View className="flex-row items-center">
         <Pressable className="p-2 -ml-2">
           <Ionicons name="chevron-back" size={24} color="#0AADA2" />
         </Pressable>

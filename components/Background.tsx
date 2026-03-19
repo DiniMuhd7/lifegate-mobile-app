@@ -18,7 +18,7 @@ export const Background: React.FC<BackgroundProps> = ({ children }) => {
       {/* Top-right radial glow blob */}
       <View className="absolute w-72 h-72 rounded-full bg-white/30 -top-16 -right-16" />
       {/* Bottom-left soft teal blob */}
-      <View className="absolute w-52 h-52 rounded-full bg-teal-600/10 bottom-24 -left-12" />
+      {/* <View className="absolute w-52 h-52 rounded-full bg-teal-600/10 bottom-24 -left-12" /> */}
       {children}
     </LinearGradient>
   );

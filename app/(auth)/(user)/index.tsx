@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, Alert } from 'react-native';
+import React, { useState} from 'react';
+import { View, Text, ScrollView, Alert } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { LabeledInput } from 'components/LabeledInput';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { useRegistrationStore } from 'stores/auth-store';
 import { router } from 'expo-router';
-import { validateSingleField } from 'utils/validation';
+import { validateNewPasswordMatch, validateSingleField } from 'utils/validation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const VALID_FIELDS = {
@@ -27,47 +27,42 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 };
 
 export default function UserAccountStep() {
-  const { userDraft, setUserField, resetForm } = useRegistrationStore();
+  const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    resetForm();
-  }, []);
+
+  let error: string | null = null;
 
 const handleFieldChange = (field: ValidFieldName, value: string) => {
   setUserField(field, value);
 
-  let additionalData;
 
-  if (field === 'confirmPassword') {
-    additionalData = { password: userDraft.password };
-  }
-
+  // Handle password field
   if (field === 'password') {
-    additionalData = { password: value };
+    error = validateSingleField(field, value, false);
+    
+    // Revalidate confirm password when password changes
+    if (userDraft.confirmPassword) {
+      const confirmError = validateNewPasswordMatch(userDraft.confirmPassword, value);
+      setFieldErrors((prev) => ({
+        ...prev,
+        confirmPassword: confirmError || '',
+      }));
+    }
   }
-
-  const error = validateSingleField(field, value, false, additionalData);
+  // Handle confirm password field
+  else if (field === 'confirmPassword') {
+    error = validateNewPasswordMatch(value, userDraft.password);
+  }
+  // Handle other fields
+  else {
+    error = validateSingleField(field, value, false);
+  }
 
   setFieldErrors((prev) => ({
     ...prev,
     [field]: error || '',
   }));
-
-  // Revalidate confirm password when password changes
-  if (field === 'password' && userDraft.confirmPassword) {
-    const confirmError = validateSingleField(
-      'confirmPassword',
-      userDraft.confirmPassword,
-      false,
-      { password: value }
-    );
-
-    setFieldErrors((prev) => ({
-      ...prev,
-      confirmPassword: confirmError || '',
-    }));
-  }
 };
 
 
@@ -150,7 +145,7 @@ const canNavigateToNextPage = (): boolean => {
           <View className="mb-8 mt-8">
             <PrimaryButton
               type="secondary"
-              title="Next →"
+              title="Next"
               onPress={handleNavigateNext}
               disabled={!canNavigateToNextPage()}
             />

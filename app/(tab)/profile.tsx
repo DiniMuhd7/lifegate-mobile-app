@@ -40,6 +40,7 @@ export default function PatientProfileScreen() {
   }, [getProfile]);
 
   useEffect(() => {
+    console.log('Profile store updated:', { user });
     if (user) {
       setEditForm({
         firstName: user?.name?.split(' ')[0] || '',
@@ -117,7 +118,7 @@ export default function PatientProfileScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#F0F8F8]">
       <ScrollView
-        className="flex-1 pt-12"
+        className="flex-1 pt-6"
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
       >
@@ -147,7 +148,7 @@ export default function PatientProfileScreen() {
           </View>
 
           {/* ── Personal Information ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+          <View className="bg-white rounded-2xl p-4 mb-2 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center gap-2">
                 <Ionicons name="person-outline" size={16} color="#0EA5A4" />

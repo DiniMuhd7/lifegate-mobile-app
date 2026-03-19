@@ -14,11 +14,19 @@ type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
 
+  // Login draft (separate from registration)
+  loginDraft: {
+    email: string;
+    password: string;
+  };
+
   // UI state
   loading: boolean;
   error: string | null;
 
   // Actions
+  setLoginField: (field: 'email' | 'password', value: string) => void;
+  clearLoginDraft: () => void;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
@@ -29,10 +37,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   // -------- State --------
   user: null,
   isAuthenticated: false,
+  loginDraft: {
+    email: '',
+    password: '',
+  },
   loading: false,
   error: null,
 
   // -------- Actions --------
+
+  // Update login draft field
+  setLoginField: (field, value) =>
+    set((state) => ({
+      loginDraft: { ...state.loginDraft, [field]: value },
+    })),
+
+  // Clear login draft
+  clearLoginDraft: () =>
+    set({
+      loginDraft: { email: '', password: '' },
+    }),
 
   // Clear any error
   clearError: () => set({ error: null }),

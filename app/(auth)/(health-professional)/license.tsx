@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { useAuthStore } from 'stores/auth-store';
+import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { ErrorMessage } from 'components/ErrorMessage';
@@ -25,7 +25,7 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 };
 
 export default function LicenseScreen() {
-  const { userDraft, setUserField } = useAuthStore();
+  const { userDraft, setUserField } = useRegistrationStore();
   const [isAdding, setIsAdding] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 

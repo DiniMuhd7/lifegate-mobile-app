@@ -6,11 +6,11 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { usePasswordRecoveryStore } from 'stores/auth/password-recovery-store';
-
+import { validateSingleField } from 'utils/validation';
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!email.trim()) {

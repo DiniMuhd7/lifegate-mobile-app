@@ -117,7 +117,6 @@ export default function VerifyOtpScreen() {
       setResendLoading(false);
     }
   };
-
   return (
     <LinearGradient
       colors={['#0AADA2', '#043B3C']}
@@ -133,7 +132,6 @@ export default function VerifyOtpScreen() {
         <Text className="flex-1 text-center text-xl font-bold text-white">Verify OTP</Text>
         <View className="w-10" />
       </View>
-
       {/* Content */}
       <ScrollView className="flex-1 rounded-t-[36px] bg-[#F7FEFD] px-6 pt-24">
         <Text className="mb-10 text-center text-2xl font-bold text-gray-900">Verify OTP Now</Text>

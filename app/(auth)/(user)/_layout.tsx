@@ -3,6 +3,7 @@ import { View, Text, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { WizardProgress } from "components/progress-indicator";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const stepMap: Record<string, number> = {
   "(user)": 1,
@@ -32,6 +33,9 @@ export default function RegisterLayout() {
   };
 
   return (
+
+    <SafeAreaView className="flex-1">
+      
     <LinearGradient
       colors={["#0AADA2", "#043B3C"]}
       start={{ x: 0, y: 0 }}
@@ -63,5 +67,6 @@ export default function RegisterLayout() {
         />
       </View>
     </LinearGradient>
+    </SafeAreaView>
   );
 }

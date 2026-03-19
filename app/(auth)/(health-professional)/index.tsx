@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { LabeledInput } from "components/LabeledInput";
 import { PrimaryButton } from "components/Button";
 import { ErrorMessage } from "components/ErrorMessage";
-import { useAuthStore } from "stores/auth-store";
+import { useRegistrationStore } from "stores/auth-store";
 import { useState } from "react";
 import { validateSingleField } from "utils/validation";
 import { Dropdown } from "components/DropDown";
@@ -35,7 +35,7 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 };
 
 export default function AccountScreen() {
-  const { userDraft, setUserField } = useAuthStore();
+  const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const handleFieldChange = (fieldName: string, value: string) => {

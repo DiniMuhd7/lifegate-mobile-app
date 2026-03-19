@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { DOBInput } from 'components/DobPicker';
 import { PhoneNumberInput } from 'components/PhoneInput';
 import { validateSingleField } from 'utils/validation';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const VALID_FIELDS = {
   phone: true,
@@ -47,68 +48,68 @@ export default function UserProfileStep() {
       ...prev,
       [fieldName]: error || '',
     }));
-    console.log('New Date set:', new_date);
   };
 
   return (
-    <View className="px-6">
-      <PhoneNumberInput
-        label="Phone Number"
-        required
-        
-        value={userDraft.phone}
-        onChangePhoneNumber={(value) => handleFieldChange('phone', value)}
-        error={fieldErrors.phone}
-      />
-      {/* <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} /> */}
-
-      <DOBInput
-        label="Enter Date of Birth"
-        value={userDraft.dob ? new Date(userDraft.dob) : null}
-        onChange={(date: Date) => handleDateChange('dob', date)}
-      />
-      <ErrorMessage fieldName="dob" fieldErrors={fieldErrors} />
-
-      <Dropdown
-        label="Gender"
-        value={userDraft.gender || ''}
-        onChange={(value: string) => handleFieldChange('gender', value)}
-        options={GENDER_OPTIONS}
-        placeholder="Select your gender"
-      />
-      <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
-      <Dropdown
-        label="Preferred Language"
-        value={userDraft.language || ''}
-        onChange={(value: string) => handleFieldChange('language', value)}
-        options={LANGUAGE_OPTIONS}
-        placeholder="Select preferred language"
-      />
-      <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
-      <View className="mb-2 mt-2">
-        <Text className="mb-2 font-semibold text-gray-700">
-          Health History <Text className="text-red-500">*</Text>
-        </Text>
-        <TextInput
-          value={userDraft.healthHistory}
-          onChangeText={(value: string) => handleFieldChange('healthHistory', value)}
-          placeholder="Tell a brief story about your health history"
-          placeholderTextColor="#999"
-          multiline
-          numberOfLines={6}
-          textAlignVertical="top"
-          className="rounded-lg bg-[#F2F4F7] p-3 text-base text-gray-800"
-          style={{ minHeight: 75, paddingVertical: 12 }}
+    <SafeAreaView className="flex-1">
+      <View className="px-6">
+        <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
+        <PhoneNumberInput
+          label="Phone Number"
+          required
+          value={userDraft.phone}
+          onChangePhoneNumber={(value) => handleFieldChange('phone', value)}
+          error={fieldErrors.phone}
         />
-      </View>
-      <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
-      <View className="mt-8">
-        <PrimaryButton
-          title="Next  →"
-          type="secondary"
-          onPress={() => router.push('/(auth)/(user)/review')}
+
+        <DOBInput
+          label="Enter Date of Birth"
+          value={userDraft.dob ? new Date(userDraft.dob) : null}
+          onChange={(date: Date) => handleDateChange('dob', date)}
         />
+        <ErrorMessage fieldName="dob" fieldErrors={fieldErrors} />
+
+        <Dropdown
+          label="Gender"
+          value={userDraft.gender || ''}
+          onChange={(value: string) => handleFieldChange('gender', value)}
+          options={GENDER_OPTIONS}
+          placeholder="Select your gender"
+        />
+        <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
+        <Dropdown
+          label="Preferred Language"
+          value={userDraft.language || ''}
+          onChange={(value: string) => handleFieldChange('language', value)}
+          options={LANGUAGE_OPTIONS}
+          placeholder="Select preferred language"
+        />
+        <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
+        <View className="mb-2 mt-2">
+          <Text className="mb-2 font-semibold text-gray-700">
+            Health History <Text className="text-red-500">*</Text>
+          </Text>
+          <TextInput
+            value={userDraft.healthHistory}
+            onChangeText={(value: string) => handleFieldChange('healthHistory', value)}
+            placeholder="Tell a brief story about your health history"
+            placeholderTextColor="#999"
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+            className="rounded-lg bg-[#F2F4F7] p-3 text-base text-gray-800"
+            style={{ minHeight: 75, paddingVertical: 12 }}
+          />
+        </View>
+        <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
+        <View className="mt-8">
+          <PrimaryButton
+            title="Next  →"
+            type="secondary"
+            onPress={() => router.push('/(auth)/(user)/review')}
+          />
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

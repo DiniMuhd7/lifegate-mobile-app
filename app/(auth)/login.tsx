@@ -3,7 +3,6 @@ import React, { useState, useEffect, use } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
-import { useRegistrationStore } from 'stores/auth/registration-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,10 +16,10 @@ export default function LoginScreen() {
     email?: string;
     password?: string;
   }>({});
-  const { userDraft, setUserField, resetForm } = useRegistrationStore();
+  const { loginDraft, setLoginField, clearLoginDraft } = useAuthStore();
 
   useEffect(() => {
-    resetForm();
+    clearLoginDraft();
   }, []);
 
 
@@ -29,10 +28,10 @@ export default function LoginScreen() {
   const validateInputs = (): boolean => {
     const errors: { email?: string; password?: string } = {};
 
-    if (!userDraft.email.trim()) {
+    if (!loginDraft.email.trim()) {
       errors.email = 'Email is required';
     }
-    if (!userDraft.password.trim()) {
+    if (!loginDraft.password.trim()) {
       errors.password = 'Password is required';
     }
 
@@ -47,7 +46,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const success = await login(userDraft.email, userDraft.password);
+      const success = await login(loginDraft.email, loginDraft.password);
       if (success) {
         router.replace('/(tab)/chatScreen');
       }
@@ -56,16 +55,16 @@ export default function LoginScreen() {
     }
   };
 
-  const isLoginDisabled = !userDraft.email.trim() || !userDraft.password.trim() || loading;
+  const isLoginDisabled = !loginDraft.email.trim() || !loginDraft.password.trim() || loading;
 
   return (
+    <SafeAreaView className="flex-1">
     <LinearGradient
       colors={['#0AADA2', '#043B3C']}
       className="flex-1"
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 0.2 }}
       >
-      <SafeAreaView className="flex-1">
 
       <View className="h-12" />
       <View className="mb-6 items-center">
@@ -87,9 +86,9 @@ export default function LoginScreen() {
           placeholder="Enter your email address"
           autoCapitalize="none"
           keyboardType="email-address"
-          value={userDraft.email}
+          value={loginDraft.email}
           onChangeText={(value) => {
-            setUserField('email', value);
+            setLoginField('email', value);
             if (validationErrors.email) {
               setValidationErrors({ ...validationErrors, email: undefined });
             }
@@ -105,9 +104,9 @@ export default function LoginScreen() {
           required
           placeholder="Password"
           secureToggle
-          value={userDraft.password}
+          value={loginDraft.password}
           onChangeText={(value) => {
-            setUserField('password', value);
+            setLoginField('password', value);
             if (validationErrors.password) {
               setValidationErrors({ ...validationErrors, password: undefined });
             }
@@ -142,7 +141,7 @@ export default function LoginScreen() {
           </Pressable>
         </View>
       </View>
-        </SafeAreaView>
     </LinearGradient>
+        </SafeAreaView>
   );
 }
