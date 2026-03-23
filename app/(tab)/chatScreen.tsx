@@ -109,7 +109,7 @@ const ChatScreen: React.FC = () => {
               visible={showProfileMenu}
               onClose={() => setShowProfileMenu(false)}
               onProfilePress={() => router.replace('/(tab)/profile')}
-              onSettingsPress={() => console.log('Settings pressed')}
+              onSettingsPress={() => router.replace('/(tab)/settings')}
               onHelpPress={() => console.log('Help pressed')}
               onLogout={async () => {
                 await logout();

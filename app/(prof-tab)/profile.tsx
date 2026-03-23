@@ -9,9 +9,10 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useAuthStore } from 'stores/auth-store';
 
 // Mock physician data
 const mockPhysicianData = {
@@ -47,6 +48,17 @@ export default function PhysicianProfileScreen() {
     showConfirm: false,
   });
 
+  const { logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
   const handleSaveEdit = () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
       Alert.alert('Validation', 'Please fill in all fields');
@@ -74,7 +86,7 @@ export default function PhysicianProfileScreen() {
 
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       Alert.alert('Success', 'Password changed successfully');
       setPasswordForm({
         current: '',
@@ -94,18 +106,18 @@ export default function PhysicianProfileScreen() {
 
   const getInitials = (name: string) => {
     const names = name.split(' ');
-    return names.map(n => n.charAt(0).toUpperCase()).join('');
+    return names.map((n) => n.charAt(0).toUpperCase()).join('');
   };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View className="flex-row items-center px-6 pt-12 pb-4 border-b border-gray-200">
+        <View className="flex-row items-center border-b border-gray-200 px-6 pb-4 pt-12">
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={28} color="#0AADA2" />
           </TouchableOpacity>
-          <Text className="flex-1 text-center text-xl font-bold text-gray-800 mr-8">
+          <Text className="mr-8 flex-1 text-center text-xl font-bold text-gray-800">
             Physician Profile
           </Text>
         </View>
@@ -131,9 +143,7 @@ export default function PhysicianProfileScreen() {
                   <Ionicons name="checkmark-circle" size={20} color="#10B981" />
                 )}
               </View>
-              <Text className="mt-1 text-sm text-gray-600">
-                {mockPhysicianData.specialization}
-              </Text>
+              <Text className="mt-1 text-sm text-gray-600">{mockPhysicianData.specialization}</Text>
             </View>
           </View>
 
@@ -145,8 +155,7 @@ export default function PhysicianProfileScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() => setShowEditModal(true)}
-                className="flex-row items-center gap-1"
-              >
+                className="flex-row items-center gap-1">
                 <Ionicons name="pencil" size={18} color="#0AADA2" />
                 <Text className="font-semibold text-teal-600">Edit</Text>
               </TouchableOpacity>
@@ -188,8 +197,12 @@ export default function PhysicianProfileScreen() {
               </View>
               {/* Years of Experience */}
               <View className="pb-3">
-                <Text className="mb-1 text-xs font-semibold text-gray-500">Years of Experience</Text>
-                <Text className="text-base text-gray-800">{mockPhysicianData.yearsOfExperience} years</Text>
+                <Text className="mb-1 text-xs font-semibold text-gray-500">
+                  Years of Experience
+                </Text>
+                <Text className="text-base text-gray-800">
+                  {mockPhysicianData.yearsOfExperience} years
+                </Text>
               </View>
             </View>
           </View>
@@ -202,8 +215,7 @@ export default function PhysicianProfileScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() => setShowPasswordModal(true)}
-                className="flex-row items-center gap-1"
-              >
+                className="flex-row items-center gap-1">
                 <Ionicons name="pencil" size={18} color="#0AADA2" />
                 <Text className="font-semibold text-teal-600">Change Password</Text>
               </TouchableOpacity>
@@ -218,12 +230,19 @@ export default function PhysicianProfileScreen() {
             </View>
           </View>
         </View>
+        <View className=" flex-row items-center justify-center">
+          <TouchableOpacity
+            onPress={handleLogout}
+            className="w-3/4 items-center rounded-lg bg-red-600 py-4">
+            <Text className="text-base font-semibold text-white">Logout</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Edit Profile Modal */}
       <Modal visible={showEditModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-8">
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="rounded-t-3xl bg-white p-6 pb-8">
             {/* Header */}
             <View className="mb-6 flex-row items-center justify-between">
               <Text className="text-xl font-bold text-gray-800">Edit Profile</Text>
@@ -241,7 +260,7 @@ export default function PhysicianProfileScreen() {
                   className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-800"
                   placeholder="First Name"
                   value={editForm.firstName}
-                  onChangeText={text => setEditForm({ ...editForm, firstName: text })}
+                  onChangeText={(text) => setEditForm({ ...editForm, firstName: text })}
                   placeholderTextColor="#999"
                 />
               </View>
@@ -253,7 +272,7 @@ export default function PhysicianProfileScreen() {
                   className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-800"
                   placeholder="Last Name"
                   value={editForm.lastName}
-                  onChangeText={text => setEditForm({ ...editForm, lastName: text })}
+                  onChangeText={(text) => setEditForm({ ...editForm, lastName: text })}
                   placeholderTextColor="#999"
                 />
               </View>
@@ -265,7 +284,7 @@ export default function PhysicianProfileScreen() {
                   className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-800"
                   placeholder="Phone Number"
                   value={editForm.phone}
-                  onChangeText={text => setEditForm({ ...editForm, phone: text })}
+                  onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
                   keyboardType="phone-pad"
                   placeholderTextColor="#999"
                 />
@@ -274,7 +293,8 @@ export default function PhysicianProfileScreen() {
               {/* Info Text */}
               <View className="rounded-lg bg-gray-100 p-3">
                 <Text className="text-xs text-gray-600">
-                  <Text className="font-semibold">Note:</Text> Email and Professional Information cannot be changed.
+                  <Text className="font-semibold">Note:</Text> Email and Professional Information
+                  cannot be changed.
                 </Text>
               </View>
             </ScrollView>
@@ -283,14 +303,12 @@ export default function PhysicianProfileScreen() {
             <View className="flex-row gap-3">
               <TouchableOpacity
                 onPress={() => setShowEditModal(false)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white py-3"
-              >
+                className="flex-1 rounded-lg border border-gray-300 bg-white py-3">
                 <Text className="text-center font-semibold text-gray-700">Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSaveEdit}
-                className="flex-1 rounded-lg bg-teal-600 py-3"
-              >
+                className="flex-1 rounded-lg bg-teal-600 py-3">
                 <Text className="text-center font-semibold text-white">Save Changes</Text>
               </TouchableOpacity>
             </View>
@@ -300,8 +318,8 @@ export default function PhysicianProfileScreen() {
 
       {/* Change Password Modal */}
       <Modal visible={showPasswordModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-8">
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="rounded-t-3xl bg-white p-6 pb-8">
             {/* Header */}
             <View className="mb-6 flex-row items-center justify-between">
               <Text className="text-xl font-bold text-gray-800">Change Password</Text>
@@ -317,10 +335,10 @@ export default function PhysicianProfileScreen() {
                 <Text className="mb-2 text-sm font-semibold text-gray-700">Current Password</Text>
                 <View className="relative">
                   <TextInput
-                    className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-800 pr-12"
+                    className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-800"
                     placeholder="Enter current password"
                     value={passwordForm.current}
-                    onChangeText={text => setPasswordForm({ ...passwordForm, current: text })}
+                    onChangeText={(text) => setPasswordForm({ ...passwordForm, current: text })}
                     secureTextEntry={!passwordForm.showCurrent}
                     placeholderTextColor="#999"
                   />
@@ -331,8 +349,7 @@ export default function PhysicianProfileScreen() {
                         showCurrent: !passwordForm.showCurrent,
                       })
                     }
-                    className="absolute right-3 top-3.5"
-                  >
+                    className="absolute right-3 top-3.5">
                     <Ionicons
                       name={passwordForm.showCurrent ? 'eye-off' : 'eye'}
                       size={20}
@@ -347,10 +364,10 @@ export default function PhysicianProfileScreen() {
                 <Text className="mb-2 text-sm font-semibold text-gray-700">New Password</Text>
                 <View className="relative">
                   <TextInput
-                    className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-800 pr-12"
+                    className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-800"
                     placeholder="Enter new password"
                     value={passwordForm.new}
-                    onChangeText={text => setPasswordForm({ ...passwordForm, new: text })}
+                    onChangeText={(text) => setPasswordForm({ ...passwordForm, new: text })}
                     secureTextEntry={!passwordForm.showNew}
                     placeholderTextColor="#999"
                   />
@@ -361,8 +378,7 @@ export default function PhysicianProfileScreen() {
                         showNew: !passwordForm.showNew,
                       })
                     }
-                    className="absolute right-3 top-3.5"
-                  >
+                    className="absolute right-3 top-3.5">
                     <Ionicons
                       name={passwordForm.showNew ? 'eye-off' : 'eye'}
                       size={20}
@@ -374,13 +390,15 @@ export default function PhysicianProfileScreen() {
 
               {/* Confirm Password */}
               <View className="mb-4">
-                <Text className="mb-2 text-sm font-semibold text-gray-700">Confirm New Password</Text>
+                <Text className="mb-2 text-sm font-semibold text-gray-700">
+                  Confirm New Password
+                </Text>
                 <View className="relative">
                   <TextInput
-                    className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-800 pr-12"
+                    className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 pr-12 text-gray-800"
                     placeholder="Confirm new password"
                     value={passwordForm.confirm}
-                    onChangeText={text => setPasswordForm({ ...passwordForm, confirm: text })}
+                    onChangeText={(text) => setPasswordForm({ ...passwordForm, confirm: text })}
                     secureTextEntry={!passwordForm.showConfirm}
                     placeholderTextColor="#999"
                   />
@@ -391,8 +409,7 @@ export default function PhysicianProfileScreen() {
                         showConfirm: !passwordForm.showConfirm,
                       })
                     }
-                    className="absolute right-3 top-3.5"
-                  >
+                    className="absolute right-3 top-3.5">
                     <Ionicons
                       name={passwordForm.showConfirm ? 'eye-off' : 'eye'}
                       size={20}
@@ -407,15 +424,13 @@ export default function PhysicianProfileScreen() {
             <View className="flex-row gap-3">
               <TouchableOpacity
                 onPress={() => setShowPasswordModal(false)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white py-3"
-              >
+                className="flex-1 rounded-lg border border-gray-300 bg-white py-3">
                 <Text className="text-center font-semibold text-gray-700">Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleChangePassword}
                 disabled={loading}
-                className="flex-1 rounded-lg bg-teal-600 py-3"
-              >
+                className="flex-1 rounded-lg bg-teal-600 py-3">
                 {loading ? (
                   <ActivityIndicator color="white" />
                 ) : (

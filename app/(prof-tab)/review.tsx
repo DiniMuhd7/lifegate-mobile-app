@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { useReviewStore } from '../../stores/review-store';
 import {
-  ReviewHeader,
   ConsultationSummary,
   ActivityChart,
   ActivityList,

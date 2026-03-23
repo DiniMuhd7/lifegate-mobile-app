@@ -28,6 +28,7 @@ export const LabeledInput: React.FC<InputProps> = ({
         <TextInput
           {...inputProps}
           secureTextEntry={secureToggle ? hidden : inputProps.secureTextEntry}
+          autoCapitalize='none'
           placeholderTextColor="#9CA3AF"
           className="flex-1 text-gray-900"
         />
