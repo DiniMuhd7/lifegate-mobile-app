@@ -105,7 +105,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       if (rememberMe && response.token) {
         await saveToken(response.token);
-        console.log('Token saved for session persistence');
+        console.log('Token saved for session persistence:', response.token);
       }
 
       set({

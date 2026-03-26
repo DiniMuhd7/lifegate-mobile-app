@@ -8,6 +8,7 @@ import { AuthService } from 'services/auth-service';
 import { UserDraft } from 'types/auth-types';
 import { validateRegistration, hasErrors } from 'utils/validation';
 import { extractErrorMessage } from 'utils/error-utils';
+import { useAuthStore } from './auth-store';
 
 type RegistrationState = {
   // Form state
@@ -148,7 +149,6 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
         console.error('Registration start failed:', response.message);
         return false;
       }
-
       // Store email and OTP expiration, clear password from memory
       set({
         pendingRegistrationEmail: email,
@@ -171,7 +171,7 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await AuthService.verifyRegistration({ email, otp });
-
+      
       if (!response.success || !response.data) {
         const errorMessage = extractErrorMessage({
           response: { data: { message: response.message } },
@@ -190,7 +190,7 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
         }
         return false;
       }
-
+      console.log('OTP verification response:', response);
       // Clear registration state after successful verification
       // User is now logged in via AuthService, but this store clears its own state
       set({

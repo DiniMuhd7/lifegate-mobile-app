@@ -1,5 +1,5 @@
 import api from './api';
-import { saveToken } from '../utils/tokenStorage';
+import { saveToken, getToken } from '../utils/tokenStorage';
 import { extractErrorMessage } from '../utils/error-utils';
 import {
   BackendLoginResponse,
@@ -37,9 +37,9 @@ export const AuthService = {
       }
 
       const { token, user } = response.data.data;
-
+      await saveToken(token);
       // Save token to secure storage
-      console.log('Login successful:', token);
+      console.log('Login successful:');
 
       return {
         success: true,
@@ -107,36 +107,36 @@ export const AuthService = {
    * POST /api/auth/register/start
    * Accepts FormData for multipart/form-data requests (supports file uploads)
    */
-  async startRegistration(
-    payload: FormData | RegistrationStartPayload
-  ): Promise<RegistrationStartResponse> {
-    try {
-      const isFormData = payload instanceof FormData;
-      console.log('Starting registration with', isFormData ? 'FormData' : 'object payload');
-      console.log('Payload content:', payload);
+async startRegistration(
+  payload: FormData | RegistrationStartPayload
+): Promise<RegistrationStartResponse> {
+  try {
+    const isFormData = payload instanceof FormData;
+    console.log('Starting registration with', isFormData ? 'FormData' : 'object payload');
+    console.log('Payload content:', payload);
 
-      const { data } = await api.post<RegistrationStartResponse>(
-        '/auth/register/start',
-        payload,
-        isFormData
-          ? { headers: { 'Content-Type': 'multipart/form-data' } } // critical in RN
-          : undefined
-      );
+    const { data } = await api.post<RegistrationStartResponse>(
+      '/auth/register/start',
+      payload,
+      isFormData
+        ? { headers: { 'Content-Type': 'multipart/form-data' } } // critical in RN
+        : undefined
+    );
 
-      if (!data.success) {
-        console.log('Registration start failed:', data.message);
-      }
-
-      return data;
-    } catch (error: any) {
-      console.error('Start registration error:', error);
-
-      return {
-        success: false,
-        message: extractErrorMessage(error),
-      };
+    if (!data.success) {
+      console.log('Registration start failed:', data.message);
     }
-  },
+
+    return data;
+  } catch (error: any) {
+    console.error('Start registration error:', error);
+
+    return {
+      success: false,
+      message: extractErrorMessage(error),
+    };
+  }
+},
 
   /**
    * NEW TWO-STAGE REGISTRATION FLOW
@@ -288,7 +288,10 @@ export const AuthService = {
    * Reset password with verified reset token
    * POST /auth/password/reset-password
    */
-  async resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse> {
+  async resetPassword(
+    token: string,
+    newPassword: string
+  ): Promise<ResetPasswordResponse> {
     try {
       console.log('Resetting password with token');
 
@@ -405,34 +408,47 @@ export const AuthService = {
    * Calls GET /me
    * Returns user profile data
    */
-  async getProfile(): Promise<AuthResponse> {
-    try {
-      console.log('Fetching user profile...');
-      const response = await api.get<BackendLoginResponse>('auth/me');
-
-      if (!response.data.success || !response.data.data) {
-        console.log('Failed to fetch profile:', response.data.message);
-        return {
-          success: false,
-          message: response.data.message || 'Failed to fetch profile',
-        };
-      }
-
-      console.log('Profile fetched successfully');
-      const user = response.data.data;
-      console.log('User profile:', user);
-      return {
-        success: true,
-        user: user,
-      };
-    } catch (error: any) {
-      console.error('Get profile error:', extractErrorMessage(error));
+ async getProfile(): Promise<AuthResponse> {
+  try {
+    console.log('Fetching user profile...');
+    
+    // Get token from storage
+    const token = await getToken();
+    if (!token) {
       return {
         success: false,
-        message: extractErrorMessage(error),
+        message: 'No token found. User may not be logged in.',
       };
     }
-  },
+
+    // Attach Authorization header manually
+    const response = await api.get<BackendLoginResponse>('auth/me');
+
+    if (!response.data.success || !response.data.data) {
+      console.log('Failed to fetch profile:', response.data.message);
+      return {
+        success: false,
+        message: response.data.message || 'Failed to fetch profile',
+      };
+    }
+
+    console.log('Profile fetched successfully');
+    const user = response.data.data;
+    console.log('User profile:', user);
+
+    return {
+      success: true,
+      user: user,
+    };
+  } catch (error: any) {
+    console.error('Get profile error:', extractErrorMessage(error));
+    return {
+      success: false,
+      message: extractErrorMessage(error),
+    };
+  }
+},
+
 
   /**
    * Change user password

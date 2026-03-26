@@ -45,7 +45,7 @@ export default function PhysicianProfileScreen() {
         phone: user.phone || '',
       });
     }
-  }, [getProfile, user]);
+  }, []);
 
   const handleLogout = async () => {
     try {

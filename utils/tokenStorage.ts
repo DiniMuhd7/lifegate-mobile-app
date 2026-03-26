@@ -28,6 +28,7 @@ export async function getToken(): Promise<string | null> {
   }
 }
 
+
 /**
  * Remove JWT token from secure storage
  */
@@ -44,6 +45,7 @@ export async function removeToken(): Promise<void> {
 /**
  * Check if a valid token exists
  */
+
 export async function isTokenValid(): Promise<boolean> {
   const token = await getToken();
   return !!token;

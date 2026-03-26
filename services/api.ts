@@ -36,6 +36,16 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
+
+api.interceptors.request.use(async (config) => {
+  const token = await getToken().catch(() => null);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+
 /**
  * Response interceptor: Handle 401 errors (unauthorized)
  */
@@ -46,8 +56,6 @@ api.interceptors.response.use(
       console.log('Unauthorized (401) - clearing token and user session');
       try {
         // await removeToken();
-        // Trigger logout in the app - this would be handled by the auth store
-        // The store checks for this error and clears state appropriately
       } catch (err) {
         console.error('Error clearing token on 401:', err);
       }
@@ -55,5 +63,4 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 export default api;
