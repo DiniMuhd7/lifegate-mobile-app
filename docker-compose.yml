@@ -4,6 +4,7 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
+      # ⚠️ Development-only credentials — change these for staging/production
       POSTGRES_DB: lifegate
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -11,11 +12,21 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U user -d lifegate']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     ports:
       - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   nats:
     image: nats:2.10-alpine
@@ -23,6 +34,11 @@ services:
       - '4222:4222'
       - '8222:8222'
     command: ['--jetstream']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://localhost:8222/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -32,9 +48,12 @@ services:
     ports:
       - '5000:5000'
     depends_on:
-      - postgres
-      - redis
-      - nats
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
 
 volumes:
   pgdata:

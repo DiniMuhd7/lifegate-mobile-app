@@ -21,7 +21,7 @@ lifegate-mobile-app/
 |------|---------|
 | Node.js | 20+ |
 | npm | 9+ |
-| Go | 1.22+ |
+| Go | 1.24+ |
 | Expo CLI | latest (`npm i -g expo-cli`) |
 
 ---
@@ -71,7 +71,7 @@ See [`backend/.env.example`](backend/.env.example) for all variables.
 | State management | Zustand |
 | HTTP client | Axios |
 | AI providers | Google Gemini, OpenAI, Claude (via backend) |
-| Backend language | Go 1.22 |
+| Backend language | Go 1.24 |
 | Web framework | Gin |
 | Database | PostgreSQL |
 | Cache | Redis |
