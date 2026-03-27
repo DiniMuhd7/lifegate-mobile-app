@@ -1,20 +1,37 @@
 package websocket
 
 import (
-"log"
-"net/http"
-"sync"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
 
-"github.com/gin-gonic/gin"
-"github.com/gorilla/websocket"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
-ReadBufferSize:  1024,
-WriteBufferSize: 1024,
-CheckOrigin: func(r *http.Request) bool {
-return true
-},
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     checkOrigin,
+}
+
+// checkOrigin validates the WebSocket request origin.
+// When ALLOWED_ORIGINS is set (production), only those origins are accepted.
+// Otherwise all origins are accepted (development mode).
+func checkOrigin(r *http.Request) bool {
+	raw := os.Getenv("ALLOWED_ORIGINS")
+	if raw == "" {
+		return true
+	}
+	origin := r.Header.Get("Origin")
+	for _, allowed := range strings.Split(raw, ",") {
+		if strings.TrimSpace(allowed) == origin {
+			return true
+		}
+	}
+	return false
 }
 
 type Client struct {

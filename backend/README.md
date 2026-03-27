@@ -4,7 +4,7 @@ Go REST API backend for the LifeGate mobile health app.
 
 ## Prerequisites
 
-- Go 1.22+
+- Go 1.24+
 - PostgreSQL 14+
 - Redis 7+
 - NATS Server 2+
