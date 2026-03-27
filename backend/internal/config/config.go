@@ -28,6 +28,9 @@ type Config struct {
 	AnthropicAPIKey string
 	AnthropicModel  string
 
+	CodexModel      string
+	ClaudeCodeModel string
+
 	SMTPHost     string
 	SMTPPort     string
 	SMTPUser     string
@@ -64,6 +67,9 @@ func Load() *Config {
 
 		AnthropicAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
 		AnthropicModel:  getEnv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
+
+		CodexModel:      getEnv("CODEX_MODEL", "codex-mini-latest"),
+		ClaudeCodeModel: getEnv("CLAUDE_CODE_MODEL", "claude-opus-4-5"),
 
 		SMTPHost:     getEnv("SMTP_HOST", "smtp.gmail.com"),
 		SMTPPort:     getEnv("SMTP_PORT", "587"),

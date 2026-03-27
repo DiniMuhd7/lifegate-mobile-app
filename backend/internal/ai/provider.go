@@ -49,15 +49,23 @@ Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIRespo
 
 func NewProvider(cfg *config.Config) AIProvider {
 switch cfg.AIProvider {
-case "gemini":
-return NewGeminiProvider(cfg)
+case "openai":
+return NewOpenAIProvider(cfg)
+case "codex":
+return NewCodexProvider(cfg)
 case "claude":
 return NewClaudeProvider(cfg)
+case "claude-code":
+return NewClaudeCodeProvider(cfg)
+case "gemini":
+return NewGeminiProvider(cfg)
 case "auto":
 return &autoProvider{providers: []AIProvider{
+NewCodexProvider(cfg),
 NewOpenAIProvider(cfg),
-NewGeminiProvider(cfg),
+NewClaudeCodeProvider(cfg),
 NewClaudeProvider(cfg),
+NewGeminiProvider(cfg),
 }}
 default:
 return NewOpenAIProvider(cfg)
