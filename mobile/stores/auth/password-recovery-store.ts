@@ -60,9 +60,8 @@ export const usePasswordRecoveryStore = create<PasswordRecoveryState>((set) => (
         loading: false,
         error: null,
       });
-      console.log('OTP sent for password recovery');
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       set({ loading: false, error: extractErrorMessage(err) });
       return false;
     }
@@ -84,9 +83,8 @@ export const usePasswordRecoveryStore = create<PasswordRecoveryState>((set) => (
         loading: false,
         error: null,
       });
-      console.log('Reset code verified - token stored');
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       set({ loading: false, error: extractErrorMessage(err) });
       return false;
     }
@@ -109,9 +107,8 @@ export const usePasswordRecoveryStore = create<PasswordRecoveryState>((set) => (
         resetToken: null,
         passwordRecoveryEmail: null,
       });
-      console.log('Password reset successfully - token cleared');
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       set({ loading: false, error: extractErrorMessage(err) });
       return false;
     }
@@ -127,9 +124,8 @@ export const usePasswordRecoveryStore = create<PasswordRecoveryState>((set) => (
         return false;
       }
       set({ loading: false, error: null });
-      console.log(`Code resent for ${type}`);
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       set({ loading: false, error: extractErrorMessage(err) });
       return false;
     }

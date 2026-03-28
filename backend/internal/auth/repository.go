@@ -183,6 +183,30 @@ return nil, err
 return pr, nil
 }
 
+// GetLatestValidPasswordReset fetches the most-recent active reset record by email only
+// so the code comparison can be done in Go with constant-time equality.
+func (r *Repository) GetLatestValidPasswordReset(email string) (*PasswordReset, error) {
+row := r.db.QueryRow(
+`SELECT id, email, code, COALESCE(reset_token,''), expires_at, used
+ FROM password_resets
+ WHERE email=$1 AND used=FALSE AND expires_at > NOW()
+ ORDER BY created_at DESC LIMIT 1`, email)
+pr := &PasswordReset{}
+err := row.Scan(&pr.ID, &pr.Email, &pr.Code, &pr.ResetToken, &pr.ExpiresAt, &pr.Used)
+if err != nil {
+return nil, err
+}
+return pr, nil
+}
+
+// DeletePasswordResetsByEmail removes ALL reset records for an email.
+// Called before issuing a new code (so old codes are invalidated) and after
+// a successful password change (so the used token cannot be replayed).
+func (r *Repository) DeletePasswordResetsByEmail(email string) error {
+_, err := r.db.Exec(`DELETE FROM password_resets WHERE email = $1`, email)
+return err
+}
+
 func (r *Repository) GetPasswordResetByToken(token string) (*PasswordReset, error) {
 row := r.db.QueryRow(
 `SELECT id, email, code, COALESCE(reset_token,''), expires_at, used

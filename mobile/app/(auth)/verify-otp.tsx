@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -14,7 +14,15 @@ export default function VerifyOtpScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendLoading, setResendLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(TextInput | null)[]>([null, null, null, null, null, null]);
+
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -80,6 +88,7 @@ export default function VerifyOtpScreen() {
         const success = await resendOtp(email, 'password-reset');
         if (success) {
           setOtp(['', '', '', '', '', '']);
+          setResendCooldown(60);
           inputRefs.current[0]?.focus();
         } else {
           const { error: storeError } = usePasswordRecoveryStore.getState();
@@ -90,6 +99,7 @@ export default function VerifyOtpScreen() {
         const success = await resendRegistrationOTP(email);
         if (success) {
           setOtp(['', '', '', '', '', '']);
+          setResendCooldown(60);
           inputRefs.current[0]?.focus();
         } else {
           const { error: storeError } = useRegistrationStore.getState();
@@ -192,13 +202,17 @@ export default function VerifyOtpScreen() {
             <Text className="text-sm text-gray-500">Didn&apos;t receive the code?</Text>
             <Pressable
               onPress={handleResend}
-              disabled={resendLoading || loading}
+              disabled={resendLoading || loading || resendCooldown > 0}
               className="p-1">
               <Text
                 className={`text-sm font-semibold ${
-                  resendLoading || loading ? 'text-gray-400' : 'text-[#0EA5A4]'
+                  resendLoading || loading || resendCooldown > 0 ? 'text-gray-400' : 'text-[#0EA5A4]'
                 }`}>
-                {resendLoading ? 'Sending...' : 'Resend Code'}
+                {resendLoading
+                  ? 'Sending...'
+                  : resendCooldown > 0
+                    ? `Resend in ${resendCooldown}s`
+                    : 'Resend Code'}
               </Text>
             </Pressable>
           </View>

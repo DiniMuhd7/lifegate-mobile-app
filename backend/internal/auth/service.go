@@ -138,6 +138,12 @@ var ErrOTPRateLimited = errors.New("too many OTP requests, please try again late
 // ErrOTPTooManyAttempts is returned when the OTP has been guessed too many times.
 var ErrOTPTooManyAttempts = errors.New("too many verification attempts, please request a new code")
 
+// ErrResetRateLimited is returned when too many password reset requests are made.
+var ErrResetRateLimited = errors.New("too many reset requests, please try again later")
+
+// ErrResetTooManyAttempts is returned when the reset code has been guessed too many times.
+var ErrResetTooManyAttempts = errors.New("too many attempts, please request a new reset code")
+
 func (s *Service) StartRegistration(ctx context.Context, payload RegisterStartPayload) (string, int, error) {
 // Normalize email
 payload.Email = strings.ToLower(strings.TrimSpace(payload.Email))
@@ -323,48 +329,101 @@ func (s *Service) ResendOTP(ctx context.Context, email string) (string, int, err
 	return email, otpTTL, nil
 }
 
-func (s *Service) SendPasswordResetCode(email string) error {
-if _, err := s.repo.FindUserByEmail(email); err != nil {
-// Don't reveal whether email exists
-return nil
-}
-code, err := generateOTP(6)
-if err != nil {
-return err
-}
-resetToken, err := generateToken(32)
-if err != nil {
-return err
-}
-expiresAt := time.Now().Add(15 * time.Minute)
-if err := s.repo.CreatePasswordReset(email, code, resetToken, expiresAt); err != nil {
-return err
-}
-_ = s.sendPasswordResetEmail(email, code)
-return nil
+func (s *Service) SendPasswordResetCode(ctx context.Context, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	if _, err := s.repo.FindUserByEmail(email); err != nil {
+		// Don't reveal whether email exists; still consume rate limit slot to prevent
+		// timing-based enumeration.
+		const maxResetSends = 3
+		const resetRateWindowSecs = 60 * 60
+		resetRateKey := "reset:rate:" + email
+		sends, _ := s.redis.GetInt64(ctx, resetRateKey)
+		if sends >= maxResetSends {
+			return ErrResetRateLimited
+		}
+		_, _ = s.redis.IncrWithTTL(ctx, resetRateKey, resetRateWindowSecs)
+		return nil
+	}
+
+	// Rate limit: max 3 reset codes per hour per email.
+	const maxResetSends = 3
+	const resetRateWindowSecs = 60 * 60
+	resetRateKey := "reset:rate:" + email
+	sends, _ := s.redis.GetInt64(ctx, resetRateKey)
+	if sends >= maxResetSends {
+		return ErrResetRateLimited
+	}
+
+	// Invalidate all previous reset records so old codes cannot be replayed.
+	_ = s.repo.DeletePasswordResetsByEmail(email)
+
+	code, err := generateOTP(6)
+	if err != nil {
+		return err
+	}
+	resetToken, err := generateToken(32)
+	if err != nil {
+		return err
+	}
+
+	_, _ = s.redis.IncrWithTTL(ctx, resetRateKey, resetRateWindowSecs)
+
+	expiresAt := time.Now().Add(15 * time.Minute)
+	if err := s.repo.CreatePasswordReset(email, code, resetToken, expiresAt); err != nil {
+		return err
+	}
+	// Also reset attempt counter so any previous lockout is cleared for the new code.
+	_ = s.redis.Del(ctx, "reset:attempts:"+email)
+	_ = s.sendPasswordResetEmail(email, code)
+	return nil
 }
 
-func (s *Service) VerifyResetCode(email, code string) (string, error) {
-pr, err := s.repo.GetValidPasswordReset(email, code)
-if err != nil {
-return "", fmt.Errorf("invalid or expired reset code")
-}
-return pr.ResetToken, nil
+func (s *Service) VerifyResetCode(ctx context.Context, email, code string) (string, error) {
+	const maxAttempts = 5
+	const resetWindowSecs = 15 * 60
+	attemptKey := "reset:attempts:" + email
+
+	attempts, _ := s.redis.GetInt64(ctx, attemptKey)
+	if attempts >= maxAttempts {
+		return "", ErrResetTooManyAttempts
+	}
+
+	// Fetch by email only so code comparison can use constant-time equality.
+	pr, err := s.repo.GetLatestValidPasswordReset(email)
+	if err != nil {
+		return "", fmt.Errorf("invalid or expired reset code")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(pr.Code), []byte(code)) != 1 {
+		_, _ = s.redis.IncrWithTTL(ctx, attemptKey, resetWindowSecs)
+		return "", fmt.Errorf("invalid or expired reset code")
+	}
+
+	_ = s.redis.Del(ctx, attemptKey)
+	return pr.ResetToken, nil
 }
 
 func (s *Service) ResetPassword(token, newPassword string) error {
-pr, err := s.repo.GetPasswordResetByToken(token)
-if err != nil {
-return fmt.Errorf("invalid or expired reset token")
-}
-hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-if err != nil {
-return err
-}
-if err := s.repo.UpdatePassword(pr.Email, string(hash)); err != nil {
-return err
-}
-return s.repo.MarkPasswordResetUsed(pr.ID)
+	if len(newPassword) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+
+	pr, err := s.repo.GetPasswordResetByToken(token)
+	if err != nil {
+		return fmt.Errorf("invalid or expired reset token")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.UpdatePassword(pr.Email, string(hash)); err != nil {
+		return err
+	}
+	// Purge all reset records for this email — prevents replay of any other
+	// non-expired codes that were issued in the same session.
+	_ = s.repo.DeletePasswordResetsByEmail(pr.Email)
+	return nil
 }
 
 func (s *Service) ChangePassword(userID, currentPassword, newPassword string) error {

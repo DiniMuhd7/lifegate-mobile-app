@@ -246,7 +246,12 @@ if err := c.ShouldBindJSON(&req); err != nil {
 respond(c, http.StatusBadRequest, false, err.Error(), nil)
 return
 }
-_ = h.svc.SendPasswordResetCode(req.Email)
+err := h.svc.SendPasswordResetCode(c.Request.Context(), req.Email)
+if errors.Is(err, ErrResetRateLimited) {
+	respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+	return
+}
+// All other errors (incl. email not found) are swallowed — don't reveal email existence.
 respond(c, http.StatusOK, true, "If that email exists, a reset code has been sent", nil)
 }
 
@@ -259,10 +264,15 @@ if err := c.ShouldBindJSON(&req); err != nil {
 respond(c, http.StatusBadRequest, false, err.Error(), nil)
 return
 }
-token, err := h.svc.VerifyResetCode(req.Email, req.Code)
+token, err := h.svc.VerifyResetCode(c.Request.Context(), req.Email, req.Code)
 if err != nil {
-respond(c, http.StatusBadRequest, false, err.Error(), nil)
-return
+	switch {
+	case errors.Is(err, ErrResetTooManyAttempts):
+		respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+	default:
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+	}
+	return
 }
 respond(c, http.StatusOK, true, "Code verified", gin.H{"resetToken": token})
 }
