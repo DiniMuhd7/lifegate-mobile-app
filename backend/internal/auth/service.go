@@ -87,6 +87,31 @@ func (s *Service) Login(ctx context.Context, email, password, clientIP string) (
 	if err != nil {
 		return nil, err
 	}
+
+	// Physicians require a second factor before a JWT is issued.
+	if user.Role == "professional" {
+		const max2FASends = 3
+		const rate2FAWindowSecs = 60 * 60
+		rateKey := "2fa:rate:" + email
+		sends, _ := s.redis.GetInt64(ctx, rateKey)
+		if sends >= max2FASends {
+			return nil, ErrPhysician2FARateLimited
+		}
+		otp, err := generateOTP(6)
+		if err != nil {
+			return nil, err
+		}
+		// Invalidate any prior 2FA session for this email.
+		_ = s.redis.Del(ctx, "2fa:"+email)
+		_ = s.redis.Del(ctx, "2fa:attempts:"+email)
+		if err := s.redis.SetEx(ctx, "2fa:"+email, otp, otpTTL); err != nil {
+			return nil, fmt.Errorf("failed to initiate 2FA")
+		}
+		_, _ = s.redis.IncrWithTTL(ctx, rateKey, rate2FAWindowSecs)
+		_ = s.send2FAEmail(email, user.Name, otp)
+		return nil, ErrRequires2FA
+	}
+
 	token, err := s.generateJWT(user)
 	if err != nil {
 		return nil, err
@@ -143,6 +168,12 @@ var ErrResetRateLimited = errors.New("too many reset requests, please try again 
 
 // ErrResetTooManyAttempts is returned when the reset code has been guessed too many times.
 var ErrResetTooManyAttempts = errors.New("too many attempts, please request a new reset code")
+
+// ErrRequires2FA signals that a physician must complete a second factor before receiving a JWT.
+var ErrRequires2FA = errors.New("2FA required")
+
+// ErrPhysician2FARateLimited is returned when too many 2FA codes have been issued.
+var ErrPhysician2FARateLimited = errors.New("too many login attempts, please try again later")
 
 func (s *Service) StartRegistration(ctx context.Context, payload RegisterStartPayload) (string, int, error) {
 // Normalize email
@@ -327,6 +358,85 @@ func (s *Service) ResendOTP(ctx context.Context, email string) (string, int, err
 	_ = s.sendOTPEmail(email, p.Name, otp)
 
 	return email, otpTTL, nil
+}
+
+func (s *Service) VerifyPhysician2FA(ctx context.Context, email, otp string) (*TokenPair, error) {
+	const maxAttempts = 5
+	attemptKey := "2fa:attempts:" + email
+
+	attempts, _ := s.redis.GetInt64(ctx, attemptKey)
+	if attempts >= maxAttempts {
+		return nil, ErrOTPTooManyAttempts
+	}
+
+	storedOTP, err := s.redis.Get(ctx, "2fa:"+email)
+	if err != nil {
+		return nil, fmt.Errorf("2FA code not found or expired")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(storedOTP), []byte(otp)) != 1 {
+		_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
+		return nil, fmt.Errorf("invalid 2FA code")
+	}
+
+	_ = s.redis.Del(ctx, "2fa:"+email)
+	_ = s.redis.Del(ctx, attemptKey)
+
+	user, err := s.repo.FindUserByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	if user.Role != "professional" {
+		return nil, fmt.Errorf("invalid 2FA request")
+	}
+	token, err := s.generateJWT(user)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: token, User: user}, nil
+}
+
+func (s *Service) ResendPhysician2FA(ctx context.Context, email string) error {
+	// Only resend if there is an active 2FA session (i.e. login + password already verified).
+	if _, err := s.redis.Get(ctx, "2fa:"+email); err != nil {
+		// Also check if it simply expired vs never existed — either way refuse.
+		return fmt.Errorf("no active 2FA session for this email")
+	}
+
+	const max2FASends = 3
+	const rate2FAWindowSecs = 60 * 60
+	rateKey := "2fa:rate:" + email
+	sends, _ := s.redis.GetInt64(ctx, rateKey)
+	if sends >= max2FASends {
+		return ErrPhysician2FARateLimited
+	}
+
+	otp, err := generateOTP(6)
+	if err != nil {
+		return err
+	}
+	_ = s.redis.Del(ctx, "2fa:attempts:"+email)
+	if err := s.redis.SetEx(ctx, "2fa:"+email, otp, otpTTL); err != nil {
+		return fmt.Errorf("failed to resend 2FA code")
+	}
+	_, _ = s.redis.IncrWithTTL(ctx, rateKey, rate2FAWindowSecs)
+
+	user, err := s.repo.FindUserByEmail(email)
+	if err != nil {
+		return err
+	}
+	_ = s.send2FAEmail(email, user.Name, otp)
+	return nil
+}
+
+func (s *Service) send2FAEmail(to, name, code string) error {
+	subject := "LifeGate — Physician Login Verification"
+	body := fmt.Sprintf(
+		"Hi %s,\r\n\r\nYour physician login verification code is: %s\r\n\r\n"+
+			"This code expires in 10 minutes. Do not share it with anyone.\r\n\r\n"+
+			"If you did not attempt to log in, please change your password immediately.",
+		name, code)
+	return s.sendEmail(to, subject, body)
 }
 
 func (s *Service) SendPasswordResetCode(ctx context.Context, email string) error {

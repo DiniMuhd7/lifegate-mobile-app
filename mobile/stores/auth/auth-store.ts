@@ -14,6 +14,9 @@ type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
 
+  // Pending physician 2FA session (set when login returns requires2FA: true)
+  pending2FA: { email: string; rememberMe: boolean } | null;
+
   // Login draft (separate from registration)
   loginDraft: {
     email: string;
@@ -28,15 +31,17 @@ type AuthState = {
   setLoginField: (field: 'email' | 'password', value: string) => void;
   clearLoginDraft: () => void;
   login: (email: string, password: string, remember: boolean) => Promise<boolean>;
+  verifyPhysician2FA: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   // -------- State --------
   user: null,
   isAuthenticated: false,
+  pending2FA: null,
   loginDraft: {
     email: '',
     password: '',
@@ -95,10 +100,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const response = await AuthService.login({ email, password });
-      if (!response.success || !response.user) {
+
+      if (!response.success) {
         set({ loading: false, error: response.message ?? 'Login failed' });
         return false;
       }
+
+      // Physician requires a second factor — store pending session and signal the screen.
+      if (response.requires2FA) {
+        set({ loading: false, error: null, pending2FA: { email: response.email!, rememberMe } });
+        return true;
+      }
+
+      if (!response.user) {
+        set({ loading: false, error: 'Login failed' });
+        return false;
+      }
+
       if (rememberMe && response.token) {
         await saveToken(response.token);
       }
@@ -108,6 +126,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
         loading: false,
         error: null,
+        pending2FA: null,
       });
       return true;
     } catch (err: unknown) {
@@ -115,6 +134,33 @@ export const useAuthStore = create<AuthState>((set) => ({
         loading: false,
         error: extractErrorMessage(err),
       });
+      return false;
+    }
+  },
+
+  // -------- PHYSICIAN 2FA VERIFY --------
+  verifyPhysician2FA: async (email, otp) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await AuthService.verifyPhysician2FA(email, otp);
+      if (!response.success || !response.user) {
+        set({ loading: false, error: response.message ?? 'Verification failed' });
+        return false;
+      }
+      const rememberMe = get().pending2FA?.rememberMe ?? false;
+      if (rememberMe && response.token) {
+        await saveToken(response.token);
+      }
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        loading: false,
+        error: null,
+        pending2FA: null,
+      });
+      return true;
+    } catch (err: unknown) {
+      set({ loading: false, error: extractErrorMessage(err) });
       return false;
     }
   },

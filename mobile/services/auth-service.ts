@@ -6,6 +6,7 @@ import {
   LoginPayload,
   RegisterPayload,
   AuthResponse,
+  Physician2FAResponse,
   RegistrationStartPayload,
   RegistrationStartResponse,
   RegistrationVerifyPayload,
@@ -20,20 +21,69 @@ export const AuthService = {
    * Login user with email and password.
    * Calls POST /auth/login.
    * Does NOT persist the token — that is the store's responsibility (based on rememberMe).
+   * For physicians, returns { requires2FA: true, email } instead of a token.
    */
   async login(payload: LoginPayload): Promise<AuthResponse> {
     try {
       const response = await api.post<BackendLoginResponse>('/auth/login', payload);
 
-      if (!response.data.success || !response.data.data) {
-        return {
-          success: false,
-          message: response.data.message || 'Login failed',
-        };
+      if (!response.data.success) {
+        return { success: false, message: response.data.message || 'Login failed' };
       }
 
-      const { token, user } = response.data.data;
-      return { success: true, user, token };
+      const data = response.data.data;
+
+      // Physician needs to complete 2FA before receiving a JWT.
+      if (data?.requires2FA) {
+        return { success: true, requires2FA: true, email: data.email ?? payload.email };
+      }
+
+      if (!data?.token || !data?.user) {
+        return { success: false, message: response.data.message || 'Login failed' };
+      }
+
+      return { success: true, user: data.user, token: data.token };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
+
+  /**
+   * Verify physician 2FA code and receive a JWT.
+   * POST /auth/login/verify-2fa
+   */
+  async verifyPhysician2FA(email: string, otp: string): Promise<Physician2FAResponse> {
+    try {
+      const response = await api.post<BackendLoginResponse>('/auth/login/verify-2fa', {
+        email,
+        otp,
+      });
+
+      if (!response.data.success || !response.data.data?.token || !response.data.data?.user) {
+        return { success: false, message: response.data.message || 'Verification failed' };
+      }
+
+      return {
+        success: true,
+        token: response.data.data.token,
+        user: response.data.data.user,
+      };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
+
+  /**
+   * Resend the physician 2FA login code.
+   * POST /auth/login/resend-2fa
+   */
+  async resendPhysician2FA(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.post<{ success: boolean; message: string }>(
+        '/auth/login/resend-2fa',
+        { email }
+      );
+      return { success: response.data.success, message: response.data.message };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }

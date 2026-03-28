@@ -60,8 +60,14 @@ export default function LoginScreen() {
     try {
       const success = await login(loginDraft.email.trim(), loginDraft.password, remember);
       if (success) {
-        const { user } = useAuthStore.getState();
-        if (user?.role === 'professional') {
+        const { user, pending2FA } = useAuthStore.getState();
+        if (pending2FA) {
+          // Physician: navigate to 2FA verification screen.
+          router.push({
+            pathname: '/(auth)/verify-otp',
+            params: { email: pending2FA.email, mode: 'physician2fa' },
+          });
+        } else if (user?.role === 'professional') {
           router.replace('/(prof-tab)/consultation');
         } else {
           router.replace('/(tab)/chatScreen');

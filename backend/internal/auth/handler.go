@@ -68,10 +68,61 @@ func (h *Handler) Login(c *gin.Context) {
 
 	pair, err := h.svc.Login(c.Request.Context(), req.Email, req.Password, c.ClientIP())
 	if err != nil {
-		respond(c, http.StatusUnauthorized, false, err.Error(), nil)
+		switch {
+		case errors.Is(err, ErrRequires2FA):
+			// Physician authenticated with password; 2FA OTP has been sent.
+			respond(c, http.StatusOK, true, "2FA code sent to your email",
+				gin.H{"requires2FA": true, "email": req.Email})
+		case errors.Is(err, ErrPhysician2FARateLimited):
+			respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+		default:
+			respond(c, http.StatusUnauthorized, false, err.Error(), nil)
+		}
 		return
 	}
 	respond(c, http.StatusOK, true, "Login successful", gin.H{"token": pair.Token, "user": pair.User})
+}
+
+func (h *Handler) VerifyPhysician2FA(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+		OTP   string `json:"otp" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+		return
+	}
+	pair, err := h.svc.VerifyPhysician2FA(c.Request.Context(), req.Email, req.OTP)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrOTPTooManyAttempts):
+			respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+		default:
+			respond(c, http.StatusBadRequest, false, err.Error(), nil)
+		}
+		return
+	}
+	respond(c, http.StatusOK, true, "Login successful", gin.H{"token": pair.Token, "user": pair.User})
+}
+
+func (h *Handler) ResendPhysician2FA(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+		return
+	}
+	if err := h.svc.ResendPhysician2FA(c.Request.Context(), req.Email); err != nil {
+		switch {
+		case errors.Is(err, ErrPhysician2FARateLimited):
+			respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+		default:
+			respond(c, http.StatusBadRequest, false, err.Error(), nil)
+		}
+		return
+	}
+	respond(c, http.StatusOK, true, "2FA code resent", nil)
 }
 
 func (h *Handler) Register(c *gin.Context) {

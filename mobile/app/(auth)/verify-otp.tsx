@@ -6,6 +6,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { usePasswordRecoveryStore } from 'stores/auth/password-recovery-store';
 import { useRegistrationStore } from 'stores/auth/registration-store';
+import { useAuthStore } from 'stores/auth/auth-store';
+import { AuthService } from 'services/auth-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VerifyOtpScreen() {
@@ -71,6 +73,15 @@ export default function VerifyOtpScreen() {
           const { error: storeError } = useRegistrationStore.getState();
           setError(storeError || 'Invalid verification code');
         }
+      } else if (mode === 'physician2fa') {
+        const { verifyPhysician2FA } = useAuthStore.getState();
+        const success = await verifyPhysician2FA(email, otpString);
+        if (success) {
+          router.replace('/(prof-tab)/consultation');
+        } else {
+          const { error: storeError } = useAuthStore.getState();
+          setError(storeError || 'Invalid verification code');
+        }
       }
     } catch {
       setError('Verification failed. Please try again.');
@@ -105,6 +116,15 @@ export default function VerifyOtpScreen() {
           const { error: storeError } = useRegistrationStore.getState();
           setError(storeError || 'Failed to resend code');
         }
+      } else if (mode === 'physician2fa') {
+        const response = await AuthService.resendPhysician2FA(email);
+        if (response.success) {
+          setOtp(['', '', '', '', '', '']);
+          setResendCooldown(60);
+          inputRefs.current[0]?.focus();
+        } else {
+          setError(response.message || 'Failed to resend code');
+        }
       }
     } catch {
       setError('Failed to resend code. Please try again.');
@@ -114,7 +134,9 @@ export default function VerifyOtpScreen() {
   };
 
   const iconName: keyof typeof Ionicons.glyphMap =
-    mode === 'passwordReset' ? 'lock-closed-outline' : 'mail-outline';
+    mode === 'passwordReset' ? 'lock-closed-outline' :
+    mode === 'physician2fa' ? 'shield-checkmark-outline' :
+    'mail-outline';
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -129,7 +151,9 @@ export default function VerifyOtpScreen() {
             <Ionicons name="chevron-back" size={24} color="white" />
           </Pressable>
           <Text className="flex-1 text-center text-xl font-bold text-white">
-            {mode === 'passwordReset' ? 'Verify Reset Code' : 'Verify Email'}
+            {mode === 'passwordReset' ? 'Verify Reset Code' :
+             mode === 'physician2fa' ? 'Physician Login Verification' :
+             'Verify Email'}
           </Text>
           <View className="w-10" />
         </View>

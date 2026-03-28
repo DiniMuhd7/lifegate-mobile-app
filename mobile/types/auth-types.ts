@@ -93,8 +93,11 @@ export type BackendLoginResponse = {
   success: boolean;
   message: string;
   data?: {
-    token: string;
-    user: User;
+    token?: string;
+    user?: User;
+    // Set when physician login requires a second factor
+    requires2FA?: boolean;
+    email?: string;
   };
 };
 
@@ -104,7 +107,13 @@ export type AuthResponse = {
   user?: User;
   token?: string;
   message?: string;
+  // Set when the backend requires physician 2FA before issuing a JWT
+  requires2FA?: boolean;
+  email?: string;
 };
+
+// Physician 2FA verification response (same shape as a normal login response)
+export type Physician2FAResponse = AuthResponse;
 
 // Registration start request payload - can be FormData or object
 // Note: When certificate file is present, this must be sent as FormData
