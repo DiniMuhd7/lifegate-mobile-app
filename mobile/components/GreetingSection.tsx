@@ -10,7 +10,7 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) =>
   const headingSlide = useRef(new Animated.Value(30)).current;
   const subtitleFade = useRef(new Animated.Value(0)).current;
   
-  const displayName = userName ? userName.split(' ')[1] : 'there';
+  const displayName = userName ? userName.split(' ')[0] : 'there';
    useEffect(() => {
     Animated.sequence([
       Animated.parallel([

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Text, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UI_FONT_SIZES, UI_SPACING } from 'constants/constants';
 
@@ -9,6 +9,7 @@ interface MessageBubbleProps {
   timestamp?: string;
   status?: 'SENDING' | 'SENT' | 'FAILED';
   delay?: number;
+  onRetry?: () => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -17,6 +18,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   timestamp,
   status,
   delay = 0,
+  onRetry,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(12)).current;
@@ -102,6 +104,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 >
                   Failed to send
                 </Text>
+                {onRetry && (
+                  <TouchableOpacity onPress={onRetry} activeOpacity={0.7}>
+                    <Text
+                      className="text-teal-300 underline"
+                      style={{ fontSize: UI_FONT_SIZES.MESSAGE_STATUS }}
+                    >
+                      Retry
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>

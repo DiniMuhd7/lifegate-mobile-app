@@ -59,9 +59,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           onChangeText={setText}
           placeholder={placeholder}
           placeholderTextColor="#8bbdb7"
-          multiline={false}
-          returnKeyType="send"
-          onSubmitEditing={handleSend}
+          multiline={true}
+          style={{ maxHeight: 100 }}
+          returnKeyType="default"
           selectionColor="#1a6b5e"
           editable={!disabled}
         />

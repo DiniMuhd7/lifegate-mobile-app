@@ -26,6 +26,7 @@ const ChatScreen: React.FC = () => {
     state.conversations.find((c) => c.id === state.activeConversationId)
   );
   const sendMessage = useChatStore((state) => state.sendMessage);
+  const retrySendMessage = useChatStore((state) => state.retrySendMessage);
   const isThinking = useChatStore((state) => state.isThinking);
   const error = useChatStore((state) => state.error);
   const clearError = useChatStore((state) => state.clearError);
@@ -110,7 +111,7 @@ const ChatScreen: React.FC = () => {
               onClose={() => setShowProfileMenu(false)}
               onProfilePress={() => router.replace('/(tab)/profile')}
               onSettingsPress={() => router.replace('/(tab)/settings')}
-              onHelpPress={() => console.log('Help pressed')}
+              onHelpPress={() => router.replace('/(tab)/settings')}
               onLogout={async () => {
                 await logout();
                 router.replace('/(auth)/login');
@@ -124,7 +125,7 @@ const ChatScreen: React.FC = () => {
               </View>
             ) : (
               <View className="flex-1">
-                <MessageList messages={displayMessages} />
+                <MessageList messages={displayMessages} onRetry={retrySendMessage} />
               </View>
             )}
 

@@ -25,6 +25,12 @@ c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 return
 }
 
+const maxMessageLen = 5000
+if len([]rune(req.Message)) > maxMessageLen {
+c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Message exceeds maximum allowed length"})
+return
+}
+
 userID, _ := c.Get("userID")
 uid, _ := userID.(string)
 

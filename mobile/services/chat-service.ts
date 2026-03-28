@@ -28,8 +28,6 @@ export class ChatService {
     userMessage: string
   ): Promise<AIResponse> {
     try {
-      console.log('Sending message to backend:', userMessage);
-
       // Build request payload with message and conversation history
       const requestPayload = {
         message: userMessage,
@@ -44,13 +42,10 @@ export class ChatService {
 
       // Extract AIResponse from backend response
       const result = response.data.data;
-      console.log('Raw backend response:', response.data);
 
       if (!result || !result.text) {
         throw new Error('No content returned from AI');
       }
-
-      console.log('Backend AI response:', result);
 
       // Validate urgency if diagnosis exists
       if (result.diagnosis) {

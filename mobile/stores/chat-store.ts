@@ -11,12 +11,13 @@ import { create } from 'zustand';
 import { Message, Conversation, MessageStatus } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
 import { PersistenceManager } from 'utils/persistenceManager';
-import { validateMessage } from 'utils/messageValidator';
+import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
 
 type ChatState = {
   // State
   conversations: Conversation[];
   activeConversationId: string | null;
+  userId: string | null;
   isThinking: boolean; // AI is processing
   error: string | null; 
 
@@ -29,6 +30,7 @@ type ChatState = {
   createConversation: () => string; // Returns new conversation ID
   setActiveConversation: (conversationId: string) => void;
   sendMessage: (text: string) => Promise<void>; // User sends message
+  retrySendMessage: (messageId: string) => Promise<void>; // Retry a FAILED message
   loadConversationHistory: () => Promise<void>; // Load from storage
   deleteConversation: (conversationId: string) => void;
   processAIResponse: (userMessage: Message, conversationId: string) => Promise<void>;
@@ -45,6 +47,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // -------- State --------
   conversations: [],
   activeConversationId: null,
+  userId: null,
   isThinking: false,
   error: null,
 
@@ -73,6 +76,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({
         conversations,
         activeConversationId: defaultConvId,
+        userId,
       });
 
       // If no conversations exist, create first one
@@ -90,7 +94,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const conversationId = generateId();
     const newConversation: Conversation = {
       id: conversationId,
-      userId: '', // Will be set from auth context in component
+      userId: get().userId || '',
       messages: [],
       createdAt: now(),
       updatedAt: now(),
@@ -112,8 +116,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Main action: User sends message (Step A & B from spec)
   sendMessage: async (text: string) => {
     try {
-      // Step B: Validation
-      const validation = validateMessage(text);
+      // Step B: Sanitize and validate
+      const sanitized = sanitizeMessage(text);
+      const validation = validateMessage(sanitized);
       if (!validation.isValid) {
         set({ error: validation.error });
         return;
@@ -131,7 +136,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         id: generateId(),
         role: 'USER',
         status: 'SENDING',
-        text,
+        text: sanitized,
         timestamp: now(),
       };
 
@@ -220,7 +225,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Step D: Persist to storage
       await PersistenceManager.saveConversations(
         get().conversations,
-        ''
+        get().userId || ''
       );
     } catch (error) {
       console.error('AI response error:', error);
@@ -251,12 +256,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Load conversation history from storage
   loadConversationHistory: async () => {
     try {
-      const conversations = await PersistenceManager.loadConversations('');
+      const conversations = await PersistenceManager.loadConversations(get().userId || '');
       set({ conversations });
     } catch (error) {
       console.error('Failed to load conversation history:', error);
       set({ error: 'Failed to load history' });
     }
+  },
+
+  // Retry a FAILED message
+  retrySendMessage: async (messageId: string) => {
+    const state = get();
+    const convId = state.activeConversationId;
+    const conversation = state.conversations.find((c) => c.id === convId);
+    if (!convId || !conversation) return;
+
+    const failedMsg = conversation.messages.find(
+      (m) => m.id === messageId && m.status === 'FAILED'
+    );
+    if (!failedMsg) return;
+
+    // Reset message to SENDING
+    set((s) => ({
+      conversations: s.conversations.map((conv) =>
+        conv.id !== convId
+          ? conv
+          : {
+              ...conv,
+              messages: conv.messages.map((msg) =>
+                msg.id === messageId ? { ...msg, status: 'SENDING' as MessageStatus } : msg
+              ),
+            }
+      ),
+      isThinking: true,
+      error: null,
+    }));
+
+    await get().processAIResponse(failedMsg, convId);
   },
 
   // Delete a conversation

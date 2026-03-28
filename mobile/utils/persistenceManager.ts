@@ -27,7 +27,6 @@ export class PersistenceManager {
       const key = `${STORAGE_KEY_PREFIX}${userId}`;
       const serialized = JSON.stringify(conversations);
       await AsyncStorage.setItem(key, serialized);
-      console.log(`✓ Saved ${conversations.length} conversations`);
     } catch (error) {
       console.error('Error saving conversations:', error);
       throw new Error('Failed to save conversations to storage');
@@ -45,12 +44,10 @@ export class PersistenceManager {
       const serialized = await AsyncStorage.getItem(key);
 
       if (!serialized) {
-        console.log('No saved conversations found');
         return [];
       }
 
       const conversations = JSON.parse(serialized) as Conversation[];
-      console.log(`✓ Loaded ${conversations.length} conversations`);
       return conversations;
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -72,7 +69,6 @@ export class PersistenceManager {
       const conversations = await this.loadConversations(userId);
       const filtered = conversations.filter((c) => c.id !== conversationId);
       await this.saveConversations(filtered, userId);
-      console.log(`✓ Deleted conversation ${conversationId}`);
     } catch (error) {
       console.error('Error deleting conversation:', error);
       throw new Error('Failed to delete conversation');
