@@ -3,21 +3,23 @@
  *
  * Covers:
  *  - saveToken / getToken / removeToken with SecureStore available
- *  - Fallback to AsyncStorage when SecureStore methods are missing
+ *  - Fallback to AsyncStorage when SecureStore throws at the native layer
  *  - isTokenValid returns true/false correctly
  *
- * Uses require() instead of dynamic import() for CommonJS Jest compatibility.
- * jest.resetModules() in beforeEach ensures each test gets a fresh module instance.
+ * The module uses a cached probe (probeSecureStore) to detect whether the
+ * native SecureStore implementation works. We simulate:
+ *   - "available": setItemAsync resolves normally
+ *   - "unavailable": setItemAsync throws (mimics old Expo Go native error)
+ *
+ * jest.resetModules() in beforeEach resets the probe cache each test.
  */
 
-// ─── Shared mock objects ──────────────────────────────────────────────────────
-// Variables starting with 'mock' are exempt from jest-hoist's scope restriction.
+// ─── Shared mock state ────────────────────────────────────────────────────────
 
-const mockSecureStore: Record<string, jest.Mock | undefined> = {
-  setItemAsync: jest.fn(),
-  getItemAsync: jest.fn(),
-  deleteItemAsync: jest.fn(),
-};
+// SecureStore mock — functions are re-assigned per suite in beforeEach blocks.
+const mockSetItemAsync = jest.fn();
+const mockGetItemAsync = jest.fn();
+const mockDeleteItemAsync = jest.fn();
 
 const mockAsyncStorage = {
   setItem: jest.fn(),
@@ -25,9 +27,13 @@ const mockAsyncStorage = {
   removeItem: jest.fn(),
 };
 
-// __esModule: true makes _interopRequireWildcard return the object directly,
-// so that mutations to mockSecureStore are visible inside tokenStorage.ts.
-jest.mock('expo-secure-store', () => ({ __esModule: true, ...mockSecureStore }));
+jest.mock('expo-secure-store', () => ({
+  __esModule: true,
+  setItemAsync: (...args: unknown[]) => mockSetItemAsync(...args),
+  getItemAsync: (...args: unknown[]) => mockGetItemAsync(...args),
+  deleteItemAsync: (...args: unknown[]) => mockDeleteItemAsync(...args),
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: mockAsyncStorage,
@@ -38,13 +44,13 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 const TOKEN_KEY = 'lifegate_token';
 
 beforeEach(() => {
-  // Clear the module registry so each test loads a fresh tokenStorage instance.
+  // Reset module registry → resets the cached `secureStoreWorks` in tokenStorage.
   jest.resetModules();
-  // Reassign (not .mockReset on potentially-undefined) to safely restore SecureStore.
-  mockSecureStore.setItemAsync = jest.fn().mockResolvedValue(undefined);
-  mockSecureStore.getItemAsync = jest.fn().mockResolvedValue(null);
-  mockSecureStore.deleteItemAsync = jest.fn().mockResolvedValue(undefined);
-  // Reset AsyncStorage mocks.
+  // Default: SecureStore probe passes (setItemAsync + deleteItemAsync resolve).
+  mockSetItemAsync.mockReset().mockResolvedValue(undefined);
+  mockGetItemAsync.mockReset().mockResolvedValue(null);
+  mockDeleteItemAsync.mockReset().mockResolvedValue(undefined);
+  // AsyncStorage
   mockAsyncStorage.setItem.mockReset().mockResolvedValue(undefined);
   mockAsyncStorage.getItem.mockReset().mockResolvedValue(null);
   mockAsyncStorage.removeItem.mockReset().mockResolvedValue(undefined);
@@ -54,22 +60,26 @@ beforeEach(() => {
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const requireModule = () => require('../utils/tokenStorage') as typeof import('../utils/tokenStorage');
 
-// ─── Tests: SecureStore available ────────────────────────────────────────────
+// ─── Tests: SecureStore available ─────────────────────────────────────────────
+// The probe calls setItemAsync('__probe__','1') then deleteItemAsync('__probe__').
+// After that, real saveToken/getToken/etc calls follow.
 
 describe('tokenStorage — SecureStore available', () => {
   it('saveToken calls SecureStore.setItemAsync', async () => {
     const { saveToken } = requireModule();
     await saveToken('my-jwt-token');
-    expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(TOKEN_KEY, 'my-jwt-token');
+    // First two calls are the probe (set + delete __probe__), third is saveToken.
+    expect(mockSetItemAsync).toHaveBeenLastCalledWith(TOKEN_KEY, 'my-jwt-token');
     expect(mockAsyncStorage.setItem).not.toHaveBeenCalled();
   });
 
   it('getToken calls SecureStore.getItemAsync and returns value', async () => {
-    mockSecureStore.getItemAsync = jest.fn().mockResolvedValue('stored-token');
+    // Probe uses setItemAsync/deleteItemAsync; getItemAsync is only called by getToken.
+    mockGetItemAsync.mockResolvedValue('stored-token');
     const { getToken } = requireModule();
     const token = await getToken();
     expect(token).toBe('stored-token');
-    expect(mockSecureStore.getItemAsync).toHaveBeenCalledWith(TOKEN_KEY);
+    expect(mockGetItemAsync).toHaveBeenCalledWith(TOKEN_KEY);
   });
 
   it('getToken returns null when no token stored', async () => {
@@ -81,12 +91,13 @@ describe('tokenStorage — SecureStore available', () => {
   it('removeToken calls SecureStore.deleteItemAsync', async () => {
     const { removeToken } = requireModule();
     await removeToken();
-    expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(TOKEN_KEY);
+    // Probe calls deleteItemAsync('__probe__'), then removeToken calls deleteItemAsync(TOKEN_KEY).
+    expect(mockDeleteItemAsync).toHaveBeenCalledWith(TOKEN_KEY);
     expect(mockAsyncStorage.removeItem).not.toHaveBeenCalled();
   });
 
   it('isTokenValid returns true when token exists', async () => {
-    mockSecureStore.getItemAsync = jest.fn().mockResolvedValue('valid-token');
+    mockGetItemAsync.mockResolvedValue('valid-token');
     const { isTokenValid } = requireModule();
     expect(await isTokenValid()).toBe(true);
   });
@@ -98,21 +109,22 @@ describe('tokenStorage — SecureStore available', () => {
 });
 
 // ─── Tests: SecureStore NOT available (fallback) ──────────────────────────────
+// Simulate the real Expo Go failure: setItemAsync IS a function but throws at runtime.
 
-describe('tokenStorage — AsyncStorage fallback (SecureStore unavailable)', () => {
+describe('tokenStorage — AsyncStorage fallback (SecureStore throws)', () => {
   beforeEach(() => {
-    // Simulate SecureStore methods missing (older Expo Go runtime).
-    // Outer beforeEach already ran and reassigned these to jest.fn(), so it's
-    // safe to set them to undefined here.
-    mockSecureStore.setItemAsync = undefined;
-    mockSecureStore.getItemAsync = undefined;
-    mockSecureStore.deleteItemAsync = undefined;
+    // Probe will call setItemAsync and it will throw → probe returns false → fallback.
+    mockSetItemAsync.mockReset().mockRejectedValue(
+      new Error('ExpoSecureStore.default.setValueWithKeyAsync is not a function')
+    );
   });
 
   it('saveToken falls back to AsyncStorage.setItem', async () => {
     const { saveToken } = requireModule();
     await saveToken('fallback-token');
     expect(mockAsyncStorage.setItem).toHaveBeenCalledWith(TOKEN_KEY, 'fallback-token');
+    // setItemAsync was only called once (for the probe), not for the real save.
+    expect(mockSetItemAsync).toHaveBeenCalledTimes(1);
   });
 
   it('getToken falls back to AsyncStorage.getItem', async () => {

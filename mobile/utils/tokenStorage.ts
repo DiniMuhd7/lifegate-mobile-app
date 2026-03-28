@@ -4,24 +4,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const TOKEN_KEY = 'lifegate_token';
 
 /**
- * Returns true if expo-secure-store is available on this runtime.
- * Expo Go on older SDK versions may not support expo-secure-store v15
- * (setValueWithKeyAsync not a function). Fall back to AsyncStorage in that case.
+ * Cache the result after the first probe so we don't pay the try/catch cost
+ * on every call. null = not yet tested, true/false = result of probe.
  */
-function isSecureStoreAvailable(): boolean {
+let secureStoreWorks: boolean | null = null;
+
+/**
+ * Probe SecureStore by actually calling setItemAsync with an empty string.
+ * This is the only reliable way to detect whether the native layer supports
+ * the v15 API (setItemAsync/getItemAsync) on the current Expo Go runtime.
+ * Older Expo Go versions throw "setValueWithKeyAsync is not a function".
+ */
+async function probeSecureStore(): Promise<boolean> {
+  if (secureStoreWorks !== null) return secureStoreWorks;
   try {
-    return (
-      typeof SecureStore.setItemAsync === 'function' &&
-      typeof SecureStore.getItemAsync === 'function' &&
-      typeof SecureStore.deleteItemAsync === 'function'
-    );
+    await SecureStore.setItemAsync('__probe__', '1');
+    await SecureStore.deleteItemAsync('__probe__');
+    secureStoreWorks = true;
   } catch {
-    return false;
+    secureStoreWorks = false;
   }
+  return secureStoreWorks;
 }
 
 export async function saveToken(token: string): Promise<void> {
-  if (isSecureStoreAvailable()) {
+  if (await probeSecureStore()) {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
   } else {
     await AsyncStorage.setItem(TOKEN_KEY, token);
@@ -29,14 +36,14 @@ export async function saveToken(token: string): Promise<void> {
 }
 
 export async function getToken(): Promise<string | null> {
-  if (isSecureStoreAvailable()) {
+  if (await probeSecureStore()) {
     return SecureStore.getItemAsync(TOKEN_KEY);
   }
   return AsyncStorage.getItem(TOKEN_KEY);
 }
 
 export async function removeToken(): Promise<void> {
-  if (isSecureStoreAvailable()) {
+  if (await probeSecureStore()) {
     await SecureStore.deleteItemAsync(TOKEN_KEY);
   } else {
     await AsyncStorage.removeItem(TOKEN_KEY);
