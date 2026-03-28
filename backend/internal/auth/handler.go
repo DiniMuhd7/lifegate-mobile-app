@@ -66,7 +66,7 @@ respond(c, http.StatusBadRequest, false, err.Error(), nil)
 return
 }
 
-pair, err := h.svc.Login(req.Email, req.Password)
+pair, err := h.svc.Login(c.Request.Context(), req.Email, req.Password)
 if err != nil {
 respond(c, http.StatusUnauthorized, false, err.Error(), nil)
 return

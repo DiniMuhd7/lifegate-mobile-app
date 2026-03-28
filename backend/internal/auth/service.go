@@ -9,6 +9,7 @@ import (
 "fmt"
 "math/big"
 "net/smtp"
+"strings"
 "time"
 
 "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
@@ -32,7 +33,18 @@ Token string `json:"token"`
 User  *User  `json:"user"`
 }
 
-func (s *Service) Login(email, password string) (*TokenPair, error) {
+func (s *Service) Login(ctx context.Context, email, password string) (*TokenPair, error) {
+email = strings.ToLower(strings.TrimSpace(email))
+
+// Rate limiting: max 5 failed attempts per 15-minute fixed window.
+const maxAttempts = 5
+const windowSecs = 15 * 60
+rateLimitKey := "login:attempts:" + email
+attempts, _ := s.redis.IncrWithTTL(ctx, rateLimitKey, windowSecs)
+if attempts > maxAttempts {
+return nil, fmt.Errorf("too many login attempts, please try again later")
+}
+
 hash, err := s.repo.GetPasswordHash(email)
 if err != nil {
 if errors.Is(err, sql.ErrNoRows) {
@@ -43,6 +55,10 @@ return nil, err
 if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
 return nil, fmt.Errorf("invalid credentials")
 }
+
+// Successful auth: reset the brute-force counter.
+_ = s.redis.Del(ctx, rateLimitKey)
+
 user, err := s.repo.FindUserByEmail(email)
 if err != nil {
 return nil, err

@@ -1,5 +1,5 @@
 import axios, { AxiosInstance} from 'axios';
-import { getToken } from '../utils/tokenStorage';
+import { getToken, removeToken } from '../utils/tokenStorage';
 
 const BASE_URL = 'https://lifegatemobilebackend-2.onrender.com/api';
 // const BASE_URL = 'https://lifegatemobilebackend-1.onrender.com/api';
@@ -25,11 +25,11 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
       if (config.data instanceof FormData) {
-        console.log('📦 Sending FormData request...');
+        delete config.headers['Content-Type'];
       }
 
-    } catch (error) {
-      console.error('Interceptor error:', error);
+    } catch {
+      // ignore token fetch errors
     }
 
     return config;
@@ -45,11 +45,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      console.log('Unauthorized (401) - clearing token and user session');
       try {
-        // await removeToken();
-      } catch (err) {
-        console.error('Error clearing token on 401:', err);
+        await removeToken();
+        // Dynamic import avoids circular dependency (api → store → api)
+        const { useAuthStore } = await import('../stores/auth/auth-store');
+        useAuthStore.setState({ user: null, isAuthenticated: false });
+      } catch {
+        // best-effort cleanup
       }
     }
     return Promise.reject(error);

@@ -66,8 +66,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const token = await getToken();
       if (token) {
-        console.log('Token found - user session valid');
-
         // Fetch user profile to restore user data
         const response = await AuthService.getProfile();
         if (response.success && response.user) {
@@ -83,13 +81,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           });
         }
       } else {
-        console.log('No token found - user needs to login');
         set({
           isAuthenticated: false,
         });
       }
-    } catch (error) {
-      console.error('Failed to restore session:', error);
+    } catch {
       set({ isAuthenticated: false, user: null });
     }
   },
@@ -105,7 +101,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       if (rememberMe && response.token) {
         await saveToken(response.token);
-        console.log('Token saved for session persistence:', response.token);
       }
 
       set({
@@ -115,8 +110,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         error: null,
       });
       return true;
-    } catch (err: any) {
-      console.log('Login error:', extractErrorMessage(err));
+    } catch (err: unknown) {
       set({
         loading: false,
         error: extractErrorMessage(err),
@@ -133,6 +127,5 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       error: null,
     });
-    console.log('User logged out');
   },
 }));

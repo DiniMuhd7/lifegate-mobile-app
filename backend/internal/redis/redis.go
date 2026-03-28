@@ -49,3 +49,21 @@ return nil
 }
 return c.rdb.Del(ctx, key).Err()
 }
+
+// IncrWithTTL atomically increments the integer at key and, on the first
+// increment (count == 1), sets a TTL to enforce a fixed-window expiry.
+// Returns the new count. Returns 0 if Redis is unavailable (fail-open).
+func (c *Client) IncrWithTTL(ctx context.Context, key string, ttlSeconds int) (int64, error) {
+if c.rdb == nil {
+return 0, nil
+}
+count, err := c.rdb.Incr(ctx, key).Result()
+if err != nil {
+return 0, err
+}
+if count == 1 {
+// Only set TTL on first write so the window is fixed, not sliding.
+c.rdb.Expire(ctx, key, time.Duration(ttlSeconds)*time.Second)
+}
+return count, nil
+}
