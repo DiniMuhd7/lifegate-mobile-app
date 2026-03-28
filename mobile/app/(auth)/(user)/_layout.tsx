@@ -63,7 +63,7 @@ export default function RegisterLayout() {
             headerShown: false,
             animation: "slide_from_right",
             gestureEnabled: false,
-            contentStyle: { backgroundColor: "transparent" },
+            contentStyle: { backgroundColor: "#F7FEFD" },
           }}
         />
       </View>

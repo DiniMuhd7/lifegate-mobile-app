@@ -73,7 +73,7 @@ export default function RegisterLayout() {
             headerShown: false,
             animation: 'slide_from_right',
             gestureEnabled: false, // prevents skipping steps
-            contentStyle: { backgroundColor: 'transparent' },
+            contentStyle: { backgroundColor: '#F7FEFD' },
           }}
         />
       </View>
