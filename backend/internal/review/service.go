@@ -32,12 +32,13 @@ type DiagnosisRecord struct {
 }
 
 type ActivityRecord struct {
-	ID        string `json:"id"`
-	PatientID string `json:"patientId"`
-	CaseType  string `json:"caseType"`
-	Condition string `json:"condition"`
-	Timestamp string `json:"timestamp"`
-	TimeAgo   string `json:"timeAgo"`
+	ID          string `json:"id"`
+	PatientID   string `json:"patientId"`
+	PatientName string `json:"patientName"`
+	CaseType    string `json:"caseType"`
+	Condition   string `json:"condition"`
+	Timestamp   string `json:"timestamp"`
+	TimeAgo     string `json:"timeAgo"`
 }
 
 type Service struct {
@@ -176,6 +177,7 @@ func (s *Service) GetRecentActivities(physicianID string, limit int) ([]Activity
 	rows, err := s.db.Query(`
 		SELECT d.id,
 		       COALESCE(u.patient_id, u.user_id, d.user_id::text),
+		       COALESCE(u.name, ''),
 		       d.status,
 		       COALESCE(d.condition, ''),
 		       d.updated_at
@@ -196,7 +198,7 @@ func (s *Service) GetRecentActivities(physicianID string, limit int) ([]Activity
 		var a ActivityRecord
 		var status string
 		var updatedAt time.Time
-		if err := rows.Scan(&a.ID, &a.PatientID, &status, &a.Condition, &updatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.PatientID, &a.PatientName, &status, &a.Condition, &updatedAt); err != nil {
 			log.Printf("review: scan activity row: %v", err)
 			continue
 		}

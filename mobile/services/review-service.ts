@@ -16,6 +16,7 @@ interface AnalysisRow {
 interface ActivityRow {
   id: string;
   patientId: string;
+  patientName?: string;
   caseType: 'Verified' | 'Escalated' | 'Pending';
   condition: string;
   timestamp: string;
@@ -50,6 +51,7 @@ const buildReviewAnalysis = (rows: AnalysisRow[], activities: ActivityRow[], dat
   const mappedActivities: Activity[] = (activities ?? []).map((a) => ({
     id: a.id,
     patientId: a.patientId,
+    patientName: a.patientName,
     caseType: a.caseType,
     condition: a.condition,
     timestamp: a.timestamp,

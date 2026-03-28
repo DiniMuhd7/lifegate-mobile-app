@@ -15,18 +15,23 @@ export const SearchBar = ({
   onClear,
 }: SearchBarProps) => {
   return (
-    <View className="mx-6 my-4 flex-row items-center bg-gray-200 rounded-sm px-4 py-1 border border-gray-200">
-      <Ionicons name="search" size={30} color="#98A2B3" />
+    <View
+      className="mx-5 my-3 flex-row items-center bg-white rounded-xl px-4 py-2.5 border border-gray-100"
+      style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
+    >
+      <Ionicons name="search-outline" size={18} color="#9CA3AF" />
       <TextInput
         placeholder={placeholder}
-        placeholderTextColor="#98A2B3"
+        placeholderTextColor="#9CA3AF"
         value={value}
         onChangeText={onChangeText}
-        className="flex-1 ml-2 text-gray-800 text-base"
+        className="flex-1 ml-2.5 text-gray-800 text-sm"
+        returnKeyType="search"
+        clearButtonMode="never"
       />
       {value.length > 0 && (
-        <Pressable onPress={onClear} className="p-1">
-          <Ionicons name="close" size={20} color="#98A2B3" />
+        <Pressable onPress={onClear} className="p-1 rounded-full bg-gray-100">
+          <Ionicons name="close" size={14} color="#6B7280" />
         </Pressable>
       )}
     </View>

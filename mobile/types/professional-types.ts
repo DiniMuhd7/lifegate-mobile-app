@@ -34,10 +34,23 @@ export type ActivityType = 'Verified' | 'Escalated' | 'Rejected' | 'Pending';
 export interface Activity {
   id: string;
   patientId: string;
+  patientName?: string;
   caseType: ActivityType;
   condition: string;
   timestamp: string;
   timeAgo: string;
+}
+
+export interface DiagnosisRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  title: string;
+  description: string;
+  condition: string;
+  urgency: string;
+  status: string;
+  createdAt: string;
 }
 
 export interface ActivityMetric {
