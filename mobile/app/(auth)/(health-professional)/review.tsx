@@ -74,8 +74,12 @@ export default function ReviewScreen() {
           <View
             className="mb-4 overflow-hidden rounded-2xl bg-white"
             style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}>
-            <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3">
+            <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3 flex-row items-center justify-between">
               <Text className="text-sm font-semibold text-[#0EA5A4]">Personal Information</Text>
+              <Pressable onPress={() => router.push('/(auth)/(health-professional)')} className="flex-row items-center">
+                <Ionicons name="pencil-outline" size={14} color="#0EA5A4" />
+                <Text className="ml-1 text-xs font-medium text-[#0EA5A4]">Edit</Text>
+              </Pressable>
             </View>
             <View className="p-4">
               <InfoRow label="Full Name" value={userDraft.name} />
@@ -89,14 +93,33 @@ export default function ReviewScreen() {
 
           {/* Professional details card */}
           <View
-            className="mb-6 overflow-hidden rounded-2xl bg-white"
+            className="mb-4 overflow-hidden rounded-2xl bg-white"
             style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}>
-            <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3">
+            <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3 flex-row items-center justify-between">
               <Text className="text-sm font-semibold text-[#0EA5A4]">Professional Details</Text>
+              <Pressable onPress={() => router.push('/(auth)/(health-professional)/professional')} className="flex-row items-center">
+                <Ionicons name="pencil-outline" size={14} color="#0EA5A4" />
+                <Text className="ml-1 text-xs font-medium text-[#0EA5A4]">Edit</Text>
+              </Pressable>
             </View>
             <View className="p-4">
               <InfoRow label="Specialization" value={userDraft.specialization} />
               <InfoRow label="Years of Practice" value={userDraft.yearsOfExperience} />
+            </View>
+          </View>
+
+          {/* Certification card */}
+          <View
+            className="mb-6 overflow-hidden rounded-2xl bg-white"
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}>
+            <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3 flex-row items-center justify-between">
+              <Text className="text-sm font-semibold text-[#0EA5A4]">Certification</Text>
+              <Pressable onPress={() => router.push('/(auth)/(health-professional)/license')} className="flex-row items-center">
+                <Ionicons name="pencil-outline" size={14} color="#0EA5A4" />
+                <Text className="ml-1 text-xs font-medium text-[#0EA5A4]">Edit</Text>
+              </Pressable>
+            </View>
+            <View className="p-4">
               <InfoRow label="Certificate" value={userDraft.certificateName} />
               <InfoRow label="Certificate ID" value={userDraft.certificateId} />
               <InfoRow label="Issue Date" value={userDraft.certificateIssueDate} />

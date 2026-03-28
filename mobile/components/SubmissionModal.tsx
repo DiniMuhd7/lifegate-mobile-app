@@ -38,7 +38,7 @@ export function SubmissionModal({
 
           {/* Title */}
           <Text className={`mb-2 text-center text-lg font-bold ${
-            isSuccess ? 't#0EA5A4' : 'text-red-700'
+            isSuccess ? 'text-[#0EA5A4]' : 'text-red-700'
           }`}>
             {title}
           </Text>

@@ -75,11 +75,12 @@ export default function UserReviewStep() {
         {/* Summary card */}
         <View className="mb-6 overflow-hidden rounded-2xl bg-white"
           style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}>
-          <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3">
+          <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3 flex-row items-center justify-between">
             <Text className="text-sm font-semibold text-[#0EA5A4]">Personal Information</Text>
-          </View>
-          <View className="p-4">
-            <InfoRow label="Full Name" value={userDraft.name} />
+            <Pressable onPress={() => router.push('/(auth)/(user)/profile')} className="flex-row items-center">
+              <Ionicons name="pencil-outline" size={14} color="#0EA5A4" />
+              <Text className="ml-1 text-xs font-medium text-[#0EA5A4]">Edit</Text>
+            </Pressable>
             <InfoRow label="Email" value={userDraft.email} />
             <InfoRow label="Phone" value={userDraft.phone} />
             <InfoRow label="Date of Birth" value={userDraft.dob} />

@@ -87,17 +87,19 @@ physicianGroup.POST("/reports/:id/review", physicianHandler.ReviewReport)
 }
 
 // Review routes
-reviewGroup := api.Group("/review", middleware.Auth(cfg.JWTSecret))
-{
-reviewGroup.GET("/analysis", reviewHandler.GetAnalysis)
-}
+	reviewGroup := api.Group("/review", middleware.Auth(cfg.JWTSecret))
+	{
+		reviewGroup.GET("/analysis", reviewHandler.GetAnalysis)
+		reviewGroup.GET("/diagnoses", reviewHandler.GetDiagnoses)
+		reviewGroup.GET("/diagnoses/:id", reviewHandler.GetDiagnosisDetail)
+	}
 
-// WebSocket
-r.GET("/ws", hub.Handler)
+	// WebSocket
+	r.GET("/ws", hub.Handler)
 
-addr := ":" + cfg.Port
-log.Printf("LifeGate server starting on %s", addr)
-if err := r.Run(addr); err != nil {
-log.Fatalf("Server failed: %v", err)
-}
+	addr := ":" + cfg.Port
+	log.Printf("LifeGate server starting on %s", addr)
+	if err := r.Run(addr); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
 }

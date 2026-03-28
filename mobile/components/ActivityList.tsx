@@ -15,6 +15,8 @@ const getActivityColor = (caseType: string) => {
       return '#F59E0B';
     case 'Rejected':
       return '#EF4444';
+    case 'Pending':
+      return '#6B7280';
     default:
       return '#6B7280';
   }
@@ -28,6 +30,8 @@ const getActivityIcon = (caseType: string) => {
       return 'alert-circle';
     case 'Rejected':
       return 'close-circle';
+    case 'Pending':
+      return 'time-outline';
     default:
       return 'information-circle';
   }
@@ -51,10 +55,12 @@ const ActivityItemComponent = ({ item, onPress }: { item: Activity; onPress?: ()
 
     <View className="flex-1">
       {/* <Text className="text-xs font-semibold text-teal-600 mb-1">Patient ID {item.patientId}</Text> */}
-      <Text className="text-sm font-semibold text-gray-900 mb-1">
+      <Text className="text-sm font-semibold text-gray-900 mb-0.5">
         {item.caseType} Case
       </Text>
-      {/* <Text className="text-xs text-gray-500">{item.condition}</Text> */}
+      {item.condition ? (
+        <Text className="text-xs text-gray-500" numberOfLines={1}>{item.condition}</Text>
+      ) : null}
     </View>
 
     <View className="items-end">

@@ -1,5 +1,5 @@
 import api from './api';
-import { ReviewAnalysis, ActivityMetric } from '../types/professional-types';
+import { ReviewAnalysis, ActivityMetric, Activity } from '../types/professional-types';
 
 // Shape returned by GET /review/analysis
 interface AnalysisRow {
@@ -13,7 +13,16 @@ interface AnalysisRow {
   pending: number;
 }
 
-const buildReviewAnalysis = (rows: AnalysisRow[], date: Date): ReviewAnalysis => {
+interface ActivityRow {
+  id: string;
+  patientId: string;
+  caseType: 'Verified' | 'Escalated' | 'Pending';
+  condition: string;
+  timestamp: string;
+  timeAgo: string;
+}
+
+const buildReviewAnalysis = (rows: AnalysisRow[], activities: ActivityRow[], date: Date): ReviewAnalysis => {
   const totals = rows.reduce(
     (acc, r) => ({
       total: acc.total + r.totalDiagnoses,
@@ -38,13 +47,22 @@ const buildReviewAnalysis = (rows: AnalysisRow[], date: Date): ReviewAnalysis =>
           { label: 'Completed', percentage: 0, color: '#10B981' },
         ];
 
+  const mappedActivities: Activity[] = (activities ?? []).map((a) => ({
+    id: a.id,
+    patientId: a.patientId,
+    caseType: a.caseType,
+    condition: a.condition,
+    timestamp: a.timestamp,
+    timeAgo: a.timeAgo,
+  }));
+
   return {
     date,
     totalReview: totals.total,
     pendingCases: totals.pending,
     activeCases: active,
     completedCases: totals.completed,
-    activities: [],
+    activities: mappedActivities,
     metrics,
     loading: false,
     error: null,
@@ -53,6 +71,22 @@ const buildReviewAnalysis = (rows: AnalysisRow[], date: Date): ReviewAnalysis =>
 
 const formatDate = (d: Date): string => d.toISOString().split('T')[0];
 
+const emptyAnalysis = (date: Date, errorMsg: string): ReviewAnalysis => ({
+  date,
+  totalReview: 0,
+  pendingCases: 0,
+  activeCases: 0,
+  completedCases: 0,
+  activities: [],
+  metrics: [
+    { label: 'Pending', percentage: 0, color: '#F59E0B' },
+    { label: 'Active', percentage: 0, color: '#3B82F6' },
+    { label: 'Completed', percentage: 0, color: '#10B981' },
+  ],
+  loading: false,
+  error: errorMsg,
+});
+
 export const ReviewService = {
   /**
    * Get review analysis for a specific date
@@ -60,7 +94,7 @@ export const ReviewService = {
    */
   async getReviewAnalysis(date: Date): Promise<ReviewAnalysis> {
     try {
-      const response = await api.get<{ success: boolean; data: AnalysisRow[] }>(
+      const response = await api.get<{ success: boolean; data: AnalysisRow[]; activities: ActivityRow[] }>(
         '/review/analysis',
         { params: { date: formatDate(date) } }
       );
@@ -69,24 +103,10 @@ export const ReviewService = {
         throw new Error('Failed to fetch review analysis');
       }
 
-      return buildReviewAnalysis(response.data.data ?? [], date);
+      return buildReviewAnalysis(response.data.data ?? [], response.data.activities ?? [], date);
     } catch (error) {
       console.error('Error fetching review analysis:', error);
-      return {
-        date,
-        totalReview: 0,
-        pendingCases: 0,
-        activeCases: 0,
-        completedCases: 0,
-        activities: [],
-        metrics: [
-          { label: 'Pending', percentage: 0, color: '#F59E0B' },
-          { label: 'Active', percentage: 0, color: '#3B82F6' },
-          { label: 'Completed', percentage: 0, color: '#10B981' },
-        ],
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch review analysis',
-      };
+      return emptyAnalysis(date, error instanceof Error ? error.message : 'Failed to fetch review analysis');
     }
   },
 
@@ -96,7 +116,7 @@ export const ReviewService = {
    */
   async getDateRangeAnalysis(startDate: Date, endDate: Date): Promise<ReviewAnalysis> {
     try {
-      const response = await api.get<{ success: boolean; data: AnalysisRow[] }>(
+      const response = await api.get<{ success: boolean; data: AnalysisRow[]; activities: ActivityRow[] }>(
         '/review/analysis',
         { params: { startDate: formatDate(startDate), endDate: formatDate(endDate) } }
       );
@@ -105,24 +125,10 @@ export const ReviewService = {
         throw new Error('Failed to fetch date range analysis');
       }
 
-      return buildReviewAnalysis(response.data.data ?? [], startDate);
+      return buildReviewAnalysis(response.data.data ?? [], response.data.activities ?? [], startDate);
     } catch (error) {
       console.error('Error fetching date range analysis:', error);
-      return {
-        date: startDate,
-        totalReview: 0,
-        pendingCases: 0,
-        activeCases: 0,
-        completedCases: 0,
-        activities: [],
-        metrics: [
-          { label: 'Pending', percentage: 0, color: '#F59E0B' },
-          { label: 'Active', percentage: 0, color: '#3B82F6' },
-          { label: 'Completed', percentage: 0, color: '#10B981' },
-        ],
-        loading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch analysis',
-      };
+      return emptyAnalysis(startDate, error instanceof Error ? error.message : 'Failed to fetch analysis');
     }
   },
 };

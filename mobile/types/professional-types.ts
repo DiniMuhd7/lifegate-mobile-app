@@ -29,7 +29,7 @@ export interface ProfessionalDashboard {
   error: string | null;
 }
 
-export type ActivityType = 'Verified' | 'Escalated' | 'Rejected';
+export type ActivityType = 'Verified' | 'Escalated' | 'Rejected' | 'Pending';
 
 export interface Activity {
   id: string;
