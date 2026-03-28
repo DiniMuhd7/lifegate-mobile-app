@@ -205,8 +205,13 @@ return
 
 pair, err := h.svc.VerifyOTP(c.Request.Context(), req.Email, req.OTP)
 if err != nil {
-respond(c, http.StatusBadRequest, false, err.Error(), nil)
-return
+	switch {
+	case errors.Is(err, ErrOTPTooManyAttempts):
+		respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+	default:
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+	}
+	return
 }
 respond(c, http.StatusOK, true, "Registration complete", gin.H{"token": pair.Token, "user": pair.User})
 }
@@ -222,8 +227,13 @@ return
 
 email, ttl, err := h.svc.ResendOTP(c.Request.Context(), req.Email)
 if err != nil {
-respond(c, http.StatusBadRequest, false, err.Error(), nil)
-return
+	switch {
+	case errors.Is(err, ErrOTPRateLimited):
+		respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
+	default:
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+	}
+	return
 }
 respond(c, http.StatusOK, true, "OTP resent", gin.H{"email": email, "otpExpiresIn": ttl})
 }

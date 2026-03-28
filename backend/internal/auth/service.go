@@ -3,6 +3,7 @@ package auth
 import (
 "context"
 "crypto/rand"
+"crypto/subtle"
 "database/sql"
 "encoding/json"
 "errors"
@@ -134,6 +135,9 @@ var ErrEmailAlreadyRegistered = errors.New("email is already registered")
 // ErrOTPRateLimited is returned when too many OTP requests are sent for a single email.
 var ErrOTPRateLimited = errors.New("too many OTP requests, please try again later")
 
+// ErrOTPTooManyAttempts is returned when the OTP has been guessed too many times.
+var ErrOTPTooManyAttempts = errors.New("too many verification attempts, please request a new code")
+
 func (s *Service) StartRegistration(ctx context.Context, payload RegisterStartPayload) (string, int, error) {
 // Normalize email
 payload.Email = strings.ToLower(strings.TrimSpace(payload.Email))
@@ -143,14 +147,15 @@ if _, err := s.repo.FindUserByEmail(payload.Email); err == nil {
 return "", 0, ErrEmailAlreadyRegistered
 }
 
-// OTP send rate limiting: max 3 per hour per email
-const maxOTPSends = 3
-const otpRateWindowSecs = 60 * 60
-otpRateKey := "otp:rate:" + payload.Email
-sends, _ := s.redis.IncrWithTTL(ctx, otpRateKey, otpRateWindowSecs)
-if sends > maxOTPSends {
-return "", 0, ErrOTPRateLimited
-}
+// OTP send rate limiting: max 3 per hour per email (check before increment).
+	const maxOTPSends = 3
+	const otpRateWindowSecs = 60 * 60
+	otpRateKey := "otp:rate:" + payload.Email
+	sends, _ := s.redis.GetInt64(ctx, otpRateKey)
+	if sends >= maxOTPSends {
+		return "", 0, ErrOTPRateLimited
+	}
+	_, _ = s.redis.IncrWithTTL(ctx, otpRateKey, otpRateWindowSecs)
 
 // Hash password before persisting so plaintext never reaches the database
 hash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
@@ -182,40 +187,58 @@ return payload.Email, otpTTL, nil
 }
 
 func (s *Service) VerifyOTP(ctx context.Context, email, otp string) (*TokenPair, error) {
-redisKey := "otp:" + email
-storedOTP, err := s.redis.Get(ctx, redisKey)
-if err != nil {
-// Fallback to DB
-pr, dbErr := s.repo.GetPendingRegistration(email)
-if dbErr != nil {
-return nil, fmt.Errorf("OTP not found or expired")
-}
-if pr.OTP != otp {
-return nil, fmt.Errorf("invalid OTP")
-}
-if time.Now().After(pr.OTPExpiresAt) {
-return nil, fmt.Errorf("OTP expired")
-}
-return s.completeRegistrationFromDB(pr)
-}
+	const maxOTPAttempts = 5
+	attemptKey := "otp:attempts:" + email
 
-if storedOTP != otp {
-return nil, fmt.Errorf("invalid OTP")
-}
+	// Brute-force protection: lock out after too many wrong guesses.
+	attempts, _ := s.redis.GetInt64(ctx, attemptKey)
+	if attempts >= maxOTPAttempts {
+		return nil, ErrOTPTooManyAttempts
+	}
 
-pr, err := s.repo.GetPendingRegistration(email)
-if err != nil {
-return nil, fmt.Errorf("registration data not found")
-}
+	redisKey := "otp:" + email
+	storedOTP, err := s.redis.Get(ctx, redisKey)
+	if err != nil {
+		// Fallback to DB when Redis is unavailable.
+		pr, dbErr := s.repo.GetPendingRegistration(email)
+		if dbErr != nil {
+			return nil, fmt.Errorf("OTP not found or expired")
+		}
+		if time.Now().After(pr.OTPExpiresAt) {
+			return nil, fmt.Errorf("OTP expired")
+		}
+		if subtle.ConstantTimeCompare([]byte(pr.OTP), []byte(otp)) != 1 {
+			_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
+			return nil, fmt.Errorf("invalid OTP")
+		}
+		tp, tpErr := s.completeRegistrationFromDB(pr)
+		if tpErr != nil {
+			return nil, tpErr
+		}
+		_ = s.redis.Del(ctx, attemptKey)
+		_ = s.repo.DeletePendingRegistration(email)
+		return tp, nil
+	}
 
-tp, err := s.completeRegistrationFromDB(pr)
-if err != nil {
-return nil, err
-}
+	if subtle.ConstantTimeCompare([]byte(storedOTP), []byte(otp)) != 1 {
+		_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
+		return nil, fmt.Errorf("invalid OTP")
+	}
 
-_ = s.redis.Del(ctx, redisKey)
-_ = s.repo.DeletePendingRegistration(email)
-return tp, nil
+	pr, err := s.repo.GetPendingRegistration(email)
+	if err != nil {
+		return nil, fmt.Errorf("registration data not found")
+	}
+
+	tp, err := s.completeRegistrationFromDB(pr)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.redis.Del(ctx, redisKey)
+	_ = s.redis.Del(ctx, attemptKey)
+	_ = s.repo.DeletePendingRegistration(email)
+	return tp, nil
 }
 
 func (s *Service) completeRegistrationFromDB(pr *PendingRegistration) (*TokenPair, error) {
@@ -263,24 +286,41 @@ return &TokenPair{Token: token, User: u}, nil
 }
 
 func (s *Service) ResendOTP(ctx context.Context, email string) (string, int, error) {
-pr, err := s.repo.GetPendingRegistration(email)
-if err != nil {
-return "", 0, fmt.Errorf("no pending registration found for this email")
-}
+	// Enforce the same OTP send rate limit as StartRegistration.
+	const maxOTPSends = 3
+	const otpRateWindowSecs = 60 * 60
+	otpRateKey := "otp:rate:" + email
+	sends, _ := s.redis.GetInt64(ctx, otpRateKey)
+	if sends >= maxOTPSends {
+		return "", 0, ErrOTPRateLimited
+	}
 
-otp, err := generateOTP(6)
-if err != nil {
-return "", 0, err
-}
+	pr, err := s.repo.GetPendingRegistration(email)
+	if err != nil {
+		return "", 0, fmt.Errorf("no pending registration found for this email")
+	}
 
-redisKey := "otp:" + email
-_ = s.redis.SetEx(ctx, redisKey, otp, otpTTL)
+	otp, err := generateOTP(6)
+	if err != nil {
+		return "", 0, err
+	}
+	_, _ = s.redis.IncrWithTTL(ctx, otpRateKey, otpRateWindowSecs)
 
-expiresAt := time.Now().Add(otpTTL * time.Second)
-_ = s.repo.UpsertPendingRegistration(email, otp, expiresAt, pr.Payload)
-_ = s.sendOTPEmail(email, "", otp)
+	redisKey := "otp:" + email
+	_ = s.redis.SetEx(ctx, redisKey, otp, otpTTL)
 
-return email, otpTTL, nil
+	// Reset attempt counter so the user gets a fresh set of guesses.
+	_ = s.redis.Del(ctx, "otp:attempts:"+email)
+
+	expiresAt := time.Now().Add(otpTTL * time.Second)
+	_ = s.repo.UpsertPendingRegistration(email, otp, expiresAt, pr.Payload)
+
+	// Use the stored name for a personalized email.
+	var p RegisterStartPayload
+	_ = json.Unmarshal(pr.Payload, &p)
+	_ = s.sendOTPEmail(email, p.Name, otp)
+
+	return email, otpTTL, nil
 }
 
 func (s *Service) SendPasswordResetCode(email string) error {
