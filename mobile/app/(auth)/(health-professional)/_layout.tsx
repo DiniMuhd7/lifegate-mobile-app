@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { WizardProgress } from 'components/ProgressIndicator';
 import { STEP_TITLES } from 'constants/constants';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 /**
  * STEP MAPPING
@@ -34,13 +35,14 @@ export default function RegisterLayout() {
    */
   const goBack = () => {
     if (currentStep === 1) {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)/register-choice');
     } else {
       router.back();
     }
   };
 
   return (
+    <SafeAreaView style={{ flex: 1 }}>
     <LinearGradient
       colors={['#0AADA2', '#043B3C']}
       start={{ x: 0, y: 0 }}
@@ -75,5 +77,6 @@ export default function RegisterLayout() {
         />
       </View>
     </LinearGradient>
+    </SafeAreaView>
   );
 }

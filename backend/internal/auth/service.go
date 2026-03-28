@@ -155,10 +155,8 @@ if err := json.Unmarshal(pr.Payload, &payload); err != nil {
 return nil, fmt.Errorf("invalid registration payload")
 }
 
-hash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
-if err != nil {
-return nil, err
-}
+// Password is already bcrypt-hashed when stored during StartRegistration
+passwordHash := payload.Password
 
 u := &User{
 UserID:               generateID("USR"),
@@ -179,11 +177,11 @@ YearsOfExperience:    payload.YearsOfExperience,
 }
 
 if payload.CertificateURL != "" {
-if err := s.repo.CreateUserWithCertURL(u, string(hash), payload.CertificateURL); err != nil {
+if err := s.repo.CreateUserWithCertURL(u, passwordHash, payload.CertificateURL); err != nil {
 return nil, err
 }
 } else {
-if err := s.repo.CreateUser(u, string(hash)); err != nil {
+if err := s.repo.CreateUser(u, passwordHash); err != nil {
 return nil, err
 }
 }

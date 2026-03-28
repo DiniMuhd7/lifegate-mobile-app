@@ -1,8 +1,10 @@
 package auth
 
 import (
+"crypto/rand"
 "database/sql"
 "errors"
+"fmt"
 "io"
 "log"
 "net/http"
@@ -11,6 +13,31 @@ import (
 
 "github.com/gin-gonic/gin"
 )
+
+// allowedCertMIME is the whitelist of accepted certificate file types.
+var allowedCertMIME = map[string]bool{
+	"application/pdf":    true,
+	"image/jpeg":         true,
+	"image/png":          true,
+	"application/msword": true,
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+}
+
+// certExtByMIME maps allowed MIME types to safe file extensions.
+var certExtByMIME = map[string]string{
+	"application/pdf":    ".pdf",
+	"image/jpeg":         ".jpg",
+	"image/png":          ".png",
+	"application/msword": ".doc",
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+
+// randomHex returns a cryptographically random hex string of n bytes.
+func randomHex(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return fmt.Sprintf("%x", b)
+}
 
 type Handler struct {
 svc       *Service
@@ -112,6 +139,11 @@ if payload.Email == "" || payload.Password == "" || payload.Name == "" {
 respond(c, http.StatusBadRequest, false, "name, email and password are required", nil)
 return
 }
+// Server-side password validation
+if len(payload.Password) < 8 {
+respond(c, http.StatusBadRequest, false, "password must be at least 8 characters", nil)
+return
+}
 if payload.Role == "" {
 payload.Role = "user"
 }
@@ -119,10 +151,19 @@ payload.Role = "user"
 // Handle certificate file upload
 if file, header, err := c.Request.FormFile("certificate"); err == nil {
 defer file.Close()
+// Validate MIME type against whitelist
+contentType := header.Header.Get("Content-Type")
+if !allowedCertMIME[contentType] {
+respond(c, http.StatusBadRequest, false, "invalid certificate file type; accepted: PDF, JPEG, PNG, DOC, DOCX", nil)
+return
+}
 if mkErr := os.MkdirAll(h.uploadDir, 0750); mkErr != nil {
 log.Printf("Failed to create upload dir: %v", mkErr)
 } else {
-dst := filepath.Join(h.uploadDir, filepath.Base(header.Filename))
+// Use a random hex filename to prevent path traversal and enumeration
+ext := certExtByMIME[contentType]
+randomName := randomHex(16) + ext
+dst := filepath.Join(h.uploadDir, randomName)
 f, openErr := os.OpenFile(filepath.Clean(dst), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 if openErr != nil {
 log.Printf("Failed to open upload file: %v", openErr)

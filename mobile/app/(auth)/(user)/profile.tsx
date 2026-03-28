@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, ScrollView } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
@@ -9,7 +9,6 @@ import { router } from 'expo-router';
 import { DOBInput } from 'components/DobPicker';
 import { PhoneNumberInput } from 'components/PhoneInput';
 import { validateSingleField } from 'utils/validation';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const VALID_FIELDS = {
   phone: true,
@@ -33,10 +32,7 @@ export default function UserProfileStep() {
     if (!isValidField(fieldName)) return;
     setUserField(fieldName, value);
     const error = validateSingleField(fieldName, value, false);
-    setFieldErrors((prev) => ({
-      ...prev,
-      [fieldName]: error || '',
-    }));
+    setFieldErrors((prev) => ({ ...prev, [fieldName]: error || '' }));
   };
 
   const handleDateChange = (fieldName: string, date: Date) => {
@@ -44,16 +40,16 @@ export default function UserProfileStep() {
     const new_date = date.toISOString().split('T')[0];
     setUserField(fieldName, new_date);
     const error = validateSingleField(fieldName, new_date, false);
-    setFieldErrors((prev) => ({
-      ...prev,
-      [fieldName]: error || '',
-    }));
+    setFieldErrors((prev) => ({ ...prev, [fieldName]: error || '' }));
   };
 
+  const canProceed = () =>
+    !!userDraft.phone && !!userDraft.dob && !!userDraft.gender &&
+    !fieldErrors.phone && !fieldErrors.dob && !fieldErrors.gender;
+
   return (
-    <SafeAreaView className="flex-1">
-      <View className="px-6">
-        <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
+    <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+      <View className="py-2">
         <PhoneNumberInput
           label="Phone Number"
           required
@@ -61,9 +57,10 @@ export default function UserProfileStep() {
           onChangePhoneNumber={(value) => handleFieldChange('phone', value)}
           error={fieldErrors.phone}
         />
+        <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
 
         <DOBInput
-          label="Enter Date of Birth"
+          label="Date of Birth"
           value={userDraft.dob ? new Date(userDraft.dob) : null}
           onChange={(date: Date) => handleDateChange('dob', date)}
         />
@@ -77,6 +74,7 @@ export default function UserProfileStep() {
           placeholder="Select your gender"
         />
         <ErrorMessage fieldName="gender" fieldErrors={fieldErrors} />
+
         <Dropdown
           label="Preferred Language"
           value={userDraft.language || ''}
@@ -85,31 +83,37 @@ export default function UserProfileStep() {
           placeholder="Select preferred language"
         />
         <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
-        <View className="mb-2 mt-2">
+
+        <View className="mb-2 mt-1">
           <Text className="mb-2 font-semibold text-gray-700">
             Health History <Text className="text-red-500">*</Text>
           </Text>
           <TextInput
             value={userDraft.healthHistory}
             onChangeText={(value: string) => handleFieldChange('healthHistory', value)}
-            placeholder="Tell a brief story about your health history"
-            placeholderTextColor="#999"
+            placeholder="Briefly describe your medical history, conditions, or allergies"
+            placeholderTextColor="#9CA3AF"
             multiline
-            numberOfLines={6}
+            numberOfLines={5}
             textAlignVertical="top"
-            className="rounded-lg bg-[#F2F4F7] p-3 text-base text-gray-800"
-            style={{ minHeight: 75, paddingVertical: 12 }}
+            className={`rounded-xl p-3 text-sm text-gray-800 ${
+              fieldErrors.healthHistory
+                ? 'border border-red-300 bg-red-50'
+                : 'bg-[#F2F4F7]'
+            }`}
+            style={{ minHeight: 100, paddingVertical: 12 }}
           />
+          <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
         </View>
-        <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
-        <View className="mt-8">
+
+        <View className="mt-6 mb-4">
           <PrimaryButton
-            title="Next  →"
-            type="secondary"
+            title="Continue"
             onPress={() => router.push('/(auth)/(user)/review')}
+            disabled={!canProceed()}
           />
         </View>
       </View>
-    </SafeAreaView>
+    </ScrollView>
   );
 }

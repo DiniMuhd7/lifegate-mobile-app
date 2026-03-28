@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView , Platform} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
@@ -7,9 +7,7 @@ import { PrimaryButton } from 'components/Button';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { Ionicons } from '@expo/vector-icons';
 import { DOBInput } from 'components/DobPicker';
-import { Dropdown } from 'components/DropDown';
 import { validateSingleField } from 'utils/validation';
-import { CERTIFICATE_TYPE_OPTIONS } from 'constants/constants';
 import * as DocumentPicker from 'expo-document-picker';
 
 const VALID_FIELDS = {
@@ -63,7 +61,6 @@ const canProceed = () => {
       ...prev,
       [fieldName]: error || '',
     }));
-    console.log('New Date set:', new_date);
   };
 
 const handlePickCertificate = async () => {
@@ -83,7 +80,7 @@ const handlePickCertificate = async () => {
     if (result.canceled) return;
 
     const asset = result.assets[0];
-    
+
     // Validate size < 5MB
     const maxSize = 5 * 1024 * 1024;
     if (asset.size && asset.size > maxSize) {
@@ -98,8 +95,7 @@ const handlePickCertificate = async () => {
       type: asset.mimeType || 'application/octet-stream',
     };
 
-    setCertificateFile(fileObject as any);
-    console.log('Certificate selected:', asset.name);
+    setCertificateFile(fileObject as never);
   } catch (err) {
     console.error('File pick error:', err);
     setCertificateError('Failed to pick file');
@@ -109,114 +105,153 @@ const handlePickCertificate = async () => {
   const handleRemoveCertificate = () => {
     setCertificateFile(null);
     setCertificateError('');
-    console.log('Certificate file removed');
   };
 
   if (!isAdding) {
-    // --- EMPTY STATE (Add Certification Screen) ---
-    return (
-      <View className="flex-1 bg-white p-6">
-        <Text className="mb-4 text-lg font-medium text-[#475569]">Add Certification</Text>
+    const hasCertificate =
+      userDraft.certificate && userDraft.certificateName && userDraft.certificateId;
 
+    if (hasCertificate) {
+      // Show uploaded summary with edit + continue options
+      return (
+        <ScrollView className="flex-1" contentContainerStyle={{ padding: 0 }}>
+          <View className="py-2">
+            <Text className="mb-4 text-lg font-medium text-gray-700">Certification</Text>
+
+            <View className="mb-4 rounded-2xl border border-green-300 bg-green-50 p-4">
+              <View className="flex-row items-start justify-between">
+                <View className="flex-row flex-1 items-start">
+                  <Ionicons name="checkmark-circle" size={22} color="#16a34a" />
+                  <View className="ml-3 flex-1">
+                    <Text className="font-semibold text-green-800">{userDraft.certificateName}</Text>
+                    <Text className="mt-0.5 text-sm text-green-700">
+                      ID: {userDraft.certificateId}
+                    </Text>
+                    {userDraft.certificateIssueDate ? (
+                      <Text className="mt-0.5 text-sm text-green-700">
+                        Issued: {userDraft.certificateIssueDate}
+                      </Text>
+                    ) : null}
+                    {userDraft.certificate?.name ? (
+                      <Text className="mt-0.5 text-sm text-green-600">
+                        📄 {userDraft.certificate.name}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => setIsAdding(true)} className="p-1">
+                  <Ionicons name="pencil-outline" size={20} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <PrimaryButton
+              title="Continue"
+              onPress={() => router.push('/(auth)/(health-professional)/review')}
+              type="secondary"
+            />
+          </View>
+        </ScrollView>
+      );
+    }
+
+    // Empty state — no certificate yet
+    return (
+      <View className="flex-1 py-2">
+        <Text className="mb-4 text-lg font-medium text-gray-700">Add Certification</Text>
         <TouchableOpacity
           onPress={() => setIsAdding(true)}
-          className="items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-[#F1F5F9] py-12">
-          <View className="flex-row items-center">
-            <Ionicons name="add" size={20} color="#64748b" />
-            <Text className="ml-1 font-medium text-[#64748b]">Add Certificate</Text>
+          className="items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-[#F1F5F9] py-14">
+          <View className="h-14 w-14 items-center justify-center rounded-full bg-[#EDF9F9]">
+            <Ionicons name="ribbon-outline" size={28} color="#0EA5A4" />
           </View>
+          <Text className="mt-3 font-semibold text-gray-600">Add Your Certificate</Text>
+          <Text className="mt-1 text-sm text-gray-400">PDF, JPEG, or PNG · Max 5 MB</Text>
         </TouchableOpacity>
-
-        <Text className="mt-12 px-10 text-center text-base italic text-[#64748b]">
-          Certification helps patients trust you.
+        <Text className="mt-8 text-center text-sm italic text-gray-400">
+          Certification builds trust with your patients.
         </Text>
       </View>
     );
   }
 
-  // --- FORM STATE (Certification Details Screen) ---
+  // --- FORM STATE (Certification Details) ---
   return (
-    <ScrollView className="flex-1 bg-white" contentContainerStyle={{ padding: 24 }}>
-      <LabeledInput
-        label="Certificate Name"
-        required
-        placeholder="Type certificate name"
-        value={userDraft.certificateName}
-        onChangeText={(v) => handleFieldChange('certificateName', v)}
-      />
-      <ErrorMessage fieldName="certificateName" fieldErrors={fieldErrors} />
+    <ScrollView className="flex-1" contentContainerStyle={{ paddingVertical: 0, paddingBottom: 32 }}>
+      <View className="py-2">
+        <LabeledInput
+          label="Certificate Name"
+          required
+          placeholder="e.g. MBBS, FMCP, MD"
+          value={userDraft.certificateName}
+          hasError={!!fieldErrors.certificateName}
+          onChangeText={(v) => handleFieldChange('certificateName', v)}
+        />
+        <ErrorMessage fieldName="certificateName" fieldErrors={fieldErrors} />
 
-      <LabeledInput
-        label="Certificate ID"
-        required
-        placeholder="Type certificate ID"
-        value={userDraft.certificateId}
-        onChangeText={(v) => handleFieldChange('certificateId', v)}
-      />
-      <ErrorMessage fieldName="certificateId" fieldErrors={fieldErrors} />
-      <DOBInput
-        label="Issue Date"
-        value={userDraft.certificateIssueDate ? new Date(userDraft.certificateIssueDate) : null}
-        onChange={(date: Date) => handleDateChange('certificateIssueDate', date)}
-      />
-      <ErrorMessage fieldName="certificateIssueDate" fieldErrors={fieldErrors} />
-    
+        <LabeledInput
+          label="Certificate ID / Licence Number"
+          required
+          placeholder="Enter the official certificate ID"
+          value={userDraft.certificateId}
+          hasError={!!fieldErrors.certificateId}
+          onChangeText={(v) => handleFieldChange('certificateId', v)}
+        />
+        <ErrorMessage fieldName="certificateId" fieldErrors={fieldErrors} />
 
-      <View className="mb-6">
-        <Dropdown
-          label="Certificate Type"
-          value={userDraft?.certificateName || ''}
-          onChange={(v) => handleFieldChange('certificateName', v)}
-          placeholder="Select certificate type"
-          options={CERTIFICATE_TYPE_OPTIONS}
+        <DOBInput
+          label="Issue Date"
+          value={userDraft.certificateIssueDate ? new Date(userDraft.certificateIssueDate) : null}
+          onChange={(date: Date) => handleDateChange('certificateIssueDate', date)}
+        />
+        <ErrorMessage fieldName="certificateIssueDate" fieldErrors={fieldErrors} />
+
+        {/* File upload */}
+        <View className="mb-6">
+          <Text className="mb-2 font-medium text-gray-700">
+            Certificate File <Text className="text-red-500">*</Text>
+          </Text>
+
+          {userDraft.certificate ? (
+            <View className="rounded-2xl border border-green-300 bg-green-50 p-4">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 flex-row items-center">
+                  <Ionicons name="checkmark-circle" size={24} color="#16a34a" />
+                  <View className="ml-3 flex-1">
+                    <Text className="font-medium text-green-700">File uploaded</Text>
+                    <Text className="text-sm text-green-600">{userDraft.certificate.name}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={handleRemoveCertificate} className="p-1">
+                  <Ionicons name="close-circle" size={24} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={handlePickCertificate}
+              className="items-center rounded-2xl border border-dashed border-gray-300 bg-[#F1F5F9] py-10">
+              <Ionicons name="cloud-upload-outline" size={32} color="#64748b" />
+              <Text className="mt-2 font-medium text-gray-600">Upload Certificate</Text>
+              <Text className="mt-0.5 text-xs text-gray-400">PDF, JPEG, or PNG · Max 5 MB</Text>
+            </TouchableOpacity>
+          )}
+
+          {certificateError ? (
+            <View className="mt-2 flex-row items-center">
+              <Ionicons name="alert-circle-outline" size={13} color="#EF4444" />
+              <Text className="ml-1 text-xs text-red-500">{certificateError}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <PrimaryButton
+          title="Continue"
+          onPress={() => router.push('/(auth)/(health-professional)/review')}
+          type="secondary"
+          disabled={!canProceed()}
         />
       </View>
-
-      <View className="mb-8">
-        <Text className="mb-2 font-medium text-[#475569]">
-          Attachment <Text className="text-red-500">*</Text>
-        </Text>
-        
-        {userDraft.certificate ? (
-          <View className="rounded-2xl border border-green-300 bg-green-50 p-4">
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1">
-                <Ionicons name="checkmark-circle" size={24} color="#16a34a" />
-                <View className="ml-3 flex-1">
-                  <Text className="font-medium text-green-700">File uploaded</Text>
-                  <Text className="text-sm text-green-600">
-                    {userDraft.certificate.name}
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={handleRemoveCertificate}>
-                <Ionicons name="close-circle" size={24} color="#dc2626" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <TouchableOpacity
-            onPress={handlePickCertificate}
-            className="items-center rounded-2xl border border-gray-100 bg-[#F1F5F9] py-10">
-            <Ionicons name="cloud-upload-outline" size={30} color="#64748b" />
-            <Text className="mt-2 text-[#64748b]">Upload Certificate</Text>
-            <Text className="text-xs text-[#94a3b8]">PDF or Image</Text>
-          </TouchableOpacity>
-        )}
-        
-        {certificateError && (
-          <Text className="mt-2 text-sm text-red-600">{certificateError}</Text>
-        )}
-      </View>
-
-      <PrimaryButton
-        title="Next"
-        onPress={() => router.push('/(auth)/(health-professional)/review')}
-        type="secondary"
-        disabled={!canProceed()}
-      />
-
-      <View className="h-10" />
     </ScrollView>
   );
 }

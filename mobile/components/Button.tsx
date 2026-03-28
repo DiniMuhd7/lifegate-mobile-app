@@ -46,8 +46,8 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      className={`p-6 rounded-2xl items-center justify-center active:opacity-80 ${
-        isDisabled ? "opacity-60" : ""
+      className={`py-4 px-6 rounded-2xl items-center justify-center active:opacity-80 ${
+        isDisabled ? "opacity-50" : ""
       } ${
         isPrimary
           ? "bg-[#0EA5A4]"

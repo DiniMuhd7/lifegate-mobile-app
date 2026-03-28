@@ -26,7 +26,7 @@ export default function RegisterLayout() {
 
   const goBack = () => {
     if (currentStep === 1) {
-      router.replace("/(auth)/login");
+      router.replace('/(auth)/register-choice');
     } else {
       router.back();
     }
@@ -56,7 +56,7 @@ export default function RegisterLayout() {
       </View>
 
       {/* STACK RENDERING */}
-      <View className="flex-1 rounded-t-[40px] bg-gray-50 pt-12 px-6">
+      <View className="flex-1 rounded-t-[40px] bg-[#F7FEFD] pt-6 px-6">
         <Stack
           screenOptions={{
             headerShown: false,

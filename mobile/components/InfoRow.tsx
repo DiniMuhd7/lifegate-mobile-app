@@ -7,10 +7,10 @@ export const InfoRow = ({
   label: string;
   value?: string;
 }) => (
-  <View className="flex-row justify-between mb-3 px-3">
-    <Text className="text-gray-800 font-medium text-right max-w-[55%]">{label}:</Text>
-    <Text className="text-gray-800 flex-1 text-left max-w-[45%]">
-      {value}
+  <View className="flex-row items-start mb-3 px-3">
+    <Text className="text-gray-500 text-sm font-medium w-36">{label}:</Text>
+    <Text className="text-gray-900 text-sm font-semibold flex-1 ml-2">
+      {value || '—'}
     </Text>
   </View>
 );

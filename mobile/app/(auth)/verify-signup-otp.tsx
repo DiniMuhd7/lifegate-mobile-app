@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRegistrationStore } from 'stores/auth/registration-store';
 import { useAuthStore } from 'stores/auth-store';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VerifySignupOtpScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
@@ -153,14 +154,14 @@ export default function VerifySignupOtpScreen() {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1 }}>
     <LinearGradient
       colors={['#0AADA2', '#043B3C']}
-      className="flex-1"
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 0.2 }}
       style={{ flex: 1 }}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pb-6 pt-24">
+      <View className="flex-row items-center justify-between px-4 pb-6 pt-6">
         <Pressable onPress={() => router.back()} className="p-2">
           <Ionicons name="chevron-back" size={24} color="white" />
         </Pressable>
@@ -169,20 +170,30 @@ export default function VerifySignupOtpScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView className="flex-1 rounded-t-[36px] bg-[#F7FEFD] px-12 pt-12">
-        <Text className="mb-2 text-center text-2xl font-bold text-gray-900">Verify Your Email</Text>
-        <Text className="mb-8 text-center text-base text-gray-600">
-          Enter 6-digit verification code sent to {email}
+      <ScrollView
+        className="flex-1 rounded-t-[36px] bg-[#F7FEFD]"
+        contentContainerStyle={{ paddingHorizontal: 32, paddingTop: 40, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled">
+        <View className="mb-3 items-center">
+          <View className="h-16 w-16 items-center justify-center rounded-full bg-[#EDF9F9]">
+            <Ionicons name="mail-outline" size={32} color="#0EA5A4" />
+          </View>
+        </View>
+        <Text className="mb-2 text-center text-2xl font-bold text-gray-900">Check Your Email</Text>
+        <Text className="mb-8 text-center text-sm text-gray-500">
+          We sent a 6-digit code to{'\n'}
+          <Text className="font-semibold text-gray-700">{email}</Text>
         </Text>
 
         {/* Error Message */}
-        {error && (
-          <View className="mb-6">
-            <Text className="text-sm text-red-700">{error}</Text>
+        {error ? (
+          <View className="mb-5 flex-row items-start rounded-xl bg-red-50 p-3">
+            <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+            <Text className="ml-2 flex-1 text-sm text-red-700">{error}</Text>
           </View>
-        )}
+        ) : null}
 
-        {/* OTP Input Boxes (6 digits) */}
+        {/* OTP Input Boxes */}
         <View className="mb-6 flex-row justify-center gap-3">
           {otp.map((digit, index) => (
             <TextInput
@@ -195,8 +206,11 @@ export default function VerifySignupOtpScreen() {
               value={digit}
               onChangeText={(value) => handleOtpChange(index, value)}
               onKeyPress={({ nativeEvent }) => handleOtpKeyPress(index, nativeEvent.key)}
-              placeholder=""
-              className="h-16 w-12 rounded-lg border-2 border-gray-300 text-center text-2xl font-bold text-gray-900"
+              className={`h-14 w-12 rounded-xl border-2 text-center text-2xl font-bold ${
+                digit
+                  ? 'border-[#0EA5A4] bg-[#EDF9F9] text-[#0EA5A4]'
+                  : 'border-gray-200 bg-gray-50 text-gray-900'
+              }`}
               placeholderTextColor="#D1D5DB"
               editable={!loading}
               selectTextOnFocus
@@ -205,44 +219,42 @@ export default function VerifySignupOtpScreen() {
         </View>
 
         {/* Countdown Timer */}
-        {timeRemaining !== null && timeRemaining > 0 && (
+        {timeRemaining !== null && timeRemaining > 0 ? (
           <View className="mb-6 items-center">
-            <Text className="text-sm text-gray-600">
-              Code expires in:{' '}
+            <Text className="text-sm text-gray-500">
+              Code expires in{' '}
               <Text
-                className={`font-semibold ${timeRemaining < 60 ? 'text-red-600' : 'text-gray-900'}`}>
+                className={`font-semibold ${timeRemaining < 60 ? 'text-red-500' : 'text-gray-800'}`}>
                 {formatTime(timeRemaining)}
               </Text>
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Verify Button */}
-        <View className="mb-6">
+        <View className="mb-5">
           <PrimaryButton
             title="Verify & Continue"
             onPress={handleVerify}
             loading={loading}
-            disabled={!isComplete}
+            disabled={!isComplete || loading}
           />
         </View>
 
-        {/* Resend Code Link */}
-        <View className="flex-row items-center justify-center gap-2">
-          <Text className="text-sm text-gray-600">Didn&apos;t you receive code?</Text>
+        {/* Resend Code */}
+        <View className="flex-row items-center justify-center gap-1">
+          <Text className="text-sm text-gray-500">Didn&apos;t receive the code?</Text>
           <Pressable onPress={handleResend} disabled={resendLoading || loading} className="p-1">
             <Text
               className={`text-sm font-semibold ${
                 resendLoading || loading ? 'text-gray-400' : 'text-[#0EA5A4]'
               }`}>
-              {resendLoading ? 'Sending...' : 'Resend Code'}
+              {resendLoading ? 'Sending...' : 'Resend'}
             </Text>
           </Pressable>
         </View>
-
-        {/* Bottom spacing */}
-        <View className="h-8" />
       </ScrollView>
     </LinearGradient>
+    </SafeAreaView>
   );
 }

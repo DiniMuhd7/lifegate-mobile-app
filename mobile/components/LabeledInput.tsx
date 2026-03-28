@@ -6,7 +6,7 @@ type InputProps = React.ComponentProps<typeof TextInput> & {
   label: string;
   required?: boolean;
   secureToggle?: boolean;
-  
+  hasError?: boolean;
   type?: 'default' | 'email' | 'password';
 };
 
@@ -14,6 +14,7 @@ export const LabeledInput: React.FC<InputProps> = ({
   label,
   required,
   secureToggle,
+  hasError,
   ...inputProps
 }) => {
   const [hidden, setHidden] = useState<boolean>(!!secureToggle);
@@ -24,7 +25,10 @@ export const LabeledInput: React.FC<InputProps> = ({
         {label} {required && <Text className="text-red-500">*</Text>}
       </Text>
 
-      <View className="h-12 flex-row items-center rounded-xl bg-[#F2F4F7] px-3">
+      <View
+        className={`h-12 flex-row items-center rounded-xl px-3 ${
+          hasError ? 'bg-red-50 border border-red-300' : 'bg-[#F2F4F7]'
+        }`}>
         <TextInput
           {...inputProps}
           secureTextEntry={secureToggle ? hidden : inputProps.secureTextEntry}

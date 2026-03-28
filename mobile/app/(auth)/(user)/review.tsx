@@ -1,22 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, Alert, ScrollView, Linking } from 'react-native';
+import { View, Text, Pressable, ScrollView, Linking } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { useRegistrationStore } from 'stores/auth-store';
 import { router } from 'expo-router';
-import { validateRegistration } from 'utils/validation';
+import { validateRegistration, ValidationError } from 'utils/validation';
 import { InfoRow } from 'components/InfoRow';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function UserReviewStep() {
   const { userDraft, error: backendError, startRegistration, clearError } = useRegistrationStore();
   const [loading, setLoading] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<any[]>([]);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [agreed, setAgreed] = useState(false);
 
   const handleFinalSubmit = async () => {
-    if (!agreed) {
-      Alert.alert('Agreement Required', 'Please agree to the Privacy Policy.');
-      return;
-    }
+    if (!agreed) return;
 
     setLoading(true);
     setValidationErrors([]);
@@ -31,113 +29,104 @@ export default function UserReviewStep() {
     try {
       clearError();
       const success = await startRegistration('user');
-
       if (success) {
-        // Get pending email from store
         const { pendingRegistrationEmail } = useRegistrationStore.getState();
-        // Navigate to OTP verification
         router.replace({
           pathname: '/(auth)/verify-signup-otp',
           params: { email: pendingRegistrationEmail },
         });
-      } else {
-        // Error is already in store
-        // Alert.alert('Registration Failed', backendError || 'An error occurred. Please try again.');
       }
-    } catch (error) {
-      // console.error('Registration failed', error);
-      // Alert.alert('Registration Failed', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView className="flex-1 px-6">
-      <Text className="mb-3 mt-4 text-center text-lg font-semibold">
-        Review your information before submitting.
-      </Text>
+    <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+      <View className="py-2">
+        <Text className="mb-1 text-base font-semibold text-gray-900">Review your details</Text>
+        <Text className="mb-5 text-sm text-gray-500">
+          Make sure everything looks correct before submitting.
+        </Text>
 
-      {backendError && (
-        <View className="mb-3">
-          <Text className="text-center text-red-700">
-            {typeof backendError === 'string' ? backendError : backendError.message}
-          </Text>
-        </View>
-      )}
-
-      {validationErrors.length > 0 && (
-        <View className="mb-6 rounded-lg border border-red-300 bg-red-100 p-4">
-          <Text className="mb-2 font-semibold text-red-700">Validation Errors:</Text>
-          {validationErrors.map((err, idx) => (
-            <Text key={idx} className="text-sm text-red-600">
-              • {err.message}
+        {/* Backend error */}
+        {backendError && (
+          <View className="mb-4 flex-row items-start rounded-xl bg-red-50 p-3">
+            <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+            <Text className="ml-2 flex-1 text-sm text-red-700">
+              {typeof backendError === 'string' ? backendError : String(backendError)}
             </Text>
-          ))}
-        </View>
-      )}
-
-      <View className="mb-16 rounded-lg bg-[#F2F4F7] p-4">
-        <InfoRow label="Full Name" value={userDraft.name} />
-        <InfoRow label="Email" value={userDraft.email} />
-        <InfoRow label="Phone Number" value={userDraft.phone} />
-        <InfoRow label="Date of Birth" value={userDraft.dob} />
-        <InfoRow label="Gender" value={userDraft.gender} />
-        <InfoRow label="Language" value={userDraft.language} />
-        <View className="mb-3 flex-col justify-between px-3">
-          <Text className="max-w-[55%] text-left font-medium text-gray-800">History:</Text>
-          <Text lineBreakMode="head" className="max-w-[100%] flex-1 text-left text-gray-800">
-            {userDraft.healthHistory}
-          </Text>
-        </View>
-      </View>
-      <Text className="mb-6 text-center font-light">
-        I have the information is accurate and I consent to the lifeGate Privacy and policy
-      </Text>
-
-      <View className="mt-15 flex-row justify-center">
-        <Pressable onPress={() => setAgreed(!agreed)} className="mb-8 flex-row items-center">
-          {/* Outer Circle */}
-          <View
-            className={`mr-3 h-5 w-5 items-center justify-center rounded-full border-2 ${
-              agreed ? 'border-teal-600' : 'border-gray-400'
-            }`}>
-            {/* Inner Circle (only when active) */}
-            {agreed && <View className="h-2.5 w-2.5 rounded-full bg-teal-600" />}
           </View>
+        )}
 
-          <Text className="font-bold text-gray-700">
-            I have read the{' '}
+        {/* Validation errors */}
+        {validationErrors.length > 0 && (
+          <View className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
+            <Text className="mb-2 text-sm font-semibold text-red-700">Please fix the following:</Text>
+            {validationErrors.map((err, idx) => (
+              <Text key={idx} className="text-sm text-red-600">
+                • {err.message}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {/* Summary card */}
+        <View className="mb-6 overflow-hidden rounded-2xl bg-white"
+          style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}>
+          <View className="border-b border-gray-100 bg-[#EDF9F9] px-4 py-3">
+            <Text className="text-sm font-semibold text-[#0EA5A4]">Personal Information</Text>
+          </View>
+          <View className="p-4">
+            <InfoRow label="Full Name" value={userDraft.name} />
+            <InfoRow label="Email" value={userDraft.email} />
+            <InfoRow label="Phone" value={userDraft.phone} />
+            <InfoRow label="Date of Birth" value={userDraft.dob} />
+            <InfoRow label="Gender" value={userDraft.gender} />
+            <InfoRow label="Language" value={userDraft.language} />
+          </View>
+          {userDraft.healthHistory ? (
+            <>
+              <View className="border-t border-gray-100 bg-[#EDF9F9] px-4 py-3">
+                <Text className="text-sm font-semibold text-[#0EA5A4]">Health History</Text>
+              </View>
+              <View className="p-4">
+                <Text className="text-sm text-gray-800">{userDraft.healthHistory}</Text>
+              </View>
+            </>
+          ) : null}
+        </View>
+
+        {/* Privacy agreement */}
+        <Pressable
+          onPress={() => setAgreed(!agreed)}
+          className="mb-6 flex-row items-start rounded-xl bg-gray-50 p-4">
+          <View
+            className={`mt-0.5 h-5 w-5 items-center justify-center rounded-full border-2 ${
+              agreed ? 'border-teal-600 bg-teal-600' : 'border-gray-400'
+            }`}>
+            {agreed && <Ionicons name="checkmark" size={12} color="white" />}
+          </View>
+          <Text className="ml-3 flex-1 text-sm text-gray-700">
+            I confirm the information above is accurate and agree to the{' '}
             <Text
               className="font-semibold text-teal-600"
               onPress={() => Linking.openURL('https://www.lifegate.com/privacy-policy')}>
               Privacy Policy
-            </Text>{' '}
-            and I agree.
+            </Text>
+            .
           </Text>
         </Pressable>
-      </View>
 
-      <PrimaryButton
-        title={loading ? 'Creating Account...' : 'Create Account'}
-        onPress={handleFinalSubmit}
-        disabled={loading}
-      />
-
-      {/* {modalVisible && (
-        <SubmissionModal
-          visible={modalVisible}
-          isSuccess={submissionSuccess}
-          title={submissionSuccess ? 'Submission In Progress' : 'Submission Failed'}
-          message={
-            submissionSuccess
-              ? "Sending verification code to your email..."
-              : backendError || 'An error occurred. Please try again.'
-          }
-          onConfirm={handleModalConfirm}
-          confirmButtonText={submissionSuccess ? 'Sent!' : 'Try Again'}
+        <PrimaryButton
+          title={loading ? 'Creating Account...' : 'Create Account'}
+          onPress={handleFinalSubmit}
+          disabled={loading || !agreed}
+          loading={loading}
         />
-      )} */}
+
+        <View className="h-8" />
+      </View>
     </ScrollView>
   );
 }

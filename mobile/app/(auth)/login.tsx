@@ -1,5 +1,5 @@
 // File: app/(auth)/login.tsx
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';

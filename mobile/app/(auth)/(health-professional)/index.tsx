@@ -7,84 +7,41 @@ import { useRegistrationStore } from 'stores/auth-store';
 import { useState } from 'react';
 import { validateSingleField, validateNewPasswordMatch } from 'utils/validation';
 
-const VALID_FIELDS = {
-  name: true,
-  email: true,
-  password: true,
-  confirmPassword: true,
-} as const;
-
-type ValidFieldName = keyof typeof VALID_FIELDS;
-
-const isValidField = (fieldName: string): fieldName is ValidFieldName => {
-  return fieldName in VALID_FIELDS;
-};
+const STEP_FIELDS = ['name', 'email', 'password', 'confirmPassword'] as const;
+type StepField = (typeof STEP_FIELDS)[number];
 
 export default function AccountScreen() {
   const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  let error: string | null = null;
 
-  const handleFieldChange = (field: ValidFieldName, value: string) => {
+  const handleFieldChange = (field: StepField, value: string) => {
     setUserField(field, value);
-    // Handle password field
+
+    let error: string | null = null;
     if (field === 'password') {
       error = validateSingleField(field, value, false);
-
-      // Revalidate confirm password when password changes
       if (userDraft.confirmPassword) {
-        const confirmError = validateNewPasswordMatch(userDraft.confirmPassword, value);
-        setFieldErrors((prev) => ({
-          ...prev,
-          confirmPassword: confirmError || '',
-        }));
+        const confirmErr = validateNewPasswordMatch(userDraft.confirmPassword, value);
+        setFieldErrors((prev) => ({ ...prev, confirmPassword: confirmErr || '' }));
       }
-    }
-    // Handle confirm password field
-    else if (field === 'confirmPassword') {
+    } else if (field === 'confirmPassword') {
       error = validateNewPasswordMatch(value, userDraft.password);
-    }
-    // Handle other fields
-    else {
+    } else {
       error = validateSingleField(field, value, false);
     }
 
-    setFieldErrors((prev) => ({
-      ...prev,
-      [field]: error || '',
-    }));
+    setFieldErrors((prev) => ({ ...prev, [field]: error || '' }));
   };
 
-  const handleDateChange = (fieldName: string, date: Date) => {
-    if (!isValidField(fieldName)) return;
-    const new_date = date.toISOString().split('T')[0];
-    setUserField(fieldName, new_date);
-    const error = validateSingleField(fieldName, new_date, true);
-    setFieldErrors((prev) => ({
-      ...prev,
-      [fieldName]: error || '',
-    }));
-  };
-
-  const canProceed = () => {
-    // All required fields must be filled
-    return (
-      userDraft.name &&
-      userDraft.email &&
-      userDraft.password &&
-      userDraft.confirmPassword &&
-
-      !fieldErrors.name &&
-      !fieldErrors.email &&
-      !fieldErrors.password &&
-      !fieldErrors.confirmPassword 
-    );
-  };
+  const canProceed = () =>
+    STEP_FIELDS.every((f) => {
+      const v = userDraft[f];
+      return v && v.trim() !== '' && !fieldErrors[f];
+    });
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="flex-1 justify-start p-6">
-        {/* ===== ACCOUNT INFORMATION ===== */}
+    <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+      <View className="py-2">
         <Text className="mb-4 text-lg font-bold text-gray-900">Account Information</Text>
 
         <LabeledInput
@@ -92,43 +49,52 @@ export default function AccountScreen() {
           required
           placeholder="Enter your full name"
           value={userDraft.name}
+          hasError={!!fieldErrors.name}
           onChangeText={(v) => handleFieldChange('name', v)}
         />
         <ErrorMessage fieldName="name" fieldErrors={fieldErrors} />
+
         <LabeledInput
           label="Email"
           required
           placeholder="Enter your email address"
-          type="email"
+          autoCapitalize="none"
+          keyboardType="email-address"
           value={userDraft.email}
+          hasError={!!fieldErrors.email}
           onChangeText={(v) => handleFieldChange('email', v)}
         />
         <ErrorMessage fieldName="email" fieldErrors={fieldErrors} />
+
         <LabeledInput
           label="Password"
           required
-          placeholder="Password"
+          placeholder="Min. 8 characters, uppercase & number"
           secureToggle
           value={userDraft.password}
+          hasError={!!fieldErrors.password}
           onChangeText={(v) => handleFieldChange('password', v)}
         />
         <ErrorMessage fieldName="password" fieldErrors={fieldErrors} />
+
         <LabeledInput
           label="Confirm Password"
           required
-          placeholder="Confirm Password"
+          placeholder="Re-enter your password"
           secureToggle
           value={userDraft.confirmPassword}
+          hasError={!!fieldErrors.confirmPassword}
           onChangeText={(v) => handleFieldChange('confirmPassword', v)}
         />
         <ErrorMessage fieldName="confirmPassword" fieldErrors={fieldErrors} />
-        {/* ===== NEXT BUTTON - Navigate to Review ===== */}
-        <PrimaryButton
-          title="Next ->"
-          onPress={() => router.push('/(auth)/(health-professional)/professional')}
-          type="secondary"
-          disabled={!canProceed()}
-        />
+
+        <View className="mt-6 mb-4">
+          <PrimaryButton
+            title="Continue"
+            onPress={() => router.push('/(auth)/(health-professional)/professional')}
+            disabled={!canProceed()}
+          />
+        </View>
       </View>
     </ScrollView>
   );

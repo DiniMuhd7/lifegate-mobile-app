@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 interface WizardProgressProps {
   totalSteps: number;
@@ -14,27 +15,36 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
     <View className="flex-row items-center justify-center mt-6">
       {Array.from({ length: totalSteps }).map((_, index) => {
         const stepNumber = index + 1;
-        const active = stepNumber === currentStep;
+        const isCompleted = stepNumber < currentStep;
+        const isActive = stepNumber === currentStep;
 
         return (
           <View key={index} className="flex-row items-center">
-            {/* Circle */}
+            {/* Step Circle */}
             <View
               className={`h-8 w-8 items-center justify-center rounded-full border-2 border-white ${
-                active ? "bg-white" : "bg-transparent"
+                isCompleted || isActive ? "bg-white" : "bg-white/20"
               }`}
             >
-              <Text
-                className={`font-bold ${active ? "text-[#0EA5A4]" : "text-white"}`}
-              >
-                {stepNumber}
-              </Text>
+              {isCompleted ? (
+                <Ionicons name="checkmark" size={16} color="#0AADA2" />
+              ) : (
+                <Text
+                  className={`text-sm font-bold ${
+                    isActive ? "text-[#0AADA2]" : "text-white/70"
+                  }`}
+                >
+                  {stepNumber}
+                </Text>
+              )}
             </View>
 
             {/* Connecting Line */}
             {index !== totalSteps - 1 && (
               <View
-                className={`mx-2 h-[2px] w-10 bg-white/40`}
+                className={`mx-2 h-[2px] w-8 ${
+                  isCompleted ? "bg-white" : "bg-white/30"
+                }`}
               />
             )}
           </View>

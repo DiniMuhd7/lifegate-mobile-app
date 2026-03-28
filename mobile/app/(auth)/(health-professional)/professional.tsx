@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
@@ -49,7 +49,6 @@ export default function ProfessionalScreen() {
       ...prev,
       [fieldName]: error || '',
     }));
-    console.log('New Date set:', new_date);
   };
 
   const canProceed = () => {
@@ -67,7 +66,8 @@ export default function ProfessionalScreen() {
   };
 
   return (
-    <View className="flex-1 justify-start bg-white p-6">
+    <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
+      <View className="py-2">
       <PhoneNumberInput
         label="Phone Number"
         required
@@ -107,6 +107,7 @@ export default function ProfessionalScreen() {
         value={userDraft.yearsOfExperience || ''}
         placeholder="Enter years of medical practice"
         keyboardType="numeric"
+        hasError={!!fieldErrors.yearsOfExperience}
         onChangeText={(v) => handleFieldChange('yearsOfExperience', v)}
       />
       <ErrorMessage fieldName="yearsOfExperience" fieldErrors={fieldErrors} />
@@ -116,16 +117,19 @@ export default function ProfessionalScreen() {
         required
         value={userDraft.specialization || ''}
         placeholder="Type your medical specialty"
+        hasError={!!fieldErrors.specialization}
         onChangeText={(v) => handleFieldChange('specialization', v)}
       />
       <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
 
-      <PrimaryButton
-        title="Next"
-        onPress={() => router.push('/(auth)/(health-professional)/license')}
-        type="secondary"
-        disabled={!canProceed()}
-      />
-    </View>
+      <View className="mt-6 mb-4">
+        <PrimaryButton
+          title="Continue"
+          onPress={() => router.push('/(auth)/(health-professional)/license')}
+          disabled={!canProceed()}
+        />
+      </View>
+      </View>
+    </ScrollView>
   );
 }
