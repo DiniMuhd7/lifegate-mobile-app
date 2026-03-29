@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { Message, Conversation, MessageStatus, ConversationCategory } from 'types/chat-types';
+import { Message, Conversation, MessageStatus, ConversationCategory, SessionMode } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
@@ -28,7 +28,8 @@ type ChatState = {
 
   // Actions
   initializeChat: (userId: string) => Promise<void>;
-  createConversation: () => string; // Returns new conversation ID
+  createConversation: (mode?: SessionMode) => string; // Returns new conversation ID
+  setConversationMode: (conversationId: string, mode: SessionMode) => void; // Set mode on an existing conversation
   setActiveConversation: (conversationId: string) => void;
   sendMessage: (text: string, category?: ConversationCategory) => Promise<void>; // User sends message
   retrySendMessage: (messageId: string) => Promise<void>; // Retry a FAILED message
@@ -37,6 +38,10 @@ type ChatState = {
   processAIResponse: (userMessage: Message, conversationId: string) => Promise<void>;
   clearError: () => void;
 };
+
+// Map a SessionMode to its backend ConversationCategory
+const modeToCategory = (mode: SessionMode): ConversationCategory =>
+  mode === 'clinical_diagnosis' ? 'doctor_consultation' : 'general_health';
 
 // Generate unique ID
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -93,13 +98,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  // Create new conversation
-  createConversation: () => {
+  // Create new conversation (optionally pre-set session mode & derived category)
+  createConversation: (mode?: SessionMode) => {
     const conversationId = generateId();
     const newConversation: Conversation = {
       id: conversationId,
       userId: get().userId || '',
       messages: [],
+      ...(mode ? { mode, category: modeToCategory(mode) } : {}),
       createdAt: now(),
       updatedAt: now(),
     };
@@ -110,6 +116,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     return conversationId;
+  },
+
+  // Set the session mode on an existing conversation (also updates derived category)
+  setConversationMode: (conversationId: string, mode: SessionMode) => {
+    set((state) => ({
+      conversations: state.conversations.map((conv) =>
+        conv.id === conversationId
+          ? { ...conv, mode, category: modeToCategory(mode) }
+          : conv
+      ),
+    }));
   },
 
   // Switch active conversation
@@ -144,14 +161,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         timestamp: now(),
       };
 
-      // Step B: Optimistic update (also set category on first message)
+      // Step B: Optimistic update
+      // Only allow a caller-supplied category to override when the conversation
+      // has no messages AND no mode has been set (i.e. mode-less quick-start).
       set((state) => {
         const conversations = state.conversations.map((conv) => {
           if (conv.id !== convId) return conv;
+          const allowCategoryOverride =
+            category && conv.messages.length === 0 && !conv.mode;
           return {
             ...conv,
-            // Attach category if provided and conversation has no prior messages
-            ...(category && conv.messages.length === 0 ? { category } : {}),
+            ...(allowCategoryOverride ? { category } : {}),
             messages: [...conv.messages, userMessage],
             updatedAt: now(),
           };

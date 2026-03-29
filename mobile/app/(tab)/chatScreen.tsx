@@ -20,11 +20,36 @@ import type { Message as ChatMessage } from 'components/MessageList';
 import { ChatInputBar } from 'components/ChatInputBar';
 import { ProfileMenu } from 'components/ProfileMenu';
 import { SuggestedActions } from 'components/SuggestedActions';
+import { ModeSelectionModal } from 'components/ModeSelectionModal';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { GreetingSection } from 'components';
 import { TypingIndicator } from 'components/TypingIndicator';
-import type { ConversationCategory } from 'types/chat-types';
+import type { ConversationCategory, SessionMode } from 'types/chat-types';
+
+const MODE_LABELS: Record<SessionMode, string> = {
+  general_health: 'General Health',
+  clinical_diagnosis: 'Clinical Diagnosis',
+};
+
+const MODE_BADGE: Record<SessionMode, { label: string; color: string; bg: string }> = {
+  general_health: { label: 'AI-Only', color: '#0891b2', bg: '#e0f2fe' },
+  clinical_diagnosis: { label: 'AI + Physician', color: '#0f766e', bg: '#ccfbf1' },
+};
+
+const CLINICAL_QUICK_STARTS = [
+  'I have a headache and fever',
+  'I feel chest tightness',
+  'I have pain in my lower back',
+  'I've had a cough for 3 days',
+];
+
+const GENERAL_QUICK_STARTS = [
+  'Give me healthy lifestyle tips',
+  'How do I improve my sleep?',
+  'What foods boost immunity?',
+  'Tips for managing stress',
+];
 
 const CATEGORY_LABELS: Record<ConversationCategory, string> = {
   doctor_consultation: 'Doctor Consultation',
@@ -41,6 +66,7 @@ const ChatScreen: React.FC = () => {
   const sendMessage = useChatStore((state) => state.sendMessage);
   const retrySendMessage = useChatStore((state) => state.retrySendMessage);
   const createConversation = useChatStore((state) => state.createConversation);
+  const setConversationMode = useChatStore((state) => state.setConversationMode);
   const isThinking = useChatStore((state) => state.isThinking);
   const isInitializing = useChatStore((state) => state.isInitializing);
   const error = useChatStore((state) => state.error);
@@ -51,8 +77,10 @@ const ChatScreen: React.FC = () => {
 
   const messages = activeConversation?.messages || [];
   const activeCategory = activeConversation?.category;
+  const activeMode = activeConversation?.mode;
   const [showWelcome, setShowWelcome] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showModeModal, setShowModeModal] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const hasInitialized = useRef(false);
 
@@ -74,6 +102,13 @@ const ChatScreen: React.FC = () => {
   useEffect(() => {
     setShowWelcome(messages.length === 0);
   }, [messages.length]);
+
+  // Auto-prompt mode selection whenever the welcome screen is shown without a mode
+  useEffect(() => {
+    if (showWelcome && !isInitializing && activeConversation && !activeConversation.mode) {
+      setShowModeModal(true);
+    }
+  }, [showWelcome, isInitializing, activeConversation?.id, activeConversation?.mode]);
 
   useEffect(() => {
     if (error) {
@@ -116,14 +151,28 @@ const ChatScreen: React.FC = () => {
   );
 
   const handleNewChat = useCallback(() => {
-    // Don't create a new conversation if the current one is already empty
-    if (messages.length === 0) return;
-    createConversation();
+    if (messages.length > 0) {
+      // Archive current conversation and create a fresh one, then pick mode
+      createConversation();
+    }
+    setShowModeModal(true);
   }, [createConversation, messages.length]);
 
-  const headerSubtitle = activeCategory
-    ? CATEGORY_LABELS[activeCategory]
-    : 'AI health guidance';
+  const handleModeSelect = useCallback(
+    (mode: SessionMode) => {
+      if (activeConversation) {
+        setConversationMode(activeConversation.id, mode);
+      }
+      setShowModeModal(false);
+    },
+    [activeConversation, setConversationMode]
+  );
+
+  const headerSubtitle = activeMode
+    ? MODE_LABELS[activeMode]
+    : activeCategory
+      ? CATEGORY_LABELS[activeCategory]
+      : 'Choose a mode to start';
 
   return (
     <>
@@ -228,6 +277,11 @@ const ChatScreen: React.FC = () => {
               }}
             />
 
+            <ModeSelectionModal
+              visible={showModeModal}
+              onSelect={handleModeSelect}
+            />
+
             {/* ── Offline banner ── */}
             {isConnected === false && (
               <View
@@ -282,7 +336,113 @@ const ChatScreen: React.FC = () => {
                 keyboardShouldPersistTaps="handled"
               >
                 <GreetingSection userName={user?.name || ''} />
-                <SuggestedActions onSelect={handleSuggestedAction} />
+
+                {activeMode ? (
+                  /* Mode-specific welcome — show badge + quick-start prompt chips */
+                  <View style={{ marginTop: 24 }}>
+                    {/* Active mode badge */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        marginBottom: 18,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: MODE_BADGE[activeMode].bg,
+                          borderRadius: 20,
+                          paddingHorizontal: 12,
+                          paddingVertical: 5,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 5,
+                        }}
+                      >
+                        <Ionicons
+                          name={activeMode === 'clinical_diagnosis' ? 'medical' : 'heart'}
+                          size={13}
+                          color={MODE_BADGE[activeMode].color}
+                        />
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: '700',
+                            color: MODE_BADGE[activeMode].color,
+                          }}
+                        >
+                          {MODE_LABELS[activeMode]} · {MODE_BADGE[activeMode].label}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Quick-start prompt chips */}
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: '#0f766e',
+                        textTransform: 'uppercase',
+                        letterSpacing: 1.2,
+                        textAlign: 'center',
+                        marginBottom: 12,
+                      }}
+                    >
+                      Quick Start
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                      {(activeMode === 'clinical_diagnosis'
+                        ? CLINICAL_QUICK_STARTS
+                        : GENERAL_QUICK_STARTS
+                      ).map((prompt) => (
+                        <TouchableOpacity
+                          key={prompt}
+                          onPress={() => sendMessage(prompt)}
+                          activeOpacity={0.72}
+                          style={{
+                            backgroundColor: activeMode === 'clinical_diagnosis' ? '#f0fdfa' : '#f0f9ff',
+                            borderColor: activeMode === 'clinical_diagnosis' ? '#99f6e4' : '#bae6fd',
+                            borderWidth: 1.5,
+                            borderRadius: 20,
+                            paddingVertical: 8,
+                            paddingHorizontal: 14,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              color: activeMode === 'clinical_diagnosis' ? '#0f766e' : '#0891b2',
+                              fontWeight: '500',
+                            }}
+                          >
+                            {prompt}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    {/* Switch mode link */}
+                    <TouchableOpacity
+                      onPress={() => setShowModeModal(true)}
+                      style={{ marginTop: 24, alignItems: 'center' }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 12, color: '#64748b' }}>
+                        Switch to{' '}
+                        <Text style={{ color: '#0f766e', fontWeight: '600' }}>
+                          {activeMode === 'clinical_diagnosis'
+                            ? 'General Health Mode'
+                            : 'Clinical Diagnosis Mode'}
+                        </Text>
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  /* Fallback — no mode set yet */
+                  <SuggestedActions onSelect={handleSuggestedAction} />
+                )}
               </ScrollView>
             ) : (
               <View className="flex-1">

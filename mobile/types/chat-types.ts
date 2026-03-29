@@ -20,6 +20,11 @@ export type ConversationCategory =
   | 'hearing_test'
   | 'mental_health';
 
+// High-level session mode that determines the care pathway
+// - general_health: AI-only, wellness & informational (maps to 'general_health' category)
+// - clinical_diagnosis: AI + physician validation (maps to 'doctor_consultation' category)
+export type SessionMode = 'general_health' | 'clinical_diagnosis';
+
 // Structured diagnosis data from AI
 export type Diagnosis = {
   condition: string;
@@ -53,7 +58,8 @@ export type Conversation = {
   userId: string; // User who owns this conversation
   messages: Message[];
   title?: string; // Auto-generated from first user message or explicit title
-  category?: ConversationCategory; // Topic set when started from a suggested action
+  category?: ConversationCategory; // Derived from mode; also set by suggested actions
+  mode?: SessionMode; // The session routing mode chosen by the user
   createdAt: number;
   updatedAt: number; // For sorting history
 };
