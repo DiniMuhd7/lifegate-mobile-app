@@ -20,23 +20,41 @@ return &Service{aiProvider: aiProvider, db: db, nats: nats}
 }
 
 type ChatRequest struct {
-Message          string           `json:"message"`
-PreviousMessages []ai.ChatMessage `json:"previousMessages"`
-UserID           string
+	Message          string           `json:"message"`
+	PreviousMessages []ai.ChatMessage `json:"previousMessages"`
+	UserID           string
+	Category         string
+}
+
+// buildSystemPrompt returns the base health prompt augmented with a category-specific snippet.
+func buildSystemPrompt(category string) string {
+	base := ai.HealthSystemPrompt
+	if snippet, ok := ai.CategoryPromptSnippets[category]; ok {
+		return base + "\n\n" + snippet
+	}
+	return base
 }
 
 func (s *Service) Chat(ctx context.Context, req ChatRequest) (*ai.AIResponse, error) {
-eventData, _ := json.Marshal(map[string]string{
-"user_id": req.UserID,
-"message": req.Message,
-})
-_ = s.nats.Publish("patient.symptom.submitted", eventData)
+	eventData, _ := json.Marshal(map[string]string{
+		"user_id":  req.UserID,
+		"message":  req.Message,
+		"category": req.Category,
+	})
+	_ = s.nats.Publish("patient.symptom.submitted", eventData)
 
-messages := append(req.PreviousMessages, ai.ChatMessage{Role: "USER", Text: req.Message})
-resp, err := s.aiProvider.Chat(ctx, ai.HealthSystemPrompt, messages)
-if err != nil {
-return nil, err
-}
+	// Limit conversation history to avoid token overflow (keep last 20 messages)
+	const maxHistoryMessages = 20
+	history := req.PreviousMessages
+	if len(history) > maxHistoryMessages {
+		history = history[len(history)-maxHistoryMessages:]
+	}
+
+	messages := append(history, ai.ChatMessage{Role: "USER", Text: req.Message})
+	resp, err := s.aiProvider.Chat(ctx, buildSystemPrompt(req.Category), messages)
+	if err != nil {
+		return nil, err
+	}
 
 if req.UserID != "" {
 s.saveDiagnosis(req.UserID, req.Message, resp)

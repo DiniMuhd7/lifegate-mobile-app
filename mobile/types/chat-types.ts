@@ -12,6 +12,14 @@ export type MessageRole = 'USER' | 'AI';
 // Message status for optimistic UI
 export type MessageStatus = 'SENDING' | 'SENT' | 'FAILED';
 
+// Conversation category (matches suggested action ids)
+export type ConversationCategory =
+  | 'doctor_consultation'
+  | 'general_health'
+  | 'eye_checkup'
+  | 'hearing_test'
+  | 'mental_health';
+
 // Structured diagnosis data from AI
 export type Diagnosis = {
   condition: string;
@@ -45,6 +53,7 @@ export type Conversation = {
   userId: string; // User who owns this conversation
   messages: Message[];
   title?: string; // Auto-generated from first user message or explicit title
+  category?: ConversationCategory; // Topic set when started from a suggested action
   createdAt: number;
   updatedAt: number; // For sorting history
 };

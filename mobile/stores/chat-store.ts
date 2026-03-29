@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import { Message, Conversation, MessageStatus } from 'types/chat-types';
+import { Message, Conversation, MessageStatus, ConversationCategory } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
@@ -29,7 +29,7 @@ type ChatState = {
   initializeChat: (userId: string) => Promise<void>;
   createConversation: () => string; // Returns new conversation ID
   setActiveConversation: (conversationId: string) => void;
-  sendMessage: (text: string) => Promise<void>; // User sends message
+  sendMessage: (text: string, category?: ConversationCategory) => Promise<void>; // User sends message
   retrySendMessage: (messageId: string) => Promise<void>; // Retry a FAILED message
   loadConversationHistory: () => Promise<void>; // Load from storage
   deleteConversation: (conversationId: string) => void;
@@ -114,7 +114,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Main action: User sends message (Step A & B from spec)
-  sendMessage: async (text: string) => {
+  sendMessage: async (text: string, category?: ConversationCategory) => {
     try {
       // Step B: Sanitize and validate
       const sanitized = sanitizeMessage(text);
@@ -140,17 +140,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         timestamp: now(),
       };
 
-      // Step B: Optimistic update
+      // Step B: Optimistic update (also set category on first message)
       set((state) => {
-        const conversations = state.conversations.map((conv) =>
-          conv.id === convId
-            ? {
-                ...conv,
-                messages: [...conv.messages, userMessage],
-                updatedAt: now(),
-              }
-            : conv
-        );
+        const conversations = state.conversations.map((conv) => {
+          if (conv.id !== convId) return conv;
+          return {
+            ...conv,
+            // Attach category if provided and conversation has no prior messages
+            ...(category && conv.messages.length === 0 ? { category } : {}),
+            messages: [...conv.messages, userMessage],
+            updatedAt: now(),
+          };
+        });
         return { conversations, isThinking: true, error: null };
       });
 
@@ -172,10 +173,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       );
       if (!conversation) return;
 
-      // Call Gemini API via ChatService
+      // Call backend AI via ChatService (pass category for specialized prompting)
       const aiResponse = await ChatService.sendMessage(
         conversation.messages.slice(0, -1), // All previous messages
-        userMessage.text
+        userMessage.text,
+        conversation.category
       );
 
       // Step D: Handle success

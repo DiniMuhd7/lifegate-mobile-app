@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { MessageBubble } from './MessageBubble';
 import { UI_SPACING } from 'constants/constants';
+import type { Diagnosis, Prescription } from 'types/chat-types';
 
 export interface Message {
   id: string;
@@ -9,6 +10,8 @@ export interface Message {
   type: 'sent' | 'received';
   timestamp?: string;
   status?: 'SENDING' | 'SENT' | 'FAILED';
+  diagnosis?: Diagnosis;
+  prescription?: Prescription;
 }
 
 interface MessageListProps {
@@ -37,6 +40,8 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry }) =
           status={msg.status}
           delay={index * 60}
           onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
+          diagnosis={msg.diagnosis}
+          prescription={msg.prescription}
         />
       ))}
       {/* Bottom spacing so last bubble clears the input bar */}

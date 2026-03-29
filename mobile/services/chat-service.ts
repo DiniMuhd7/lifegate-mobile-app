@@ -25,12 +25,14 @@ export class ChatService {
    */
   static async sendMessage(
     previousMessages: Message[],
-    userMessage: string
+    userMessage: string,
+    category?: string
   ): Promise<AIResponse> {
     try {
-      // Build request payload with message and conversation history
+      // Build request payload with message, category, and conversation history
       const requestPayload = {
         message: userMessage,
+        category: category || '',
         previousMessages: previousMessages.map((msg) => ({
           role: msg.role,
           text: msg.text,

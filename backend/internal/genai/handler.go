@@ -19,6 +19,7 @@ func (h *Handler) Chat(c *gin.Context) {
 var req struct {
 Message          string           `json:"message" binding:"required"`
 PreviousMessages []ai.ChatMessage `json:"previousMessages"`
+Category         string           `json:"category"`
 }
 if err := c.ShouldBindJSON(&req); err != nil {
 c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
@@ -38,6 +39,7 @@ resp, err := h.svc.Chat(c.Request.Context(), ChatRequest{
 Message:          req.Message,
 PreviousMessages: req.PreviousMessages,
 UserID:           uid,
+Category:         req.Category,
 })
 if err != nil {
 c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "AI provider error: " + err.Error()})

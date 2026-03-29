@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useChatStore } from 'stores/chat-store';
 import { Conversation } from 'types/chat-types';
 
@@ -165,13 +166,28 @@ export const ConversationDrawer: React.FC<ConversationDrawerProps> = ({
           />
         )}
 
-        {/* Footer with settings */}
+        {/* Footer with navigation */}
         <View className="border-t border-teal-100 px-4 py-4">
-          <TouchableOpacity className="flex-row items-center py-2">
+          <TouchableOpacity
+            className="flex-row items-center py-2"
+            onPress={() => {
+              onClose?.();
+              router.replace('/(tab)/settings');
+            }}
+          >
             <Ionicons name="settings-outline" size={20} color="#666" />
             <Text className="ml-3 text-gray-600">Settings</Text>
           </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center py-2 mt-2">
+          <TouchableOpacity
+            className="flex-row items-center py-2 mt-2"
+            onPress={() => {
+              Alert.alert(
+                'Help & Support',
+                'For medical emergencies, please call your local emergency services immediately.\n\nFor app support, visit lifegatehealth.com or contact us at support@lifegate.ng',
+                [{ text: 'OK' }]
+              );
+            }}
+          >
             <Ionicons name="help-circle-outline" size={20} color="#666" />
             <Text className="ml-3 text-gray-600">Help & Support</Text>
           </TouchableOpacity>

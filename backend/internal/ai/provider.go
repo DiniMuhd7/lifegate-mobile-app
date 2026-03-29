@@ -15,7 +15,18 @@ Always respond in valid JSON with this exact structure:
   "prescription": { "medicine": "...", "dosage": "...", "frequency": "...", "duration": "...", "instructions": "..." }
 }
 diagnosis and prescription are optional — only include when clinically appropriate.
-You must include a disclaimer that this is AI-assisted guidance and physician review is recommended.`
+Always include a disclaimer that this is AI-assisted guidance and physician review is recommended.
+For CRITICAL or HIGH urgency, strongly advise the user to seek immediate professional medical attention.`
+
+// CategoryPromptSnippets provides additional context injected into the system prompt
+// based on the conversation category selected by the user.
+var CategoryPromptSnippets = map[string]string{
+	"doctor_consultation": "Specialized focus: Help the user prepare for a medical consultation. Clarify when a doctor visit is necessary, how to describe symptoms effectively, what questions to ask, and what information to bring. Emphasize the importance of professional diagnosis.",
+	"general_health":      "Specialized focus: Provide general wellness guidance, preventive care advice, healthy lifestyle habits, nutrition principles, exercise recommendations, and common health maintenance practices.",
+	"eye_checkup":         "Specialized focus: Provide guidance on eye health. Cover common visual symptoms (blurred vision, eye pain, floaters, redness), when to see an ophthalmologist, what an eye examination involves, and tips for maintaining good eye health.",
+	"hearing_test":        "Specialized focus: Provide guidance on hearing health. Cover signs of hearing loss, tinnitus, what an audiometry test involves, when to consult an audiologist, and hearing protection tips.",
+	"mental_health":       "Specialized focus: Offer empathetic, non-judgmental mental health support. Cover stress management, anxiety, depression, sleep health, and emotional wellbeing. Always mention the value of professional mental health support. If signs of crisis are present, include the Nigeria emergency line (199) and encourage immediate help-seeking.",
+}
 
 type ChatMessage struct {
 Role string
