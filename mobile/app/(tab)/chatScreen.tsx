@@ -7,10 +7,12 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
 
 import { Background } from 'components/Background';
 import { MessageList } from 'components/MessageList';
@@ -24,6 +26,14 @@ import { GreetingSection } from 'components';
 import { TypingIndicator } from 'components/TypingIndicator';
 import type { ConversationCategory } from 'types/chat-types';
 
+const CATEGORY_LABELS: Record<ConversationCategory, string> = {
+  doctor_consultation: 'Doctor Consultation',
+  general_health: 'General Health',
+  eye_checkup: 'Eye Check Up',
+  hearing_test: 'Hearing Test',
+  mental_health: 'Mental Health',
+};
+
 const ChatScreen: React.FC = () => {
   const activeConversation = useChatStore((state) =>
     state.conversations.find((c) => c.id === state.activeConversationId)
@@ -32,6 +42,7 @@ const ChatScreen: React.FC = () => {
   const retrySendMessage = useChatStore((state) => state.retrySendMessage);
   const createConversation = useChatStore((state) => state.createConversation);
   const isThinking = useChatStore((state) => state.isThinking);
+  const isInitializing = useChatStore((state) => state.isInitializing);
   const error = useChatStore((state) => state.error);
   const clearError = useChatStore((state) => state.clearError);
   const initializeChat = useChatStore((state) => state.initializeChat);
@@ -39,9 +50,19 @@ const ChatScreen: React.FC = () => {
   const { user, logout } = useAuthStore();
 
   const messages = activeConversation?.messages || [];
+  const activeCategory = activeConversation?.category;
   const [showWelcome, setShowWelcome] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
   const hasInitialized = useRef(false);
+
+  // Network connectivity
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsConnected(state.isConnected);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (user?.id && !hasInitialized.current) {
@@ -74,6 +95,7 @@ const ChatScreen: React.FC = () => {
         status: msg.status,
         diagnosis: msg.diagnosis,
         prescription: msg.prescription,
+        rawTimestamp: msg.timestamp,
       })),
     [messages]
   );
@@ -94,8 +116,14 @@ const ChatScreen: React.FC = () => {
   );
 
   const handleNewChat = useCallback(() => {
+    // Don't create a new conversation if the current one is already empty
+    if (messages.length === 0) return;
     createConversation();
-  }, [createConversation]);
+  }, [createConversation, messages.length]);
+
+  const headerSubtitle = activeCategory
+    ? CATEGORY_LABELS[activeCategory]
+    : 'AI health guidance';
 
   return (
     <>
@@ -160,11 +188,11 @@ const ChatScreen: React.FC = () => {
                       width: 7,
                       height: 7,
                       borderRadius: 3.5,
-                      backgroundColor: '#22c55e',
+                      backgroundColor: isConnected === false ? '#f59e0b' : '#22c55e',
                     }}
                   />
                   <Text style={{ fontSize: 11, color: '#0f766e' }}>
-                    Online • AI health guidance
+                    {isConnected === false ? 'Offline' : `Online • ${headerSubtitle}`}
                   </Text>
                 </View>
               </View>
@@ -200,8 +228,48 @@ const ChatScreen: React.FC = () => {
               }}
             />
 
+            {/* ── Offline banner ── */}
+            {isConnected === false && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#fef3c7',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#fde68a',
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="cloud-offline-outline" size={16} color="#b45309" />
+                <Text style={{ fontSize: 12, color: '#92400e', fontWeight: '500', flex: 1 }}>
+                  You're offline. Check your connection to chat with the AI.
+                </Text>
+              </View>
+            )}
+
             {/* ── Body ── */}
-            {showWelcome ? (
+            {isInitializing ? (
+              /* Loading skeleton */
+              <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 20 }}>
+                {[0.85, 0.6, 0.75, 0.5].map((widthFraction, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      alignSelf: i % 2 === 0 ? 'flex-start' : 'flex-end',
+                      width: `${widthFraction * 100}%`,
+                      height: 48,
+                      borderRadius: 20,
+                      backgroundColor: '#d1faf5',
+                      marginBottom: 12,
+                      opacity: 0.6 - i * 0.05,
+                    }}
+                  />
+                ))}
+                <ActivityIndicator color="#0f766e" style={{ marginTop: 16 }} />
+              </View>
+            ) : showWelcome ? (
               <ScrollView
                 className="flex-1"
                 contentContainerStyle={{
@@ -236,9 +304,22 @@ const ChatScreen: React.FC = () => {
               </View>
             )}
 
+            {/* AI disclaimer */}
+            <Text
+              style={{
+                fontSize: 10,
+                color: '#64748b',
+                textAlign: 'center',
+                paddingHorizontal: 16,
+                paddingTop: 4,
+              }}
+            >
+              AI responses are for informational use only — not a substitute for professional medical advice.
+            </Text>
+
             <ChatInputBar
               onSend={handleSend}
-              disabled={isThinking}
+              disabled={isThinking || isConnected === false}
               placeholder="Describe your symptoms..."
             />
           </KeyboardAvoidingView>

@@ -19,6 +19,7 @@ type ChatState = {
   activeConversationId: string | null;
   userId: string | null;
   isThinking: boolean; // AI is processing
+  isInitializing: boolean; // Chat loading from storage
   error: string | null; 
 
   // Derived
@@ -49,6 +50,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeConversationId: null,
   userId: null,
   isThinking: false,
+  isInitializing: false,
   error: null,
 
   // -------- Derived --------
@@ -68,6 +70,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Initialize chat on app boot (load history)
   initializeChat: async (userId: string) => {
+    set({ isInitializing: true });
     try {
       const conversations = await PersistenceManager.loadConversations(userId);
       const defaultConvId =
@@ -83,9 +86,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (conversations.length === 0) {
         get().createConversation();
       }
+      set({ isInitializing: false });
     } catch (error) {
       console.error('Failed to initialize chat:', error);
-      set({ error: 'Failed to load chat history' });
+      set({ error: 'Failed to load chat history', isInitializing: false });
     }
   },
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, Animated, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 interface ChatInputBarProps {
   onSend?: (message: string) => void;
@@ -22,6 +23,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const handleSend = () => {
     if (!text.trim() || disabled) return;
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     Animated.sequence([
       Animated.timing(sendScaleAnim, { toValue: 0.88, duration: 80, useNativeDriver: true }),
       Animated.spring(sendScaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 6 }),
@@ -38,9 +41,28 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   };
 
   const hasText = text.trim().length > 0;
+  const charCount = text.length;
+  const MAX_CHARS = 5000;
+  const showCounter = charCount > 4000;
+  const isNearLimit = charCount > 4500;
 
   return (
     <View className={`px-4 ${Platform.OS === 'ios' ? 'pb-8' : 'pb-4'} pt-3`}>
+      {/* Character counter */}
+      {showCounter && (
+        <Text
+          style={{
+            fontSize: 11,
+            textAlign: 'right',
+            marginBottom: 4,
+            marginRight: 4,
+            color: isNearLimit ? '#dc2626' : '#64748b',
+            fontWeight: isNearLimit ? '600' : '400',
+          }}
+        >
+          {charCount}/{MAX_CHARS}
+        </Text>
+      )}
       <View
         className="flex-row items-center bg-white/85 rounded-full pl-5 pr-1.5 py-1.5 border border-teal-600/15"
         style={{
@@ -81,7 +103,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             onPress={handleSend}
             activeOpacity={0.85}
             disabled={disabled || !hasText}
-            className={`w-11 h-11 rounded-full justify-center items-center ${hasText && !disabled ? 'bg-[teal-900]' : 'bg-[#0C5352]'}`}
+            className={`w-11 h-11 rounded-full justify-center items-center ${hasText && !disabled ? 'bg-teal-700' : 'bg-[#0C5352]'}`}
             style={{
               shadowColor: '#0d4a40',
               shadowOffset: { width: 0, height: 3 },

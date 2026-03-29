@@ -16,11 +16,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useChatStore } from 'stores/chat-store';
-import { Conversation } from 'types/chat-types';
+import { Conversation, ConversationCategory } from 'types/chat-types';
 
 interface ConversationDrawerProps {
   onClose?: () => void;
 }
+
+const CATEGORY_META: Record<ConversationCategory, { label: string; color: string; bg: string }> = {
+  doctor_consultation: { label: 'Doctor', color: '#0f766e', bg: '#f0fdfa' },
+  general_health:      { label: 'General', color: '#0891b2', bg: '#f0f9ff' },
+  eye_checkup:         { label: 'Eye', color: '#7c3aed', bg: '#faf5ff' },
+  hearing_test:        { label: 'Hearing', color: '#b45309', bg: '#fffbeb' },
+  mental_health:       { label: 'Mental', color: '#be185d', bg: '#fdf2f8' },
+};
 
 export const ConversationDrawer: React.FC<ConversationDrawerProps> = ({
   onClose,
@@ -147,9 +155,35 @@ export const ConversationDrawer: React.FC<ConversationDrawerProps> = ({
                     >
                       {formatTitle(item)}
                     </Text>
-                    <Text className="text-xs text-gray-500 mt-1">
-                      {formatDate(item.updatedAt)} • {item.messages.length} messages
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                      <Text className="text-xs text-gray-500">
+                        {formatDate(item.updatedAt)} • {item.messages.length} messages
+                      </Text>
+                      {item.category && CATEGORY_META[item.category] && (
+                        <View
+                          style={{
+                            paddingHorizontal: 6,
+                            paddingVertical: 1,
+                            borderRadius: 8,
+                            backgroundColor: CATEGORY_META[item.category].bg,
+                            borderWidth: 1,
+                            borderColor: CATEGORY_META[item.category].color + '44',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 9,
+                              fontWeight: '700',
+                              color: CATEGORY_META[item.category].color,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            {CATEGORY_META[item.category].label}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
 
                   {/* Delete Button */}

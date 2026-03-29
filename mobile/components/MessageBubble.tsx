@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, Animated, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { UI_FONT_SIZES, UI_SPACING } from 'constants/constants';
 import type { Diagnosis, Prescription } from 'types/chat-types';
 import { DiagnosisCard } from './DiagnosisCard';
@@ -51,6 +53,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   const isSent = type === 'sent';
 
+  const handleLongPress = async () => {
+    await Clipboard.setStringAsync(message);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   return (
     <Animated.View
       style={{
@@ -82,16 +89,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       )}
 
       {/* Bubble */}
-      <View
+      <TouchableOpacity
+        onLongPress={handleLongPress}
+        activeOpacity={1}
+        delayLongPress={400}
         style={{ maxWidth: '82%' }}
-        className={`
-          px-4 py-3
-          ${isSent
-            ? 'bg-teal-700 rounded-3xl rounded-br-md'
-            : 'bg-teal-50 border border-teal-100 rounded-3xl rounded-bl-md'
-          }
-        `}
       >
+        <View
+          className={`
+            px-4 py-3
+            ${isSent
+              ? 'bg-teal-700 rounded-3xl rounded-br-md'
+              : 'bg-teal-50 border border-teal-100 rounded-3xl rounded-bl-md'
+            }
+          `}
+        >
         <Text
           className={`leading-5 ${
             isSent ? 'text-white font-medium' : 'text-gray-800 font-normal'
@@ -154,7 +166,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
           </View>
         )}
-      </View>
+        </View>
+      </TouchableOpacity>
     </Animated.View>
   );
 };

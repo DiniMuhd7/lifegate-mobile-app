@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
-import { ScrollView, View } from 'react-native';
+import React, { useRef, useState, useCallback } from 'react';
+import { ScrollView, View, Text, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from './MessageBubble';
 import { UI_SPACING } from 'constants/constants';
 import type { Diagnosis, Prescription } from 'types/chat-types';
@@ -12,6 +13,8 @@ export interface Message {
   status?: 'SENDING' | 'SENT' | 'FAILED';
   diagnosis?: Diagnosis;
   prescription?: Prescription;
+  // Raw timestamp (ms) for grouping by date
+  rawTimestamp?: number;
 }
 
 interface MessageListProps {
@@ -19,33 +22,135 @@ interface MessageListProps {
   onRetry?: (messageId: string) => void;
 }
 
+const formatDividerDate = (ts: number): string => {
+  const date = new Date(ts);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+};
+
 export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry }) => {
   const scrollRef = useRef<ScrollView>(null);
+  const [showScrollFab, setShowScrollFab] = useState(false);
+  const contentHeightRef = useRef(0);
+  const scrollYRef = useRef(0);
+  const containerHeightRef = useRef(0);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    scrollYRef.current = contentOffset.y;
+    const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+    setShowScrollFab(distanceFromBottom > 120);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    scrollRef.current?.scrollToEnd({ animated: true });
+  }, []);
+
+  // Build list items with date dividers injected
+  const listItems: Array<{ type: 'message'; msg: Message } | { type: 'divider'; label: string }> = [];
+  let lastDateStr = '';
+  messages.forEach((msg) => {
+    const ts = msg.rawTimestamp ?? Date.now();
+    const dateStr = new Date(ts).toDateString();
+    if (dateStr !== lastDateStr) {
+      listItems.push({ type: 'divider', label: formatDividerDate(ts) });
+      lastDateStr = dateStr;
+    }
+    listItems.push({ type: 'message', msg });
+  });
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      className="flex-1"
-      contentContainerClassName={UI_SPACING.MESSAGE_LIST_PADDING_VERTICAL}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-    >
-      {messages.map((msg, index) => (
-        <MessageBubble
-          key={msg.id}
-          message={msg.text}
-          type={msg.type}
-          timestamp={msg.timestamp}
-          status={msg.status}
-          delay={index * 60}
-          onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
-          diagnosis={msg.diagnosis}
-          prescription={msg.prescription}
-        />
-      ))}
-      {/* Bottom spacing so last bubble clears the input bar */}
-      <View className="h-4" />
-    </ScrollView>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerClassName={UI_SPACING.MESSAGE_LIST_PADDING_VERTICAL}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onScroll={handleScroll}
+        scrollEventThrottle={100}
+        onContentSizeChange={(_, h) => {
+          contentHeightRef.current = h;
+          if (!showScrollFab) {
+            scrollRef.current?.scrollToEnd({ animated: true });
+          }
+        }}
+      >
+        {listItems.map((item, index) => {
+          if (item.type === 'divider') {
+            return (
+              <View
+                key={`divider-${index}`}
+                style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 12, paddingHorizontal: 16 }}
+              >
+                <View style={{ flex: 1, height: 1, backgroundColor: '#ccede9' }} />
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: '#0f766e',
+                    fontWeight: '600',
+                    marginHorizontal: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  {item.label}
+                </Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#ccede9' }} />
+              </View>
+            );
+          }
+          const msg = item.msg;
+          const msgIndex = messages.indexOf(msg);
+          return (
+            <MessageBubble
+              key={msg.id}
+              message={msg.text}
+              type={msg.type}
+              timestamp={msg.timestamp}
+              status={msg.status}
+              delay={msgIndex * 60}
+              onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
+              diagnosis={msg.diagnosis}
+              prescription={msg.prescription}
+            />
+          );
+        })}
+        {/* Bottom spacing so last bubble clears the input bar */}
+        <View className="h-4" />
+      </ScrollView>
+
+      {/* Scroll-to-bottom FAB */}
+      {showScrollFab && (
+        <TouchableOpacity
+          onPress={scrollToBottom}
+          activeOpacity={0.85}
+          style={{
+            position: 'absolute',
+            bottom: 12,
+            right: 16,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: '#0f766e',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#0d4a40',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 6,
+          }}
+        >
+          <Ionicons name="chevron-down" size={22} color="#ffffff" />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };

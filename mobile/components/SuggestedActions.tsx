@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import type { ConversationCategory } from 'types/chat-types';
 
 export interface SuggestedAction {
@@ -92,7 +93,10 @@ export const SuggestedActions: React.FC<SuggestedActionsProps> = ({ onSelect }) 
         {ACTIONS.map((action) => (
           <TouchableOpacity
             key={action.id}
-            onPress={() => onSelect(action.prompt, action.id)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onSelect(action.prompt, action.id);
+            }}
             activeOpacity={0.72}
             style={{
               width: '47%',
