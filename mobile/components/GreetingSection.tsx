@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Animated } from 'react-native';
 
 interface GreetingSectionProps {
   userName?: string;
@@ -15,28 +15,20 @@ const getTimeGreeting = (): string => {
 export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) => {
   const headingFade = useRef(new Animated.Value(0)).current;
   const headingSlide = useRef(new Animated.Value(30)).current;
-  const subtitleFade = useRef(new Animated.Value(0)).current;
 
   const displayName = userName ? userName.split(' ')[0] : 'there';
   const greeting = getTimeGreeting();
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(headingFade, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(headingSlide, {
-          toValue: 0,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.timing(subtitleFade, {
+    Animated.parallel([
+      Animated.timing(headingFade, {
         toValue: 1,
-        duration: 500,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.timing(headingSlide, {
+        toValue: 0,
+        duration: 700,
         useNativeDriver: true,
       }),
     ]).start();
@@ -49,13 +41,6 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) =>
         className="text-4xl font-extrabold text-teal-900 text-center leading-tight tracking-tight mb-4"
       >
         {`${greeting},\n${displayName}! 👋`}
-      </Animated.Text>
-
-      <Animated.Text
-        style={{ opacity: subtitleFade }}
-        className="text-sm text-teal-700 text-center leading-relaxed"
-      >
-        {'How are you feeling today?\nDescribe your symptoms or pick a topic below.'}
       </Animated.Text>
     </View>
   );
