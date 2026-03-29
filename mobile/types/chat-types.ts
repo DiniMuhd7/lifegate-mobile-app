@@ -64,11 +64,13 @@ export type Conversation = {
   updatedAt: number; // For sorting history
 };
 
-// AI response structure (parsed from Gemini JSON)
+// AI response structure (parsed from backend)
 export type AIResponse = {
   text: string; // Main conversational response
   diagnosis?: Diagnosis;
   prescription?: Prescription;
+  // True when the backend auto-escalated this session from General Health to Clinical Diagnosis
+  escalated?: boolean;
 };
 
 // Message validation result

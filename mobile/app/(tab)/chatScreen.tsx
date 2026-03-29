@@ -54,9 +54,12 @@ const ChatScreen: React.FC = () => {
   const createConversation = useChatStore((state) => state.createConversation);
   const setConversationMode = useChatStore((state) => state.setConversationMode);
   const isThinking = useChatStore((state) => state.isThinking);
+  const processingPhase = useChatStore((state) => state.processingPhase);
   const isInitializing = useChatStore((state) => state.isInitializing);
   const error = useChatStore((state) => state.error);
   const clearError = useChatStore((state) => state.clearError);
+  const escalationNotice = useChatStore((state) => state.escalationNotice);
+  const clearEscalationNotice = useChatStore((state) => state.clearEscalationNotice);
   const initializeChat = useChatStore((state) => state.initializeChat);
 
   const { user, logout } = useAuthStore();
@@ -279,6 +282,30 @@ const ChatScreen: React.FC = () => {
               onSelect={handleModeSelect}
             />
 
+            {/* ── Escalation notice banner ── */}
+            {escalationNotice && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  backgroundColor: '#fef9c3',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#fde047',
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="alert-circle" size={18} color="#b45309" style={{ marginTop: 1 }} />
+                <Text style={{ fontSize: 12, color: '#78350f', fontWeight: '500', flex: 1, lineHeight: 18 }}>
+                  {escalationNotice}
+                </Text>
+                <TouchableOpacity onPress={clearEscalationNotice} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={16} color="#b45309" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* ── Offline banner ── */}
             {isConnected === false && (
               <View
@@ -384,7 +411,7 @@ const ChatScreen: React.FC = () => {
             )}
 
             {/* Typing indicator */}
-            {isThinking && <TypingIndicator />}
+            {isThinking && <TypingIndicator phase={processingPhase} />}
 
             {/* Error banner */}
             {error && (

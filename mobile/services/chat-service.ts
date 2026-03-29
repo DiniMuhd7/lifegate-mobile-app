@@ -28,6 +28,9 @@ export class ChatService {
     userMessage: string,
     category?: string
   ): Promise<AIResponse> {
+    const clientStart = Date.now();
+    const LATENCY_TARGET_MS = 500;
+
     try {
       // Build request payload with message, category, and conversation history
       const requestPayload = {
@@ -40,13 +43,29 @@ export class ChatService {
       };
 
       // Call backend endpoint
-      const response = await api.post<{ data: AIResponse }>('/genai/chat', requestPayload);
+      const response = await api.post<{ data: AIResponse; escalated?: boolean; latency_ms?: number }>('/genai/chat', requestPayload);
+
+      const clientLatencyMs = Date.now() - clientStart;
+      const serverLatencyMs = response.data.latency_ms ?? Number(response.headers?.['x-ai-latency-ms'] ?? 0);
+
+      // Log latency warning when round-trip exceeds 500ms target
+      if (clientLatencyMs > LATENCY_TARGET_MS) {
+        console.warn(
+          `[LATENCY] AI response exceeded ${LATENCY_TARGET_MS}ms target — ` +
+          `client: ${clientLatencyMs}ms, server: ${serverLatencyMs}ms, category: ${category}`
+        );
+      }
 
       // Extract AIResponse from backend response
       const result = response.data.data;
 
       if (!result || !result.text) {
         throw new Error('No content returned from AI');
+      }
+
+      // Attach the authoritative escalation flag from the backend
+      if (response.data.escalated) {
+        result.escalated = true;
       }
 
       // Validate urgency if diagnosis exists

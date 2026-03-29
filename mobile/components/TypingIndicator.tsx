@@ -1,8 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type { ProcessingPhase } from 'stores/chat-store';
 
-export const TypingIndicator = () => {
+const PHASE_LABELS: Record<NonNullable<ProcessingPhase>, string> = {
+  sending: 'Sending message...',
+  analyzing: 'Analyzing your symptoms...',
+  generating: 'Generating response...',
+};
+
+interface TypingIndicatorProps {
+  phase?: ProcessingPhase;
+}
+
+export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ phase }) => {
+  const label = phase ? PHASE_LABELS[phase] : 'LifeGate is thinking...';
   const dots = [
     useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
@@ -80,7 +92,7 @@ export const TypingIndicator = () => {
             opacity: labelAnim,
           }}
         >
-          LifeGate is thinking...
+          {label}
         </Animated.Text>
         <View style={{ flexDirection: 'row', gap: 5, alignItems: 'flex-end' }}>
           {dots.map((dot, i) => (
