@@ -361,4 +361,22 @@ export const AuthService = {
       return { success: false, message: extractErrorMessage(error) };
     }
   },
+
+  /**
+   * Confirm MDCN license verification for the authenticated professional.
+   * PATCH /auth/mdcn-verify
+   */
+  async confirmMdcnVerification(): Promise<{ success: boolean; message: string; user?: import('../types/auth-types').User }> {
+    try {
+      const response = await api.patch<{ success: boolean; message: string; data?: { user: import('../types/auth-types').User } }>(
+        '/auth/mdcn-verify'
+      );
+      if (!response.data.success) {
+        return { success: false, message: response.data.message || 'MDCN verification failed' };
+      }
+      return { success: true, message: response.data.message, user: response.data.data?.user };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
 };

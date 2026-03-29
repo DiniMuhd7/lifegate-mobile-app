@@ -384,3 +384,30 @@ return
 }
 respond(c, http.StatusOK, true, "Password changed successfully", nil)
 }
+
+// MarkMDCNVerified marks the authenticated professional's MDCN license as verified.
+// PATCH /api/auth/mdcn-verify
+func (h *Handler) MarkMDCNVerified(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, ok := userID.(string)
+	if !ok || uid == "" {
+		respond(c, http.StatusUnauthorized, false, "Unauthorized", nil)
+		return
+	}
+
+	// Only professionals can verify their MDCN status
+	role, _ := c.Get("role")
+	if role != "professional" {
+		respond(c, http.StatusForbidden, false, "Only health professionals can complete MDCN verification", nil)
+		return
+	}
+
+	user, err := h.svc.MarkMDCNVerified(c.Request.Context(), uid)
+	if err != nil {
+		respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+		return
+	}
+
+	respond(c, http.StatusOK, true, "MDCN verification confirmed", gin.H{"user": user})
+}
+

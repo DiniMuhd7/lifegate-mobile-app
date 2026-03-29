@@ -35,6 +35,7 @@ type AuthState = {
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
+  markMdcnVerified: () => Promise<boolean>;
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -173,5 +174,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       error: null,
     });
+  },
+
+  // -------- MDCN VERIFICATION --------
+  markMdcnVerified: async () => {
+    try {
+      const response = await AuthService.confirmMdcnVerification();
+      if (!response.success) return false;
+      if (response.user) {
+        set((state) => ({ user: { ...state.user!, ...response.user } }));
+      } else {
+        // Optimistically flip the flag if the backend didn't return the full user
+        set((state) => ({
+          user: state.user ? { ...state.user, mdcn_verified: true } : state.user,
+        }));
+      }
+      return true;
+    } catch {
+      return false;
+    }
   },
 }));

@@ -34,6 +34,9 @@ export type User = {
   certificateId?: string;
   certificateIssueDate?: string;
   yearsOfExperience?: string;
+  // MDCN license verification
+  mdcn_verified?: boolean;
+  mdcn_verified_at?: string | null;
 };
 
 // Form draft for registration - contains all possible fields

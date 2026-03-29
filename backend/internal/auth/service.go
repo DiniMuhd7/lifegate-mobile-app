@@ -551,6 +551,16 @@ return err
 return s.repo.UpdatePasswordByID(userID, string(newHash))
 }
 
+// MarkMDCNVerified marks the professional's MDCN license status as verified
+// and returns the updated user record.
+func (s *Service) MarkMDCNVerified(ctx context.Context, userID string) (*User, error) {
+user, err := s.repo.SetMDCNVerified(userID)
+if err != nil {
+return nil, fmt.Errorf("failed to update MDCN verification status: %w", err)
+}
+return user, nil
+}
+
 func (s *Service) generateJWT(u *User) (string, error) {
 	expiry, err := time.ParseDuration(s.cfg.JWTExpiry)
 	if err != nil {

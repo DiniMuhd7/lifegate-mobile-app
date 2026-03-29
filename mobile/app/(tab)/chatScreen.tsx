@@ -31,7 +31,7 @@ const CATEGORY_LABELS: Record<ConversationCategory, string> = {
   general_health: 'General Health',
   eye_checkup: 'Eye Check Up',
   hearing_test: 'Hearing Test',
-  mental_health: 'Mental Health',
+  mental_health: '',
 };
 
 const ChatScreen: React.FC = () => {
@@ -173,7 +173,7 @@ const ChatScreen: React.FC = () => {
                 <Text
                   style={{ fontSize: 16, fontWeight: '700', color: '#134e4a' }}
                 >
-                  LifeGate AI
+                  LifeGate
                 </Text>
                 <View
                   style={{
@@ -192,7 +192,7 @@ const ChatScreen: React.FC = () => {
                     }}
                   />
                   <Text style={{ fontSize: 11, color: '#0f766e' }}>
-                    {isConnected === false ? 'Offline' : `Online • ${headerSubtitle}`}
+                    {isConnected === false ? 'Offline' : 'Online'}
                   </Text>
                 </View>
               </View>
@@ -314,7 +314,7 @@ const ChatScreen: React.FC = () => {
                 paddingTop: 4,
               }}
             >
-              AI responses are for informational use only — not a substitute for professional medical advice.
+              LifeGate AI provides general health information and medical diagnosis under licensed doctor oversight. All AI-generated diagnoses are reviewed and validated by a qualified medical professional.
             </Text>
 
             <ChatInputBar

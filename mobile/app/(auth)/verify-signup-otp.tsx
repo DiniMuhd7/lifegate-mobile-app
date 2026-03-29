@@ -100,8 +100,8 @@ export default function VerifySignupOtpScreen() {
         const userRole = user?.role ?? userDraft.role;
 
         if (userRole === 'professional') {
-          // Route professional users to their review/consultation screen
-          router.replace('/(prof-tab)/consultation');
+          // Route professional users to MDCN license verification screen
+          router.replace('/(auth)/mdcn-verify');
         } else {
           // Route regular users to chat screen
           router.replace('/(tab)/chatScreen');

@@ -22,7 +22,12 @@ export default function SplashScreen() {
         // Navigate based on auth state
         setTimeout(() => {
           if (isAuthenticated) {
-            router.replace('/(tab)/chatScreen');
+            const { user } = useAuthStore.getState();
+            if (user?.role === 'professional') {
+              router.replace('/(prof-tab)/consultation');
+            } else {
+              router.replace('/(tab)/chatScreen');
+            }
           } else {
             router.replace('/login');
           }

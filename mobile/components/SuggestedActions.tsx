@@ -55,16 +55,6 @@ const ACTIONS: SuggestedAction[] = [
     prompt:
       'I need guidance on hearing tests. How can I assess my hearing health and when should I see an audiologist?',
   },
-  {
-    id: 'mental_health',
-    label: 'Mental Health',
-    icon: 'happy',
-    iconColor: '#be185d',
-    bg: '#fdf2f8',
-    border: '#fbcfe8',
-    prompt:
-      'I need support with my mental health and emotional wellbeing. Can you provide guidance on managing stress, anxiety, or mood?',
-  },
 ];
 
 interface SuggestedActionsProps {

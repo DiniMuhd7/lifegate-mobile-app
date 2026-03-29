@@ -7,29 +7,31 @@ import (
 )
 
 type User struct {
-ID                   string    `json:"id" db:"id"`
-UserID               string    `json:"user_id" db:"user_id"`
-PatientID            string    `json:"patient_id" db:"patient_id"`
-Name                 string    `json:"name" db:"name"`
-Email                string    `json:"email" db:"email"`
-Role                 string    `json:"role" db:"role"`
-Phone                string    `json:"phone,omitempty" db:"phone"`
-DOB                  string    `json:"dob,omitempty" db:"dob"`
-Gender               string    `json:"gender,omitempty" db:"gender"`
-Language             string    `json:"language,omitempty" db:"language"`
-HealthHistory        string    `json:"health_history,omitempty" db:"health_history"`
-BloodType            *string   `json:"blood_type,omitempty" db:"blood_type"`
-Allergies            *string   `json:"allergies,omitempty" db:"allergies"`
-MedicalHistory       *string   `json:"medical_history,omitempty" db:"medical_history"`
-CurrentMedications   *string   `json:"current_medications,omitempty" db:"current_medications"`
-EmergencyContact     *string   `json:"emergency_contact,omitempty" db:"emergency_contact"`
-Specialization       string    `json:"specialization,omitempty" db:"specialization"`
-CertificateName      string    `json:"certificateName,omitempty" db:"certificate_name"`
-CertificateID        string    `json:"certificateId,omitempty" db:"certificate_id"`
-CertificateIssueDate string    `json:"certificateIssueDate,omitempty" db:"certificate_issue_date"`
-YearsOfExperience    string    `json:"yearsOfExperience,omitempty" db:"years_of_experience"`
-CreatedAt            time.Time `json:"created_at" db:"created_at"`
-UpdatedAt            time.Time `json:"updated_at" db:"updated_at"`
+ID                   string     `json:"id" db:"id"`
+UserID               string     `json:"user_id" db:"user_id"`
+PatientID            string     `json:"patient_id" db:"patient_id"`
+Name                 string     `json:"name" db:"name"`
+Email                string     `json:"email" db:"email"`
+Role                 string     `json:"role" db:"role"`
+Phone                string     `json:"phone,omitempty" db:"phone"`
+DOB                  string     `json:"dob,omitempty" db:"dob"`
+Gender               string     `json:"gender,omitempty" db:"gender"`
+Language             string     `json:"language,omitempty" db:"language"`
+HealthHistory        string     `json:"health_history,omitempty" db:"health_history"`
+BloodType            *string    `json:"blood_type,omitempty" db:"blood_type"`
+Allergies            *string    `json:"allergies,omitempty" db:"allergies"`
+MedicalHistory       *string    `json:"medical_history,omitempty" db:"medical_history"`
+CurrentMedications   *string    `json:"current_medications,omitempty" db:"current_medications"`
+EmergencyContact     *string    `json:"emergency_contact,omitempty" db:"emergency_contact"`
+Specialization       string     `json:"specialization,omitempty" db:"specialization"`
+CertificateName      string     `json:"certificateName,omitempty" db:"certificate_name"`
+CertificateID        string     `json:"certificateId,omitempty" db:"certificate_id"`
+CertificateIssueDate string     `json:"certificateIssueDate,omitempty" db:"certificate_issue_date"`
+YearsOfExperience    string     `json:"yearsOfExperience,omitempty" db:"years_of_experience"`
+MdcnVerified         bool       `json:"mdcn_verified" db:"mdcn_verified"`
+MdcnVerifiedAt       *time.Time `json:"mdcn_verified_at,omitempty" db:"mdcn_verified_at"`
+CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type PendingRegistration struct {
@@ -65,7 +67,7 @@ row := r.db.QueryRow(
         current_medications, emergency_contact, COALESCE(specialization,''),
         COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-        created_at, updated_at
+        mdcn_verified, mdcn_verified_at, created_at, updated_at
  FROM users WHERE email = $1`, email)
 return scanUser(row)
 }
@@ -78,7 +80,7 @@ row := r.db.QueryRow(
         current_medications, emergency_contact, COALESCE(specialization,''),
         COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-        created_at, updated_at
+        mdcn_verified, mdcn_verified_at, created_at, updated_at
  FROM users WHERE id = $1`, id)
 return scanUser(row)
 }
@@ -91,12 +93,30 @@ err := row.Scan(
 &u.HealthHistory, &u.BloodType, &u.Allergies, &u.MedicalHistory,
 &u.CurrentMedications, &u.EmergencyContact, &u.Specialization,
 &u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
-&u.YearsOfExperience, &u.CreatedAt, &u.UpdatedAt,
+&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
+&u.CreatedAt, &u.UpdatedAt,
 )
 if err != nil {
 return nil, err
 }
 return u, nil
+}
+
+func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
+now := time.Now()
+row := r.db.QueryRow(
+`UPDATE users
+ SET mdcn_verified = TRUE, mdcn_verified_at = $2, updated_at = NOW()
+ WHERE id = $1
+ RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
+           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
+           COALESCE(health_history,''), blood_type, allergies, medical_history,
+           current_medications, emergency_contact, COALESCE(specialization,''),
+           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
+           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
+           mdcn_verified, mdcn_verified_at, created_at, updated_at`,
+userID, now)
+return scanUser(row)
 }
 
 func (r *Repository) GetPasswordHash(email string) (string, error) {
