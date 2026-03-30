@@ -28,6 +28,11 @@ export const STEP_TITLES: Record<number, string> = {
   4: 'Review & Submit',
 };
 
+export const issues = [
+            { label: 'Consultation Issues', value: 'Consultation Issues' },
+            { label: 'Subscription Issue', value: 'Subscription Issues' },
+            { label: 'Others', value: 'Others' },
+          ]
 
 
 /**

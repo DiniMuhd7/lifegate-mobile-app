@@ -41,7 +41,7 @@ const CLINICAL_QUICK_STARTS = [
   'I have a headache and fever',
   'I feel chest tightness',
   'I have pain in my lower back',
-  'I've had a cough for 3 days',
+  'Irve had a cough for 3 days',
 ];
 
 const GENERAL_QUICK_STARTS = [
