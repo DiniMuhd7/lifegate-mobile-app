@@ -97,11 +97,14 @@ _ = r.db.QueryRow(
 return stats, nil
 }
 
-func (r *Repository) ReviewReport(reportID, physicianID, action, notes string) error {
-_, err := r.db.Exec(
+// ReviewReport updates the diagnosis and returns the owning patient's user_id so
+// the caller can push a real-time WebSocket event to that patient.
+func (r *Repository) ReviewReport(reportID, physicianID, action, notes string) (patientID string, err error) {
+err = r.db.QueryRow(
 `UPDATE diagnoses SET physician_id=$1, physician_notes=$2, status=$3, updated_at=NOW()
- WHERE id=$4`,
+ WHERE id=$4
+ RETURNING user_id::text`,
 physicianID, notes, action, reportID,
-)
-return err
+).Scan(&patientID)
+return patientID, err
 }

@@ -1,20 +1,21 @@
 package main
 
 import (
-"log"
+	"log"
 
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
-natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
-redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
-"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
-wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
-"github.com/gin-gonic/gin"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
+	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
+	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
+	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -45,14 +46,17 @@ authHandler := auth.NewHandler(authSvc, cfg.UploadDir)
 genaiSvc := genai.NewService(aiProvider, database, natsClient)
 genaiHandler := genai.NewHandler(genaiSvc)
 
-physicianRepo := physician.NewRepository(database)
-physicianSvc := physician.NewService(physicianRepo, natsClient)
-physicianHandler := physician.NewHandler(physicianSvc)
-
-reviewSvc := review.NewService(database)
-reviewHandler := review.NewHandler(reviewSvc)
-
 hub := wshub.NewHub()
+
+	physicianRepo := physician.NewRepository(database)
+	physicianSvc := physician.NewService(physicianRepo, natsClient, hub)
+	physicianHandler := physician.NewHandler(physicianSvc)
+
+	reviewSvc := review.NewService(database)
+	reviewHandler := review.NewHandler(reviewSvc)
+
+	diagnosisSvc := diagnosis.NewService(database)
+	diagnosisHandler := diagnosis.NewHandler(diagnosisSvc)
 
 // Router
 r := gin.New()
@@ -102,8 +106,15 @@ physicianGroup.POST("/reports/:id/review", physicianHandler.ReviewReport)
 		reviewGroup.GET("/diagnoses/:id", reviewHandler.GetDiagnosisDetail)
 	}
 
-	// WebSocket
-	r.GET("/ws", hub.Handler)
+	// Patient diagnosis routes (patient reads their own diagnoses)
+	diagnosisGroup := api.Group("/diagnoses", middleware.Auth(cfg.JWTSecret))
+	{
+		diagnosisGroup.GET("", diagnosisHandler.GetDiagnoses)
+		diagnosisGroup.GET("/:id", diagnosisHandler.GetDiagnosisDetail)
+	}
+
+	// WebSocket (supports optional ?token= for user-aware broadcasting)
+	r.GET("/ws", hub.Handler(cfg.JWTSecret))
 
 	addr := ":" + cfg.Port
 	log.Printf("LifeGate server starting on %s", addr)

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import type { Diagnosis } from 'types/chat-types';
 
 const URGENCY_CONFIG = {
@@ -36,75 +37,102 @@ const URGENCY_CONFIG = {
 
 interface DiagnosisCardProps {
   diagnosis: Diagnosis;
+  diagnosisId?: string;
 }
 
-export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis }) => {
+export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnosisId }) => {
   const config =
     URGENCY_CONFIG[diagnosis.urgency as keyof typeof URGENCY_CONFIG] ||
     URGENCY_CONFIG.MEDIUM;
 
+  const handlePress = () => {
+    if (diagnosisId) {
+      router.push(`/(tab)/diagnosis/${diagnosisId}` as never);
+    }
+  };
+
   return (
-    <View
-      style={{
-        marginTop: 10,
-        borderRadius: 14,
-        padding: 12,
-        backgroundColor: config.bg,
-        borderWidth: 1.5,
-        borderColor: config.border,
-      }}
+    <Pressable
+      onPress={diagnosisId ? handlePress : undefined}
+      style={({ pressed }) => [{ opacity: pressed && diagnosisId ? 0.85 : 1 }]}
     >
-      {/* Header row */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 6,
+          marginTop: 10,
+          borderRadius: 14,
+          padding: 12,
+          backgroundColor: config.bg,
+          borderWidth: 1.5,
+          borderColor: config.border,
         }}
       >
-        <Text
-          style={{
-            fontSize: 10,
-            fontWeight: '700',
-            color: '#6b7280',
-            letterSpacing: 0.8,
-            textTransform: 'uppercase',
-          }}
-        >
-          Possible Condition
-        </Text>
+        {/* Header row */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 3,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            borderRadius: 20,
-            backgroundColor: config.color + '22',
+            justifyContent: 'space-between',
+            marginBottom: 6,
           }}
         >
-          <Ionicons name={config.icon} size={11} color={config.color} />
-          <Text style={{ fontSize: 10, fontWeight: '700', color: config.color }}>
-            {config.label}
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '700',
+              color: '#6b7280',
+              letterSpacing: 0.8,
+              textTransform: 'uppercase',
+            }}
+          >
+            Possible Condition
           </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 3,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 20,
+              backgroundColor: config.color + '22',
+            }}
+          >
+            <Ionicons name={config.icon} size={11} color={config.color} />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: config.color }}>
+              {config.label}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {/* Condition name */}
-      <Text
-        style={{ fontSize: 13.5, fontWeight: '700', color: '#1e293b', marginBottom: 4 }}
-      >
-        {diagnosis.condition}
-      </Text>
-
-      {/* Description */}
-      {diagnosis.description ? (
-        <Text style={{ fontSize: 11.5, color: '#475569', lineHeight: 17 }}>
-          {diagnosis.description}
+        {/* Condition name */}
+        <Text
+          style={{ fontSize: 13.5, fontWeight: '700', color: '#1e293b', marginBottom: 4 }}
+        >
+          {diagnosis.condition}
         </Text>
-      ) : null}
-    </View>
+
+        {/* Description */}
+        {diagnosis.description ? (
+          <Text style={{ fontSize: 11.5, color: '#475569', lineHeight: 17 }}>
+            {diagnosis.description}
+          </Text>
+        ) : null}
+
+        {/* Confidence score */}
+        {diagnosis.confidence != null && diagnosis.confidence > 0 ? (
+          <Text style={{ fontSize: 10.5, color: config.color, fontWeight: '600', marginTop: 6 }}>
+            {diagnosis.confidence}% confidence
+          </Text>
+        ) : null}
+
+        {/* View report link */}
+        {diagnosisId ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
+            <Text style={{ fontSize: 11, color: '#0AADA2', fontWeight: '600' }}>View full report</Text>
+            <Ionicons name="chevron-forward" size={12} color="#0AADA2" />
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
   );
 };

@@ -6,13 +6,19 @@ import (
 natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
 )
 
-type Service struct {
-repo *Repository
-nats *natsclient.Client
+// Broadcaster is satisfied by the WebSocket hub so we can avoid an import cycle.
+type Broadcaster interface {
+	BroadcastToUser(userID, event string, data []byte)
 }
 
-func NewService(repo *Repository, nats *natsclient.Client) *Service {
-return &Service{repo: repo, nats: nats}
+type Service struct {
+repo        *Repository
+nats        *natsclient.Client
+broadcaster Broadcaster
+}
+
+func NewService(repo *Repository, nats *natsclient.Client, broadcaster Broadcaster) *Service {
+return &Service{repo: repo, nats: nats, broadcaster: broadcaster}
 }
 
 func (s *Service) GetReports(physicianID string, page, pageSize int) ([]Report, int, error) {
@@ -24,7 +30,8 @@ return s.repo.GetStats(physicianID)
 }
 
 func (s *Service) ReviewReport(reportID, physicianID, action, notes string) error {
-if err := s.repo.ReviewReport(reportID, physicianID, action, notes); err != nil {
+patientID, err := s.repo.ReviewReport(reportID, physicianID, action, notes)
+if err != nil {
 return err
 }
 eventData, _ := json.Marshal(map[string]string{
@@ -33,5 +40,14 @@ eventData, _ := json.Marshal(map[string]string{
 "action":       action,
 })
 _ = s.nats.Publish("physician.review.completed", eventData)
+
+// Push real-time status update to the patient via WebSocket.
+if patientID != "" && s.broadcaster != nil {
+	wsPayload, _ := json.Marshal(map[string]string{
+		"diagnosisId": reportID,
+		"status":      action,
+	})
+	s.broadcaster.BroadcastToUser(patientID, "diagnosis.update", wsPayload)
+}
 return nil
 }

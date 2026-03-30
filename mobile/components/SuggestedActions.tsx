@@ -17,7 +17,7 @@ export interface SuggestedAction {
 const ACTIONS: SuggestedAction[] = [
   {
     id: 'doctor_consultation',
-    label: 'Doctor Consultation',
+    label: 'Clinical Diagnosis',
     icon: 'medical',
     iconColor: '#0f766e',
     bg: '#f0fdfa',

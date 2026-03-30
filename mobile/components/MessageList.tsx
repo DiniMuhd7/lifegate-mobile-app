@@ -13,6 +13,7 @@ export interface Message {
   status?: 'SENDING' | 'SENT' | 'FAILED';
   diagnosis?: Diagnosis;
   prescription?: Prescription;
+  diagnosisId?: string;
   // Raw timestamp (ms) for grouping by date
   rawTimestamp?: number;
 }
@@ -119,6 +120,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry }) =
               onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
               diagnosis={msg.diagnosis}
               prescription={msg.prescription}
+              diagnosisId={msg.diagnosisId}
             />
           );
         })}

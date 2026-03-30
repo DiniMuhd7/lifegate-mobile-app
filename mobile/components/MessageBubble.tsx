@@ -17,6 +17,7 @@ interface MessageBubbleProps {
   onRetry?: () => void;
   diagnosis?: Diagnosis;
   prescription?: Prescription;
+  diagnosisId?: string;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -28,6 +29,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onRetry,
   diagnosis,
   prescription,
+  diagnosisId,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(12)).current;
@@ -114,7 +116,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </Text>
 
         {/* Diagnosis card — only for AI messages */}
-        {!isSent && diagnosis && <DiagnosisCard diagnosis={diagnosis} />}
+        {!isSent && diagnosis && <DiagnosisCard diagnosis={diagnosis} diagnosisId={diagnosisId} />}
 
         {/* Prescription card — only for AI messages */}
         {!isSent && prescription && <PrescriptionCard prescription={prescription} />}

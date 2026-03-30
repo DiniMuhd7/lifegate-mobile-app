@@ -1,7 +1,9 @@
 package genai
 
 import (
+"fmt"
 "net/http"
+"time"
 
 "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 "github.com/gin-gonic/gin"
@@ -16,6 +18,8 @@ return &Handler{svc: svc}
 }
 
 func (h *Handler) Chat(c *gin.Context) {
+start := time.Now()
+
 var req struct {
 Message          string           `json:"message" binding:"required"`
 PreviousMessages []ai.ChatMessage `json:"previousMessages"`
@@ -46,5 +50,16 @@ c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "AI pr
 return
 }
 
-c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+latencyMs := time.Since(start).Milliseconds()
+
+// Expose latency in response header for client-side observability.
+c.Header("X-AI-Latency-Ms", fmt.Sprintf("%d", latencyMs))
+
+c.JSON(http.StatusOK, gin.H{
+	"success":     true,
+	"data":        resp.AIResponse,
+	"escalated":   resp.Escalated,
+	"diagnosisId": resp.DiagnosisID,
+	"latency_ms":  latencyMs,
+})
 }

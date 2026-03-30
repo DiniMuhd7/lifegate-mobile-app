@@ -11,10 +11,11 @@ const HealthSystemPrompt = `You are LifeGate, an AI health assistant. Analyze sy
 Always respond in valid JSON with this exact structure:
 {
   "text": "conversational response",
-  "diagnosis": { "condition": "...", "urgency": "LOW|MEDIUM|HIGH|CRITICAL", "description": "..." },
+  "diagnosis": { "condition": "...", "urgency": "LOW|MEDIUM|HIGH|CRITICAL", "description": "...", "confidence": 85 },
   "prescription": { "medicine": "...", "dosage": "...", "frequency": "...", "duration": "...", "instructions": "..." }
 }
 diagnosis and prescription are optional — only include when clinically appropriate.
+The confidence field is an integer 0–100 representing how confident you are in the diagnosis based on the symptoms provided.
 Always include a disclaimer that this is AI-assisted guidance and physician review is recommended.
 For CRITICAL or HIGH urgency, strongly advise the user to seek immediate professional medical attention.`
 
@@ -37,6 +38,7 @@ type Diagnosis struct {
 Condition   string `json:"condition"`
 Urgency     string `json:"urgency"`
 Description string `json:"description"`
+Confidence  int    `json:"confidence,omitempty"`
 }
 
 type Prescription struct {

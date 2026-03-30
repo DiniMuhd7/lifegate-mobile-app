@@ -10,6 +10,7 @@ import { Drawer } from 'expo-router/drawer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ConversationDrawer } from 'components/ConversationDrawer';
 import { Ionicons } from '@expo/vector-icons';
+import { useDiagnosisWebSocket } from 'utils/useWebSocket';
 
 /**
  * Custom drawer content showing conversation history
@@ -19,6 +20,8 @@ const CustomDrawerContent = (props: any) => {
 };
 
 export default function TabLayout() {
+  // Maintain a live WebSocket connection for real-time diagnosis status updates.
+  useDiagnosisWebSocket();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Drawer

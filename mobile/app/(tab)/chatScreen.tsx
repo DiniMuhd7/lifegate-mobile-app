@@ -37,20 +37,6 @@ const MODE_BADGE: Record<SessionMode, { label: string; color: string; bg: string
   clinical_diagnosis: { label: 'AI + Physician', color: '#0f766e', bg: '#ccfbf1' },
 };
 
-const CLINICAL_QUICK_STARTS = [
-  'I have a headache and fever',
-  'I feel chest tightness',
-  'I have pain in my lower back',
-  'Irve had a cough for 3 days',
-];
-
-const GENERAL_QUICK_STARTS = [
-  'Give me healthy lifestyle tips',
-  'How do I improve my sleep?',
-  'What foods boost immunity?',
-  'Tips for managing stress',
-];
-
 const CATEGORY_LABELS: Record<ConversationCategory, string> = {
   doctor_consultation: 'Doctor Consultation',
   general_health: 'General Health',
@@ -68,9 +54,12 @@ const ChatScreen: React.FC = () => {
   const createConversation = useChatStore((state) => state.createConversation);
   const setConversationMode = useChatStore((state) => state.setConversationMode);
   const isThinking = useChatStore((state) => state.isThinking);
+  const processingPhase = useChatStore((state) => state.processingPhase);
   const isInitializing = useChatStore((state) => state.isInitializing);
   const error = useChatStore((state) => state.error);
   const clearError = useChatStore((state) => state.clearError);
+  const escalationNotice = useChatStore((state) => state.escalationNotice);
+  const clearEscalationNotice = useChatStore((state) => state.clearEscalationNotice);
   const initializeChat = useChatStore((state) => state.initializeChat);
 
   const { user, logout } = useAuthStore();
@@ -130,6 +119,7 @@ const ChatScreen: React.FC = () => {
         status: msg.status,
         diagnosis: msg.diagnosis,
         prescription: msg.prescription,
+        diagnosisId: msg.diagnosisId,
         rawTimestamp: msg.timestamp,
       })),
     [messages]
@@ -145,9 +135,20 @@ const ChatScreen: React.FC = () => {
 
   const handleSuggestedAction = useCallback(
     (prompt: string, category: ConversationCategory) => {
+      // Doctor Consultation → Clinical Diagnosis mode
+      // General Health → General Health mode
+      // All other categories send a message directly
+      if (category === 'doctor_consultation') {
+        if (activeConversation) setConversationMode(activeConversation.id, 'clinical_diagnosis');
+        return;
+      }
+      if (category === 'general_health') {
+        if (activeConversation) setConversationMode(activeConversation.id, 'general_health');
+        return;
+      }
       sendMessage(prompt, category);
     },
-    [sendMessage]
+    [sendMessage, activeConversation, setConversationMode]
   );
 
   const handleNewChat = useCallback(() => {
@@ -282,6 +283,30 @@ const ChatScreen: React.FC = () => {
               onSelect={handleModeSelect}
             />
 
+            {/* ── Escalation notice banner ── */}
+            {escalationNotice && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  backgroundColor: '#fef9c3',
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#fde047',
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  gap: 8,
+                }}
+              >
+                <Ionicons name="alert-circle" size={18} color="#b45309" style={{ marginTop: 1 }} />
+                <Text style={{ fontSize: 12, color: '#78350f', fontWeight: '500', flex: 1, lineHeight: 18 }}>
+                  {escalationNotice}
+                </Text>
+                <TouchableOpacity onPress={clearEscalationNotice} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={16} color="#b45309" />
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* ── Offline banner ── */}
             {isConnected === false && (
               <View
@@ -338,111 +363,47 @@ const ChatScreen: React.FC = () => {
                 <GreetingSection userName={user?.name || ''} />
 
                 {activeMode ? (
-                  /* Mode-specific welcome — show badge + quick-start prompt chips */
-                  <View style={{ marginTop: 24 }}>
-                    {/* Active mode badge */}
+                  /* Active mode badge */
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 24,
+                      marginBottom: 4,
+                    }}
+                  >
                     <View
                       style={{
+                        backgroundColor: MODE_BADGE[activeMode].bg,
+                        borderRadius: 20,
+                        paddingHorizontal: 12,
+                        paddingVertical: 5,
                         flexDirection: 'row',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 6,
-                        marginBottom: 18,
+                        gap: 5,
                       }}
                     >
-                      <View
+                      <Ionicons
+                        name={activeMode === 'clinical_diagnosis' ? 'medical' : 'heart'}
+                        size={13}
+                        color={MODE_BADGE[activeMode].color}
+                      />
+                      <Text
                         style={{
-                          backgroundColor: MODE_BADGE[activeMode].bg,
-                          borderRadius: 20,
-                          paddingHorizontal: 12,
-                          paddingVertical: 5,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 5,
+                          fontSize: 12,
+                          fontWeight: '700',
+                          color: MODE_BADGE[activeMode].color,
                         }}
                       >
-                        <Ionicons
-                          name={activeMode === 'clinical_diagnosis' ? 'medical' : 'heart'}
-                          size={13}
-                          color={MODE_BADGE[activeMode].color}
-                        />
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: '700',
-                            color: MODE_BADGE[activeMode].color,
-                          }}
-                        >
-                          {MODE_LABELS[activeMode]} · {MODE_BADGE[activeMode].label}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Quick-start prompt chips */}
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: '700',
-                        color: '#0f766e',
-                        textTransform: 'uppercase',
-                        letterSpacing: 1.2,
-                        textAlign: 'center',
-                        marginBottom: 12,
-                      }}
-                    >
-                      Quick Start
-                    </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-                      {(activeMode === 'clinical_diagnosis'
-                        ? CLINICAL_QUICK_STARTS
-                        : GENERAL_QUICK_STARTS
-                      ).map((prompt) => (
-                        <TouchableOpacity
-                          key={prompt}
-                          onPress={() => sendMessage(prompt)}
-                          activeOpacity={0.72}
-                          style={{
-                            backgroundColor: activeMode === 'clinical_diagnosis' ? '#f0fdfa' : '#f0f9ff',
-                            borderColor: activeMode === 'clinical_diagnosis' ? '#99f6e4' : '#bae6fd',
-                            borderWidth: 1.5,
-                            borderRadius: 20,
-                            paddingVertical: 8,
-                            paddingHorizontal: 14,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              color: activeMode === 'clinical_diagnosis' ? '#0f766e' : '#0891b2',
-                              fontWeight: '500',
-                            }}
-                          >
-                            {prompt}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-
-                    {/* Switch mode link */}
-                    <TouchableOpacity
-                      onPress={() => setShowModeModal(true)}
-                      style={{ marginTop: 24, alignItems: 'center' }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ fontSize: 12, color: '#64748b' }}>
-                        Switch to{' '}
-                        <Text style={{ color: '#0f766e', fontWeight: '600' }}>
-                          {activeMode === 'clinical_diagnosis'
-                            ? 'General Health Mode'
-                            : 'Clinical Diagnosis Mode'}
-                        </Text>
+                        {MODE_LABELS[activeMode]} · {MODE_BADGE[activeMode].label}
                       </Text>
-                    </TouchableOpacity>
+                    </View>
                   </View>
-                ) : (
-                  /* Fallback — no mode set yet */
-                  <SuggestedActions onSelect={handleSuggestedAction} />
-                )}
+                ) : null}
+
+                {/* Always show the static suggested actions */}
+                <SuggestedActions onSelect={handleSuggestedAction} />
               </ScrollView>
             ) : (
               <View className="flex-1">
@@ -451,7 +412,7 @@ const ChatScreen: React.FC = () => {
             )}
 
             {/* Typing indicator */}
-            {isThinking && <TypingIndicator />}
+            {isThinking && <TypingIndicator phase={processingPhase} />}
 
             {/* Error banner */}
             {error && (

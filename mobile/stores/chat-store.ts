@@ -13,14 +13,20 @@ import { ChatService } from 'services/chat-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
 
+// Granular feedback phases shown during AI processing
+export type ProcessingPhase = 'sending' | 'analyzing' | 'generating' | null;
+
 type ChatState = {
   // State
   conversations: Conversation[];
   activeConversationId: string | null;
   userId: string | null;
   isThinking: boolean; // AI is processing
+  processingPhase: ProcessingPhase; // Granular feedback during AI processing
   isInitializing: boolean; // Chat loading from storage
-  error: string | null; 
+  error: string | null;
+  // Set when General Health Mode auto-escalates to Clinical Diagnosis Mode
+  escalationNotice: string | null;
 
   // Derived
   activeConversation: Conversation | null;
@@ -37,11 +43,15 @@ type ChatState = {
   deleteConversation: (conversationId: string) => void;
   processAIResponse: (userMessage: Message, conversationId: string) => Promise<void>;
   clearError: () => void;
+  clearEscalationNotice: () => void;
 };
 
 // Map a SessionMode to its backend ConversationCategory
 const modeToCategory = (mode: SessionMode): ConversationCategory =>
   mode === 'clinical_diagnosis' ? 'doctor_consultation' : 'general_health';
+
+// Urgency levels that trigger client-side escalation detection
+const ESCALATION_URGENCY = new Set(['HIGH', 'CRITICAL']);
 
 // Generate unique ID
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -55,8 +65,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeConversationId: null,
   userId: null,
   isThinking: false,
+  processingPhase: null,
   isInitializing: false,
   error: null,
+  escalationNotice: null,
 
   // -------- Derived --------
   get activeConversation() {
@@ -176,20 +188,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
             updatedAt: now(),
           };
         });
-        return { conversations, isThinking: true, error: null };
+        return { conversations, isThinking: true, processingPhase: 'sending' as ProcessingPhase, error: null };
       });
 
       // Step C: Orchestrate AI response
       await get().processAIResponse(userMessage, convId);
     } catch (error) {
       console.error('Error sending message:', error);
-      set({ error: 'Failed to send message', isThinking: false });
+      set({ error: 'Failed to send message', isThinking: false, processingPhase: null });
     }
   },
 
   // Step C: Process AI response (internal)
   processAIResponse: async (userMessage: Message, conversationId: string) => {
     try {
+      // Advance phase: AI is now analyzing the message
+      set({ processingPhase: 'analyzing' });
+
       // Get conversation for context
       const state = get();
       const conversation = state.conversations.find(
@@ -198,6 +213,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (!conversation) return;
 
       // Call backend AI via ChatService (pass category for specialized prompting)
+      set({ processingPhase: 'generating' });
       const aiResponse = await ChatService.sendMessage(
         conversation.messages.slice(0, -1), // All previous messages
         userMessage.text,
@@ -223,6 +239,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             timestamp: now(),
             diagnosis: aiResponse.diagnosis,
             prescription: aiResponse.prescription,
+            diagnosisId: aiResponse.diagnosisId,
           };
 
           updatedMessages.push(aiMessage);
@@ -232,17 +249,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
             conv.title ||
             `Chat - ${userMessage.text.substring(0, 30)}...`;
 
+          // Auto-escalation: use the backend authoritative flag OR detect client-side
+          // from urgency (fallback for cases where the backend flag is absent).
+          const clientSideEscalation =
+            conv.mode === 'general_health' &&
+            aiResponse.diagnosis?.urgency !== undefined &&
+            ESCALATION_URGENCY.has(aiResponse.diagnosis.urgency);
+          const shouldEscalate =
+            (conv.mode === 'general_health' && !!aiResponse.escalated) ||
+            clientSideEscalation;
+
           return {
             ...conv,
+            ...(shouldEscalate
+              ? { mode: 'clinical_diagnosis' as SessionMode, category: 'doctor_consultation' as ConversationCategory }
+              : {}),
             messages: updatedMessages,
             title,
             updatedAt: now(),
           };
         });
 
+        // Build escalation notice text if escalation occurred
+        const escalatedConv = conversations.find((c) => c.id === conversationId);
+        const wasGeneralHealth = state.conversations.find(
+          (c) => c.id === conversationId
+        )?.mode === 'general_health';
+        const didEscalate =
+          wasGeneralHealth && escalatedConv?.mode === 'clinical_diagnosis';
+
+        const urgency = aiResponse.diagnosis?.urgency ?? '';
+        const escalationNotice = didEscalate
+          ? `Your session has been escalated to Clinical Diagnosis mode because a ${
+              urgency.toLowerCase()
+            }-risk condition was detected. A licensed physician will review your case.`
+          : state.escalationNotice;
+
         return {
           conversations,
           isThinking: false,
+          processingPhase: null,
+          escalationNotice,
         };
       });
 
@@ -273,6 +320,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return {
           conversations,
           isThinking: false,
+          processingPhase: null,
           error: 'Failed to get AI response. Please try again.',
         };
       });
@@ -341,4 +389,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   // Clear error
   clearError: () => set({ error: null }),
+
+  // Clear escalation notice
+  clearEscalationNotice: () => set({ escalationNotice: null }),
 }));
