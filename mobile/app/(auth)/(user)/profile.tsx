@@ -84,7 +84,7 @@ export default function UserProfileStep() {
           label="Gender"
           required
           hasError={!!fieldErrors.gender}
-          value={userDraft.gender || ''}
+          selectedValue={userDraft.gender || ''}
           onChange={(value: string) => handleFieldChange('gender', value)}
           options={GENDER_OPTIONS}
           placeholder="Select your gender"
@@ -93,7 +93,7 @@ export default function UserProfileStep() {
 
         <Dropdown
           label="Preferred Language"
-          value={userDraft.language || ''}
+          selectedValue={userDraft.language || ''}
           onChange={(value: string) => handleFieldChange('language', value)}
           options={LANGUAGE_OPTIONS}
           placeholder="Select preferred language"

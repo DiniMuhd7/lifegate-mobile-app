@@ -103,7 +103,7 @@ export default function ProfessionalScreen() {
         label="Gender"
         required
         hasError={!!fieldErrors.gender}
-        value={userDraft.gender}
+        selectedValue={userDraft.gender}
         onChange={(v) => handleFieldChange('gender', v)}
         placeholder="Select your gender"
         options={GENDER_OPTIONS}
@@ -112,7 +112,7 @@ export default function ProfessionalScreen() {
 
       <Dropdown
         label="Preferred Language"
-        value={userDraft.language || ''}
+        selectedValue={userDraft.language || ''}
         onChange={(v) => handleFieldChange('language', v)}
         placeholder="Select Preferred Language"
         options={LANGUAGE_OPTIONS}

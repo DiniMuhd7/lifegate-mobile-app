@@ -1,3 +1,4 @@
+
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -84,7 +85,9 @@ export default function SubscriptionScreen() {
             <MaterialCommunityIcons name="history" size={20} color="#0EA5A4" />
             <Text className="ml-2 text-base font-semibold text-gray-900">Transaction</Text>
           </View>
-          <Pressable className="flex-row items-center">
+          <Pressable className="flex-row items-center"
+          onPress={() => router.push('/(tab)/settings/(extra)/transactionHistory')}
+          >
             <Text className="text-sm font-semibold text-[#0EA5A4]">View all</Text>
             <Ionicons name="chevron-forward" size={16} color="#0EA5A4" />
           </Pressable>

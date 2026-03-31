@@ -106,7 +106,9 @@ export const AuthService = {
       }
 
       const { token, user } = response.data.data;
-      await saveToken(token);
+      if (token) {
+        await saveToken(token);
+      }
       return { success: true, user };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
@@ -154,7 +156,7 @@ export const AuthService = {
       }
 
       const { token, user } = response.data.data;
-      await saveToken(token);
+      if (token) { await saveToken(token);}
 
       return {
         success: true,

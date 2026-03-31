@@ -19,7 +19,7 @@ export default function SettingsScreen() {
     onPress,
     showArrow = true,
   }: {
-    icon: string;
+    icon: keyof typeof MaterialCommunityIcons.glyphMap;
     label: string;
     onPress: () => void;
     showArrow?: boolean;
