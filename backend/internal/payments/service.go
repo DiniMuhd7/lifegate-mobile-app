@@ -84,6 +84,9 @@ type flwVerifyResponse struct {
 
 const flwBaseURL = "https://api.flutterwave.com/v3"
 
+// TrialCredits is the number of free credits granted to every new patient account.
+const TrialCredits = 3
+
 // Service handles payment operations.
 type Service struct {
 	db          *sql.DB
@@ -126,6 +129,49 @@ func (s *Service) GetCreditBalance(userID string) (*CreditBalance, error) {
 		return cb, nil
 	}
 	return cb, err
+}
+
+// GrantTrialCredits inserts TrialCredits into a new user's wallet and records it
+// in payment_transactions so it appears in the transaction history.
+// It is idempotent: if a credits row already exists the INSERT is skipped.
+func (s *Service) GrantTrialCredits(userID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Create the credits wallet with the trial balance.  ON CONFLICT DO NOTHING
+	// ensures we never double-grant if this is somehow called twice.
+	var inserted bool
+	err = tx.QueryRow(
+		`INSERT INTO credits (user_id, balance)
+		 VALUES ($1::uuid, $2)
+		 ON CONFLICT (user_id) DO NOTHING
+		 RETURNING true`,
+		userID, TrialCredits,
+	).Scan(&inserted)
+	if err == sql.ErrNoRows {
+		// Row already existed — do not grant again.
+		return tx.Commit()
+	}
+	if err != nil {
+		return err
+	}
+
+	// Log the trial grant so it is visible in the transaction history.
+	if _, err := tx.Exec(
+		`INSERT INTO payment_transactions
+		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
+		 VALUES ($1::uuid, $2, 0, $3, 'success', 'trial')`,
+		userID,
+		fmt.Sprintf("TRIAL-%s", userID[:8]),
+		TrialCredits,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // DeductCredit atomically deducts 1 credit and logs it. Returns false if balance is 0.

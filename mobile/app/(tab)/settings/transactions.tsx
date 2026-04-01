@@ -24,12 +24,19 @@ function TransactionRow({ item }: { item: PaymentTransaction }) {
     day: 'numeric', month: 'short', year: 'numeric',
   }) : '';
 
+  const isTrial = item.bundleId === 'trial';
+
   return (
     <View className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <View className="flex-row items-center justify-between mb-2">
-        <Text className="text-base font-bold text-gray-900">
-          ₦{(item.amount ?? 0).toLocaleString()}
-        </Text>
+        <View className="flex-row items-center gap-2">
+          {isTrial ? (
+            <Ionicons name="gift-outline" size={16} color="#b45309" />
+          ) : null}
+          <Text className="text-base font-bold text-gray-900">
+            {isTrial ? 'Trial Credits' : `₦${(item.amount ?? 0).toLocaleString()}`}
+          </Text>
+        </View>
         <View
           style={{ backgroundColor: s.bg }}
           className="rounded-full px-3 py-1">

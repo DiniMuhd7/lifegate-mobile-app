@@ -23,10 +23,22 @@ type Service struct {
 repo   *Repository
 redis  *redisclient.Client
 cfg    *config.Config
+trialGranter TrialCreditGranter
+}
+
+// TrialCreditGranter is satisfied by payments.Service and grants free credits to new accounts.
+type TrialCreditGranter interface {
+	GrantTrialCredits(userID string) error
 }
 
 func NewService(repo *Repository, redis *redisclient.Client, cfg *config.Config) *Service {
 return &Service{repo: repo, redis: redis, cfg: cfg}
+}
+
+// SetTrialCreditGranter wires up the payments service so that new patient
+// accounts automatically receive trial credits on registration.
+func (s *Service) SetTrialCreditGranter(g TrialCreditGranter) {
+	s.trialGranter = g
 }
 
 type TokenPair struct {
@@ -313,6 +325,11 @@ return nil, err
 if err := s.repo.CreateUser(u, passwordHash); err != nil {
 return nil, err
 }
+}
+
+// Grant trial credits to new patient accounts (non-physician roles).
+if u.Role != "professional" && s.trialGranter != nil {
+	_ = s.trialGranter.GrantTrialCredits(u.UserID)
 }
 
 token, err := s.generateJWT(u)

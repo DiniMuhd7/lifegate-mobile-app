@@ -112,13 +112,28 @@ export default function SubscriptionScreen() {
 
       <ScrollView className="flex-1 px-4 pt-2">
         {/* Balance card */}
-        <View className="mb-8 items-center rounded-2xl bg-[#F0FFFE] border border-[#0EA5A4] py-6 px-4">
+        <View className="mb-4 items-center rounded-2xl bg-[#F0FFFE] border border-[#0EA5A4] py-6 px-4">
           <Text className="text-base text-gray-600 mb-1">LifeGate Credit Balance</Text>
           <Text className="text-5xl font-bold text-[#0EA5A4]">
             {balance?.balance ?? 0}
           </Text>
           <Text className="text-sm text-gray-500 mt-1">credits remaining</Text>
         </View>
+
+        {/* Trial credits notice — shown while the user still has their starter balance */}
+        {(balance?.balance ?? 0) > 0 && (balance?.balance ?? 0) <= 3 && (
+          <View className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex-row items-start gap-3">
+            <Ionicons name="gift-outline" size={20} color="#b45309" style={{ marginTop: 1 }} />
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-amber-800">
+                Welcome! You have 3 free trial credits
+              </Text>
+              <Text className="text-xs text-amber-700 mt-0.5 leading-4">
+                Each clinical diagnosis session costs 1 credit. Top up when you're ready for more.
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Transaction shortcut */}
         <View className="mb-8 flex-row items-center justify-between">

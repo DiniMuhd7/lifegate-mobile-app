@@ -72,6 +72,9 @@ hub := wshub.NewHub()
 	)
 	paymentsHandler := payments.NewHandler(paymentsSvc)
 
+	// Grant trial credits to every new patient that registers.
+	authSvc.SetTrialCreditGranter(paymentsSvc)
+
 // Router
 r := gin.New()
 r.Use(middleware.Logger())
