@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
+import { useSessionStore } from 'stores/session-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import Logo from 'assets/logo.svg';
 
@@ -18,7 +19,17 @@ export default function SplashScreen() {
 
         // Check if user is authenticated after restoring session
         const { isAuthenticated } = useAuthStore.getState();
-        
+
+        // For patient users, check the server for an abandoned session so that
+        // the ResumeSessionModal can be shown after navigation.
+        if (isAuthenticated) {
+          const { user } = useAuthStore.getState();
+          if (user?.role !== 'professional') {
+            // Non-blocking — failure does not block navigation.
+            useSessionStore.getState().fetchIncomplete().catch(() => {});
+          }
+        }
+
         // Navigate based on auth state
         setTimeout(() => {
           if (isAuthenticated) {

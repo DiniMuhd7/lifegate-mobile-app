@@ -28,3 +28,4 @@ export { PrimaryCalendar } from './Calendar';
 export { InfoRow } from './InfoRow';
 export { WizardProgress } from './ProgressIndicator';
 export { ModeSelectionModal } from './ModeSelectionModal';
+export { ResumeSessionModal } from './ResumeSessionModal';

@@ -62,6 +62,8 @@ export type Conversation = {
   title?: string; // Auto-generated from first user message or explicit title
   category?: ConversationCategory; // Derived from mode; also set by suggested actions
   mode?: SessionMode; // The session routing mode chosen by the user
+  /** ID of the paired server-side chat_sessions record, if synced. */
+  serverSessionId?: string;
   createdAt: number;
   updatedAt: number; // For sorting history
 };
@@ -88,4 +90,42 @@ export type ChatServiceResponse = {
   success: boolean;
   data?: AIResponse;
   error?: string;
+};
+
+// ─── Server-side session types ────────────────────────────────────────────────
+
+/** Lifecycle state of a server-persisted chat session. */
+export type ServerSessionStatus = 'active' | 'completed' | 'abandoned';
+
+/**
+ * A chat session persisted on the server (mirrors the backend Session struct).
+ * Messages are stored as the same Message shape used by the client.
+ */
+export type ServerSession = {
+  id: string;
+  userId: string;
+  title: string;
+  category: ConversationCategory | '';
+  mode: SessionMode | '';
+  status: ServerSessionStatus;
+  messages: Message[];
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
+};
+
+/** Input for POST /api/sessions */
+export type CreateSessionInput = {
+  title?: string;
+  category?: ConversationCategory | '';
+  mode?: SessionMode | '';
+  messages?: Message[];
+};
+
+/** Input for PUT /api/sessions/:id — all fields are optional patches. */
+export type UpdateSessionInput = {
+  title?: string;
+  category?: ConversationCategory | '';
+  mode?: SessionMode | '';
+  status?: ServerSessionStatus;
+  messages?: Message[];
 };

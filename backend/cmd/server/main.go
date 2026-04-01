@@ -17,6 +17,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
 	"github.com/gin-gonic/gin"
 )
@@ -74,6 +75,10 @@ hub := wshub.NewHub()
 
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)
+
+	sessionsRepo := sessions.NewRepository(database)
+	sessionsSvc := sessions.NewService(sessionsRepo, redisClient)
+	sessionsHandler := sessions.NewHandler(sessionsSvc)
 
 // Router
 r := gin.New()
@@ -167,6 +172,19 @@ physicianGroup.POST("/reports/:id/review", physicianHandler.ReviewReport)
 	api.POST("/payments/verify", middleware.Auth(cfg.JWTSecret), paymentsHandler.VerifyPayment)
 	api.GET("/payments/transactions", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetTransactions)
 	api.GET("/credits/balance", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditBalance)
+
+	// Chat session management (create, list, get, update, delete + resume prompt)
+	sessionsGroup := api.Group("/sessions", middleware.Auth(cfg.JWTSecret))
+	{
+		sessionsGroup.POST("", sessionsHandler.Create)
+		sessionsGroup.GET("", sessionsHandler.List)
+		// /incomplete must be registered before /:id so the router does not
+		// treat the literal string "incomplete" as a session ID.
+		sessionsGroup.GET("/incomplete", sessionsHandler.GetIncomplete)
+		sessionsGroup.GET("/:id", sessionsHandler.Get)
+		sessionsGroup.PUT("/:id", sessionsHandler.Update)
+		sessionsGroup.DELETE("/:id", sessionsHandler.Delete)
+	}
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)
 	r.GET("/ws", hub.Handler(cfg.JWTSecret))

@@ -10,6 +10,7 @@
 import { create } from 'zustand';
 import { Message, Conversation, MessageStatus, ConversationCategory, SessionMode } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
+import { SessionService } from 'services/session-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
 
@@ -301,6 +302,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
         get().conversations,
         get().userId || ''
       );
+
+      // Background-sync: if this conversation is paired with a server session,
+      // update its messages and mark it active (in case it was abandoned).
+      const syncConv = get().conversations.find((c) => c.id === conversationId);
+      if (syncConv?.serverSessionId) {
+        SessionService.update(syncConv.serverSessionId, {
+          title: syncConv.title,
+          messages: syncConv.messages,
+          status: 'active',
+        }).catch(() => {
+          // Non-critical — local storage is the source of truth.
+        });
+      }
     } catch (error) {
       console.error('AI response error:', error);
 
