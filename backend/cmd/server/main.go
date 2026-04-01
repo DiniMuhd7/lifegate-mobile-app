@@ -165,6 +165,10 @@ physicianGroup.POST("/cases/:id/take", physicianHandler.TakeCase)
 physicianGroup.PATCH("/cases/:id/ai", physicianHandler.UpdateAIOutput)
 // Patient profile for inline display during case review
 physicianGroup.GET("/patients/:id", physicianHandler.GetPatientProfile)
+// Earnings dashboard and history
+physicianGroup.GET("/earnings", physicianHandler.GetEarningsSummary)
+physicianGroup.GET("/earnings/history", physicianHandler.GetEarningsHistory)
+physicianGroup.GET("/payouts", physicianHandler.GetPayouts)
 // Register/update device push token for in-app notifications
 physicianGroup.POST("/push-token", func(c *gin.Context) {
 	var req notifications.RegisterTokenRequest

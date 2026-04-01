@@ -198,6 +198,27 @@ export default function PhysicianProfileScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Earnings Section */}
+          <View className="mb-8">
+            <Text className="mb-4 text-lg font-bold text-gray-800">
+              <Ionicons name="cash-outline" size={18} color="#0AADA2" /> Earnings
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(prof-tab)/earnings')}
+              className="flex-row items-center justify-between rounded-lg bg-gray-50 p-4">
+              <View className="flex-row items-center gap-3">
+                <View className="w-10 h-10 rounded-full bg-teal-50 items-center justify-center">
+                  <Ionicons name="wallet-outline" size={20} color="#0AADA2" />
+                </View>
+                <View>
+                  <Text className="text-sm font-semibold text-gray-800">Earnings Dashboard</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5">View earnings, payouts and case history</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View className="flex-row items-center justify-center">

@@ -6,6 +6,9 @@ import {
   CaseQueueItem,
   CaseDetail,
   PatientProfile,
+  EarningsSummary,
+  EarningRecord,
+  Payout,
 } from '../types/professional-types';
 
 // Helper to format timestamp from ISO string to relative time
@@ -230,5 +233,41 @@ export const ProfessionalService = {
     );
     if (!response.data.success)
       throw new Error(response.data.message || 'Failed to reject case');
+  },
+
+  /**
+   * Get the aggregated earnings summary for the physician dashboard.
+   * GET /physician/earnings
+   */
+  async getEarningsSummary(): Promise<EarningsSummary> {
+    const res = await api.get<{ success: boolean; data: EarningsSummary }>('/physician/earnings');
+    if (!res.data.success) throw new Error('Failed to fetch earnings summary');
+    return res.data.data;
+  },
+
+  /**
+   * Get paginated per-case earnings history.
+   * GET /physician/earnings/history?page=&pageSize=
+   */
+  async getEarningsHistory(
+    page = 1,
+    pageSize = 20
+  ): Promise<{ records: EarningRecord[]; total: number }> {
+    const res = await api.get<{
+      success: boolean;
+      data: { records: EarningRecord[]; total: number };
+    }>('/physician/earnings/history', { params: { page, pageSize } });
+    if (!res.data.success) throw new Error('Failed to fetch earnings history');
+    return res.data.data;
+  },
+
+  /**
+   * Get all payout records for the physician.
+   * GET /physician/payouts
+   */
+  async getPayouts(): Promise<Payout[]> {
+    const res = await api.get<{ success: boolean; data: Payout[] }>('/physician/payouts');
+    if (!res.data.success) throw new Error('Failed to fetch payouts');
+    return res.data.data;
   },
 };

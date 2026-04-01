@@ -174,6 +174,65 @@ func (h *Handler) GetPatientProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient profile fetched", "data": profile})
 }
 
+// GetEarningsSummary handles GET /physician/earnings — returns the aggregated
+// earnings dashboard: total earned, pending payout, case counts, next payout date.
+func (h *Handler) GetEarningsSummary(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	summary, err := h.svc.GetEarningsSummary(pid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Earnings summary fetched", "data": summary})
+}
+
+// GetEarningsHistory handles GET /physician/earnings/history — returns paginated
+// per-case earning records with patient, condition, and payout status.
+func (h *Handler) GetEarningsHistory(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	records, total, err := h.svc.GetEarningsHistory(pid, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Earnings history fetched",
+		"data": gin.H{
+			"records":  records,
+			"total":    total,
+			"page":     page,
+			"pageSize": pageSize,
+		},
+	})
+}
+
+// GetPayouts handles GET /physician/payouts — returns all payout records.
+func (h *Handler) GetPayouts(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	payouts, err := h.svc.GetPayouts(pid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payouts fetched", "data": payouts})
+}
+
 // UpdateAIOutput handles PATCH /physician/cases/:id/ai — lets a physician edit
 // the AI-generated condition, urgency, and confidence score inline.
 func (h *Handler) UpdateAIOutput(c *gin.Context) {

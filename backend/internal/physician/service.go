@@ -159,7 +159,30 @@ func (s *Service) ReviewReport(reportID, physicianID string, input ReviewInput) 
 	// WebSocket: notify all connected physicians so their queues refresh.
 	s.broadcastQueueChange(reportID, physicianID, input.Action)
 
+	// Credit an earnings record when the physician approves the case.
+	if input.PhysicianDecision == "Approved" {
+		if creditErr := s.repo.CreditEarning(physicianID, reportID); creditErr != nil {
+			// Non-fatal: log and continue — the case review itself succeeded.
+			_ = creditErr
+		}
+	}
+
 	return nil
+}
+
+// GetEarningsSummary returns the aggregated earnings dashboard for a physician.
+func (s *Service) GetEarningsSummary(physicianID string) (*EarningsSummary, error) {
+	return s.repo.GetEarningsSummary(physicianID)
+}
+
+// GetEarningsHistory returns paginated per-case earnings history.
+func (s *Service) GetEarningsHistory(physicianID string, page, pageSize int) ([]EarningRecord, int, error) {
+	return s.repo.GetEarningsHistory(physicianID, page, pageSize)
+}
+
+// GetPayouts returns all payout records for the physician.
+func (s *Service) GetPayouts(physicianID string) ([]Payout, error) {
+	return s.repo.GetPayouts(physicianID)
 }
 
 // broadcastQueueChange sends a physician.review.status event to all connected

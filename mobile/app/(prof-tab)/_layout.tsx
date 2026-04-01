@@ -55,6 +55,8 @@ export default function ProfTabLayout() {
         <Stack.Screen name="patientHistory" />
         <Stack.Screen name="caseQueue" />
         <Stack.Screen name="caseReview" />
+        <Stack.Screen name="earnings" />
+        <Stack.Screen name="caseHistory" />
       </Stack>
 
       {/* In-app notification banner (overlays content) */}

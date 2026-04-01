@@ -152,3 +152,43 @@ export interface CaseQueue {
   active: CaseQueueItem[];
   completed: CaseQueueItem[];
 }
+
+// ── Earnings & Payouts ────────────────────────────────────────────────────────
+
+export type EarningStatus = 'pending' | 'paid';
+export type PayoutStatus = 'pending' | 'processing' | 'paid';
+
+export interface EarningsSummary {
+  totalEarned: number;
+  pendingPayout: number;
+  paidOut: number;
+  casesCompleted: number;
+  casesPending: number;
+  perCaseRate: number;
+  nextPayoutDate: string;
+  lastPayoutAmount: number;
+}
+
+export interface EarningRecord {
+  id: string;
+  diagnosisId: string;
+  patientName: string;
+  condition: string;
+  urgency: CaseUrgency;
+  decision: PhysicianDecision;
+  amount: number;
+  status: EarningStatus;
+  casedAt: string;
+  createdAt: string;
+}
+
+export interface Payout {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  caseCount: number;
+  totalAmount: number;
+  status: PayoutStatus;
+  paidAt?: string;
+  createdAt: string;
+}

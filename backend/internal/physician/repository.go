@@ -464,6 +464,216 @@ func (r *Repository) GetPatientProfile(patientID string) (*PatientProfile, error
 	return &p, err
 }
 
+// ── Earnings ──────────────────────────────────────────────────────────────────
+
+// EarningRate is the fixed per-case payout amount in Nigerian Naira.
+const EarningRate = 500
+
+// EarningsSummary is the aggregate view returned by the earnings dashboard.
+type EarningsSummary struct {
+	TotalEarned      int    `json:"totalEarned"`
+	PendingPayout    int    `json:"pendingPayout"`
+	PaidOut          int    `json:"paidOut"`
+	CasesCompleted   int    `json:"casesCompleted"`
+	CasesPending     int    `json:"casesPending"`
+	PerCaseRate      int    `json:"perCaseRate"`
+	NextPayoutDate   string `json:"nextPayoutDate"`
+	LastPayoutAmount int    `json:"lastPayoutAmount"`
+}
+
+// EarningRecord is a single approved-case earnings row joined with diagnosis data.
+type EarningRecord struct {
+	ID          string `json:"id"`
+	DiagnosisID string `json:"diagnosisId"`
+	PatientName string `json:"patientName"`
+	Condition   string `json:"condition"`
+	Urgency     string `json:"urgency"`
+	Decision    string `json:"decision"`
+	Amount      int    `json:"amount"`
+	Status      string `json:"status"`
+	CasedAt     string `json:"casedAt"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+// Payout is a single weekly payout record.
+type Payout struct {
+	ID          string `json:"id"`
+	PeriodStart string `json:"periodStart"`
+	PeriodEnd   string `json:"periodEnd"`
+	CaseCount   int    `json:"caseCount"`
+	TotalAmount int    `json:"totalAmount"`
+	Status      string `json:"status"`
+	PaidAt      string `json:"paidAt,omitempty"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+// nextMonday returns the date of the next Monday at 00:00 UTC.
+func nextMonday() time.Time {
+	now := time.Now().UTC()
+	daysUntilMonday := (8 - int(now.Weekday())) % 7
+	if daysUntilMonday == 0 {
+		daysUntilMonday = 7
+	}
+	next := now.AddDate(0, 0, daysUntilMonday)
+	return time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// CreditEarning inserts a physician_earnings row when a case is approved.
+// It is idempotent: the UNIQUE constraint on diagnosis_id means duplicate calls
+// (e.g. retries) are silently ignored via ON CONFLICT DO NOTHING.
+func (r *Repository) CreditEarning(physicianID, diagnosisID string) error {
+	_, err := r.db.Exec(`
+		INSERT INTO physician_earnings
+		    (physician_id, diagnosis_id, patient_name, condition, urgency, amount_naira, status)
+		SELECT
+		    $1::uuid,
+		    d.id,
+		    COALESCE(u.name, ''),
+		    COALESCE(d.condition, ''),
+		    COALESCE(d.urgency, 'LOW'),
+		    $3,
+		    'pending'
+		FROM diagnoses d
+		JOIN users u ON u.id = d.user_id
+		WHERE d.id = $2::uuid
+		ON CONFLICT (diagnosis_id) DO NOTHING`,
+		physicianID, diagnosisID, EarningRate,
+	)
+	return err
+}
+
+// GetEarningsSummary returns the aggregated earnings dashboard data.
+func (r *Repository) GetEarningsSummary(physicianID string) (*EarningsSummary, error) {
+	var s EarningsSummary
+
+	err := r.db.QueryRow(`
+		SELECT
+		    COALESCE(SUM(amount_naira), 0),
+		    COALESCE(SUM(CASE WHEN status = 'pending' THEN amount_naira ELSE 0 END), 0),
+		    COALESCE(SUM(CASE WHEN status = 'paid'    THEN amount_naira ELSE 0 END), 0),
+		    COUNT(*),
+		    COUNT(CASE WHEN status = 'pending' THEN 1 END)
+		FROM physician_earnings
+		WHERE physician_id = $1::uuid`,
+		physicianID,
+	).Scan(&s.TotalEarned, &s.PendingPayout, &s.PaidOut, &s.CasesCompleted, &s.CasesPending)
+	if err != nil {
+		return nil, err
+	}
+
+	// Most recent payout amount (best-effort; 0 if none exist yet).
+	_ = r.db.QueryRow(`
+		SELECT COALESCE(total_amount_naira, 0)
+		FROM physician_payouts
+		WHERE physician_id = $1::uuid
+		ORDER BY period_start DESC
+		LIMIT 1`,
+		physicianID,
+	).Scan(&s.LastPayoutAmount)
+
+	s.PerCaseRate = EarningRate
+	s.NextPayoutDate = nextMonday().Format("2006-01-02")
+	return &s, nil
+}
+
+// GetEarningsHistory returns paginated per-case earning records, newest first.
+func (r *Repository) GetEarningsHistory(physicianID string, page, pageSize int) ([]EarningRecord, int, error) {
+	offset := (page - 1) * pageSize
+
+	var total int
+	if err := r.db.QueryRow(
+		`SELECT COUNT(*) FROM physician_earnings WHERE physician_id = $1::uuid`,
+		physicianID,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(`
+		SELECT
+		    e.id,
+		    e.diagnosis_id,
+		    e.patient_name,
+		    e.condition,
+		    e.urgency,
+		    COALESCE(d.physician_decision, 'Approved'),
+		    e.amount_naira,
+		    e.status,
+		    d.updated_at,
+		    e.created_at
+		FROM physician_earnings e
+		JOIN diagnoses d ON d.id = e.diagnosis_id
+		WHERE e.physician_id = $1::uuid
+		ORDER BY e.created_at DESC
+		LIMIT $2 OFFSET $3`,
+		physicianID, pageSize, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var records []EarningRecord
+	for rows.Next() {
+		var rec EarningRecord
+		var casedAt, createdAt time.Time
+		if err := rows.Scan(
+			&rec.ID, &rec.DiagnosisID, &rec.PatientName, &rec.Condition, &rec.Urgency,
+			&rec.Decision, &rec.Amount, &rec.Status, &casedAt, &createdAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		rec.CasedAt = casedAt.Format(time.RFC3339)
+		rec.CreatedAt = createdAt.Format(time.RFC3339)
+		records = append(records, rec)
+	}
+	if records == nil {
+		records = []EarningRecord{}
+	}
+	return records, total, rows.Err()
+}
+
+// GetPayouts returns all payout records for the physician, newest first.
+func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
+	rows, err := r.db.Query(`
+		SELECT id, period_start, period_end, case_count, total_amount_naira,
+		       status, paid_at, created_at
+		FROM physician_payouts
+		WHERE physician_id = $1::uuid
+		ORDER BY period_start DESC`,
+		physicianID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var payouts []Payout
+	for rows.Next() {
+		var p Payout
+		var paidAt sql.NullTime
+		var periodStart, periodEnd, createdAt time.Time
+		if err := rows.Scan(
+			&p.ID, &periodStart, &periodEnd, &p.CaseCount, &p.TotalAmount,
+			&p.Status, &paidAt, &createdAt,
+		); err != nil {
+			return nil, err
+		}
+		p.PeriodStart = periodStart.Format("2006-01-02")
+		p.PeriodEnd = periodEnd.Format("2006-01-02")
+		p.CreatedAt = createdAt.Format(time.RFC3339)
+		if paidAt.Valid {
+			p.PaidAt = paidAt.Time.Format(time.RFC3339)
+		}
+		payouts = append(payouts, p)
+	}
+	if payouts == nil {
+		payouts = []Payout{}
+	}
+	return payouts, rows.Err()
+}
+
+// ── AI Output ─────────────────────────────────────────────────────────────────
+
 // UpdateAIOutput lets a physician correct the AI-generated diagnostic fields
 // inline.  Both the top-level columns and the ai_response JSONB are kept in
 // sync.  The case must be in Active status and owned by physicianID.

@@ -6,6 +6,9 @@ import {
   CaseDetail,
   PatientProfile,
   CaseUrgency,
+  EarningsSummary,
+  EarningRecord,
+  Payout,
 } from '../types/professional-types';
 import { ProfessionalService } from '../services/professional-service';
 
@@ -36,6 +39,16 @@ type ProfessionalStore = ProfessionalDashboard & {
   loadPatientProfile: (patientId: string) => Promise<void>;
   updateLocalAIOutput: (condition: string, urgency: CaseUrgency, confidence: number) => void;
   clearCurrentCase: () => void;
+
+  // Earnings
+  earningsSummary: EarningsSummary | null;
+  earningsHistory: EarningRecord[];
+  earningsTotal: number;
+  payouts: Payout[];
+  isEarningsLoading: boolean;
+  loadEarningsSummary: () => Promise<void>;
+  loadEarningsHistory: (page?: number, pageSize?: number) => Promise<void>;
+  loadPayouts: () => Promise<void>;
 };
 
 export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
@@ -63,6 +76,13 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   currentCase: null,
   currentPatient: null,
   isCaseLoading: false,
+
+  // Earnings initial state
+  earningsSummary: null,
+  earningsHistory: [],
+  earningsTotal: 0,
+  payouts: [],
+  isEarningsLoading: false,
 
   // Actions
   fetchReports: async () => {
@@ -240,4 +260,32 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   },
 
   clearCurrentCase: () => set({ currentCase: null, currentPatient: null }),
+
+  loadEarningsSummary: async () => {
+    set({ isEarningsLoading: true });
+    try {
+      const summary = await ProfessionalService.getEarningsSummary();
+      set({ earningsSummary: summary, isEarningsLoading: false });
+    } catch {
+      set({ isEarningsLoading: false });
+    }
+  },
+
+  loadEarningsHistory: async (page = 1, pageSize = 20) => {
+    try {
+      const { records, total } = await ProfessionalService.getEarningsHistory(page, pageSize);
+      set({ earningsHistory: records, earningsTotal: total });
+    } catch {
+      // silently fail — UI shows empty state
+    }
+  },
+
+  loadPayouts: async () => {
+    try {
+      const payouts = await ProfessionalService.getPayouts();
+      set({ payouts });
+    } catch {
+      // silently fail
+    }
+  },
 }));
