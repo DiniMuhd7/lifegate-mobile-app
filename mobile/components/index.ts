@@ -29,3 +29,5 @@ export { InfoRow } from './InfoRow';
 export { WizardProgress } from './ProgressIndicator';
 export { ModeSelectionModal } from './ModeSelectionModal';
 export { ResumeSessionModal } from './ResumeSessionModal';
+export { CaseCard } from './CaseCard';
+export { InAppNotificationBanner } from './InAppNotificationBanner';

@@ -70,3 +70,27 @@ export interface ReviewAnalysis {
   loading: boolean;
   error: string | null;
 }
+
+export type CaseUrgency = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+
+export interface CaseQueueItem {
+  id: string;
+  patientName: string;
+  patientId: string;
+  title: string;
+  symptomSnippet: string;
+  urgency: CaseUrgency;
+  status: ReportStatus;
+  physicianId?: string;
+  escalated: boolean;
+  timeInQueue: string;
+  queuePosition?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseQueue {
+  pending: CaseQueueItem[];
+  active: CaseQueueItem[];
+  completed: CaseQueueItem[];
+}

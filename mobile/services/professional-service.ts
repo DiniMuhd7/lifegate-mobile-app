@@ -1,5 +1,5 @@
 import api from './api';
-import { PatientReport, ProfessionalStats } from '../types/professional-types';
+import { PatientReport, ProfessionalStats, CaseQueue, CaseQueueItem } from '../types/professional-types';
 
 // Helper to format timestamp from ISO string to relative time
 const formatTimestamp = (isoDate: string): string => {
@@ -102,5 +102,49 @@ export const ProfessionalService = {
    */
   async getPatientDetails(patientId: string): Promise<any> {
     return { id: patientId };
+  },
+
+  /**
+   * Fetch case queue grouped by status
+   * GET /physician/cases
+   */
+  async getCaseQueue(): Promise<CaseQueue> {
+    const response = await api.get<{ success: boolean; data: CaseQueue }>(
+      '/physician/cases'
+    );
+    if (!response.data.success) throw new Error('Failed to fetch case queue');
+    return response.data.data;
+  },
+
+  /**
+   * Lock a Pending case to the current physician (Pending → Active)
+   * POST /physician/cases/:id/take
+   */
+  async takeCase(caseId: string): Promise<CaseQueueItem> {
+    const response = await api.post<{ success: boolean; data: CaseQueueItem }>(
+      `/physician/cases/${caseId}/take`
+    );
+    if (!response.data.success) throw new Error('Failed to take case');
+    return response.data.data;
+  },
+
+  /**
+   * Complete an Active case (Active → Completed)
+   * POST /physician/reports/:id/review  with action='Completed'
+   */
+  async completeCase(caseId: string, notes: string): Promise<void> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/physician/reports/${caseId}/review`,
+      { action: 'Completed', notes }
+    );
+    if (!response.data.success) throw new Error(response.data.message || 'Failed to complete case');
+  },
+
+  /**
+   * Register an Expo push token so the backend can send push notifications
+   * POST /physician/push-token
+   */
+  async registerPushToken(token: string): Promise<void> {
+    await api.post('/physician/push-token', { token });
   },
 };

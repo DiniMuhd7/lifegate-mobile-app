@@ -1,12 +1,23 @@
 import { create } from 'zustand';
-import { ReportStatus, ProfessionalDashboard } from '../types/professional-types';
+import { ReportStatus, ProfessionalDashboard, CaseQueueItem, CaseQueue } from '../types/professional-types';
 import { ProfessionalService } from '../services/professional-service';
 
 type ProfessionalStore = ProfessionalDashboard & {
+  // Case queue
+  pendingCases: CaseQueueItem[];
+  activeCases: CaseQueueItem[];
+  completedCases: CaseQueueItem[];
+  isQueueLoading: boolean;
+
   fetchReports: () => Promise<void>;
   setFilter: (filter: ReportStatus | 'All') => void;
   searchReports: (query: string) => void;
   clearSearch: () => void;
+  fetchCaseQueue: () => Promise<void>;
+  takeCase: (caseId: string) => Promise<void>;
+  completeCase: (caseId: string, notes: string) => Promise<void>;
+  appendPendingCase: (item: CaseQueueItem) => void;
+  updateCaseStatus: (caseId: string, status: ReportStatus) => void;
 };
 
 export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
@@ -23,6 +34,12 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   searchQuery: '',
   loading: false,
   error: null,
+
+  // Case queue initial state
+  pendingCases: [],
+  activeCases: [],
+  completedCases: [],
+  isQueueLoading: false,
 
   // Actions
   fetchReports: async () => {
@@ -93,6 +110,66 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
       return {
         searchQuery: '',
         filteredReports: filtered,
+      };
+    });
+  },
+
+  fetchCaseQueue: async () => {
+    set({ isQueueLoading: true });
+    try {
+      const queue = await ProfessionalService.getCaseQueue();
+      set({
+        pendingCases: queue.pending ?? [],
+        activeCases: queue.active ?? [],
+        completedCases: queue.completed ?? [],
+        isQueueLoading: false,
+      });
+    } catch {
+      set({ isQueueLoading: false });
+    }
+  },
+
+  takeCase: async (caseId: string) => {
+    const item = await ProfessionalService.takeCase(caseId);
+    set(state => ({
+      pendingCases: state.pendingCases.filter(c => c.id !== caseId),
+      activeCases: [item, ...state.activeCases],
+    }));
+  },
+
+  completeCase: async (caseId: string, notes: string) => {
+    await ProfessionalService.completeCase(caseId, notes);
+    set(state => {
+      const item = state.activeCases.find(c => c.id === caseId);
+      return {
+        activeCases: state.activeCases.filter(c => c.id !== caseId),
+        completedCases: item
+          ? [{ ...item, status: 'Completed' as const }, ...state.completedCases]
+          : state.completedCases,
+      };
+    });
+  },
+
+  appendPendingCase: (item: CaseQueueItem) => {
+    set(state => ({ pendingCases: [item, ...state.pendingCases] }));
+  },
+
+  updateCaseStatus: (caseId: string, status: ReportStatus) => {
+    set(state => {
+      const allCases = [...state.pendingCases, ...state.activeCases, ...state.completedCases];
+      const item = allCases.find(c => c.id === caseId);
+      if (!item) return {};
+      const updated = { ...item, status };
+      return {
+        pendingCases: status === 'Pending'
+          ? [...state.pendingCases.filter(c => c.id !== caseId), updated]
+          : state.pendingCases.filter(c => c.id !== caseId),
+        activeCases: status === 'Active'
+          ? [...state.activeCases.filter(c => c.id !== caseId), updated]
+          : state.activeCases.filter(c => c.id !== caseId),
+        completedCases: status === 'Completed'
+          ? [...state.completedCases.filter(c => c.id !== caseId), updated]
+          : state.completedCases.filter(c => c.id !== caseId),
       };
     });
   },

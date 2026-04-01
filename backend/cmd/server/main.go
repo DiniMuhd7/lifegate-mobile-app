@@ -13,6 +13,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/payments"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
@@ -55,6 +56,13 @@ hub := wshub.NewHub()
 	physicianRepo := physician.NewRepository(database)
 	physicianSvc := physician.NewService(physicianRepo, natsClient, hub)
 	physicianHandler := physician.NewHandler(physicianSvc)
+
+	// Wire the WebSocket hub into the AI service so new escalated cases
+	// are broadcast to all connected physicians in real time.
+	genaiSvc.SetPhysicianNotifier(hub)
+
+	// Push notification service (Expo Push API + Redis token storage).
+	pushSvc := notifications.NewService(redisClient)
 
 	reviewSvc := review.NewService(database)
 	reviewHandler := review.NewHandler(reviewSvc)
@@ -143,6 +151,25 @@ physicianGroup := api.Group("/physician", middleware.Auth(cfg.JWTSecret))
 physicianGroup.GET("/reports", physicianHandler.GetReports)
 physicianGroup.GET("/stats", physicianHandler.GetStats)
 physicianGroup.POST("/reports/:id/review", physicianHandler.ReviewReport)
+// Case queue (Pending / Active / Completed grouped)
+physicianGroup.GET("/cases", physicianHandler.GetCaseQueue)
+// Atomically take (lock) a Pending case → Active
+physicianGroup.POST("/cases/:id/take", physicianHandler.TakeCase)
+// Register/update device push token for in-app notifications
+physicianGroup.POST("/push-token", func(c *gin.Context) {
+	var req notifications.RegisterTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "token is required"})
+		return
+	}
+	uid, _ := c.Get("userID")
+	uidStr, _ := uid.(string)
+	if err := pushSvc.RegisterToken(c.Request.Context(), uidStr, req.Token); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "failed to store token"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Push token registered"})
+})
 }
 
 // Review routes

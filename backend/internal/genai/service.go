@@ -15,10 +15,23 @@ type Service struct {
 aiProvider ai.AIProvider
 db         *sql.DB
 nats       *natsclient.Client
+notifier   PhysicianNotifier
+}
+
+// PhysicianNotifier is satisfied by the WebSocket hub. It is used to push
+// real-time newcase events to all connected physician sessions.
+type PhysicianNotifier interface {
+	Broadcast(event string, data []byte)
 }
 
 func NewService(aiProvider ai.AIProvider, db *sql.DB, nats *natsclient.Client) *Service {
 return &Service{aiProvider: aiProvider, db: db, nats: nats}
+}
+
+// SetPhysicianNotifier wires up the WebSocket hub so that new escalated cases
+// are broadcast to all connected physicians in real time.
+func (s *Service) SetPhysicianNotifier(n PhysicianNotifier) {
+	s.notifier = n
 }
 
 type ChatRequest struct {
@@ -135,6 +148,18 @@ if id := s.saveDiagnosis(req.UserID, req.Message, resp, escalated); id != "" {
 				})
 				_ = s.nats.Publish("ai.diagnosis.preliminary", diagData)
 			}
+
+			// When the case is escalated (HIGH/CRITICAL risk) notify all connected
+			// physicians in real time so they can see the new entry in their queue.
+			if escalated && s.notifier != nil && resp.Diagnosis != nil {
+				casePayload, _ := json.Marshal(map[string]interface{}{
+					"caseId":  id,
+					"urgency": resp.Diagnosis.Urgency,
+					"title":   truncateMsg(req.Message, 80),
+				})
+				s.notifier.Broadcast("physician.case.new", casePayload)
+			}
+
 			return &ChatResponse{AIResponse: resp, Escalated: escalated, DiagnosisID: id}, nil
 }
 }
@@ -189,4 +214,13 @@ func (s *Service) logAudit(userID, action string, details map[string]interface{}
 	if err != nil {
 		log.Printf("[AUDIT] failed to write audit log (action=%s, user=%s): %v", action, userID, err)
 	}
+}
+
+// truncateMsg returns at most n runes from s (for notification previews).
+func truncateMsg(s string, n int) string {
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n]) + "…"
 }

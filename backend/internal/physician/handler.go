@@ -1,10 +1,11 @@
 package physician
 
 import (
-"net/http"
-"strconv"
+	"errors"
+	"net/http"
+	"strconv"
 
-"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -73,8 +74,46 @@ return
 }
 
 if err := h.svc.ReviewReport(reportID, pid, req.Action, req.Notes); err != nil {
-c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
-return
-}
+		if errors.Is(err, ErrCaseNotPending) || errors.Is(err, ErrCaseNotActive) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 c.JSON(http.StatusOK, gin.H{"success": true, "message": "Review submitted"})
+}
+
+// GetCaseQueue handles GET /physician/cases — returns the three-bucket queue.
+func (h *Handler) GetCaseQueue(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	result, err := h.svc.GetCaseQueue(pid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Case queue fetched", "data": result})
+}
+
+// TakeCase handles POST /physician/cases/:id/take — atomically claims a Pending
+// case and transitions it to Active, locking it to the requesting physician.
+func (h *Handler) TakeCase(c *gin.Context) {
+	caseID := c.Param("id")
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	if err := h.svc.TakeCase(caseID, pid); err != nil {
+		if errors.Is(err, ErrCaseNotPending) {
+			c.JSON(http.StatusConflict, gin.H{
+				"success": false,
+				"message": "Case is no longer available — another physician may have taken it.",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Case accepted"})
 }
