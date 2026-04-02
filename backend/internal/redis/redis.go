@@ -1,11 +1,12 @@
 package redis
 
 import (
-"context"
-"log"
-"time"
+	"context"
+	"encoding/json"
+	"log"
+	"time"
 
-"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9"
 )
 
 type Client struct {
@@ -80,3 +81,66 @@ c.rdb.Expire(ctx, key, time.Duration(ttlSeconds)*time.Second)
 }
 return count, nil
 }
+
+// Ping checks whether the Redis connection is alive.
+// Returns true if Redis is responsive, false otherwise (including when disabled).
+func (c *Client) Ping(ctx context.Context) bool {
+	if c.rdb == nil {
+		return false
+	}
+	return c.rdb.Ping(ctx).Err() == nil
+}
+
+// SetJSON serialises v as JSON and stores it with the given TTL.
+// Silently succeeds when Redis is unavailable (cache-optional pattern).
+func (c *Client) SetJSON(ctx context.Context, key string, v interface{}, ttlSeconds int) error {
+	if c.rdb == nil {
+		return nil
+	}
+	b, err := marshalJSON(v)
+	if err != nil {
+		return err
+	}
+	return c.rdb.Set(ctx, key, b, time.Duration(ttlSeconds)*time.Second).Err()
+}
+
+// GetJSON retrieves the value at key and unmarshals it into dst.
+// Returns (false, nil) when the key doesn't exist or Redis is unavailable.
+func (c *Client) GetJSON(ctx context.Context, key string, dst interface{}) (bool, error) {
+	if c.rdb == nil {
+		return false, nil
+	}
+	raw, err := c.rdb.Get(ctx, key).Bytes()
+	if err == redis.Nil {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, unmarshalJSON(raw, dst)
+}
+
+// InvalidatePrefix deletes all keys that start with the given prefix using SCAN.
+// This is safe for large key spaces and does not block the Redis server.
+func (c *Client) InvalidatePrefix(ctx context.Context, prefix string) {
+	if c.rdb == nil {
+		return
+	}
+	var cursor uint64
+	for {
+		keys, next, err := c.rdb.Scan(ctx, cursor, prefix+"*", 100).Result()
+		if err != nil {
+			return
+		}
+		if len(keys) > 0 {
+			c.rdb.Del(ctx, keys...)
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+}
+
+func marshalJSON(v interface{}) ([]byte, error)   { return json.Marshal(v) }
+func unmarshalJSON(b []byte, v interface{}) error { return json.Unmarshal(b, v) }

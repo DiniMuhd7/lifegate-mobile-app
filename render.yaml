@@ -10,10 +10,11 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    plan: starter          # upgrade to standard for zero-downtime deploys
+    plan: standard          # standard plan required for zero-downtime deploys + scaling
     region: oregon
     branch: main
-    healthCheckPath: /health
+    healthCheckPath: /health/ready
+    numInstances: 2         # horizontal scaling — 2 stateless replicas
 
     disk:
       name: lifegate-uploads
@@ -49,6 +50,9 @@ services:
         generateValue: true    # Render generates a cryptographically random value
       - key: JWT_EXPIRY
         value: "24h"
+      # Health data encryption key — set a strong random secret via the Render dashboard
+      - key: HEALTH_DATA_KEY
+        generateValue: true
 
       # AI — set the provider and fill in the key(s) via Render dashboard
       - key: AI_PROVIDER

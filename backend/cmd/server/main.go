@@ -186,8 +186,8 @@ chatSessionsGroup := api.Group("/chat/sessions", middleware.Auth(cfg.JWTSecret))
 	chatSessionsGroup.POST("/:id/finalize", genaiHandler.FinalizeSession)
 }
 
-// Physician routes
-physicianGroup := api.Group("/physician", middleware.Auth(cfg.JWTSecret))
+	// Physician routes — require both a valid JWT and the "physician" (or "admin") role.
+	physicianGroup := api.Group("/physician", middleware.Auth(cfg.JWTSecret), middleware.PhysicianOnly())
 {
 physicianGroup.GET("/reports", physicianHandler.GetReports)
 physicianGroup.GET("/stats", physicianHandler.GetStats)
@@ -322,6 +322,50 @@ physicianGroup.POST("/push-token", func(c *gin.Context) {
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)
 	r.GET("/ws", hub.Handler(cfg.JWTSecret))
+
+	// ── Health / readiness probes ─────────────────────────────────────────────
+	// GET /health  — liveness probe (Render, Docker, k8s)
+	// GET /health/ready — readiness probe (only passes when DB is reachable)
+	r.GET("/health", func(c *gin.Context) {
+		type check struct {
+			Status string `json:"status"`
+		}
+		out := gin.H{"service": "lifegate-backend", "version": "1.0"}
+
+		// Database (required)
+		if err := database.PingContext(c.Request.Context()); err != nil {
+			out["database"] = check{"unhealthy"}
+			out["status"] = "degraded"
+			c.JSON(http.StatusServiceUnavailable, out)
+			return
+		}
+		out["database"] = check{"healthy"}
+
+		// Redis (optional — degraded but not down)
+		if redisClient.Ping(c.Request.Context()) {
+			out["redis"] = check{"healthy"}
+		} else {
+			out["redis"] = check{"degraded"}
+		}
+
+		// NATS (optional)
+		if natsClient.IsConnected() {
+			out["nats"] = check{"healthy"}
+		} else {
+			out["nats"] = check{"degraded"}
+		}
+
+		out["status"] = "ok"
+		c.JSON(http.StatusOK, out)
+	})
+
+	r.GET("/health/ready", func(c *gin.Context) {
+		if err := database.PingContext(c.Request.Context()); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"ready": false, "reason": "database unavailable"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"ready": true})
+	})
 
 	addr := ":" + cfg.Port
 	log.Printf("LifeGate server starting on %s", addr)
