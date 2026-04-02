@@ -20,6 +20,18 @@ func NewHandler(svc *Service) *Handler {
 // ─── POST /api/genai/chat ─────────────────────────────────────────────────────
 
 // Chat handles stateless AI chat requests (backward-compatible, no session required).
+//
+// @Summary      Stateless AI chat
+// @Description  Sends a message to the AI provider and returns a response. For clinical_diagnosis category, credits are consumed.
+// @Tags         genai
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{message=string,previousMessages=array,category=string}  true  "Chat request"
+// @Success      200   {object}  object{success=bool,data=object,latency_ms=integer}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /genai/chat [post]
 func (h *Handler) Chat(c *gin.Context) {
 	start := time.Now()
 
@@ -66,7 +78,14 @@ func (h *Handler) Chat(c *gin.Context) {
 // ─── POST /api/genai/health-check ────────────────────────────────────────────
 
 // HealthCheck pings the underlying AI provider.
-// Returns 200 on success, 503 if the provider is unreachable.
+//
+// @Summary      AI provider health check
+// @Tags         genai
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,status=string}
+// @Failure      503  {object}  object{success=bool,status=string,message=string}
+// @Router       /genai/health-check [post]
 func (h *Handler) HealthCheck(c *gin.Context) {
 	if err := h.svc.HealthCheck(c.Request.Context()); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -85,6 +104,13 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 // ─── GET /api/genai/status ────────────────────────────────────────────────────
 
 // Status returns the configured AI provider name and service status.
+//
+// @Summary      AI provider status
+// @Tags         genai
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Router       /genai/status [get]
 func (h *Handler) Status(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -95,8 +121,19 @@ func (h *Handler) Status(c *gin.Context) {
 // ─── POST /api/chat/sessions/:id/ai-message ───────────────────────────────────
 
 // ChatSession processes an AI message within an existing session.
-// The user message is appended to the session history, EDIS runs inference,
-// and the AI reply is persisted back to the session before returning.
+//
+// @Summary      Session-based AI chat
+// @Description  Appends the user message to the session history, runs EDIS inference, and persists the AI reply.
+// @Tags         chat-sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string                               true  "Session ID"
+// @Param        body  body      object{message=string,category=string}  true  "Message"
+// @Success      200   {object}  object{success=bool,data=object,latency_ms=integer}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      404   {object}  object{success=bool,message=string}
+// @Router       /chat/sessions/{id}/ai-message [post]
 func (h *Handler) ChatSession(c *gin.Context) {
 	start := time.Now()
 	sessionID := c.Param("id")
@@ -137,8 +174,17 @@ func (h *Handler) ChatSession(c *gin.Context) {
 
 // ─── POST /api/chat/sessions/:id/finalize ────────────────────────────────────
 
-// FinalizeSession generates a final health report for the session, saves a
-// physician-review diagnosis record, and marks the session as completed.
+// FinalizeSession generates a final health report for the session.
+//
+// @Summary      Finalize chat session
+// @Description  Generates a physician-review diagnosis, saves a report, and marks the session as completed.
+// @Tags         chat-sessions
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Session ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /chat/sessions/{id}/finalize [post]
 func (h *Handler) FinalizeSession(c *gin.Context) {
 	sessionID := c.Param("id")
 

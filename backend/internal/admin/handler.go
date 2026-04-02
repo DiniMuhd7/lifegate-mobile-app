@@ -18,6 +18,15 @@ func NewHandler(svc *Service) *Handler {
 
 // ─── GET /api/admin/dashboard ─────────────────────────────────────────────────
 
+// GetDashboard returns the admin overview dashboard statistics.
+//
+// @Summary      Admin dashboard stats
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/dashboard [get]
 func (h *Handler) GetDashboard(c *gin.Context) {
 	stats, err := h.svc.GetDashboardStats()
 	if err != nil {
@@ -29,6 +38,21 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 
 // ─── GET /api/admin/cases ─────────────────────────────────────────────────────
 
+// GetCases returns a paginated, filtered list of all cases.
+//
+// @Summary      Admin case list
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page      query     integer  false  "Page (default 1)"
+// @Param        pageSize  query     integer  false  "Items per page (default 20)"
+// @Param        status    query     string   false  "Filter by status"
+// @Param        urgency   query     string   false  "Filter by urgency"
+// @Param        category  query     string   false  "Filter by category"
+// @Param        search    query     string   false  "Search by patient name or condition"
+// @Success      200   {object}  object{success=bool,data=array,meta=object{total=integer,page=integer,pageSize=integer}}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/cases [get]
 func (h *Handler) GetCases(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -64,6 +88,15 @@ func (h *Handler) GetCases(c *gin.Context) {
 
 // ─── GET /api/admin/sla ───────────────────────────────────────────────────────
 
+// GetSLA returns active SLA items with wait time formatting.
+//
+// @Summary      SLA report
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/sla [get]
 func (h *Handler) GetSLA(c *gin.Context) {
 	items, err := h.svc.GetSLAReport()
 	if err != nil {
@@ -88,6 +121,16 @@ func (h *Handler) GetSLA(c *gin.Context) {
 
 // ─── GET /api/admin/metrics/edis ─────────────────────────────────────────────
 
+// GetEDISMetrics returns EDIS (AI accuracy) metrics for a time window.
+//
+// @Summary      EDIS metrics
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        days  query     integer  false  "Number of days to look back (default 30)"
+// @Success      200   {object}  object{success=bool,data=object}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/metrics/edis [get]
 func (h *Handler) GetEDISMetrics(c *gin.Context) {
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
 	metrics, err := h.svc.GetEDISMetrics(days)
@@ -100,7 +143,15 @@ func (h *Handler) GetEDISMetrics(c *gin.Context) {
 
 // ─── GET /api/admin/physicians ───────────────────────────────────────────────
 
-// GetPhysicians returns all physicians with status, flag, SLA breach count.
+// GetPhysicians returns all physicians with status, flag, and SLA breach count.
+//
+// @Summary      List all physicians
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/physicians [get]
 func (h *Handler) GetPhysicians(c *gin.Context) {
 	physicians, err := h.svc.GetPhysicians()
 	if err != nil {
@@ -115,8 +166,16 @@ func (h *Handler) GetPhysicians(c *gin.Context) {
 
 // ─── GET /api/admin/physicians/:id ───────────────────────────────────────────
 
-// GetPhysicianDetail returns the full physician profile for admin view,
-// including verification status, case history, and breach count.
+// GetPhysicianDetail returns the full admin view of a physician's profile.
+//
+// @Summary      Get physician detail
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Physician user ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/{id} [get]
 func (h *Handler) GetPhysicianDetail(c *gin.Context) {
 	id := c.Param("id")
 	detail, err := h.svc.GetPhysicianDetail(id)
@@ -130,6 +189,17 @@ func (h *Handler) GetPhysicianDetail(c *gin.Context) {
 // ─── POST /api/admin/physicians ──────────────────────────────────────────────
 
 // CreatePhysician creates a new physician account.
+//
+// @Summary      Create physician account
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{name=string,email=string,password=string,specialization=string,phone=string}  true  "Physician data"
+// @Success      201   {object}  object{success=bool,message=string,data=object{id=string}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/physicians [post]
 func (h *Handler) CreatePhysician(c *gin.Context) {
 	var inp CreatePhysicianInput
 	if err := c.ShouldBindJSON(&inp); err != nil {
@@ -158,6 +228,18 @@ func (h *Handler) CreatePhysician(c *gin.Context) {
 // ─── PATCH /api/admin/physicians/:id ─────────────────────────────────────────
 
 // UpdatePhysician updates mutable physician fields.
+//
+// @Summary      Update physician
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string  true  "Physician user ID"
+// @Param        body  body      object  false  "Fields to update"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/{id} [patch]
 func (h *Handler) UpdatePhysician(c *gin.Context) {
 	id := c.Param("id")
 	var inp UpdatePhysicianInput
@@ -180,6 +262,15 @@ func (h *Handler) UpdatePhysician(c *gin.Context) {
 // ─── DELETE /api/admin/physicians/:id ────────────────────────────────────────
 
 // DeletePhysician removes a physician account.
+//
+// @Summary      Delete physician
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Physician user ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/{id} [delete]
 func (h *Handler) DeletePhysician(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeletePhysician(id); err != nil {
@@ -197,6 +288,17 @@ func (h *Handler) DeletePhysician(c *gin.Context) {
 // ─── POST /api/admin/physicians/:id/suspend ──────────────────────────────────
 
 // SuspendPhysician suspends a physician account.
+//
+// @Summary      Suspend physician
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string                    true   "Physician user ID"
+// @Param        body  body      object{reason=string}     false  "Suspension reason"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      404   {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/{id}/suspend [post]
 func (h *Handler) SuspendPhysician(c *gin.Context) {
 	id := c.Param("id")
 	var body struct {
@@ -217,6 +319,15 @@ func (h *Handler) SuspendPhysician(c *gin.Context) {
 // ─── POST /api/admin/physicians/:id/unsuspend ────────────────────────────────
 
 // UnsuspendPhysician restores a suspended physician account.
+//
+// @Summary      Unsuspend physician
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Physician user ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/{id}/unsuspend [post]
 func (h *Handler) UnsuspendPhysician(c *gin.Context) {
 	id := c.Param("id")
 	adminID, _ := c.Get("userID")
@@ -232,7 +343,18 @@ func (h *Handler) UnsuspendPhysician(c *gin.Context) {
 // ─── POST /api/admin/physicians/:id/mdcn-override ────────────────────────────
 
 // OverrideMDCN lets an admin confirm or reject a physician's MDCN verification.
-// Body: { "status": "confirmed" | "rejected" }
+//
+// @Summary      Override MDCN verification
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string                              true  "Physician user ID"
+// @Param        body  body      object{status=string}               true  "Status: confirmed | rejected"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      404   {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/{id}/mdcn-override [post]
 func (h *Handler) OverrideMDCN(c *gin.Context) {
 	id := c.Param("id")
 	var body struct {
@@ -262,6 +384,14 @@ func (h *Handler) OverrideMDCN(c *gin.Context) {
 // ─── POST /api/admin/physicians/flag-check ───────────────────────────────────
 
 // TriggerFlagCheck manually runs the SLA breach flag check across all physicians.
+//
+// @Summary      Trigger SLA flag check
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object{newlyFlagged=integer}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/physicians/flag-check [post]
 func (h *Handler) TriggerFlagCheck(c *gin.Context) {
 	count, err := h.svc.CheckAndFlagPhysicians()
 	if err != nil {
@@ -273,8 +403,16 @@ func (h *Handler) TriggerFlagCheck(c *gin.Context) {
 
 // ─── GET /api/admin/sla/breach-alerts ────────────────────────────────────────
 
-// GetSLABreachAlerts returns the most recent SLA breach events for the admin
-// alert panel. Use ?limit=N (max 100, default 50) to cap the result set.
+// GetSLABreachAlerts returns recent SLA breach events for the admin alert panel.
+//
+// @Summary      SLA breach alerts
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit  query     integer  false  "Max results (default 50, max 100)"
+// @Success      200    {object}  object{success=bool,data=array}
+// @Failure      500    {object}  object{success=bool,message=string}
+// @Router       /admin/sla/breach-alerts [get]
 func (h *Handler) GetSLABreachAlerts(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	alerts, err := h.svc.GetSLABreachAlerts(limit)
@@ -287,8 +425,17 @@ func (h *Handler) GetSLABreachAlerts(c *gin.Context) {
 
 // ─── GET /api/admin/sla/reassignment-log ─────────────────────────────────────
 
-// GetReassignmentLog returns a paginated list of auto-reassignment events
-// where a breached case was successfully handed to a new physician.
+// GetReassignmentLog returns a paginated list of auto-reassignment events.
+//
+// @Summary      SLA reassignment log
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page      query     integer  false  "Page (default 1)"
+// @Param        pageSize  query     integer  false  "Items per page (default 20)"
+// @Success      200   {object}  object{success=bool,data=array,meta=object{total=integer,page=integer,pageSize=integer}}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/sla/reassignment-log [get]
 func (h *Handler) GetReassignmentLog(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -312,7 +459,21 @@ func (h *Handler) GetReassignmentLog(c *gin.Context) {
 // ─── GET /api/admin/audit ─────────────────────────────────────────────────────
 
 // GetAuditLog returns a filtered, paginated audit event list.
-// Query: eventType, actorRole, resource, dateFrom, dateTo, page, pageSize
+//
+// @Summary      Audit log
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        eventType  query     string   false  "Filter by event type"
+// @Param        actorRole  query     string   false  "Filter by actor role"
+// @Param        resource   query     string   false  "Filter by resource type"
+// @Param        dateFrom   query     string   false  "Start date (YYYY-MM-DD)"
+// @Param        dateTo     query     string   false  "End date (YYYY-MM-DD)"
+// @Param        page       query     integer  false  "Page (default 1)"
+// @Param        pageSize   query     integer  false  "Items per page (default 50)"
+// @Success      200   {object}  object{success=bool,data=array,meta=object}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/audit [get]
 func (h *Handler) GetAuditLog(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
@@ -341,7 +502,20 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 
 // ─── GET /api/admin/audit/export ─────────────────────────────────────────────
 
-// ExportAuditCSV streams a CSV file download of filtered audit events.
+// ExportAuditCSV streams a CSV download of filtered audit events.
+//
+// @Summary      Export audit log CSV
+// @Tags         admin
+// @Produce      text/csv
+// @Security     BearerAuth
+// @Param        eventType  query     string  false  "Filter by event type"
+// @Param        actorRole  query     string  false  "Filter by actor role"
+// @Param        resource   query     string  false  "Filter by resource type"
+// @Param        dateFrom   query     string  false  "Start date (YYYY-MM-DD)"
+// @Param        dateTo     query     string  false  "End date (YYYY-MM-DD)"
+// @Success      200  {file}  binary  "CSV file download"
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/audit/export [get]
 func (h *Handler) ExportAuditCSV(c *gin.Context) {
 	f := AuditFilters{
 		EventType: c.Query("eventType"),
@@ -366,7 +540,17 @@ func (h *Handler) ExportAuditCSV(c *gin.Context) {
 // ─── GET /api/admin/transactions ─────────────────────────────────────────────
 
 // GetAllTransactions returns a paginated admin view of all payment transactions.
-// Query: status (pending|success|failed), page, pageSize
+//
+// @Summary      Admin transaction list
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status    query     string   false  "Filter by status: pending|success|failed"
+// @Param        page      query     integer  false  "Page (default 1)"
+// @Param        pageSize  query     integer  false  "Items per page (default 20)"
+// @Success      200   {object}  object{success=bool,data=array,meta=object}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/transactions [get]
 func (h *Handler) GetAllTransactions(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
@@ -387,6 +571,15 @@ func (h *Handler) GetAllTransactions(c *gin.Context) {
 // ─── GET /api/admin/transactions/export ──────────────────────────────────────
 
 // ExportTransactionsCSV streams a CSV of all payment transactions.
+//
+// @Summary      Export transactions CSV
+// @Tags         admin
+// @Produce      text/csv
+// @Security     BearerAuth
+// @Param        status  query     string  false  "Filter by status"
+// @Success      200  {file}  binary  "CSV file download"
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/transactions/export [get]
 func (h *Handler) ExportTransactionsCSV(c *gin.Context) {
 	status := c.Query("status")
 	csv, err := h.svc.BuildTransactionCSV(status)
@@ -403,6 +596,15 @@ func (h *Handler) ExportTransactionsCSV(c *gin.Context) {
 // ─── GET /api/admin/compliance/ndpa ──────────────────────────────────────────
 
 // GetNDPASnapshots returns recent NDPA 2023 compliance snapshots.
+//
+// @Summary      NDPA compliance snapshots
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit  query     integer  false  "Max results (default 30)"
+// @Success      200    {object}  object{success=bool,data=array}
+// @Failure      500    {object}  object{success=bool,message=string}
+// @Router       /admin/compliance/ndpa [get]
 func (h *Handler) GetNDPASnapshots(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "30"))
 	snaps, err := h.svc.GetNDPASnapshots(limit)
@@ -416,6 +618,14 @@ func (h *Handler) GetNDPASnapshots(c *gin.Context) {
 // ─── POST /api/admin/compliance/ndpa/generate ────────────────────────────────
 
 // GenerateNDPASnapshot computes and persists a fresh NDPA compliance snapshot.
+//
+// @Summary      Generate NDPA snapshot
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      201  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/compliance/ndpa/generate [post]
 func (h *Handler) GenerateNDPASnapshot(c *gin.Context) {
 	snap, err := h.svc.GenerateNDPASnapshot()
 	if err != nil {
@@ -434,6 +644,15 @@ func (h *Handler) GenerateNDPASnapshot(c *gin.Context) {
 // ─── GET /api/admin/compliance/ndpa/export ───────────────────────────────────
 
 // ExportNDPACSV streams a CSV of NDPA compliance snapshots.
+//
+// @Summary      Export NDPA compliance CSV
+// @Tags         admin
+// @Produce      text/csv
+// @Security     BearerAuth
+// @Param        limit  query     integer  false  "Max records (default 90)"
+// @Success      200  {file}  binary  "CSV file download"
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/compliance/ndpa/export [get]
 func (h *Handler) ExportNDPACSV(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "90"))
 	snaps, err := h.svc.GetNDPASnapshots(limit)
@@ -469,6 +688,14 @@ func (h *Handler) ExportNDPACSV(c *gin.Context) {
 // ─── GET /api/admin/settings/alerts ──────────────────────────────────────────
 
 // GetAlertThresholds returns all configurable alert thresholds.
+//
+// @Summary      Get alert thresholds
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/settings/alerts [get]
 func (h *Handler) GetAlertThresholds(c *gin.Context) {
 	thresholds, err := h.svc.GetAlertThresholds()
 	if err != nil {
@@ -481,7 +708,18 @@ func (h *Handler) GetAlertThresholds(c *gin.Context) {
 // ─── PATCH /api/admin/settings/alerts/:key ───────────────────────────────────
 
 // UpdateAlertThreshold updates a single threshold's value and enabled state.
-// Body: { "value": 4.0, "enabled": true }
+//
+// @Summary      Update alert threshold
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key   path      string                              true  "Threshold key"
+// @Param        body  body      object{value=number,enabled=bool}   true  "New values"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/settings/alerts/{key} [patch]
 func (h *Handler) UpdateAlertThreshold(c *gin.Context) {
 	key := c.Param("key")
 	var body struct {

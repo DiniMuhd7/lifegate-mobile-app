@@ -15,7 +15,17 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// GetDiagnoses handles GET /api/diagnoses — returns the authenticated patient's diagnoses.
+// GetDiagnoses returns the authenticated patient's diagnoses.
+//
+// @Summary      List patient diagnoses
+// @Tags         diagnoses
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page      query     integer  false  "Page (default 1)"
+// @Param        pageSize  query     integer  false  "Items per page (default 20, max 100)"
+// @Success      200  {object}  object{success=bool,data=object{records=array,total=integer,page=integer,pageSize=integer}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /diagnoses [get]
 func (h *Handler) GetDiagnoses(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)
@@ -50,7 +60,17 @@ func (h *Handler) GetDiagnoses(c *gin.Context) {
 	})
 }
 
-// GetDiagnosisDetail handles GET /api/diagnoses/:id — returns a single diagnosis by ID.
+// GetDiagnosisDetail returns a single diagnosis by ID for the authenticated patient.
+//
+// @Summary      Get diagnosis detail
+// @Tags         diagnoses
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Diagnosis ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /diagnoses/{id} [get]
 func (h *Handler) GetDiagnosisDetail(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)

@@ -1,3 +1,23 @@
+// Package main is the entry-point for the LifeGate API server.
+//
+// @title                      LifeGate API
+// @version                    1.0
+// @description                AI-powered clinical diagnostic platform. Patients interact with an AI assistant, physicians review AI-generated reports, and administrators manage the full lifecycle.
+// @termsOfService             https://lifegate.health/terms
+//
+// @contact.name               LifeGate Support
+// @contact.email              support@lifegate.health
+//
+// @license.name               Proprietary
+//
+// @host                       lifegatemobilebackend-2.onrender.com
+// @BasePath                   /api
+// @schemes                    https
+//
+// @securityDefinitions.apikey BearerAuth
+// @in                         header
+// @name                       Authorization
+// @description                Enter your JWT token as: Bearer <token>
 package main
 
 import (
@@ -5,6 +25,7 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/DiniMuhd7/lifegate-mobile-app/backend/docs"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/admin"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/alerts"
@@ -26,6 +47,8 @@ import (
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -322,6 +345,9 @@ physicianGroup.POST("/push-token", func(c *gin.Context) {
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)
 	r.GET("/ws", hub.Handler(cfg.JWTSecret))
+
+	// Swagger UI — GET /swagger/index.html
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// ── Health / readiness probes ─────────────────────────────────────────────
 	// GET /health  — liveness probe (Render, Docker, k8s)

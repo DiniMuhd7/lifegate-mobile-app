@@ -34,6 +34,16 @@ func uid(c *gin.Context) string {
 }
 
 // Create handles POST /api/sessions.
+//
+// @Summary      Create chat session
+// @Tags         sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{title=string,category=string,mode=string,messages=array}  false  "Session data"
+// @Success      201   {object}  object{success=bool,message=string,data=object}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /sessions [post]
 func (h *Handler) Create(c *gin.Context) {
 	var req struct {
 		Title    string          `json:"title"`
@@ -55,6 +65,14 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 // List handles GET /api/sessions.
+//
+// @Summary      List chat sessions
+// @Tags         sessions
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /sessions [get]
 func (h *Handler) List(c *gin.Context) {
 	sessions, err := h.svc.List(c.Request.Context(), uid(c))
 	if err != nil {
@@ -67,10 +85,16 @@ func (h *Handler) List(c *gin.Context) {
 	respond(c, http.StatusOK, true, "Sessions retrieved", sessions)
 }
 
-// GetIncomplete handles GET /api/sessions/incomplete.
-// Must be registered before the /:id route so the router does not treat
-// "incomplete" as a session ID.
-// Returns data: null when no incomplete session exists.
+// GetIncomplete returns the most recent incomplete (active) session, or null.
+//
+// @Summary      Get incomplete session
+// @Description  Returns the user's most recent active session if one exists, or data: null.
+// @Tags         sessions
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /sessions/incomplete [get]
 func (h *Handler) GetIncomplete(c *gin.Context) {
 	session, err := h.svc.GetIncomplete(c.Request.Context(), uid(c))
 	if err != nil {
@@ -81,7 +105,16 @@ func (h *Handler) GetIncomplete(c *gin.Context) {
 	respond(c, http.StatusOK, true, "OK", session)
 }
 
-// Get handles GET /api/sessions/:id.
+// Get returns a single chat session by ID.
+//
+// @Summary      Get chat session
+// @Tags         sessions
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Session ID"
+// @Success      200  {object}  object{success=bool,message=string,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /sessions/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
 	session, err := h.svc.Get(c.Request.Context(), c.Param("id"), uid(c))
 	if errors.Is(err, ErrNotFound) {
@@ -96,6 +129,18 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 // Update handles PUT /api/sessions/:id.
+//
+// @Summary      Update chat session
+// @Tags         sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string  true  "Session ID"
+// @Param        body  body      object{title=string,category=string,mode=string,status=string,messages=array}  false  "Fields to update"
+// @Success      200   {object}  object{success=bool,message=string,data=object}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      404   {object}  object{success=bool,message=string}
+// @Router       /sessions/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
 	var req struct {
 		Title    *string         `json:"title"`
@@ -139,7 +184,16 @@ func (h *Handler) Update(c *gin.Context) {
 	respond(c, http.StatusOK, true, "Session updated", session)
 }
 
-// Delete handles DELETE /api/sessions/:id.
+// Delete removes a chat session by ID.
+//
+// @Summary      Delete chat session
+// @Tags         sessions
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Session ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /sessions/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	err := h.svc.Delete(c.Request.Context(), c.Param("id"), uid(c))
 	if errors.Is(err, ErrNotFound) {

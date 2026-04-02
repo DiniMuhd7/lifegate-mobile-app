@@ -17,6 +17,17 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// GetReports returns paginated physician reports.
+//
+// @Summary      List physician reports
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page      query     integer  false  "Page number (default 1)"
+// @Param        pageSize  query     integer  false  "Items per page (default 10, max 100)"
+// @Success      200  {object}  object{success=bool,data=object{reports=array,total=integer,page=integer,pageSize=integer}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/reports [get]
 func (h *Handler) GetReports(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -48,6 +59,15 @@ func (h *Handler) GetReports(c *gin.Context) {
 	})
 }
 
+// GetStats returns the physician's activity statistics.
+//
+// @Summary      Physician statistics
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/stats [get]
 func (h *Handler) GetStats(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -60,8 +80,20 @@ func (h *Handler) GetStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Stats fetched", "data": stats})
 }
 
-// ReviewReport handles POST /physician/reports/:id/review.
-// Accepts: { action, notes, physician_decision, rejection_reason }
+// ReviewReport submits a physician review decision on a report.
+//
+// @Summary      Submit report review
+// @Description  Action values: "approve", "reject", "escalate". When physician_decision is Rejected, rejection_reason is required.
+// @Tags         physician
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string  true  "Report ID"
+// @Param        body  body      object{action=string,notes=string,physician_decision=string,rejection_reason=string}  true  "Review payload"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      409   {object}  object{success=bool,message=string}
+// @Router       /physician/reports/{id}/review [post]
 func (h *Handler) ReviewReport(c *gin.Context) {
 	reportID := c.Param("id")
 	physicianID, _ := c.Get("userID")
@@ -118,7 +150,16 @@ func (h *Handler) ReviewReport(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Review submitted"})
 }
 
-// GetCaseQueue handles GET /physician/cases — returns the three-bucket queue.
+// GetCaseQueue returns the three-bucket case queue for the physician.
+//
+// @Summary      Physician case queue
+// @Description  Returns pending, active, and completed case buckets for the requesting physician.
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/cases [get]
 func (h *Handler) GetCaseQueue(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -131,8 +172,18 @@ func (h *Handler) GetCaseQueue(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Case queue fetched", "data": result})
 }
 
-// TakeCase handles POST /physician/cases/:id/take — atomically claims a Pending
-// case and transitions it to Active, locking it to the requesting physician.
+// TakeCase atomically claims a pending case for the requesting physician.
+//
+// @Summary      Take/claim a case
+// @Description  Transitions the case from Pending to Active and assigns it to the requesting physician.
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Case (diagnosis) ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      409  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/cases/{id}/take [post]
 func (h *Handler) TakeCase(c *gin.Context) {
 	caseID := c.Param("id")
 	physicianID, _ := c.Get("userID")
@@ -161,8 +212,17 @@ func (h *Handler) TakeCase(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Case accepted"})
 }
 
-// GetCaseDetail handles GET /physician/cases/:id — returns the full case record
-// including parsed AI output, for the physician review screen.
+// GetCaseDetail returns the full case details for the physician review screen.
+//
+// @Summary      Get case detail
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Case (diagnosis) ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/cases/{id} [get]
 func (h *Handler) GetCaseDetail(c *gin.Context) {
 	caseID := c.Param("id")
 	physicianID, _ := c.Get("userID")
@@ -180,8 +240,17 @@ func (h *Handler) GetCaseDetail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Case detail fetched", "data": detail})
 }
 
-// GetPatientProfile handles GET /physician/patients/:id — returns the patient's
-// health profile for inline display during the case review.
+// GetPatientProfile returns a patient's health profile for use during case review.
+//
+// @Summary      Get patient profile
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Patient ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/patients/{id} [get]
 func (h *Handler) GetPatientProfile(c *gin.Context) {
 	patientID := c.Param("id")
 
@@ -197,8 +266,15 @@ func (h *Handler) GetPatientProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient profile fetched", "data": profile})
 }
 
-// GetEarningsSummary handles GET /physician/earnings — returns the aggregated
-// earnings dashboard: total earned, pending payout, case counts, next payout date.
+// GetEarningsSummary returns the physician's aggregated earnings dashboard.
+//
+// @Summary      Earnings summary
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/earnings [get]
 func (h *Handler) GetEarningsSummary(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -211,8 +287,17 @@ func (h *Handler) GetEarningsSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Earnings summary fetched", "data": summary})
 }
 
-// GetEarningsHistory handles GET /physician/earnings/history — returns paginated
-// per-case earning records with patient, condition, and payout status.
+// GetEarningsHistory returns paginated per-case earning records.
+//
+// @Summary      Earnings history
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page      query     integer  false  "Page (default 1)"
+// @Param        pageSize  query     integer  false  "Items per page (default 20, max 100)"
+// @Success      200   {object}  object{success=bool,data=object{records=array,total=integer,page=integer,pageSize=integer}}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /physician/earnings/history [get]
 func (h *Handler) GetEarningsHistory(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -243,7 +328,15 @@ func (h *Handler) GetEarningsHistory(c *gin.Context) {
 	})
 }
 
-// GetPayouts handles GET /physician/payouts — returns all payout records.
+// GetPayouts returns all payout records for the physician.
+//
+// @Summary      Physician payouts
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/payouts [get]
 func (h *Handler) GetPayouts(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -256,8 +349,20 @@ func (h *Handler) GetPayouts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payouts fetched", "data": payouts})
 }
 
-// UpdateAIOutput handles PATCH /physician/cases/:id/ai — lets a physician edit
-// the AI-generated condition, urgency, and confidence score inline.
+// UpdateAIOutput lets a physician edit the AI-generated diagnosis inline.
+//
+// @Summary      Update AI output
+// @Description  Allows the owning physician to correct the AI condition, urgency, and confidence score.
+// @Tags         physician
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path      string  true  "Case (diagnosis) ID"
+// @Param        body  body      object{condition=string,urgency=string,confidence=integer}  true  "Updated AI output"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      409   {object}  object{success=bool,message=string}
+// @Router       /physician/cases/{id}/ai [patch]
 func (h *Handler) UpdateAIOutput(c *gin.Context) {
 	caseID := c.Param("id")
 	physicianID, _ := c.Get("userID")

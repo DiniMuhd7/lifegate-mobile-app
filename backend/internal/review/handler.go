@@ -16,6 +16,20 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// GetAnalysis returns physician diagnosis analysis for a date range.
+//
+// @Summary      Physician analysis
+// @Description  Returns daily diagnosis counts for the given date range (default last 30 days) plus 10 recent activities.
+// @Tags         review
+// @Produce      json
+// @Security     BearerAuth
+// @Param        date       query     string  false  "Single date (YYYY-MM-DD). Overrides startDate/endDate."
+// @Param        startDate  query     string  false  "Start of range (YYYY-MM-DD)"
+// @Param        endDate    query     string  false  "End of range (YYYY-MM-DD)"
+// @Success      200  {object}  object{success=bool,data=array,activities=array}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /review/analysis [get]
 func (h *Handler) GetAnalysis(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -71,6 +85,21 @@ func (h *Handler) GetAnalysis(c *gin.Context) {
 	})
 }
 
+// GetDiagnoses returns the physician's paginated diagnosis records.
+//
+// @Summary      List physician diagnoses
+// @Tags         review
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page       query     integer  false  "Page (default 1)"
+// @Param        pageSize   query     integer  false  "Items per page (default 10, max 100)"
+// @Param        status     query     string   false  "Filter by status"
+// @Param        search     query     string   false  "Search term"
+// @Param        startDate  query     string   false  "Start date filter (YYYY-MM-DD)"
+// @Param        endDate    query     string   false  "End date filter (YYYY-MM-DD)"
+// @Success      200  {object}  object{success=bool,data=object{records=array,total=integer,page=integer,pageSize=integer}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /review/diagnoses [get]
 func (h *Handler) GetDiagnoses(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
@@ -121,6 +150,17 @@ func (h *Handler) GetDiagnoses(c *gin.Context) {
 	})
 }
 
+// GetDiagnosisDetail returns a specific diagnosis record for the physician.
+//
+// @Summary      Get review diagnosis detail
+// @Tags         review
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Diagnosis ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /review/diagnoses/{id} [get]
 func (h *Handler) GetDiagnosisDetail(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)

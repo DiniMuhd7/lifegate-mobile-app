@@ -56,6 +56,18 @@ body["data"] = data
 c.JSON(code, body)
 }
 
+// Login authenticates a user with email and password.
+//
+// @Summary      Login
+// @Description  Authenticate with email and password. Physicians receive a 2FA OTP instead of a token.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string,password=string}  true  "Credentials"
+// @Success      200   {object}  object{success=bool,message=string,data=object{token=string,user=object}}
+// @Failure      401   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -83,6 +95,18 @@ func (h *Handler) Login(c *gin.Context) {
 	respond(c, http.StatusOK, true, "Login successful", gin.H{"token": pair.Token, "user": pair.User})
 }
 
+// VerifyPhysician2FA verifies a physician 2FA OTP and returns a JWT.
+//
+// @Summary      Verify physician 2FA
+// @Description  Submit the OTP sent to a physician's email after password authentication.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string,otp=string}  true  "OTP payload"
+// @Success      200   {object}  object{success=bool,message=string,data=object{token=string,user=object}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/login/verify-2fa [post]
 func (h *Handler) VerifyPhysician2FA(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
@@ -105,6 +129,16 @@ func (h *Handler) VerifyPhysician2FA(c *gin.Context) {
 	respond(c, http.StatusOK, true, "Login successful", gin.H{"token": pair.Token, "user": pair.User})
 }
 
+// ResendPhysician2FA resends the 2FA OTP to a physician.
+//
+// @Summary      Resend physician 2FA code
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string}  true  "Email"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/login/resend-2fa [post]
 func (h *Handler) ResendPhysician2FA(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
@@ -125,6 +159,17 @@ func (h *Handler) ResendPhysician2FA(c *gin.Context) {
 	respond(c, http.StatusOK, true, "2FA code resent", nil)
 }
 
+// Register creates a new patient account immediately (no OTP flow).
+//
+// @Summary      Register patient (instant)
+// @Description  Creates a patient account and returns a JWT. Use /auth/register/start for physician registration.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{name=string,email=string,password=string,role=string,phone=string,dob=string,gender=string,language=string}  true  "Registration data"
+// @Success      201   {object}  object{success=bool,message=string,data=object{token=string,user=object}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /auth/register [post]
 func (h *Handler) Register(c *gin.Context) {
 var req struct {
 Name     string `json:"name" binding:"required"`
@@ -164,6 +209,33 @@ return
 respond(c, http.StatusCreated, true, "Registration successful", gin.H{"token": pair.Token, "user": pair.User})
 }
 
+// RegisterStart initiates OTP-verified registration (patient or physician).
+//
+// @Summary      Start OTP registration
+// @Description  Accepts multipart/form-data. Physicians can attach a certificate file. Sends an OTP to the provided email.
+// @Tags         auth
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        name                  formData  string  true   "Full name"
+// @Param        email                 formData  string  true   "Email address"
+// @Param        password              formData  string  true   "Password (min 8 chars)"
+// @Param        role                  formData  string  false  "Role: user | professional"
+// @Param        phone                 formData  string  false  "Phone number"
+// @Param        dob                   formData  string  false  "Date of birth (YYYY-MM-DD)"
+// @Param        gender                formData  string  false  "Gender"
+// @Param        language              formData  string  false  "Preferred language"
+// @Param        health_history        formData  string  false  "Patient health history (JSON)"
+// @Param        specialization        formData  string  false  "Physician specialization"
+// @Param        certificateName       formData  string  false  "Medical certificate name"
+// @Param        certificateId         formData  string  false  "Certificate ID"
+// @Param        certificateIssueDate  formData  string  false  "Certificate issue date"
+// @Param        yearsOfExperience     formData  string  false  "Years of experience"
+// @Param        certificate           formData  file    false  "Certificate file (PDF/JPEG/PNG/DOC/DOCX)"
+// @Success      200  {object}  object{success=bool,message=string,data=object{email=string,otpExpiresIn=integer}}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Failure      409  {object}  object{success=bool,message=string}
+// @Failure      429  {object}  object{success=bool,message=string}
+// @Router       /auth/register/start [post]
 func (h *Handler) RegisterStart(c *gin.Context) {
 if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
 respond(c, http.StatusBadRequest, false, "Failed to parse form: "+err.Error(), nil)
@@ -244,6 +316,17 @@ return
 respond(c, http.StatusOK, true, "OTP sent to your email", gin.H{"email": email, "otpExpiresIn": ttl})
 }
 
+// RegisterVerify completes OTP-gated registration.
+//
+// @Summary      Verify registration OTP
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string,otp=string}  true  "OTP payload"
+// @Success      200   {object}  object{success=bool,message=string,data=object{token=string,user=object}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/register/verify [post]
 func (h *Handler) RegisterVerify(c *gin.Context) {
 var req struct {
 Email string `json:"email" binding:"required,email"`
@@ -267,6 +350,17 @@ if err != nil {
 respond(c, http.StatusOK, true, "Registration complete", gin.H{"token": pair.Token, "user": pair.User})
 }
 
+// RegisterResend resends the registration OTP.
+//
+// @Summary      Resend registration OTP
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string}  true  "Email address"
+// @Success      200   {object}  object{success=bool,message=string,data=object{email=string,otpExpiresIn=integer}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/register/resend [post]
 func (h *Handler) RegisterResend(c *gin.Context) {
 var req struct {
 Email string `json:"email" binding:"required,email"`
@@ -289,6 +383,17 @@ if err != nil {
 respond(c, http.StatusOK, true, "OTP resent", gin.H{"email": email, "otpExpiresIn": ttl})
 }
 
+// SendPasswordResetCode sends a password reset code to the given email.
+//
+// @Summary      Send password reset code
+// @Description  Always returns 200 regardless of whether the email exists, to prevent enumeration.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string}  true  "Email"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/password/send-reset-code [post]
 func (h *Handler) SendPasswordResetCode(c *gin.Context) {
 var req struct {
 Email string `json:"email" binding:"required,email"`
@@ -306,6 +411,17 @@ if errors.Is(err, ErrResetRateLimited) {
 respond(c, http.StatusOK, true, "If that email exists, a reset code has been sent", nil)
 }
 
+// VerifyResetCode validates a password reset code and returns a short-lived reset token.
+//
+// @Summary      Verify password reset code
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{email=string,code=string}  true  "Email and reset code"
+// @Success      200   {object}  object{success=bool,message=string,data=object{resetToken=string}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      429   {object}  object{success=bool,message=string}
+// @Router       /auth/password/verify-reset-code [post]
 func (h *Handler) VerifyResetCode(c *gin.Context) {
 var req struct {
 Email string `json:"email" binding:"required,email"`
@@ -328,6 +444,16 @@ if err != nil {
 respond(c, http.StatusOK, true, "Code verified", gin.H{"resetToken": token})
 }
 
+// ResetPassword sets a new password using a verified reset token.
+//
+// @Summary      Reset password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{token=string,newPassword=string}  true  "Reset token and new password"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /auth/password/reset [post]
 func (h *Handler) ResetPassword(c *gin.Context) {
 var req struct {
 Token       string `json:"token" binding:"required"`
@@ -344,6 +470,16 @@ return
 respond(c, http.StatusOK, true, "Password reset successful", nil)
 }
 
+// Me returns the authenticated user's profile.
+//
+// @Summary      Get authenticated user
+// @Tags         auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=object{user=object}}
+// @Failure      401  {object}  object{success=bool,message=string}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /auth/me [get]
 func (h *Handler) Me(c *gin.Context) {
 userID, _ := c.Get("userID")
 id, ok := userID.(string)
@@ -363,6 +499,18 @@ return
 respond(c, http.StatusOK, true, "User fetched", gin.H{"user": user})
 }
 
+// ChangePassword updates the authenticated user's password.
+//
+// @Summary      Change password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{currentPassword=string,newPassword=string}  true  "Password change payload"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      401   {object}  object{success=bool,message=string}
+// @Router       /auth/change-password [put]
 func (h *Handler) ChangePassword(c *gin.Context) {
 userID, _ := c.Get("userID")
 uid, ok := userID.(string)
@@ -386,7 +534,16 @@ respond(c, http.StatusOK, true, "Password changed successfully", nil)
 }
 
 // MarkMDCNVerified marks the authenticated professional's MDCN license as verified.
-// PATCH /api/auth/mdcn-verify
+//
+// @Summary      Confirm MDCN verification
+// @Description  Marks the authenticated physician's MDCN license as verified. Requires role=professional.
+// @Tags         auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=object{user=object}}
+// @Failure      401  {object}  object{success=bool,message=string}
+// @Failure      403  {object}  object{success=bool,message=string}
+// @Router       /auth/mdcn-verify [patch]
 func (h *Handler) MarkMDCNVerified(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, ok := userID.(string)

@@ -16,7 +16,14 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// GetBundles handles GET /api/payments/bundles
+// GetBundles returns all available credit bundle options.
+//
+// @Summary      List credit bundles
+// @Tags         payments
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Router       /payments/bundles [get]
 func (h *Handler) GetBundles(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -24,7 +31,15 @@ func (h *Handler) GetBundles(c *gin.Context) {
 	})
 }
 
-// GetCreditBalance handles GET /api/credits/balance
+// GetCreditBalance returns the authenticated user's credit balance.
+//
+// @Summary      Get credit balance
+// @Tags         payments
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object{balance=integer,currency=string}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /credits/balance [get]
 func (h *Handler) GetCreditBalance(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)
@@ -37,8 +52,17 @@ func (h *Handler) GetCreditBalance(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": bal})
 }
 
-// InitiatePayment handles POST /api/payments/initiate
-// Body: { "bundleId": "2000" }
+// InitiatePayment creates a Flutterwave payment link for a credit bundle.
+//
+// @Summary      Initiate payment
+// @Tags         payments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{bundleId=string,name=string}  true  "Bundle selection"
+// @Success      200   {object}  object{success=bool,data=object{txRef=string,paymentLink=string}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /payments/initiate [post]
 func (h *Handler) InitiatePayment(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)
@@ -74,8 +98,18 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 	})
 }
 
-// VerifyPayment handles POST /api/payments/verify
-// Body: { "txRef": "LG-...", "flwTxId": "12345678" }
+// VerifyPayment verifies a Flutterwave transaction and credits the user's account.
+//
+// @Summary      Verify payment
+// @Tags         payments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{txRef=string,flwTxId=string}  true  "Transaction reference"
+// @Success      200   {object}  object{success=bool,message=string,data=object}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      402   {object}  object{success=bool,message=string,data=object}
+// @Router       /payments/verify [post]
 func (h *Handler) VerifyPayment(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)
@@ -111,7 +145,16 @@ func (h *Handler) VerifyPayment(c *gin.Context) {
 	})
 }
 
-// GetTransactions handles GET /api/payments/transactions?limit=50
+// GetTransactions returns the authenticated user's payment transaction history.
+//
+// @Summary      Payment transactions
+// @Tags         payments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit  query     integer  false  "Max records to return (default 50)"
+// @Success      200    {object}  object{success=bool,data=object{transactions=array,total=integer}}
+// @Failure      500    {object}  object{success=bool,message=string}
+// @Router       /payments/transactions [get]
 func (h *Handler) GetTransactions(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)

@@ -15,7 +15,15 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// GetPatientAlerts handles GET /api/alerts — patient-scoped preventive alerts.
+// GetPatientAlerts returns patient-scoped preventive health alerts.
+//
+// @Summary      Patient alerts
+// @Tags         alerts
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object{alerts=array,total=integer}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /alerts [get]
 func (h *Handler) GetPatientAlerts(c *gin.Context) {
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)
@@ -38,7 +46,15 @@ func (h *Handler) GetPatientAlerts(c *gin.Context) {
 	})
 }
 
-// GetPhysicianAlerts handles GET /api/physician/alerts — physician-scoped workload alerts.
+// GetPhysicianAlerts returns physician-scoped workload alerts.
+//
+// @Summary      Physician alerts
+// @Tags         alerts
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object{alerts=array,total=integer}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/alerts [get]
 func (h *Handler) GetPhysicianAlerts(c *gin.Context) {
 	physicianID, _ := c.Get("userID")
 	pid, _ := physicianID.(string)
