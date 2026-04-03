@@ -8,8 +8,9 @@ services:
   - type: web
     name: lifegate-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    rootDirectory: backend   # monorepo: treat backend/ as the service root
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: standard          # standard plan required for zero-downtime deploys + scaling
     region: oregon
     branch: main

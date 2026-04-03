@@ -174,7 +174,7 @@ func (h *Handler) Register(c *gin.Context) {
 var req struct {
 Name     string `json:"name" binding:"required"`
 Email    string `json:"email" binding:"required,email"`
-Password string `json:"password" binding:"required"`
+Password string `json:"password" binding:"required,min=8"`
 Role     string `json:"role"`
 Phone    string `json:"phone"`
 DOB      string `json:"dob"`

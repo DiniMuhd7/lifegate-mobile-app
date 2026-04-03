@@ -2,8 +2,44 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import NetInfo from '@react-native-community/netinfo';
 import { getToken, removeToken } from '../utils/tokenStorage';
 
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? 'https://lifegatemobilebackend-2.onrender.com/api';
+/**
+ * Resolve the correct API base URL at runtime.
+ *
+ * Priority order:
+ * 1. If EXPO_PUBLIC_API_URL is set to a non-local URL (e.g. Render), use it
+ *    on all platforms — this lets you explicitly override the backend.
+ * 2. On native (no window), fall back to the Render prod URL.
+ * 3. On web with a Codespaces hostname, derive the URL from window.location
+ *    by replacing the forwarded port segment with -80 (nginx backend).
+ * 4. Plain localhost/LAN dev — use the same host on port 80.
+ */
+function resolveBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+
+  // If explicitly configured to a remote URL, honour it everywhere.
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+
+  // Native (React Native) — no window object
+  if (typeof window === 'undefined') {
+    return envUrl ?? 'https://lifegatemobilebackend-2.onrender.com/api';
+  }
+
+  const hostname = window.location.hostname;
+
+  // GitHub Codespaces forwarded port: {name}-{port}.app.github.dev
+  const codespaceMatch = hostname.match(/^(.+?)-(\d+)(\.app\.github\.dev)$/);
+  if (codespaceMatch) {
+    // Replace the current port segment with -80 (nginx backend)
+    return `https://${codespaceMatch[1]}-80${codespaceMatch[3]}/api`;
+  }
+
+  // Localhost / LAN dev — nginx is on port 80 of the same host
+  return `http://${hostname}/api`;
+}
+
+const BASE_URL = resolveBaseUrl();
 
 // Render free-tier cold starts can take up to 50 s; use 60 s to be safe.
 const TIMEOUT_MS = 60_000;
@@ -44,10 +80,13 @@ api.interceptors.request.use(
       // ignore token fetch errors
     }
 
-    // Offline guard — fail-fast for mutations so callers can queue offline
+    // Offline guard — fail-fast for mutations so callers can queue offline.
+    // On web, isInternetReachable is null (unknown) so we only block when it
+    // is explicitly false; null is treated as "assumed online".
     const netState = await NetInfo.fetch();
-    const online = netState.isConnected && netState.isInternetReachable;
-    if (!online) {
+    const isDefinitelyOffline =
+      netState.isConnected === false || netState.isInternetReachable === false;
+    if (isDefinitelyOffline) {
       const err = new Error('OFFLINE') as AxiosError;
       (err as any).isOffline = true;
       return Promise.reject(err);
