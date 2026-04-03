@@ -14,7 +14,7 @@ services:
     region: oregon
     branch: main
     healthCheckPath: /health/ready
-    numInstances: 2         # horizontal scaling — 2 stateless replicas
+    numInstances: 1         # disk attachment requires single instance
 
     disk:
       name: lifegate-uploads
