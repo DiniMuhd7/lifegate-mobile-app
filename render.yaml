@@ -105,6 +105,7 @@ services:
     plan: starter
     region: oregon
     startCommand: "--jetstream -m 8222"
+    ipAllowList: []          # internal-only — no public IP access
 
   # ─── Managed Redis ──────────────────────────────────────────────────────────
   - type: redis
