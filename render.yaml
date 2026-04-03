@@ -73,6 +73,18 @@ services:
         sync: false
       - key: ANTHROPIC_MODEL
         value: claude-3-5-sonnet-20241022
+      - key: CODEX_MODEL
+        value: codex-mini-latest
+      - key: CLAUDE_CODE_MODEL
+        value: claude-opus-4-5
+
+      # Payments — Flutterwave
+      - key: FLW_SECRET_KEY
+        sync: false            # secret — get from dashboard.flutterwave.com
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_REDIRECT_URL
+        value: lifegate://payment/callback
 
       # Email (SMTP)
       - key: SMTP_HOST
