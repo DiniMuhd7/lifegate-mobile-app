@@ -231,10 +231,11 @@ return "", 0, fmt.Errorf("failed to store OTP: %w", err)
 }
 
 // Also persist in DB
-raw, _ := json.Marshal(payload)
-expiresAt := time.Now().Add(otpTTL * time.Second)
-_ = s.repo.UpsertPendingRegistration(payload.Email, otp, expiresAt, raw)
-
+	raw, _ := json.Marshal(payload)
+	expiresAt := time.Now().Add(otpTTL * time.Second)
+	if err := s.repo.UpsertPendingRegistration(payload.Email, otp, expiresAt, raw); err != nil {
+		return "", 0, fmt.Errorf("failed to store registration data: %w", err)
+	}
 // Send email
 	if err := s.sendOTPEmail(payload.Email, payload.Name, otp); err != nil {
 		log.Printf("[auth] sendOTPEmail to %s: %v", payload.Email, err)

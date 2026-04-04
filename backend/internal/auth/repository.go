@@ -154,14 +154,14 @@ u.CertificateIssueDate, u.YearsOfExperience, certURL,
 }
 
 func (r *Repository) UpsertPendingRegistration(email, otp string, expiresAt time.Time, payload json.RawMessage) error {
-_, err := r.db.Exec(
-`INSERT INTO pending_registrations (email, otp, otp_expires_at, payload)
+	_, err := r.db.Exec(
+		`INSERT INTO pending_registrations (email, otp, otp_expires_at, payload)
  VALUES ($1, $2, $3, $4)
  ON CONFLICT (email) DO UPDATE
-	   SET otp=$2, otp_expires_at=$3, payload=$4, created_at=NOW()\`,
-email, otp, expiresAt, payload,
-)
-return err
+	   SET otp=$2, otp_expires_at=$3, payload=$4, created_at=NOW()`,
+		email, otp, expiresAt, payload,
+	)
+	return err
 }
 
 func (r *Repository) GetPendingRegistration(email string) (*PendingRegistration, error) {
