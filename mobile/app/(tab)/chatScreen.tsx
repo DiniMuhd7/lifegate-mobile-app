@@ -43,7 +43,7 @@ const CATEGORY_LABELS: Record<ConversationCategory, string> = {
   general_health: 'General Health',
   eye_checkup: 'Eye Check Up',
   hearing_test: 'Hearing Test',
-  mental_health: '',
+  mental_health: 'Mental Health',
 };
 
 const ChatScreen: React.FC = () => {
@@ -65,6 +65,7 @@ const ChatScreen: React.FC = () => {
 
   const { user, logout } = useAuthStore();
   const creditBalance = usePaymentStore((state) => state.balance?.balance ?? null);
+  const fetchBalance = usePaymentStore((state) => state.fetchBalance);
 
   const messages = activeConversation?.messages || [];
   const activeCategory = activeConversation?.category;
@@ -122,10 +123,27 @@ const ChatScreen: React.FC = () => {
         diagnosis: msg.diagnosis,
         prescription: msg.prescription,
         diagnosisId: msg.diagnosisId,
+        followUpQuestions: msg.followUpQuestions,
+        conditions: msg.conditions,
+        riskFlags: msg.riskFlags,
         rawTimestamp: msg.timestamp,
       })),
     [messages]
   );
+
+  const handleFollowUp = useCallback(
+    (question: string) => {
+      sendMessage(question);
+    },
+    [sendMessage]
+  );
+
+  // Fetch credit balance when switching to clinical_diagnosis mode
+  useEffect(() => {
+    if (activeMode === 'clinical_diagnosis') {
+      fetchBalance();
+    }
+  }, [activeMode, fetchBalance]);
 
   const handleSend = useCallback(
     (text: string) => {
@@ -248,6 +266,41 @@ const ChatScreen: React.FC = () => {
                   </Text>
                 </View>
               </View>
+
+              {/* Credit balance pill (clinical_diagnosis mode only) */}
+              {activeMode === 'clinical_diagnosis' && creditBalance !== null && (
+                <TouchableOpacity
+                  onPress={() => router.push('/(tab)/settings/subscription')}
+                  activeOpacity={0.75}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: creditBalance === 0 ? '#fef2f2' : '#f0fdf4',
+                    borderColor: creditBalance === 0 ? '#fca5a5' : '#86efac',
+                    borderWidth: 1,
+                    borderRadius: 20,
+                    paddingHorizontal: 9,
+                    paddingVertical: 4,
+                    marginRight: 4,
+                  }}
+                >
+                  <Ionicons
+                    name="flash"
+                    size={12}
+                    color={creditBalance === 0 ? '#dc2626' : '#16a34a'}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: creditBalance === 0 ? '#dc2626' : '#15803d',
+                    }}
+                  >
+                    {creditBalance}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* Right: New chat + menu */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
@@ -409,7 +462,7 @@ const ChatScreen: React.FC = () => {
               </ScrollView>
             ) : (
               <View className="flex-1">
-                <MessageList messages={displayMessages} onRetry={retrySendMessage} />
+                <MessageList messages={displayMessages} onRetry={retrySendMessage} onFollowUp={handleFollowUp} />
               </View>
             )}
 

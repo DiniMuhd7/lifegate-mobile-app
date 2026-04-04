@@ -242,6 +242,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             diagnosis: aiResponse.diagnosis,
             prescription: aiResponse.prescription,
             diagnosisId: aiResponse.diagnosisId,
+            followUpQuestions: aiResponse.followUpQuestions,
+            conditions: aiResponse.conditions,
+            riskFlags: aiResponse.riskFlags,
           };
 
           updatedMessages.push(aiMessage);
@@ -314,6 +317,46 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }).catch(() => {
           // Non-critical — local storage is the source of truth.
         });
+
+        // Issue 7: Finalize the session when clinical_diagnosis mode produces its
+        // first diagnosis. This runs the full EDIS analysis on conversation history
+        // and queues the case for physician review.
+        const isFirstDiagnosis =
+          syncConv.mode === 'clinical_diagnosis' &&
+          !!aiResponse.diagnosis &&
+          syncConv.messages.filter((m) => m.role === 'AI' && m.diagnosisId).length === 1;
+
+        if (isFirstDiagnosis) {
+          ChatService.finalize(syncConv.serverSessionId)
+            .then((result) => {
+              // Stamp the latest AI message with the richer finalized data if it
+              // doesn't already have a diagnosis id from the stateless route.
+              set((state) => ({
+                conversations: state.conversations.map((conv) => {
+                  if (conv.id !== conversationId) return conv;
+                  const msgs = [...conv.messages];
+                  const lastAI = [...msgs].reverse().find((m) => m.role === 'AI');
+                  if (!lastAI) return conv;
+                  return {
+                    ...conv,
+                    messages: msgs.map((m) =>
+                      m.id === lastAI.id
+                        ? {
+                            ...m,
+                            diagnosisId: result.diagnosisId || m.diagnosisId,
+                            conditions: result.conditions ?? m.conditions,
+                            riskFlags: result.riskFlags ?? m.riskFlags,
+                          }
+                        : m
+                    ),
+                  };
+                }),
+              }));
+            })
+            .catch(() => {
+              // Non-critical — stateless route already created the preliminary diagnosis.
+            });
+        }
       }
     } catch (error) {
       console.error('AI response error:', error);

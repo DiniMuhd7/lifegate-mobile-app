@@ -1,9 +1,9 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from './MessageBubble';
 import { UI_SPACING } from 'constants/constants';
-import type { Diagnosis, Prescription } from 'types/chat-types';
+import type { Diagnosis, Prescription, ConditionScore, RiskFlag } from 'types/chat-types';
 
 export interface Message {
   id: string;
@@ -16,11 +16,16 @@ export interface Message {
   diagnosisId?: string;
   // Raw timestamp (ms) for grouping by date
   rawTimestamp?: number;
+  // EDIS-specific fields
+  followUpQuestions?: string[];
+  conditions?: ConditionScore[];
+  riskFlags?: RiskFlag[];
 }
 
 interface MessageListProps {
   messages: Message[];
   onRetry?: (messageId: string) => void;
+  onFollowUp?: (question: string) => void;
 }
 
 const formatDividerDate = (ts: number): string => {
@@ -34,17 +39,28 @@ const formatDividerDate = (ts: number): string => {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 };
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onFollowUp }) => {
   const scrollRef = useRef<ScrollView>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
-  const contentHeightRef = useRef(0);
-  const scrollYRef = useRef(0);
-  const containerHeightRef = useRef(0);
+  const isAtBottomRef = useRef(true);
+
+  // Auto-scroll to bottom whenever a new message is appended,
+  // but only when the user is already near the bottom (preserves scroll when reading history).
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      // Small delay so the layout has settled before scrolling.
+      const t = setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 60);
+      return () => clearTimeout(t);
+    }
+  }, [messages.length]);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-    scrollYRef.current = contentOffset.y;
     const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+    const atBottom = distanceFromBottom < 80;
+    isAtBottomRef.current = atBottom;
     setShowScrollFab(distanceFromBottom > 120);
   }, []);
 
@@ -76,10 +92,9 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry }) =
         keyboardDismissMode="on-drag"
         onScroll={handleScroll}
         scrollEventThrottle={100}
-        onContentSizeChange={(_, h) => {
-          contentHeightRef.current = h;
-          if (!showScrollFab) {
-            scrollRef.current?.scrollToEnd({ animated: true });
+        onContentSizeChange={() => {
+          if (isAtBottomRef.current) {
+            scrollRef.current?.scrollToEnd({ animated: false });
           }
         }}
       >
@@ -118,9 +133,13 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry }) =
               status={msg.status}
               delay={msgIndex * 60}
               onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
+              onFollowUp={onFollowUp}
               diagnosis={msg.diagnosis}
               prescription={msg.prescription}
               diagnosisId={msg.diagnosisId}
+              followUpQuestions={msg.followUpQuestions}
+              conditions={msg.conditions}
+              riskFlags={msg.riskFlags}
             />
           );
         })}

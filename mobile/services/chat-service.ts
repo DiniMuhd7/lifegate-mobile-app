@@ -10,7 +10,7 @@
  */
 
 import api from './api';
-import { Message, AIResponse } from 'types/chat-types';
+import { Message, AIResponse, FinalizeResult } from 'types/chat-types';
 
 /**
  * Service responsible for communicating with the Backend AI API.
@@ -103,5 +103,17 @@ export class ChatService {
         'I encountered an error analyzing your symptoms. Please try again or consult a professional.'
       );
     }
+  }
+
+  /**
+   * Finalizes a session-scoped chat, running a comprehensive EDIS analysis
+   * on the full conversation history and queueing the case for physician review.
+   * Called after a clinical_diagnosis session receives its first diagnosis.
+   */
+  static async finalize(sessionId: string): Promise<FinalizeResult> {
+    const res = await api.post<{ success: boolean; data: FinalizeResult }>(
+      `/chat/sessions/${sessionId}/finalize`
+    );
+    return res.data.data;
   }
 }

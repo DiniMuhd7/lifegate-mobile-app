@@ -32,12 +32,46 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
     onSend?.(text.trim());
     setText('');
+    setIsMicActive(false);
   };
 
   const handleMicPress = () => {
     if (disabled) return;
-    setIsMicActive((prev) => !prev);
-    onMicPress?.();
+
+    if (Platform.OS === 'web') {
+      const SpeechRecognitionAPI =
+        (window as unknown as { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition ||
+        (window as unknown as { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition;
+
+      if (!SpeechRecognitionAPI) {
+        return;
+      }
+
+      if (isMicActive) {
+        setIsMicActive(false);
+        return;
+      }
+
+      setIsMicActive(true);
+      const recognition = new SpeechRecognitionAPI();
+      recognition.lang = 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = event.results[0][0].transcript;
+        setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        setIsMicActive(false);
+      };
+      recognition.onerror = () => setIsMicActive(false);
+      recognition.onend = () => setIsMicActive(false);
+      recognition.start();
+    } else {
+      // Native: haptic feedback; speech-to-text coming soon
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setIsMicActive(false);
+      onMicPress?.();
+    }
   };
 
   const hasText = text.trim().length > 0;

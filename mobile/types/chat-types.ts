@@ -42,6 +42,20 @@ export type Prescription = {
   instructions?: string;
 };
 
+// Ranked probable condition from EDIS probabilistic analysis
+export type ConditionScore = {
+  condition: string;
+  confidence: number; // 0–100
+  description: string;
+};
+
+// Early-stage risk signal detected by EDIS
+export type RiskFlag = {
+  flag: string;        // e.g. "EARLY_INFECTION_RISK"
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  description: string;
+};
+
 // Individual message in a conversation
 export type Message = {
   id: string; // UUID-like identifier
@@ -52,6 +66,10 @@ export type Message = {
   diagnosis?: Diagnosis; // Optional structured diagnosis from AI
   prescription?: Prescription; // Optional structured prescription from AI
   diagnosisId?: string; // DB diagnosis record ID for navigation to report screen
+  // EDIS-specific fields returned by the AI
+  followUpQuestions?: string[];    // Clarifying questions for the patient to answer
+  conditions?: ConditionScore[];   // Ranked differential diagnosis list
+  riskFlags?: RiskFlag[];          // Early-stage risk signals
 };
 
 // Conversation (session of messages)
@@ -77,6 +95,19 @@ export type AIResponse = {
   escalated?: boolean;
   // DB record ID of the saved diagnosis (present when a diagnosis was saved)
   diagnosisId?: string;
+  // EDIS-specific fields
+  followUpQuestions?: string[];
+  conditions?: ConditionScore[];
+  riskFlags?: RiskFlag[];
+};
+
+// Result returned from POST /chat/sessions/:id/finalize
+export type FinalizeResult = {
+  diagnosisId: string;
+  summary: string;
+  conditions?: ConditionScore[];
+  riskFlags?: RiskFlag[];
+  mode: string;
 };
 
 // Message validation result
