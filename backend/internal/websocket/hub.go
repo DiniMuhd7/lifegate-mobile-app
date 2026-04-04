@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -35,13 +36,37 @@ func checkOrigin(r *http.Request) bool {
 	return false
 }
 
+// clientMsg is the JSON shape a connected client may send to the hub.
+// action: "subscribe" | "unsubscribe"
+// events: list of event names the client wants to receive or stop receiving.
+type clientMsg struct {
+	Action string   `json:"action"`
+	Events []string `json:"events"`
+}
+
+// Client represents a single WebSocket connection.
 type Client struct {
 	hub    *Hub
 	conn   *websocket.Conn
 	send   chan []byte
 	userID string
+	role   string // "user" | "professional" | "admin"
+	mu     sync.RWMutex
+	subs   map[string]bool // set of event names this client subscribes to
 }
 
+// isSubscribed returns true when the client has subscribed to the given event,
+// or has no explicit subscriptions at all (receives everything).
+func (c *Client) isSubscribed(event string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.subs) == 0 {
+		return true
+	}
+	return c.subs[event]
+}
+
+// Hub manages all active WebSocket connections.
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[*Client]bool
@@ -64,12 +89,15 @@ func (h *Hub) unregister(c *Client) {
 	close(c.send)
 }
 
-// Broadcast sends an event to every connected client.
+// Broadcast sends an event to every connected client that subscribes to it.
 func (h *Hub) Broadcast(event string, data []byte) {
 	msg := append([]byte(event+":"), data...)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for c := range h.clients {
+		if !c.isSubscribed(event) {
+			continue
+		}
 		select {
 		case c.send <- msg:
 		default:
@@ -83,7 +111,7 @@ func (h *Hub) BroadcastToUser(userID, event string, data []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for c := range h.clients {
-		if c.userID == userID {
+		if c.userID == userID && c.isSubscribed(event) {
 			select {
 			case c.send <- msg:
 			default:
@@ -92,8 +120,30 @@ func (h *Hub) BroadcastToUser(userID, event string, data []byte) {
 	}
 }
 
-// Handler upgrades the connection. Accepts an optional `token` query parameter
-// for JWT authentication; if valid the client is associated with that user.
+// BroadcastToRole sends an event to all clients with the given role.
+// role matches the "role" JWT claim ("user", "professional", "admin").
+func (h *Hub) BroadcastToRole(role, event string, data []byte) {
+	msg := append([]byte(event+":"), data...)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients {
+		if c.role == role && c.isSubscribed(event) {
+			select {
+			case c.send <- msg:
+			default:
+			}
+		}
+	}
+}
+
+// Handler upgrades the HTTP connection to WebSocket. Accepts an optional
+// `token` query parameter for JWT authentication; if valid the client is
+// associated with that userID and role.
+//
+// After connecting, clients may send subscription control frames:
+//
+//	{"action":"subscribe",   "events":["diagnosis.update"]}
+//	{"action":"unsubscribe", "events":["diagnosis.update"]}
 func (h *Hub) Handler(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
@@ -103,9 +153,11 @@ func (h *Hub) Handler(jwtSecret string) gin.HandlerFunc {
 		}
 
 		userID := ""
+		role := ""
 		if tokenStr := c.Query("token"); tokenStr != "" {
 			type wsClaims struct {
 				UserID string `json:"user_id"`
+				Role   string `json:"role"`
 				jwt.RegisteredClaims
 			}
 			claims := &wsClaims{}
@@ -114,10 +166,18 @@ func (h *Hub) Handler(jwtSecret string) gin.HandlerFunc {
 			}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
 			if parseErr == nil && tok.Valid {
 				userID = claims.UserID
+				role = claims.Role
 			}
 		}
 
-		client := &Client{hub: h, conn: conn, send: make(chan []byte, 256), userID: userID}
+		client := &Client{
+			hub:    h,
+			conn:   conn,
+			send:   make(chan []byte, 256),
+			userID: userID,
+			role:   role,
+			subs:   make(map[string]bool),
+		}
 		h.register(client)
 
 		go client.writePump()
@@ -131,10 +191,27 @@ func (c *Client) readPump() {
 		c.conn.Close()
 	}()
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
 			break
 		}
+		// Handle subscription control messages.
+		var msg clientMsg
+		if jsonErr := json.Unmarshal(raw, &msg); jsonErr != nil {
+			continue
+		}
+		c.mu.Lock()
+		switch msg.Action {
+		case "subscribe":
+			for _, ev := range msg.Events {
+				c.subs[ev] = true
+			}
+		case "unsubscribe":
+			for _, ev := range msg.Events {
+				delete(c.subs, ev)
+			}
+		}
+		c.mu.Unlock()
 	}
 }
 

@@ -28,6 +28,19 @@ redis      *redisclient.Client
 cfg        *config.Config
 resendURL  string
 trialGranter TrialCreditGranter
+natsPublisher NATSPublisher
+}
+
+// NATSPublisher is a publish-only interface satisfied by *natsclient.Client.
+// Using an interface avoids an import cycle between the auth and nats packages.
+type NATSPublisher interface {
+	Publish(subject string, data []byte) error
+}
+
+// SetNATSPublisher wires a NATS client into the service so it can emit
+// domain events (e.g. physician.verification.confirmed).
+func (s *Service) SetNATSPublisher(p NATSPublisher) {
+	s.natsPublisher = p
 }
 
 // TrialCreditGranter is satisfied by payments.Service and grants free credits to new accounts.
@@ -582,11 +595,21 @@ return s.repo.UpdatePasswordByID(userID, string(newHash))
 // MarkMDCNVerified marks the professional's MDCN license status as verified
 // and returns the updated user record.
 func (s *Service) MarkMDCNVerified(ctx context.Context, userID string) (*User, error) {
-user, err := s.repo.SetMDCNVerified(userID)
-if err != nil {
-return nil, fmt.Errorf("failed to update MDCN verification status: %w", err)
-}
-return user, nil
+	user, err := s.repo.SetMDCNVerified(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update MDCN verification status: %w", err)
+	}
+	if s.natsPublisher != nil {
+		payload, _ := json.Marshal(map[string]string{
+			"user_id": userID,
+			"email":   user.Email,
+			"name":    user.Name,
+		})
+		if pubErr := s.natsPublisher.Publish("physician.verification.confirmed", payload); pubErr != nil {
+			log.Printf("[auth] publish physician.verification.confirmed: %v", pubErr)
+		}
+	}
+	return user, nil
 }
 
 func (s *Service) generateJWT(u *User) (string, error) {

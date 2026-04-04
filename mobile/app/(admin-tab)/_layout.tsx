@@ -1,6 +1,9 @@
 import { Stack } from 'expo-router';
+import { useAdminWebSocket } from '../../utils/useWebSocket';
 
 export default function AdminTabLayout() {
+  useAdminWebSocket();
+
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8fafc' } }}>
       <Stack.Screen name="dashboard" />

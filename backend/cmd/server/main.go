@@ -22,6 +22,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -94,6 +95,7 @@ log.Printf("AI provider: %s", aiProvider.Name())
 // Layers
 authRepo := auth.NewRepository(database)
 authSvc := auth.NewService(authRepo, redisClient, cfg)
+authSvc.SetNATSPublisher(natsClient)
 authHandler := auth.NewHandler(authSvc, cfg.UploadDir)
 
 sessionsRepo := sessions.NewRepository(database)
@@ -105,6 +107,29 @@ sessionsRepo := sessions.NewRepository(database)
 	genaiHandler := genai.NewHandler(genaiSvc)
 
 hub := wshub.NewHub()
+
+	// NATS → WebSocket bridge: subscribe to durable NATS subjects and push
+	// real-time events to the relevant connected clients.
+	_ = natsClient.Subscribe("ai.diagnosis.preliminary", func(_ string, data []byte) {
+		var p struct {
+			UserID string `json:"user_id"`
+		}
+		if jsonErr := json.Unmarshal(data, &p); jsonErr == nil && p.UserID != "" {
+			hub.BroadcastToUser(p.UserID, "diagnosis.update", data)
+		}
+	})
+	_ = natsClient.Subscribe("early_flag.detected", func(_ string, data []byte) {
+		hub.BroadcastToRole("professional", "physician.review.status", data)
+	})
+	_ = natsClient.Subscribe("physician.review.completed", func(_ string, data []byte) {
+		hub.BroadcastToRole("professional", "physician.review.status", data)
+	})
+	_ = natsClient.Subscribe("physician.verification.confirmed", func(_ string, data []byte) {
+		hub.BroadcastToRole("admin", "case.state.changed", data)
+	})
+	_ = natsClient.Subscribe("admin.sla.breach.alert", func(_ string, data []byte) {
+		hub.BroadcastToRole("admin", "case.state.changed", data)
+	})
 
 	physicianRepo := physician.NewRepository(database)
 	physicianSvc := physician.NewService(physicianRepo, natsClient, hub)
