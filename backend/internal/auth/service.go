@@ -9,6 +9,8 @@ import (
 "encoding/json"
 "errors"
 "fmt"
+"io"
+"log"
 "math/big"
 "net/http"
 "strings"
@@ -122,7 +124,9 @@ func (s *Service) Login(ctx context.Context, email, password, clientIP string) (
 			return nil, fmt.Errorf("failed to initiate 2FA")
 		}
 		_, _ = s.redis.IncrWithTTL(ctx, rateKey, rate2FAWindowSecs)
-		_ = s.send2FAEmail(email, user.Name, otp)
+		if err := s.send2FAEmail(email, user.Name, otp); err != nil {
+			log.Printf("[auth] send 2FA email to %s: %v", email, err)
+		}
 		return nil, ErrRequires2FA
 	}
 
@@ -232,7 +236,9 @@ expiresAt := time.Now().Add(otpTTL * time.Second)
 _ = s.repo.UpsertPendingRegistration(payload.Email, otp, expiresAt, raw)
 
 // Send email
-_ = s.sendOTPEmail(payload.Email, payload.Name, otp)
+	if err := s.sendOTPEmail(payload.Email, payload.Name, otp); err != nil {
+		log.Printf("[auth] sendOTPEmail to %s: %v", payload.Email, err)
+	}
 
 return payload.Email, otpTTL, nil
 }
@@ -374,7 +380,9 @@ func (s *Service) ResendOTP(ctx context.Context, email string) (string, int, err
 	// Use the stored name for a personalized email.
 	var p RegisterStartPayload
 	_ = json.Unmarshal(pr.Payload, &p)
-	_ = s.sendOTPEmail(email, p.Name, otp)
+	if err := s.sendOTPEmail(email, p.Name, otp); err != nil {
+		log.Printf("[auth] resend OTP email to %s: %v", email, err)
+	}
 
 	return email, otpTTL, nil
 }
@@ -641,7 +649,8 @@ func (s *Service) sendEmail(to, subject, body string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("resend: unexpected status %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resend: status %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
 }

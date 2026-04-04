@@ -34,6 +34,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
@@ -76,6 +77,11 @@ func main() {
 	// Infrastructure
 database := db.Connect(cfg.DatabaseURL)
 defer database.Close()
+
+	// Run any pending migrations automatically on startup.
+	if err := db.RunMigrations(database, migrations.FS); err != nil {
+		log.Fatalf("FATAL: database migration failed: %v", err)
+	}
 
 redisClient := redisclient.Connect(cfg.RedisURL)
 natsClient := natsclient.Connect(cfg.NatsURL)

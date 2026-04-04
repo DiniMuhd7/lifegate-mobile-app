@@ -86,17 +86,12 @@ services:
       - key: FLW_REDIRECT_URL
         value: lifegate://payment/callback
 
-      # Email (SMTP)
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
-        sync: false            # your Gmail / transactional-email address
-      - key: SMTP_PASSWORD
-        sync: false            # App Password or SMTP API key
-      - key: SMTP_FROM
-        value: noreply@lifegate.app
+      # Email — Resend (https://resend.com)
+      # Requires the sender domain to be verified in the Resend dashboard.
+      - key: RESEND_API_KEY
+        sync: false            # secret — enter value in Render dashboard
+      - key: EMAIL_FROM
+        value: contact@dshub.com.ng
 
       # CORS — comma-separated list of allowed origins (Expo Go, web client, etc.)
       # Example: https://lifegate-backend.onrender.com,exp://...
