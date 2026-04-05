@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/edis"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
+	"github.com/lib/pq"
 )
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -347,41 +349,64 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 	}
 
 	// ── Duplicate detection ────────────────────────────────────────────────────
-	// Before creating a new case, look for an existing Pending case for the same
-	// user with the same condition (case-insensitive) created within the last 30
-	// days. If one exists, update it in-place so the patient's dashboard doesn't
-	// fill up with redundant entries for the same complaint.
+	// Build a normalised set of all possible condition names from this AI
+	// response (primary diagnosis + every entry in 'conditions' array).
+	// We match against any existing Pending case whose stored conditions overlap
+	// with ours — either via the top-level 'condition' column or the JSONB
+	// 'conditions' array in ai_response. This prevents the dashboard from filling
+	// up with redundant entries whenever the user continues describing the same
+	// complaint across multiple messages.
+	var condNames []string
 	if condition != "" {
+		condNames = append(condNames, strings.ToLower(condition))
+	}
+	for _, cs := range resp.Conditions {
+		if cs.Condition != "" {
+			condNames = append(condNames, strings.ToLower(cs.Condition))
+		}
+	}
+
+	if len(condNames) > 0 {
 		var existingID string
 		lookupErr := s.db.QueryRow(`
 			SELECT id::text
 			FROM diagnoses
 			WHERE user_id   = $1::uuid
 			  AND status    = 'Pending'
-			  AND LOWER(condition) = LOWER($2)
 			  AND created_at > NOW() - INTERVAL '30 days'
+			  AND (
+			        LOWER(COALESCE(condition,'')) = ANY($2)
+			        OR EXISTS (
+			            SELECT 1
+			            FROM jsonb_array_elements(
+			                     COALESCE(ai_response->'conditions', '[]'::jsonb)
+			                 ) AS c
+			            WHERE LOWER(c->>'condition') = ANY($2)
+			        )
+			  )
 			ORDER BY created_at DESC
 			LIMIT 1`,
-			userID, condition,
+			userID, pq.Array(condNames),
 		).Scan(&existingID)
 
 		if lookupErr == nil && existingID != "" {
-			// Update the existing case with the latest AI output (new symptoms may
-			// have refined the diagnosis, urgency, or prescription details).
+			// Update the existing case with the latest AI output (new symptoms
+			// may have refined the diagnosis, urgency, or prescription details).
 			_, updateErr := s.db.Exec(`
 				UPDATE diagnoses
 				SET description = $2,
-				    urgency     = $3,
-				    ai_response = $4,
-				    escalated   = $5,
+				    condition   = $3,
+				    urgency     = $4,
+				    ai_response = $5,
+				    escalated   = $6,
 				    updated_at  = NOW()
 				WHERE id = $1::uuid`,
-				existingID, resp.Text, urgency, aiJSON, escalated,
+				existingID, resp.Text, condition, urgency, aiJSON, escalated,
 			)
 			if updateErr != nil {
 				log.Printf("[EDIS] failed to update existing case %s: %v", existingID, updateErr)
 			} else {
-				log.Printf("[EDIS] reusing existing case %s for condition %q (user=%s)", existingID, condition, userID)
+				log.Printf("[EDIS] reusing existing case %s (matched conditions: %v user=%s)", existingID, condNames, userID)
 				return existingID
 			}
 		}
