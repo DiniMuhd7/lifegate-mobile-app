@@ -13,11 +13,40 @@ import { DifferentialList } from './DifferentialList';
 import { RiskFlagList } from './RiskFlagList';
 import { InvestigationList } from './InvestigationList';
 
+// Tick/check status indicator for sent messages (WhatsApp-style)
+const MessageTicks: React.FC<{ status: 'SENDING' | 'SENT' | 'READ' | 'FAILED' }> = ({ status }) => {
+  if (status === 'SENDING') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+        <Ionicons name="time-outline" size={13} color="rgba(255,255,255,0.5)" />
+      </View>
+    );
+  }
+  if (status === 'SENT') {
+    // Single grey tick — delivered to server
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.55)" />
+      </View>
+    );
+  }
+  if (status === 'READ') {
+    // Double teal ticks — AI has read and responded
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: -4 }}>
+        <Ionicons name="checkmark" size={14} color="#5eead4" />
+        <Ionicons name="checkmark" size={14} color="#5eead4" style={{ marginLeft: -6 }} />
+      </View>
+    );
+  }
+  return null;
+};
+
 interface MessageBubbleProps {
   message: string;
   type: 'sent' | 'received';
   timestamp?: string;
-  status?: 'SENDING' | 'SENT' | 'FAILED';
+  status?: 'SENDING' | 'SENT' | 'READ' | 'FAILED';
   delay?: number;
   onRetry?: () => void;
   onFollowUp?: (question: string) => void;
@@ -172,47 +201,44 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {message}
             </Text>
 
-            {/* Status indicator */}
-            {status && (
-              <View style={{ marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                {status === 'SENDING' && (
-                  <>
-                    <Ionicons name="ellipsis-horizontal" size={12} color="rgba(255,255,255,0.6)" />
-                    <Text style={{ fontSize: UI_FONT_SIZES.MESSAGE_STATUS, color: 'rgba(255,255,255,0.65)' }}>
-                      Sending…
+            {/* Footer: timestamp + tick status */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 4,
+                marginTop: 4,
+              }}
+            >
+              {isLastInGroup && timestamp && (
+                <Text
+                  style={{
+                    fontSize: UI_FONT_SIZES.MESSAGE_TIMESTAMP,
+                    color: 'rgba(255,255,255,0.55)',
+                  }}
+                >
+                  {timestamp}
+                </Text>
+              )}
+              {status && status !== 'FAILED' && <MessageTicks status={status} />}
+            </View>
+
+            {/* Failed indicator */}
+            {status === 'FAILED' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginTop: 4 }}>
+                <Ionicons name="alert-circle" size={13} color="#fca5a5" />
+                <Text style={{ fontSize: UI_FONT_SIZES.MESSAGE_STATUS, color: '#fca5a5' }}>
+                  Failed
+                </Text>
+                {onRetry && (
+                  <TouchableOpacity onPress={onRetry} activeOpacity={0.7}>
+                    <Text style={{ fontSize: UI_FONT_SIZES.MESSAGE_STATUS, color: '#67e8f9', textDecorationLine: 'underline' }}>
+                      Retry
                     </Text>
-                  </>
-                )}
-                {status === 'FAILED' && (
-                  <>
-                    <Ionicons name="alert-circle" size={12} color="#fca5a5" />
-                    <Text style={{ fontSize: UI_FONT_SIZES.MESSAGE_STATUS, color: '#fca5a5' }}>
-                      Failed
-                    </Text>
-                    {onRetry && (
-                      <TouchableOpacity onPress={onRetry} activeOpacity={0.7}>
-                        <Text style={{ fontSize: UI_FONT_SIZES.MESSAGE_STATUS, color: '#67e8f9', textDecorationLine: 'underline' }}>
-                          Retry
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </>
+                  </TouchableOpacity>
                 )}
               </View>
-            )}
-
-            {/* Timestamp — only on last in group */}
-            {isLastInGroup && timestamp && (
-              <Text
-                style={{
-                  fontSize: UI_FONT_SIZES.MESSAGE_TIMESTAMP,
-                  color: 'rgba(255,255,255,0.55)',
-                  textAlign: 'right',
-                  marginTop: 3,
-                }}
-              >
-                {timestamp}
-              </Text>
             )}
           </View>
         ) : (

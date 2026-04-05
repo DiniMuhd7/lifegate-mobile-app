@@ -227,9 +227,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const conversations = state.conversations.map((conv) => {
           if (conv.id !== conversationId) return conv;
 
-          // Update user message status to SENT
+          // Update user message status to READ (AI has received and responded)
           const updatedMessages = conv.messages.map((msg) =>
-            msg.id === userMessage.id ? { ...msg, status: 'SENT' as MessageStatus } : msg
+            msg.id === userMessage.id ? { ...msg, status: 'READ' as MessageStatus } : msg
           );
 
           // Append AI message

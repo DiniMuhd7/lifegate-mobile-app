@@ -10,7 +10,8 @@
 export type MessageRole = 'USER' | 'AI';
 
 // Message status for optimistic UI
-export type MessageStatus = 'SENDING' | 'SENT' | 'FAILED';
+// SENDING → SENT (server received) → READ (AI responded) | FAILED
+export type MessageStatus = 'SENDING' | 'SENT' | 'READ' | 'FAILED';
 
 // Conversation category (matches suggested action ids)
 export type ConversationCategory =
