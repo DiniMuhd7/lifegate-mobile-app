@@ -33,6 +33,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   // Mic button pulse scale while active
   const micPulse = useRef(new Animated.Value(1)).current;
 
+  // Idle attention animation – gentle shake when user hasn't typed anything
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (isMicActive) {
       const makeRing = (
@@ -171,6 +174,30 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   };
 
   const hasText = text.trim().length > 0;
+
+  // Trigger shake when idle (no text, not recording, not disabled)
+  useEffect(() => {
+    if (!hasText && !disabled && !isMicActive) {
+      const shake = Animated.loop(
+        Animated.sequence([
+          Animated.delay(3500),
+          Animated.timing(shakeAnim, { toValue: -5, duration: 70, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 5, duration: 70, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: -4, duration: 60, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 4, duration: 60, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+        ])
+      );
+      shake.start();
+      return () => {
+        shake.stop();
+        shakeAnim.setValue(0);
+      };
+    } else {
+      shakeAnim.setValue(0);
+    }
+  }, [hasText, disabled, isMicActive]);
+
   const charCount = text.length;
   const MAX_CHARS = 5000;
   const showCounter = charCount > 4000;
@@ -236,23 +263,17 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       )}
 
       {/* Input row */}
-      <View
+      <Animated.View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: 'rgba(255,255,255,0.95)',
+          backgroundColor: 'rgba(255,255,255,0.92)',
           borderRadius: 30,
           paddingLeft: 20,
           paddingRight: 6,
           paddingVertical: 6,
-          borderWidth: 1.5,
-          borderColor: isMicActive ? 'rgba(239,68,68,0.35)' : 'rgba(13,148,136,0.3)',
-          shadowColor: isMicActive ? '#ef4444' : '#0f766e',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: isMicActive ? 0.28 : 0.22,
-          shadowRadius: 20,
-          elevation: 12,
           opacity: disabled ? 0.55 : 1,
+          transform: [{ translateX: shakeAnim }],
         }}
       >
         {/* Text input */}
@@ -265,7 +286,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             paddingVertical: 6,
             maxHeight: 110,
             textAlignVertical: 'center',
-            textAlign: !hasText ? 'center' : 'left',
+            textAlign: hasText ? 'left' : 'center',
           }}
           value={text}
           onChangeText={setText}
@@ -278,7 +299,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           maxLength={MAX_CHARS}
         />
 
-        {/* Mic button with wave rings */}
+        {/* Mic button with wave rings – only shown when no text is typed */}
         <TouchableOpacity
           onPress={handleMicPress}
           activeOpacity={0.75}
@@ -371,7 +392,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             <Ionicons name="arrow-up" size={22} color="#ffffff" />
           </TouchableOpacity>
         </Animated.View>
-      </View>
+      </Animated.View>
     </View>
   );
 };
