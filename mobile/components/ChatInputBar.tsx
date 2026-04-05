@@ -33,6 +33,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   // Mic button pulse scale while active
   const micPulse = useRef(new Animated.Value(1)).current;
 
+  // Scale applied to the whole mic button on press-and-hold
+  const micPressScale = useRef(new Animated.Value(1)).current;
+
   // SpeechRecognition instance kept in a ref so pressOut can stop it
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -115,6 +118,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     if (disabled) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    // Enlarge mic button while holding
+    Animated.spring(micPressScale, {
+      toValue: 1.6,
+      useNativeDriver: true,
+      tension: 140,
+      friction: 6,
+    }).start();
+
     if (Platform.OS === 'web') {
       const SpeechRecognitionAPI =
         (
@@ -163,6 +174,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const handleMicPressOut = () => {
     if (!isMicActive) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Spring mic button back to normal size
+    Animated.spring(micPressScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 180,
+      friction: 8,
+    }).start();
 
     if (Platform.OS === 'web') {
       recognitionRef.current?.stop();
@@ -345,7 +364,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           disabled={disabled}
           style={{ marginRight: 4, padding: 4 }}
         >
-          <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', transform: [{ scale: micPressScale }] }}>
             {/* Ring 1 */}
             <Animated.View
               style={{
@@ -406,7 +425,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                 color={isMicActive ? '#dc2626' : '#0d9488'}
               />
             </Animated.View>
-          </View>
+          </Animated.View>
         </Pressable>
 
         {/* Send button */}
