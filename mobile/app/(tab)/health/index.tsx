@@ -427,6 +427,77 @@ function QuickActions() {
           </LinearGradient>
         </Pressable>
       </View>
+
+      {/* Secondary action row */}
+      <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+        <Pressable
+          onPress={() => router.push('/(tab)/health/symptoms' as never)}
+          style={({ pressed }) => ({
+            flex: 1,
+            opacity: pressed ? 0.82 : 1,
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: '#f3f4f6',
+            padding: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+          })}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: '#fef3c7',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="pulse-outline" size={17} color="#d97706" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>Symptom Tracker</Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>Trends & history</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color="#d1d5db" />
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push('/(tab)/health/timeline' as never)}
+          style={({ pressed }) => ({
+            flex: 1,
+            opacity: pressed ? 0.82 : 1,
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            borderWidth: 1,
+            borderColor: '#f3f4f6',
+            padding: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10,
+          })}
+        >
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: '#ede9fe',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="time-outline" size={17} color="#7c3aed" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>Full Timeline</Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>All diagnoses</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color="#d1d5db" />
+        </Pressable>
+      </View>
     </View>
   );
 }
