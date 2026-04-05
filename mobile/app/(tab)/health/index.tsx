@@ -105,6 +105,7 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   text: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
+  activeTip?: string;
 } {
   if (entries.length === 0) {
     return {
@@ -261,6 +262,19 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   };
 }
 
+// Returns a one-line active-case tip for the highest-urgency pending case.
+function deriveActiveCaseTip(entries: HealthTimelineEntry[]): string | undefined {
+  const active = entries.filter((e) => e.status !== 'Completed');
+  if (active.length === 0) return undefined;
+  const RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
+  const top = active.sort((a, b) => (RANK[b.urgency] ?? 0) - (RANK[a.urgency] ?? 0))[0];
+  const name = top.condition || top.title || 'your condition';
+  if (top.urgency === 'CRITICAL') return `⚠ Active: ${name} — seek emergency care now.`;
+  if (top.urgency === 'HIGH') return `🔴 Active: ${name} — prioritise rest, fluids, and your prescribed medication today.`;
+  if (top.urgency === 'MEDIUM') return `🟡 Active: ${name} — monitor symptoms twice daily and update LifeGate if they worsen.`;
+  return `🟢 Active: ${name} — maintain your routine and complete the full treatment course.`;
+}
+
 function formatRelativeDate(iso: string): string {
   try {
     const diff = Date.now() - new Date(iso).getTime();
@@ -388,7 +402,7 @@ function HealthStatusCard({
 function AIInsightCard({
   insight,
 }: {
-  insight: { text: string; icon: keyof typeof Ionicons.glyphMap; color: string };
+  insight: { text: string; icon: keyof typeof Ionicons.glyphMap; color: string; activeTip?: string };
 }) {
   return (
     <View
@@ -436,6 +450,20 @@ function AIInsightCard({
           AI Health Insight
         </Text>
         <Text style={{ fontSize: 13, color: '#374151', lineHeight: 19 }}>{insight.text}</Text>
+        {insight.activeTip ? (
+          <View
+            style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: '#e0f2fe',
+            }}
+          >
+            <Text style={{ fontSize: 12, color: '#374151', lineHeight: 18, fontWeight: '500' }}>
+              {insight.activeTip}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -592,7 +620,11 @@ export default function HealthDashboardScreen() {
 
   const isLoading = timelineLoading && patientTimeline.length === 0;
   const status = useMemo(() => deriveStatus(patientTimeline), [patientTimeline]);
-  const insight = useMemo(() => deriveInsight(patientTimeline), [patientTimeline]);
+  const activeCaseTip = useMemo(() => deriveActiveCaseTip(patientTimeline), [patientTimeline]);
+  const insight = useMemo(
+    () => ({ ...deriveInsight(patientTimeline), activeTip: activeCaseTip }),
+    [patientTimeline, activeCaseTip]
+  );
   const latest = patientTimeline[0] ?? null;
   const totalActive = useMemo(
     () => patientTimeline.filter((e) => e.status !== 'Completed').length,
