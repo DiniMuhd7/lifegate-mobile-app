@@ -108,48 +108,140 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
 } {
   if (entries.length === 0) {
     return {
-      text: 'No health records yet. Chat with LifeGate to start monitoring your health.',
-      icon: 'sparkles-outline',
+      text: 'Drink at least 8 glasses of water daily and maintain a balanced diet to support your immune system.',
+      icon: 'water-outline',
       color: '#0891b2',
     };
   }
+
   const latest = entries[0];
+  const condition = latest.condition || latest.title || '';
+  const cond = condition.toLowerCase();
   const prev = entries[1];
   const URGENCY_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
   const latestRank = URGENCY_RANK[latest.urgency] ?? 0;
   const prevRank = prev ? (URGENCY_RANK[prev.urgency] ?? 0) : latestRank;
 
+  // ── CRITICAL urgency ──────────────────────────────────────────────────────
   if (latest.urgency === 'CRITICAL') {
     return {
-      text: 'Critical condition detected. Please seek immediate medical attention.',
+      text: `With ${condition}, call emergency services or go to A&E immediately. Do not wait for symptoms to worsen.`,
       icon: 'alert-circle',
       color: '#dc2626',
     };
   }
+
+  // ── Condition-specific actionable tips ────────────────────────────────────
+  if (cond.includes('malaria')) {
+    return {
+      text: `For ${condition}: complete your full antimalarial course, sleep under treated nets, and stay well-hydrated with ORS or fluids.`,
+      icon: 'thermometer-outline',
+      color: '#d97706',
+    };
+  }
+  if (cond.includes('typhoid')) {
+    return {
+      text: `For ${condition}: eat soft, easy-to-digest foods, drink only boiled or bottled water, and complete your antibiotic course without interruption.`,
+      icon: 'flask-outline',
+      color: '#d97706',
+    };
+  }
+  if (cond.includes('hypertension') || cond.includes('blood pressure')) {
+    return {
+      text: `For ${condition}: reduce salt and processed foods, exercise 30 minutes daily, avoid stress, and take your medication at the same time every day.`,
+      icon: 'heart-outline',
+      color: '#dc2626',
+    };
+  }
+  if (cond.includes('diabetes')) {
+    return {
+      text: `For ${condition}: monitor your blood glucose daily, avoid sugary drinks, eat at regular intervals, and do light exercise such as walking after meals.`,
+      icon: 'medkit-outline',
+      color: '#d97706',
+    };
+  }
+  if (cond.includes('tuberculosis') || cond.includes('tb')) {
+    return {
+      text: `For ${condition}: take all TB medications daily without skipping — stopping early causes drug resistance. Ventilate your room and wear a mask around others.`,
+      icon: 'lungs-outline' as keyof typeof Ionicons.glyphMap,
+      color: '#dc2626',
+    };
+  }
+  if (cond.includes('hiv') || cond.includes('aids')) {
+    return {
+      text: `For ${condition}: take your ARV medication daily at the same time, attend all clinic appointments, and maintain a protein-rich diet to support your immune system.`,
+      icon: 'shield-checkmark-outline',
+      color: '#7c3aed',
+    };
+  }
+  if (cond.includes('sickle cell') || cond.includes('scd')) {
+    return {
+      text: `For ${condition}: stay hydrated, avoid cold temperatures, rest well during crises, and keep hydroxyurea and pain relief medications accessible.`,
+      icon: 'pulse',
+      color: '#dc2626',
+    };
+  }
+  if (cond.includes('peptic') || cond.includes('ulcer') || cond.includes('gastritis')) {
+    return {
+      text: `For ${condition}: eat small frequent meals, avoid NSAIDs, spicy foods, alcohol, and coffee. Take antacids or proton pump inhibitors as prescribed.`,
+      icon: 'nutrition-outline',
+      color: '#d97706',
+    };
+  }
+  if (cond.includes('uti') || cond.includes('urinary')) {
+    return {
+      text: `For ${condition}: drink 2–3 litres of water daily, urinate frequently, and complete your full antibiotic course to prevent recurrence.`,
+      icon: 'water-outline',
+      color: '#0891b2',
+    };
+  }
+  if (cond.includes('respiratory') || cond.includes('pneumonia') || cond.includes('bronchitis') || cond.includes('asthma')) {
+    return {
+      text: `For ${condition}: avoid dust and smoke, use your inhaler or prescribed medication as directed, rest well, and sleep with your head slightly elevated.`,
+      icon: 'medical-outline',
+      color: '#0891b2',
+    };
+  }
+  if (cond.includes('dengue')) {
+    return {
+      text: `For ${condition}: rest, drink plenty of fluids, use paracetamol for fever — avoid ibuprofen or aspirin. Report any bleeding or severe vomiting immediately.`,
+      icon: 'bug-outline' as keyof typeof Ionicons.glyphMap,
+      color: '#d97706',
+    };
+  }
+  if (cond.includes('anaemia') || cond.includes('anemia')) {
+    return {
+      text: `For ${condition}: eat iron-rich foods (beans, liver, leafy greens), take iron supplements with vitamin C for better absorption, and avoid tea with meals.`,
+      icon: 'nutrition-outline',
+      color: '#d97706',
+    };
+  }
+
+  // ── Urgency / trend-based tips (fallback when no specific condition matched) ──
   if (latest.urgency === 'HIGH' && latest.status === 'Active') {
     return {
-      text: 'High-risk condition is active. Monitor your symptoms closely and follow physician advice.',
+      text: `Rest, stay hydrated, and follow your physician's instructions for ${condition}. Avoid self-medicating and report any new symptoms immediately.`,
       icon: 'warning',
       color: '#dc2626',
     };
   }
   if (latestRank < prevRank && latest.status === 'Completed') {
     return {
-      text: "You're improving! Your latest case resolved at a lower urgency. Keep it up.",
+      text: `Great progress recovering from ${condition}! Maintain your medication schedule, eat nutritiously, and get at least 7–8 hours of sleep.`,
       icon: 'trending-up',
       color: '#16a34a',
     };
   }
   if (latestRank > prevRank) {
     return {
-      text: 'Your recent condition is more urgent than before. Monitor fatigue, pain, or fever closely.',
+      text: `Your ${condition} symptoms appear to be escalating. Increase fluid intake, rest, and consult your physician if fever or pain worsens.`,
       icon: 'pulse',
       color: '#d97706',
     };
   }
   if (latest.urgency === 'MEDIUM') {
     return {
-      text: 'Monitor your symptoms closely and report any changes to your AI health assistant.',
+      text: `For ${condition}: monitor your temperature and symptoms twice daily. Stay hydrated, eat light, and chat with LifeGate if anything changes.`,
       icon: 'eye-outline',
       color: '#d97706',
     };
@@ -157,13 +249,13 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   const allCompleted = entries.slice(0, 3).every((e) => e.status === 'Completed');
   if (allCompleted) {
     return {
-      text: 'All recent cases resolved. You appear to be in good health. Stay consistent.',
+      text: 'You are on a great health streak! Exercise regularly, eat a balanced diet, and keep your annual checkups to stay ahead of any issues.',
       icon: 'checkmark-circle',
       color: '#16a34a',
     };
   }
   return {
-    text: 'Stay on top of your health by chatting with LifeGate regularly.',
+    text: `Stay consistent with your treatment for ${condition}. Regular check-ins with LifeGate help catch changes early.`,
     icon: 'sparkles-outline',
     color: '#0891b2',
   };
