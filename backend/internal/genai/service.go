@@ -345,6 +345,49 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 		condition = resp.Diagnosis.Condition
 		urgency = resp.Diagnosis.Urgency
 	}
+
+	// ── Duplicate detection ────────────────────────────────────────────────────
+	// Before creating a new case, look for an existing Pending case for the same
+	// user with the same condition (case-insensitive) created within the last 30
+	// days. If one exists, update it in-place so the patient's dashboard doesn't
+	// fill up with redundant entries for the same complaint.
+	if condition != "" {
+		var existingID string
+		lookupErr := s.db.QueryRow(`
+			SELECT id::text
+			FROM diagnoses
+			WHERE user_id   = $1::uuid
+			  AND status    = 'Pending'
+			  AND LOWER(condition) = LOWER($2)
+			  AND created_at > NOW() - INTERVAL '30 days'
+			ORDER BY created_at DESC
+			LIMIT 1`,
+			userID, condition,
+		).Scan(&existingID)
+
+		if lookupErr == nil && existingID != "" {
+			// Update the existing case with the latest AI output (new symptoms may
+			// have refined the diagnosis, urgency, or prescription details).
+			_, updateErr := s.db.Exec(`
+				UPDATE diagnoses
+				SET description = $2,
+				    urgency     = $3,
+				    ai_response = $4,
+				    escalated   = $5,
+				    updated_at  = NOW()
+				WHERE id = $1::uuid`,
+				existingID, resp.Text, urgency, aiJSON, escalated,
+			)
+			if updateErr != nil {
+				log.Printf("[EDIS] failed to update existing case %s: %v", existingID, updateErr)
+			} else {
+				log.Printf("[EDIS] reusing existing case %s for condition %q (user=%s)", existingID, condition, userID)
+				return existingID
+			}
+		}
+	}
+
+	// ── Insert new case ────────────────────────────────────────────────────────
 	var id string
 	_ = s.db.QueryRow(
 		`INSERT INTO diagnoses (user_id, title, description, condition, urgency, ai_response, status, escalated)
