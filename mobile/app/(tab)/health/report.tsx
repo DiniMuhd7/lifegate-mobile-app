@@ -15,8 +15,10 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { useHealthStore } from 'stores/health-store';
+import { useDiagnosisStore } from 'stores/diagnosis-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
+import type { DiagnosisPrescription } from 'types/diagnosis-types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -92,7 +94,8 @@ function groupByMonth(entries: HealthTimelineEntry[]): { month: string; items: H
 function buildReportHTML(
   patientName: string,
   entries: HealthTimelineEntry[],
-  reportDate: string
+  reportDate: string,
+  prescriptionMap: Map<string, DiagnosisPrescription>
 ): string {
   const status = deriveOverallStatus(entries);
   const dist = urgencyDistribution(entries);
@@ -105,6 +108,7 @@ function buildReportHTML(
 
   // Per-entry full detail card
   const entryCard = (e: HealthTimelineEntry) => {
+    const rx = prescriptionMap.get(e.id);
     const isRecurring = recurringSet.has((e.condition || e.title).toLowerCase().trim());
     const isAbnormal = e.urgency === 'HIGH' || e.urgency === 'CRITICAL';
     const tags = [
@@ -145,6 +149,19 @@ function buildReportHTML(
       <div style="margin-top:10px;padding:10px;background:#f0f4ff;border-left:3px solid #2563eb;border-radius:0 8px 8px 0;">
         <div style="font-size:10px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">👨‍⚕️ Physician Notes</div>
         <p style="font-size:12px;color:#1e3a8a;line-height:1.6;">${e.physicianNotes}</p>
+      </div>` : ''}
+
+      <!-- Prescription -->
+      ${rx ? `
+      <div style="margin-top:10px;padding:10px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:0 8px 8px 0;">
+        <div style="font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">💊 Prescription</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <tr><td style="color:#6b7280;width:90px;padding:2px 0;">Medicine</td><td style="color:#111827;font-weight:700;">${rx.medicine}</td></tr>
+          <tr><td style="color:#6b7280;padding:2px 0;">Dosage</td><td style="color:#111827;font-weight:600;">${rx.dosage}</td></tr>
+          <tr><td style="color:#6b7280;padding:2px 0;">Frequency</td><td style="color:#111827;">${rx.frequency}</td></tr>
+          <tr><td style="color:#6b7280;padding:2px 0;">Duration</td><td style="color:#111827;">${rx.duration}</td></tr>
+          ${rx.instructions ? `<tr><td style="color:#6b7280;padding:2px 0;">Instructions</td><td style="color:#374151;font-style:italic;">${rx.instructions}</td></tr>` : ''}
+        </table>
       </div>` : ''}
     </div>`;
   };
@@ -285,7 +302,7 @@ function StatCell({ label, value, color }: { label: string; value: number; color
   );
 }
 
-function EntryRow({ entry, isRecurring }: { entry: HealthTimelineEntry; isRecurring: boolean }) {
+function EntryRow({ entry, isRecurring, prescription }: { entry: HealthTimelineEntry; isRecurring: boolean; prescription?: DiagnosisPrescription }) {
   const color = URGENCY_COLOR[entry.urgency] ?? '#6b7280';
   const isAbnormal = entry.urgency === 'HIGH' || entry.urgency === 'CRITICAL';
 
@@ -334,6 +351,17 @@ function EntryRow({ entry, isRecurring }: { entry: HealthTimelineEntry; isRecurr
           <Text style={{ fontSize: 12, color: '#1e3a8a', lineHeight: 17 }} numberOfLines={3}>
             {entry.physicianNotes}
           </Text>
+        </View>
+      )}
+      {/* Prescription */}
+      {!!prescription && (
+        <View style={{ marginTop: 6, marginLeft: 20, padding: 8, backgroundColor: '#f0fdf4', borderLeftWidth: 2, borderLeftColor: '#16a34a', borderRadius: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#15803d', marginBottom: 4 }}>PRESCRIPTION</Text>
+          <Text style={{ fontSize: 12, color: '#166534', fontWeight: '700' }}>{prescription.medicine}</Text>
+          <Text style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>{prescription.dosage} · {prescription.frequency} · {prescription.duration}</Text>
+          {!!prescription.instructions && (
+            <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2, fontStyle: 'italic' }}>{prescription.instructions}</Text>
+          )}
         </View>
       )}
       {/* Confidence */}
@@ -393,7 +421,18 @@ function ExportButton({
 
 export default function HealthReportScreen() {
   const { patientTimeline } = useHealthStore();
+  const { diagnoses, fetchDiagnoses } = useDiagnosisStore();
   const { user } = useAuthStore();
+
+  // Load diagnoses (which carry prescription data) if not yet fetched
+  React.useEffect(() => { if (diagnoses.length === 0) fetchDiagnoses(); }, []);
+
+  // Build id → prescription lookup
+  const prescriptionMap = useMemo(() => {
+    const map = new Map<string, DiagnosisPrescription>();
+    for (const d of diagnoses) { if (d.prescription) map.set(d.id, d.prescription); }
+    return map;
+  }, [diagnoses]);
 
   const viewShotRef = useRef<ViewShot>(null);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
@@ -413,7 +452,7 @@ export default function HealthReportScreen() {
   const exportPDF = useCallback(async () => {
     try {
       setExporting('pdf');
-      const html = buildReportHTML(patientName, patientTimeline, reportDate);
+      const html = buildReportHTML(patientName, patientTimeline, reportDate, prescriptionMap);
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -586,6 +625,7 @@ export default function HealthReportScreen() {
                   key={e.id}
                   entry={e}
                   isRecurring={recurringSet.has((e.condition || e.title).toLowerCase().trim())}
+                  prescription={prescriptionMap.get(e.id)}
                 />
               ))
             )}
