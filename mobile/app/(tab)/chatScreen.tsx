@@ -126,6 +126,7 @@ const ChatScreen: React.FC = () => {
         followUpQuestions: msg.followUpQuestions,
         conditions: msg.conditions,
         riskFlags: msg.riskFlags,
+        investigations: msg.investigations,
         rawTimestamp: msg.timestamp,
       })),
     [messages]

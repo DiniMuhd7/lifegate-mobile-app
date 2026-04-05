@@ -4,13 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { UI_FONT_SIZES, UI_SPACING } from 'constants/constants';
-import type { Diagnosis, Prescription, ConditionScore, RiskFlag } from 'types/chat-types';
+import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation } from 'types/chat-types';
 import { DiagnosisCard } from './DiagnosisCard';
 import { PrescriptionCard } from './PrescriptionCard';
 import { MarkdownText } from './MarkdownText';
 import { FollowUpChips } from './FollowUpChips';
 import { DifferentialList } from './DifferentialList';
 import { RiskFlagList } from './RiskFlagList';
+import { InvestigationList } from './InvestigationList';
 
 interface MessageBubbleProps {
   message: string;
@@ -26,6 +27,7 @@ interface MessageBubbleProps {
   followUpQuestions?: string[];
   conditions?: ConditionScore[];
   riskFlags?: RiskFlag[];
+  investigations?: Investigation[];
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -42,6 +44,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   followUpQuestions,
   conditions,
   riskFlags,
+  investigations,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(12)).current;
@@ -149,6 +152,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           {/* Prescription card */}
           {!isSent && prescription && <PrescriptionCard prescription={prescription} />}
+
+          {/* Recommended investigations */}
+          {!isSent && investigations && investigations.length > 0 && (
+            <InvestigationList investigations={investigations} />
+          )}
 
           {/* Follow-up question chips — at the bottom of the AI bubble */}
           {!isSent && followUpQuestions && followUpQuestions.length > 0 && onFollowUp && (

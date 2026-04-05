@@ -56,6 +56,13 @@ export type RiskFlag = {
   description: string;
 };
 
+// Recommended medical test or diagnostic procedure
+export type Investigation = {
+  test: string;    // e.g. "Full Blood Count (FBC)"
+  reason: string;  // brief clinical reason
+  urgency: 'ROUTINE' | 'URGENT' | 'STAT';
+};
+
 // Individual message in a conversation
 export type Message = {
   id: string; // UUID-like identifier
@@ -70,6 +77,7 @@ export type Message = {
   followUpQuestions?: string[];    // Clarifying questions for the patient to answer
   conditions?: ConditionScore[];   // Ranked differential diagnosis list
   riskFlags?: RiskFlag[];          // Early-stage risk signals
+  investigations?: Investigation[]; // Recommended medical tests
 };
 
 // Conversation (session of messages)
@@ -99,6 +107,7 @@ export type AIResponse = {
   followUpQuestions?: string[];
   conditions?: ConditionScore[];
   riskFlags?: RiskFlag[];
+  investigations?: Investigation[];
 };
 
 // Result returned from POST /chat/sessions/:id/finalize

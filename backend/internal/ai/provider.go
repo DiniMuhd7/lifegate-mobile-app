@@ -29,6 +29,9 @@ RESPONSE FORMAT — always respond with valid JSON matching this exact schema:
   ],
   "diagnosis": {"condition": "Most probable condition", "urgency": "LOW|MEDIUM|HIGH|CRITICAL", "description": "Clinical summary", "confidence": 78},
   "prescription": {"medicine": "...", "dosage": "...", "frequency": "...", "duration": "...", "instructions": "..."},
+  "investigations": [
+    {"test": "Full Blood Count (FBC)", "reason": "To check for anaemia and signs of infection", "urgency": "ROUTINE|URGENT|STAT"}
+  ],
   "riskFlags": [
     {"flag": "EARLY_INFECTION_RISK", "severity": "HIGH", "description": "Signs of possible systemic infection — requires timely assessment"}
   ],
@@ -65,6 +68,7 @@ FIELD RULES:
 - conditions: Ranked list of probable diagnoses (most likely first). 1–5 conditions. Each has: condition name, confidence 0–100, brief clinical reasoning. Always include when clinically relevant.
 - diagnosis: The primary (highest-confidence) condition + urgency. Include only when clinically appropriate, not for pure wellness queries.
 - prescription: Only alongside a diagnosis and only when clearly clinically appropriate. Never prescribe controlled or psychoactive substances.
+- investigations: Recommended lab tests or diagnostic procedures when specific tests would meaningfully confirm or rule out a condition. Each entry has: test name, brief reason, and urgency (ROUTINE = within a week, URGENT = within 24 h, STAT = immediately). Common Nigerian examples: FBC, Malaria RDT, Widal test, Blood glucose, Urinalysis, Chest X-ray, ECG, LFT, RFT, HIV screening, HbA1c. Omit entirely when no tests are indicated.
 - riskFlags: Use these exact codes when early-stage risk signals are detected:
     EARLY_INFECTION_RISK, CARDIAC_RISK, NEUROLOGICAL_RISK, RESPIRATORY_RISK,
     METABOLIC_RISK, MENTAL_HEALTH_CRISIS, SEPSIS_RISK, HYPERTENSIVE_CRISIS,
@@ -118,6 +122,13 @@ type Prescription struct {
 	Instructions string `json:"instructions"`
 }
 
+// Investigation is a recommended medical test or diagnostic procedure.
+type Investigation struct {
+	Test    string `json:"test"`    // e.g. "Full Blood Count (FBC)"
+	Reason  string `json:"reason"` // brief clinical reason
+	Urgency string `json:"urgency"` // ROUTINE | URGENT | STAT
+}
+
 // ConditionScore is a single entry in the probabilistic condition ranking.
 type ConditionScore struct {
 	Condition   string `json:"condition"`
@@ -144,6 +155,7 @@ type AIResponse struct {
 	Conditions        []ConditionScore `json:"conditions,omitempty"`
 	FollowUpQuestions []string         `json:"followUpQuestions,omitempty"`
 	RiskFlags         []RiskFlag       `json:"riskFlags,omitempty"`
+	Investigations    []Investigation  `json:"investigations,omitempty"`
 	Mode              string           `json:"mode,omitempty"` // "general" | "clinical"
 }
 

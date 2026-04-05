@@ -3,7 +3,7 @@ import { ScrollView, View, Text, TouchableOpacity, NativeSyntheticEvent, NativeS
 import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from './MessageBubble';
 import { UI_SPACING } from 'constants/constants';
-import type { Diagnosis, Prescription, ConditionScore, RiskFlag } from 'types/chat-types';
+import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation } from 'types/chat-types';
 
 export interface Message {
   id: string;
@@ -20,6 +20,7 @@ export interface Message {
   followUpQuestions?: string[];
   conditions?: ConditionScore[];
   riskFlags?: RiskFlag[];
+  investigations?: Investigation[];
 }
 
 interface MessageListProps {
@@ -140,6 +141,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
               followUpQuestions={msg.followUpQuestions}
               conditions={msg.conditions}
               riskFlags={msg.riskFlags}
+              investigations={msg.investigations}
             />
           );
         })}

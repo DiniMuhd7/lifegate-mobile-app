@@ -58,6 +58,7 @@ type ChatResponse struct {
 	Conditions           []ai.ConditionScore  `json:"conditions,omitempty"`
 	FollowUpQuestions    []string             `json:"followUpQuestions,omitempty"`
 	RiskFlags            []ai.RiskFlag        `json:"riskFlags,omitempty"`
+	Investigations       []ai.Investigation   `json:"investigations,omitempty"`
 	Mode                 string               `json:"mode"`
 	Escalated            bool                 `json:"escalated,omitempty"`
 	EscalationTrigger    string               `json:"escalationTrigger,omitempty"`
@@ -244,6 +245,7 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message string, r
 		Conditions:           resp.Conditions,
 		FollowUpQuestions:    resp.FollowUpQuestions,
 		RiskFlags:            resp.RiskFlags,
+		Investigations:       resp.Investigations,
 		Mode:                 resp.Mode,
 		Escalated:            resp.Escalated,
 		EscalationTrigger:    resp.EscalationTrigger,

@@ -245,6 +245,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             followUpQuestions: aiResponse.followUpQuestions,
             conditions: aiResponse.conditions,
             riskFlags: aiResponse.riskFlags,
+            investigations: aiResponse.investigations,
           };
 
           updatedMessages.push(aiMessage);
@@ -350,6 +351,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                             diagnosisId: result.diagnosisId || m.diagnosisId,
                             conditions: result.conditions ?? m.conditions,
                             riskFlags: result.riskFlags ?? m.riskFlags,
+                            investigations: m.investigations,
                           }
                         : m
                     ),
