@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Animated, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -7,18 +7,102 @@ interface ChatInputBarProps {
   onSend?: (message: string) => void;
   onMicPress?: () => void;
   placeholder?: string;
-  disabled?: boolean; // Disable input when AI is thinking
+  disabled?: boolean;
 }
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   onSend,
   onMicPress,
-  placeholder = 'How are you feeling....',
+  placeholder = 'How are you feeling...',
   disabled = false,
 }) => {
   const [text, setText] = useState('');
   const [isMicActive, setIsMicActive] = useState(false);
+
+  // Send button animation
   const sendScaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Mic wave ring animations – scale + opacity for 3 concentric rings
+  const ring1Scale = useRef(new Animated.Value(1)).current;
+  const ring2Scale = useRef(new Animated.Value(1)).current;
+  const ring3Scale = useRef(new Animated.Value(1)).current;
+  const ring1Opacity = useRef(new Animated.Value(0)).current;
+  const ring2Opacity = useRef(new Animated.Value(0)).current;
+  const ring3Opacity = useRef(new Animated.Value(0)).current;
+
+  // Mic button pulse scale while active
+  const micPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isMicActive) {
+      const makeRing = (
+        scale: Animated.Value,
+        opacity: Animated.Value,
+        delay: number
+      ): Animated.CompositeAnimation =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.parallel([
+              Animated.timing(scale, {
+                toValue: 2.4,
+                duration: 1000,
+                useNativeDriver: true,
+              }),
+              Animated.timing(opacity, {
+                toValue: 0,
+                duration: 1000,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.parallel([
+              Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
+              Animated.timing(opacity, { toValue: 0.55, duration: 0, useNativeDriver: true }),
+            ]),
+          ])
+        );
+
+      // Stagger rings by 320 ms each
+      ring1Opacity.setValue(0.55);
+      ring2Opacity.setValue(0.55);
+      ring3Opacity.setValue(0.55);
+
+      const a1 = makeRing(ring1Scale, ring1Opacity, 0);
+      const a2 = makeRing(ring2Scale, ring2Opacity, 320);
+      const a3 = makeRing(ring3Scale, ring3Opacity, 640);
+      a1.start();
+      a2.start();
+      a3.start();
+
+      // Gentle pulse on the mic button itself
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(micPulse, { toValue: 1.12, duration: 500, useNativeDriver: true }),
+          Animated.timing(micPulse, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ])
+      );
+      pulse.start();
+
+      return () => {
+        a1.stop();
+        a2.stop();
+        a3.stop();
+        pulse.stop();
+        ring1Scale.setValue(1);
+        ring2Scale.setValue(1);
+        ring3Scale.setValue(1);
+        ring1Opacity.setValue(0);
+        ring2Opacity.setValue(0);
+        ring3Opacity.setValue(0);
+        micPulse.setValue(1);
+      };
+    } else {
+      ring1Opacity.setValue(0);
+      ring2Opacity.setValue(0);
+      ring3Opacity.setValue(0);
+      micPulse.setValue(1);
+    }
+  }, [isMicActive]);
 
   const handleSend = () => {
     if (!text.trim() || disabled) return;
@@ -26,8 +110,13 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     Animated.sequence([
-      Animated.timing(sendScaleAnim, { toValue: 0.88, duration: 80, useNativeDriver: true }),
-      Animated.spring(sendScaleAnim, { toValue: 1, useNativeDriver: true, tension: 100, friction: 6 }),
+      Animated.timing(sendScaleAnim, { toValue: 0.85, duration: 75, useNativeDriver: true }),
+      Animated.spring(sendScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 120,
+        friction: 5,
+      }),
     ]).start();
 
     onSend?.(text.trim());
@@ -40,12 +129,20 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
     if (Platform.OS === 'web') {
       const SpeechRecognitionAPI =
-        (window as unknown as { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }).SpeechRecognition ||
-        (window as unknown as { SpeechRecognition?: new () => SpeechRecognition; webkitSpeechRecognition?: new () => SpeechRecognition }).webkitSpeechRecognition;
+        (
+          window as unknown as {
+            SpeechRecognition?: new () => SpeechRecognition;
+            webkitSpeechRecognition?: new () => SpeechRecognition;
+          }
+        ).SpeechRecognition ||
+        (
+          window as unknown as {
+            SpeechRecognition?: new () => SpeechRecognition;
+            webkitSpeechRecognition?: new () => SpeechRecognition;
+          }
+        ).webkitSpeechRecognition;
 
-      if (!SpeechRecognitionAPI) {
-        return;
-      }
+      if (!SpeechRecognitionAPI) return;
 
       if (isMicActive) {
         setIsMicActive(false);
@@ -67,7 +164,6 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       recognition.onend = () => setIsMicActive(false);
       recognition.start();
     } else {
-      // Native: haptic feedback; speech-to-text coming soon
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setIsMicActive(false);
       onMicPress?.();
@@ -80,8 +176,49 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const showCounter = charCount > 4000;
   const isNearLimit = charCount > 4500;
 
+  // Wave ring colour shifts from teal to red when recording
+  const ringColor = isMicActive ? '#ef4444' : '#0d9488';
+
   return (
-    <View className={`px-4 ${Platform.OS === 'ios' ? 'pb-8' : 'pb-4'} pt-3`}>
+    <View
+      style={{
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+      }}
+    >
+      {/* Recording label */}
+      {isMicActive && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 8,
+            gap: 6,
+          }}
+        >
+          <View
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: 4,
+              backgroundColor: '#ef4444',
+            }}
+          />
+          <Text
+            style={{
+              fontSize: 12,
+              color: '#ef4444',
+              fontWeight: '600',
+              letterSpacing: 0.4,
+            }}
+          >
+            Listening…
+          </Text>
+        </View>
+      )}
+
       {/* Character counter */}
       {showCounter && (
         <Text
@@ -97,53 +234,136 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           {charCount}/{MAX_CHARS}
         </Text>
       )}
+
+      {/* Input row */}
       <View
-        className="flex-row items-center bg-white/85 rounded-full pl-5 pr-1.5 py-1.5 border border-teal-600/15"
         style={{
-          shadowColor: '#1a6b5e',
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: 'rgba(255,255,255,0.92)',
+          borderRadius: 30,
+          paddingLeft: 20,
+          paddingRight: 6,
+          paddingVertical: 6,
+          borderWidth: 1.5,
+          borderColor: isMicActive ? 'rgba(239,68,68,0.25)' : 'rgba(13,148,136,0.18)',
+          shadowColor: isMicActive ? '#ef4444' : '#0f766e',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.12,
-          shadowRadius: 16,
-          elevation: 6,
-          opacity: disabled ? 0.6 : 1,
+          shadowOpacity: isMicActive ? 0.15 : 0.1,
+          shadowRadius: 18,
+          elevation: 7,
+          opacity: disabled ? 0.55 : 1,
         }}
       >
         {/* Text input */}
         <TextInput
-          className="flex-1 text-sm text-teal-900 py-2.5"
+          style={{
+            flex: 1,
+            fontSize: 14.5,
+            color: '#134e4a',
+            lineHeight: 20,
+            paddingVertical: 6,
+            maxHeight: 110,
+          }}
           value={text}
           onChangeText={setText}
           placeholder={placeholder}
-          placeholderTextColor="#8bbdb7"
-          multiline={true}
-          style={{ maxHeight: 100 }}
+          placeholderTextColor="#7db9b4"
+          multiline
           returnKeyType="default"
-          selectionColor="#1a6b5e"
+          selectionColor="#0d9488"
           editable={!disabled}
+          maxLength={MAX_CHARS}
         />
 
-        {/* Mic button */}
-        <TouchableOpacity className="p-2 mr-0.5" onPress={handleMicPress} activeOpacity={0.7}>
-          <Ionicons
-            name={isMicActive ? 'mic' : 'mic-outline'}
-            size={22}
-            color={isMicActive ? '#0d4a40' : '#5a9e94'}
-          />
+        {/* Mic button with wave rings */}
+        <TouchableOpacity
+          onPress={handleMicPress}
+          activeOpacity={0.75}
+          style={{ marginRight: 4, padding: 4 }}
+        >
+          <View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+            {/* Ring 1 */}
+            <Animated.View
+              style={{
+                position: 'absolute',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: ringColor,
+                transform: [{ scale: ring1Scale }],
+                opacity: ring1Opacity,
+              }}
+            />
+            {/* Ring 2 */}
+            <Animated.View
+              style={{
+                position: 'absolute',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: ringColor,
+                transform: [{ scale: ring2Scale }],
+                opacity: ring2Opacity,
+              }}
+            />
+            {/* Ring 3 */}
+            <Animated.View
+              style={{
+                position: 'absolute',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: ringColor,
+                transform: [{ scale: ring3Scale }],
+                opacity: ring3Opacity,
+              }}
+            />
+
+            {/* Mic icon circle */}
+            <Animated.View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: isMicActive
+                  ? 'rgba(239,68,68,0.12)'
+                  : 'rgba(13,148,136,0.08)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: [{ scale: micPulse }],
+              }}
+            >
+              <Ionicons
+                name={isMicActive ? 'mic' : 'mic-outline'}
+                size={20}
+                color={isMicActive ? '#dc2626' : '#0d9488'}
+              />
+            </Animated.View>
+          </View>
         </TouchableOpacity>
 
         {/* Send button */}
         <Animated.View style={{ transform: [{ scale: sendScaleAnim }] }}>
           <TouchableOpacity
             onPress={handleSend}
-            activeOpacity={0.85}
+            activeOpacity={0.8}
             disabled={disabled || !hasText}
-            className={`w-11 h-11 rounded-full justify-center items-center ${hasText && !disabled ? 'bg-teal-700' : 'bg-[#0C5352]'}`}
             style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: hasText && !disabled ? '#0f766e' : '#b2d8d4',
+              alignItems: 'center',
+              justifyContent: 'center',
               shadowColor: '#0d4a40',
               shadowOffset: { width: 0, height: 3 },
-              shadowOpacity: hasText ? 0.3 : 0.1,
+              shadowOpacity: hasText && !disabled ? 0.28 : 0.06,
               shadowRadius: 6,
-              elevation: 4,
+              elevation: hasText && !disabled ? 5 : 1,
             }}
           >
             <Ionicons name="arrow-up" size={22} color="#ffffff" />
