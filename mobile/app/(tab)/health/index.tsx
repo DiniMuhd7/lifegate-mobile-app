@@ -570,13 +570,13 @@ export default function HealthDashboardScreen() {
           <Ionicons name="time-outline" size={22} color="#374151" />
         </Pressable>
 
-        {/* Report */}
+        {/* Settings */}
         <Pressable
-          onPress={() => router.push('/(tab)/health/report' as never)}
+          onPress={() => router.push('/(tab)/settings' as never)}
           style={{ padding: 8, borderRadius: 20, backgroundColor: '#f3f4f6', marginLeft: 8 }}
           hitSlop={8}
         >
-          <Ionicons name="document-text-outline" size={22} color="#374151" />
+          <Ionicons name="settings-outline" size={22} color="#374151" />
         </Pressable>
       </View>
 
