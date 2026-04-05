@@ -276,28 +276,49 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           transform: [{ translateX: shakeAnim }],
         }}
       >
-        {/* Text input */}
-        <TextInput
-          style={{
-            flex: 1,
-            fontSize: 14.5,
-            color: '#134e4a',
-            lineHeight: 20,
-            paddingVertical: 6,
-            maxHeight: 110,
-            textAlignVertical: 'center',
-            textAlign: hasText ? 'left' : 'center',
-          }}
-          value={text}
-          onChangeText={setText}
-          placeholder={placeholder}
-          placeholderTextColor="#7db9b4"
-          multiline
-          returnKeyType="default"
-          selectionColor="#0d9488"
-          editable={!disabled}
-          maxLength={MAX_CHARS}
-        />
+        {/* Text input with custom centred placeholder overlay */}
+        <View style={{ flex: 1, justifyContent: 'center', minHeight: 44 }}>
+          {/* Custom placeholder – absolutely centred, ignored by touches */}
+          {!hasText && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                numberOfLines={1}
+                style={{ fontSize: 14.5, color: '#7db9b4' }}
+              >
+                {placeholder}
+              </Text>
+            </View>
+          )}
+          <TextInput
+            style={{
+              fontSize: 14.5,
+              color: '#134e4a',
+              lineHeight: 20,
+              paddingVertical: 6,
+              maxHeight: 110,
+            }}
+            value={text}
+            onChangeText={setText}
+            placeholder=""
+            placeholderTextColor="transparent"
+            multiline
+            returnKeyType="default"
+            selectionColor="#0d9488"
+            editable={!disabled}
+            maxLength={MAX_CHARS}
+          />
+        </View>
 
         {/* Mic button with wave rings – only shown when no text is typed */}
         <TouchableOpacity
