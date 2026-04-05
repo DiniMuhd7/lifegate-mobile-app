@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,209 +10,508 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
+import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
 
-// ─── Config maps ─────────────────────────────────────────────────────────────
+// ─── Status config ────────────────────────────────────────────────────────────
 
-const URGENCY = {
-  LOW:      { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e', label: 'Low Risk'  },
-  MEDIUM:   { color: '#d97706', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b', label: 'Moderate'  },
-  HIGH:     { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', dot: '#ef4444', label: 'High Risk' },
-  CRITICAL: { color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe', dot: '#a855f7', label: 'Critical'  },
-} as const;
+type HealthStatus = 'Stable' | 'Monitor' | 'High Risk';
 
-const STATUS_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Pending:   'time-outline',
-  Active:    'flash-outline',
-  Completed: 'checkmark-circle-outline',
+const STATUS_CFG: Record<
+  HealthStatus,
+  {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    bg: string;
+    border: string;
+    gradientFrom: string;
+    gradientTo: string;
+    dot: string;
+  }
+> = {
+  Stable: {
+    label: 'Stable',
+    icon: 'shield-checkmark',
+    color: '#15803d',
+    bg: '#f0fdf4',
+    border: '#86efac',
+    gradientFrom: '#d1fae5',
+    gradientTo: '#f0fdf4',
+    dot: '#22c55e',
+  },
+  Monitor: {
+    label: 'Monitor',
+    icon: 'eye',
+    color: '#b45309',
+    bg: '#fffbeb',
+    border: '#fde68a',
+    gradientFrom: '#fef3c7',
+    gradientTo: '#fffbeb',
+    dot: '#f59e0b',
+  },
+  'High Risk': {
+    label: 'High Risk',
+    icon: 'warning',
+    color: '#dc2626',
+    bg: '#fef2f2',
+    border: '#fecaca',
+    gradientFrom: '#fee2e2',
+    gradientTo: '#fef2f2',
+    dot: '#ef4444',
+  },
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  Pending:   '#d97706',
-  Active:    '#2563eb',
-  Completed: '#16a34a',
+const URGENCY_STATUS: Record<string, HealthStatus> = {
+  LOW: 'Stable',
+  MEDIUM: 'Monitor',
+  HIGH: 'High Risk',
+  CRITICAL: 'High Risk',
+};
+
+const URGENCY_COLOR: Record<string, string> = {
+  LOW: '#16a34a',
+  MEDIUM: '#d97706',
+  HIGH: '#dc2626',
+  CRITICAL: '#7c3aed',
+};
+
+const URGENCY_BG: Record<string, string> = {
+  LOW: '#f0fdf4',
+  MEDIUM: '#fffbeb',
+  HIGH: '#fef2f2',
+  CRITICAL: '#faf5ff',
+};
+
+const URGENCY_BORDER: Record<string, string> = {
+  LOW: '#bbf7d0',
+  MEDIUM: '#fde68a',
+  HIGH: '#fecaca',
+  CRITICAL: '#ddd6fe',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(iso: string) {
+function deriveStatus(entries: HealthTimelineEntry[]): HealthStatus {
+  const active = entries.filter((e) => e.status !== 'Completed');
+  const latest = active.length > 0 ? active[0] : entries[0];
+  if (!latest) return 'Stable';
+  return URGENCY_STATUS[latest.urgency] ?? 'Stable';
+}
+
+function deriveInsight(entries: HealthTimelineEntry[]): {
+  text: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+} {
+  if (entries.length === 0) {
+    return {
+      text: 'No health records yet. Chat with LifeGate to start monitoring your health.',
+      icon: 'sparkles-outline',
+      color: '#0891b2',
+    };
+  }
+  const latest = entries[0];
+  const prev = entries[1];
+  const URGENCY_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
+  const latestRank = URGENCY_RANK[latest.urgency] ?? 0;
+  const prevRank = prev ? (URGENCY_RANK[prev.urgency] ?? 0) : latestRank;
+
+  if (latest.urgency === 'CRITICAL') {
+    return {
+      text: 'Critical condition detected. Please seek immediate medical attention.',
+      icon: 'alert-circle',
+      color: '#dc2626',
+    };
+  }
+  if (latest.urgency === 'HIGH' && latest.status === 'Active') {
+    return {
+      text: 'High-risk condition is active. Monitor your symptoms closely and follow physician advice.',
+      icon: 'warning',
+      color: '#dc2626',
+    };
+  }
+  if (latestRank < prevRank && latest.status === 'Completed') {
+    return {
+      text: "You're improving! Your latest case resolved at a lower urgency. Keep it up.",
+      icon: 'trending-up',
+      color: '#16a34a',
+    };
+  }
+  if (latestRank > prevRank) {
+    return {
+      text: 'Your recent condition is more urgent than before. Monitor fatigue, pain, or fever closely.',
+      icon: 'pulse',
+      color: '#d97706',
+    };
+  }
+  if (latest.urgency === 'MEDIUM') {
+    return {
+      text: 'Monitor your symptoms closely and report any changes to your AI health assistant.',
+      icon: 'eye-outline',
+      color: '#d97706',
+    };
+  }
+  const allCompleted = entries.slice(0, 3).every((e) => e.status === 'Completed');
+  if (allCompleted) {
+    return {
+      text: 'All recent cases resolved. You appear to be in good health. Stay consistent.',
+      icon: 'checkmark-circle',
+      color: '#16a34a',
+    };
+  }
+  return {
+    text: 'Stay on top of your health by chatting with LifeGate regularly.',
+    icon: 'sparkles-outline',
+    color: '#0891b2',
+  };
+}
+
+function formatRelativeDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const diff = Date.now() - new Date(iso).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
     return iso;
   }
 }
 
-function formatMonth(iso: string) {
-  try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  } catch {
-    return '';
-  }
-}
-
-function groupByMonth(entries: HealthTimelineEntry[]) {
-  const groups: { month: string; items: HealthTimelineEntry[] }[] = [];
-  const seen = new Map<string, number>();
-  for (const entry of entries) {
-    const key = formatMonth(entry.createdAt);
-    if (seen.has(key)) {
-      groups[seen.get(key)!].items.push(entry);
-    } else {
-      seen.set(key, groups.length);
-      groups.push({ month: key, items: [entry] });
-    }
-  }
-  return groups;
+function getTimeOfDay(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function TimelineItem({ entry }: { entry: HealthTimelineEntry }) {
-  const u = URGENCY[entry.urgency as keyof typeof URGENCY] ?? URGENCY.MEDIUM;
+function HealthStatusCard({
+  status,
+  latest,
+  totalActive,
+}: {
+  status: HealthStatus;
+  latest: HealthTimelineEntry | null;
+  totalActive: number;
+}) {
+  const cfg = STATUS_CFG[status];
+  return (
+    <LinearGradient
+      colors={[cfg.gradientFrom, cfg.gradientTo]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{
+        marginHorizontal: 16,
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: cfg.border,
+        padding: 18,
+        marginBottom: 12,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: cfg.color + '22',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 12,
+          }}
+        >
+          <Ionicons name={cfg.icon} size={22} color={cfg.color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '600',
+              color: cfg.color,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+            }}
+          >
+            Current Health Status
+          </Text>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: cfg.color, marginTop: 1 }}>
+            {cfg.label}
+          </Text>
+        </View>
+        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: cfg.dot }} />
+      </View>
+
+      <View style={{ height: 1, backgroundColor: cfg.border, marginBottom: 12 }} />
+
+      <View style={{ flexDirection: 'row', gap: 16 }}>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 10,
+              color: cfg.color + 'aa',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: 0.8,
+            }}
+          >
+            Last Reported
+          </Text>
+          <Text
+            style={{ fontSize: 13, fontWeight: '700', color: '#111827', marginTop: 3 }}
+            numberOfLines={1}
+          >
+            {latest ? latest.condition || latest.title : '—'}
+          </Text>
+          {latest && (
+            <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+              {formatRelativeDate(latest.createdAt)}
+            </Text>
+          )}
+        </View>
+        <View
+          style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingLeft: 16,
+            borderLeftWidth: 1,
+            borderLeftColor: cfg.border,
+          }}
+        >
+          <Text style={{ fontSize: 28, fontWeight: '800', color: cfg.color }}>{totalActive}</Text>
+          <Text style={{ fontSize: 10, color: cfg.color + 'aa', fontWeight: '600' }}>Active</Text>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+}
+
+function AIInsightCard({
+  insight,
+}: {
+  insight: { text: string; icon: keyof typeof Ionicons.glyphMap; color: string };
+}) {
+  return (
+    <View
+      style={{
+        marginHorizontal: 16,
+        borderRadius: 16,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e0f2fe',
+        padding: 14,
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        shadowColor: '#000',
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 2,
+      }}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: insight.color + '18',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: 1,
+        }}
+      >
+        <Ionicons name={insight.icon} size={18} color={insight.color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            fontWeight: '700',
+            color: '#0891b2',
+            textTransform: 'uppercase',
+            letterSpacing: 0.8,
+            marginBottom: 4,
+          }}
+        >
+          AI Health Insight
+        </Text>
+        <Text style={{ fontSize: 13, color: '#374151', lineHeight: 19 }}>{insight.text}</Text>
+      </View>
+    </View>
+  );
+}
+
+function QuickActions() {
+  return (
+    <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: '700',
+          color: '#6b7280',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          marginBottom: 10,
+        }}
+      >
+        Quick Actions
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Pressable
+          onPress={() => router.push('/(tab)/chatScreen' as never)}
+          style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
+        >
+          <LinearGradient
+            colors={['#0AADA2', '#0d7c74']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 16, padding: 14, alignItems: 'center', gap: 8 }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="fitness-outline" size={20} color="#fff" />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
+              Report Symptoms
+            </Text>
+            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
+              Chat with AI for analysis
+            </Text>
+          </LinearGradient>
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.push('/(tab)/chatScreen' as never)}
+          style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
+        >
+          <LinearGradient
+            colors={['#0f766e', '#134e4a']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 16, padding: 14, alignItems: 'center', gap: 8 }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
+              Chat with LifeGate
+            </Text>
+            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
+              AI + Physician support
+            </Text>
+          </LinearGradient>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function RecentCaseRow({ entry }: { entry: HealthTimelineEntry }) {
+  const color = URGENCY_COLOR[entry.urgency] ?? '#6b7280';
+  const bg = URGENCY_BG[entry.urgency] ?? '#f9fafb';
+  const border = URGENCY_BORDER[entry.urgency] ?? '#e5e7eb';
 
   return (
     <Pressable
       onPress={() => router.push(`/(tab)/diagnosis/${entry.id}` as never)}
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
     >
-      <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 4 }}>
-        {/* Timeline spine + dot */}
-        <View style={{ alignItems: 'center', width: 28, marginRight: 12 }}>
-          <View
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 7,
-              backgroundColor: u.dot,
-              marginTop: 14,
-              zIndex: 1,
-            }}
-          />
-          <View style={{ flex: 1, width: 2, backgroundColor: '#e5e7eb', marginTop: 2 }} />
-        </View>
-
-        {/* Card */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: bg,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: border,
+          padding: 12,
+          marginBottom: 8,
+          gap: 12,
+        }}
+      >
         <View
-          style={{
-            flex: 1,
-            backgroundColor: u.bg,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: u.border,
-            padding: 12,
-            marginBottom: 10,
-          }}
-        >
-          {/* Title row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text
-              style={{ fontSize: 14, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 }}
-              numberOfLines={1}
-            >
-              {entry.title || entry.condition}
-            </Text>
-            {/* Status badge */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#fff',
-                borderRadius: 999,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderWidth: 1,
-                borderColor: STATUS_COLOR[entry.status] + '55',
-              }}
-            >
-              <Ionicons
-                name={STATUS_ICON[entry.status] ?? 'help-circle-outline'}
-                size={11}
-                color={STATUS_COLOR[entry.status]}
-              />
-              <Text style={{ fontSize: 10, color: STATUS_COLOR[entry.status], marginLeft: 3, fontWeight: '600' }}>
-                {entry.status}
-              </Text>
-            </View>
-          </View>
-
-          {/* Condition + urgency */}
-          <Text style={{ fontSize: 12, color: u.color, fontWeight: '600', marginBottom: 4 }}>
-            {entry.condition}  ·  {u.label}
+          style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: color, flexShrink: 0 }}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
+            {entry.condition || entry.title}
           </Text>
-
-          {/* Description preview */}
-          {!!entry.description && (
-            <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 17 }} numberOfLines={2}>
-              {entry.description}
-            </Text>
-          )}
-
-          {/* Footer */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
-            <Text style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(entry.createdAt)}</Text>
-            {entry.escalated && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name="arrow-up-circle" size={12} color="#7c3aed" />
-                <Text style={{ fontSize: 11, color: '#7c3aed', fontWeight: '600' }}>Escalated</Text>
-              </View>
-            )}
-            {entry.confidence > 0 && (
-              <Text style={{ fontSize: 11, color: '#9ca3af' }}>{entry.confidence}% confidence</Text>
-            )}
-          </View>
+          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+            {formatRelativeDate(entry.createdAt)}
+            {entry.status ? `  ·  ${entry.status}` : ''}
+          </Text>
         </View>
+        {entry.confidence > 0 && (
+          <Text style={{ fontSize: 11, fontWeight: '600', color }}>{entry.confidence}%</Text>
+        )}
+        <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
       </View>
     </Pressable>
   );
 }
 
-function MonthGroup({ month, items }: { month: string; items: HealthTimelineEntry[] }) {
-  return (
-    <View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10, marginTop: 8 }}>
-        <Text style={{ fontSize: 12, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>
-          {month}
-        </Text>
-        <View style={{ flex: 1, height: 1, backgroundColor: '#f3f4f6', marginLeft: 10 }} />
-        <Text style={{ fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>{items.length} case{items.length !== 1 ? 's' : ''}</Text>
-      </View>
-      {items.map((entry) => (
-        <TimelineItem key={entry.id} entry={entry} />
-      ))}
-    </View>
-  );
-}
-
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function HealthTimelineScreen() {
+export default function HealthDashboardScreen() {
   const {
     patientTimeline,
     timelineLoading,
-    timelineError,
-    fetchPatientTimeline,
+    alertsLoading,
     unreadAlertCount,
+    fetchPatientTimeline,
+    fetchPatientAlerts,
   } = useHealthStore();
+
+  const { user } = useAuthStore();
 
   useEffect(() => {
     fetchPatientTimeline();
+    fetchPatientAlerts();
   }, []);
 
   const onRefresh = useCallback(async () => {
-    await fetchPatientTimeline();
-  }, [fetchPatientTimeline]);
+    await Promise.all([fetchPatientTimeline(), fetchPatientAlerts()]);
+  }, [fetchPatientTimeline, fetchPatientAlerts]);
 
-  const groups = groupByMonth(patientTimeline);
+  const isLoading = timelineLoading && patientTimeline.length === 0;
+  const status = useMemo(() => deriveStatus(patientTimeline), [patientTimeline]);
+  const insight = useMemo(() => deriveInsight(patientTimeline), [patientTimeline]);
+  const latest = patientTimeline[0] ?? null;
+  const totalActive = useMemo(
+    () => patientTimeline.filter((e) => e.status !== 'Completed').length,
+    [patientTimeline]
+  );
+  const recentCases = useMemo(() => patientTimeline.slice(0, 4), [patientTimeline]);
+  const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['top']}>
-      {/* Header */}
+      {/* ── Header ── */}
       <View
         style={{
           flexDirection: 'row',
@@ -224,23 +523,19 @@ export default function HealthTimelineScreen() {
           borderBottomColor: '#f3f4f6',
         }}
       >
-        <Pressable
-          onPress={() => router.back()}
-          style={{ padding: 6, marginRight: 8, borderRadius: 20, backgroundColor: '#f3f4f6' }}
-          hitSlop={8}
-        >
-          <Ionicons name="chevron-back" size={20} color="#374151" />
-        </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>Health Timeline</Text>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>
+            Health Dashboard
+          </Text>
           <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 1 }}>
-            {patientTimeline.length} record{patientTimeline.length !== 1 ? 's' : ''} · chronological
+            Good {getTimeOfDay()}, {firstName}
           </Text>
         </View>
-        {/* Alerts shortcut with badge */}
+
+        {/* Alerts */}
         <Pressable
           onPress={() => router.push('/(tab)/health/alerts' as never)}
-          style={{ padding: 6, borderRadius: 20, backgroundColor: '#f3f4f6', position: 'relative' }}
+          style={{ padding: 8, borderRadius: 20, backgroundColor: '#f3f4f6', position: 'relative' }}
           hitSlop={8}
         >
           <Ionicons name="notifications-outline" size={22} color="#374151" />
@@ -250,138 +545,204 @@ export default function HealthTimelineScreen() {
                 position: 'absolute',
                 top: 2,
                 right: 2,
-                width: 14,
-                height: 14,
-                borderRadius: 7,
+                minWidth: 16,
+                height: 16,
+                borderRadius: 8,
                 backgroundColor: '#dc2626',
                 alignItems: 'center',
                 justifyContent: 'center',
+                paddingHorizontal: 3,
               }}
             >
-              <Text style={{ fontSize: 9, color: '#fff', fontWeight: '700' }}>
+              <Text style={{ fontSize: 9, color: '#fff', fontWeight: '800' }}>
                 {unreadAlertCount > 9 ? '9+' : unreadAlertCount}
               </Text>
             </View>
           )}
         </Pressable>
+
+        {/* Full history */}
+        <Pressable
+          onPress={() => router.push('/(tab)/health/timeline' as never)}
+          style={{ padding: 8, borderRadius: 20, backgroundColor: '#f3f4f6', marginLeft: 8 }}
+          hitSlop={8}
+        >
+          <Ionicons name="time-outline" size={22} color="#374151" />
+        </Pressable>
       </View>
 
-      {/* Loading */}
-      {timelineLoading && patientTimeline.length === 0 && (
+      {/* ── Loading ── */}
+      {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#0AADA2" />
-          <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>Loading health history…</Text>
+          <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>
+            Loading your health data…
+          </Text>
         </View>
-      )}
-
-      {/* Error */}
-      {!timelineLoading && !!timelineError && (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Ionicons name="cloud-offline-outline" size={48} color="#9ca3af" />
-          <Text style={{ marginTop: 12, fontSize: 15, fontWeight: '600', color: '#374151' }}>
-            Could not load timeline
-          </Text>
-          <Text style={{ marginTop: 4, fontSize: 13, color: '#9ca3af', textAlign: 'center' }}>
-            {timelineError}
-          </Text>
-          <Pressable
-            onPress={fetchPatientTimeline}
-            style={{
-              marginTop: 16,
-              backgroundColor: '#0AADA2',
-              paddingHorizontal: 24,
-              paddingVertical: 10,
-              borderRadius: 20,
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Empty state */}
-      {!timelineLoading && !timelineError && patientTimeline.length === 0 && (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: '#f0fdfa',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 16,
-            }}
-          >
-            <Ionicons name="medical-outline" size={32} color="#0AADA2" />
-          </View>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
-            No health records yet
-          </Text>
-          <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', marginTop: 6 }}>
-            Your diagnosis history will appear here after your first consultation.
-          </Text>
-          <Pressable
-            onPress={() => router.push('/(tab)/chatScreen' as never)}
-            style={{
-              marginTop: 20,
-              backgroundColor: '#0AADA2',
-              paddingHorizontal: 28,
-              paddingVertical: 11,
-              borderRadius: 24,
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Start a Consultation</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {/* Timeline list */}
-      {patientTimeline.length > 0 && (
+      ) : (
         <ScrollView
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
+          contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={timelineLoading}
+              refreshing={timelineLoading || alertsLoading}
               onRefresh={onRefresh}
               tintColor="#0AADA2"
             />
           }
         >
-          {/* Summary strip */}
+          {/* Unread alerts banner */}
+          {unreadAlertCount > 0 && (
+            <Pressable
+              onPress={() => router.push('/(tab)/health/alerts' as never)}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.85 : 1,
+                marginHorizontal: 16,
+                marginBottom: 12,
+              })}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#fef3c7',
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: '#fde68a',
+                  padding: 12,
+                  gap: 10,
+                }}
+              >
+                <Ionicons name="alert-circle" size={20} color="#b45309" />
+                <Text style={{ flex: 1, fontSize: 13, color: '#92400e', fontWeight: '600' }}>
+                  {unreadAlertCount} unread alert{unreadAlertCount !== 1 ? 's' : ''} — tap to review
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color="#b45309" />
+              </View>
+            </Pressable>
+          )}
+
+          <HealthStatusCard status={status} latest={latest} totalActive={totalActive} />
+          <AIInsightCard insight={insight} />
+          <QuickActions />
+
+          {/* Recent Cases */}
           <View
             style={{
-              flexDirection: 'row',
-              justifyContent: 'space-around',
               marginHorizontal: 16,
-              marginBottom: 16,
-              marginTop: 8,
+              borderRadius: 18,
               backgroundColor: '#fff',
-              borderRadius: 14,
-              padding: 14,
+              borderWidth: 1,
+              borderColor: '#f3f4f6',
+              overflow: 'hidden',
               shadowColor: '#000',
               shadowOpacity: 0.04,
-              shadowRadius: 4,
+              shadowRadius: 6,
               elevation: 2,
             }}
           >
-            {(['Completed', 'Active', 'Pending'] as const).map((s) => {
-              const count = patientTimeline.filter((e) => e.status === s).length;
-              return (
-                <View key={s} style={{ alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: STATUS_COLOR[s] }}>
-                    {count}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: '#f3f4f6',
+                backgroundColor: '#fafafa',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="medical-outline" size={16} color="#0AADA2" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>
+                  Recent Cases
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => router.push('/(tab)/health/timeline' as never)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
+                hitSlop={8}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#0AADA2' }}>See All</Text>
+                <Ionicons name="chevron-forward" size={13} color="#0AADA2" />
+              </Pressable>
+            </View>
+
+            <View style={{ padding: 12 }}>
+              {recentCases.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                  <Ionicons name="clipboard-outline" size={32} color="#d1d5db" />
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      fontSize: 13,
+                      color: '#9ca3af',
+                      textAlign: 'center',
+                    }}
+                  >
+                    No cases yet. Start a consultation to begin tracking your health.
                   </Text>
-                  <Text style={{ fontSize: 11, color: '#9ca3af' }}>{s}</Text>
+                  <Pressable
+                    onPress={() => router.push('/(tab)/chatScreen' as never)}
+                    style={{
+                      marginTop: 14,
+                      backgroundColor: '#0AADA2',
+                      paddingHorizontal: 22,
+                      paddingVertical: 9,
+                      borderRadius: 20,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                      Start Consultation
+                    </Text>
+                  </Pressable>
                 </View>
-              );
-            })}
+              ) : (
+                recentCases.map((entry) => <RecentCaseRow key={entry.id} entry={entry} />)
+              )}
+            </View>
           </View>
 
-          {groups.map((g) => (
-            <MonthGroup key={g.month} month={g.month} items={g.items} />
-          ))}
+          {/* Stats strip */}
+          {patientTimeline.length > 0 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-around',
+                marginHorizontal: 16,
+                marginTop: 12,
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: '#f3f4f6',
+                shadowColor: '#000',
+                shadowOpacity: 0.04,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              {[
+                { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
+                { label: 'Active', value: totalActive, color: '#d97706' },
+                {
+                  label: 'Resolved',
+                  value: patientTimeline.filter((e) => e.status === 'Completed').length,
+                  color: '#16a34a',
+                },
+              ].map((stat) => (
+                <View key={stat.label} style={{ alignItems: 'center', gap: 4 }}>
+                  <Text style={{ fontSize: 24, fontWeight: '800', color: stat.color }}>
+                    {stat.value}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '500' }}>
+                    {stat.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
