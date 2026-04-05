@@ -138,7 +138,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           )}
 
           {/* Primary diagnosis card */}
-          {!isSent && diagnosis && (
+          {!isSent && diagnosis && diagnosis.condition?.trim() && (
             <DiagnosisCard diagnosis={diagnosis} diagnosisId={diagnosisId} />
           )}
 

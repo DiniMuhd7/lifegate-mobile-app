@@ -321,9 +321,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Issue 7: Finalize the session when clinical_diagnosis mode produces its
         // first diagnosis. This runs the full EDIS analysis on conversation history
         // and queues the case for physician review.
+        // Guard: require at least 3 user messages so basic triage has occurred
+        // before the case is sent for physician review.
+        const userMessageCount = syncConv.messages.filter((m) => m.role === 'USER').length;
         const isFirstDiagnosis =
           syncConv.mode === 'clinical_diagnosis' &&
           !!aiResponse.diagnosis &&
+          userMessageCount >= 3 &&
           syncConv.messages.filter((m) => m.role === 'AI' && m.diagnosisId).length === 1;
 
         if (isFirstDiagnosis) {

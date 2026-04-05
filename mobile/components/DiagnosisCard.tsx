@@ -41,6 +41,8 @@ interface DiagnosisCardProps {
 }
 
 export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnosisId }) => {
+  if (!diagnosis?.condition?.trim()) return null;
+
   const config =
     URGENCY_CONFIG[diagnosis.urgency as keyof typeof URGENCY_CONFIG] ||
     URGENCY_CONFIG.MEDIUM;
