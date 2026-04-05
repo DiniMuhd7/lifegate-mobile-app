@@ -240,18 +240,18 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: 'rgba(255,255,255,0.92)',
+          backgroundColor: 'rgba(255,255,255,0.95)',
           borderRadius: 30,
           paddingLeft: 20,
           paddingRight: 6,
           paddingVertical: 6,
           borderWidth: 1.5,
-          borderColor: isMicActive ? 'rgba(239,68,68,0.25)' : 'rgba(13,148,136,0.18)',
+          borderColor: isMicActive ? 'rgba(239,68,68,0.35)' : 'rgba(13,148,136,0.3)',
           shadowColor: isMicActive ? '#ef4444' : '#0f766e',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: isMicActive ? 0.15 : 0.1,
-          shadowRadius: 18,
-          elevation: 7,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: isMicActive ? 0.28 : 0.22,
+          shadowRadius: 20,
+          elevation: 12,
           opacity: disabled ? 0.55 : 1,
         }}
       >
@@ -264,6 +264,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             lineHeight: 20,
             paddingVertical: 6,
             maxHeight: 110,
+            textAlignVertical: 'center',
+            textAlign: !hasText ? 'center' : 'left',
           }}
           value={text}
           onChangeText={setText}
