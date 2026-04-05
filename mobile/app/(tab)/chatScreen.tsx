@@ -241,28 +241,33 @@ const ChatScreen: React.FC = () => {
               {/* Center: AI identity */}
               <View style={{ flex: 1, alignItems: 'center' }}>
                 <Text
-                  style={{ fontSize: 16, fontWeight: '700', color: '#134e4a' }}
+                  style={{
+                    fontSize: 20,
+                    fontWeight: '800',
+                    color: '#0f766e',
+                    letterSpacing: -0.5,
+                  }}
                 >
-                  LifeGate
+                  Life<Text style={{ color: '#0AADA2' }}>Gate</Text>
                 </Text>
                 <View
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    gap: 5,
-                    marginTop: 2,
+                    gap: 4,
+                    marginTop: 1,
                   }}
                 >
                   <View
                     style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: 3.5,
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
                       backgroundColor: isConnected === false ? '#f59e0b' : '#22c55e',
                     }}
                   />
-                  <Text style={{ fontSize: 11, color: '#0f766e' }}>
-                    {isConnected === false ? 'Offline' : 'Online'}
+                  <Text style={{ fontSize: 10, color: '#6b7280', fontWeight: '500' }}>
+                    {isConnected === false ? 'Offline' : 'AI · Online'}
                   </Text>
                 </View>
               </View>
