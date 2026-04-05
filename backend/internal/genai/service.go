@@ -67,6 +67,10 @@ type ChatResponse struct {
 	LowConfidence        bool                 `json:"lowConfidence,omitempty"`
 	NeedsPhysicianReview bool                 `json:"needsPhysicianReview,omitempty"`
 	DiagnosisID          string               `json:"diagnosisId,omitempty"`
+	// IsExistingCase is true when diagnosisId refers to a previously created case
+	// (i.e. the new symptoms matched an existing Pending case for this user).
+	// The client uses this to present a "Continuing existing case" UI state.
+	IsExistingCase       bool                 `json:"isExistingCase,omitempty"`
 }
 
 // FinalizeResult is the structured result of finalizing a session.
@@ -301,6 +305,7 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message string, r
 	}
 
 	cr.DiagnosisID = id
+	cr.IsExistingCase = !isNewCase
 
 	diagData, _ := json.Marshal(map[string]interface{}{
 		"user_id":      userID,

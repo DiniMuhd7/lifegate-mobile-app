@@ -74,6 +74,8 @@ export type Message = {
   diagnosis?: Diagnosis; // Optional structured diagnosis from AI
   prescription?: Prescription; // Optional structured prescription from AI
   diagnosisId?: string; // DB diagnosis record ID for navigation to report screen
+  // True when diagnosisId refers to a pre-existing case (symptoms matched an existing Pending case)
+  isExistingCase?: boolean;
   // EDIS-specific fields returned by the AI
   followUpQuestions?: string[];    // Clarifying questions for the patient to answer
   conditions?: ConditionScore[];   // Ranked differential diagnosis list
@@ -102,8 +104,12 @@ export type AIResponse = {
   prescription?: Prescription;
   // True when the backend auto-escalated this session from General Health to Clinical Diagnosis
   escalated?: boolean;
+  // EDIS conversation mode returned by AI ("general" | "clinical")
+  mode?: string;
   // DB record ID of the saved diagnosis (present when a diagnosis was saved)
   diagnosisId?: string;
+  // True when diagnosisId refers to a pre-existing Pending case (symptoms matched)
+  isExistingCase?: boolean;
   // EDIS-specific fields
   followUpQuestions?: string[];
   conditions?: ConditionScore[];

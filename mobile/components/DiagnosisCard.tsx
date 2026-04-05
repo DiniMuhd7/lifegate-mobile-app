@@ -38,9 +38,10 @@ const URGENCY_CONFIG = {
 interface DiagnosisCardProps {
   diagnosis: Diagnosis;
   diagnosisId?: string;
+  isExistingCase?: boolean;
 }
 
-export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnosisId }) => {
+export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnosisId, isExistingCase }) => {
   if (!diagnosis?.condition?.trim()) return null;
 
   const config =
@@ -63,11 +64,33 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnos
           marginTop: 10,
           borderRadius: 14,
           padding: 12,
-          backgroundColor: config.bg,
+          backgroundColor: isExistingCase ? '#f0fdfa' : config.bg,
           borderWidth: 1.5,
-          borderColor: config.border,
+          borderColor: isExistingCase ? '#5eead4' : config.border,
         }}
       >
+        {/* Existing-case continuation banner */}
+        {isExistingCase && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              backgroundColor: '#0f766e',
+              borderRadius: 8,
+              paddingHorizontal: 9,
+              paddingVertical: 5,
+              marginBottom: 10,
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Ionicons name="refresh-circle" size={13} color="#ffffff" />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#ffffff', letterSpacing: 0.4 }}>
+              Continuing existing case
+            </Text>
+          </View>
+        )}
+
         {/* Header row */}
         <View
           style={{
@@ -81,12 +104,12 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnos
             style={{
               fontSize: 10,
               fontWeight: '700',
-              color: '#6b7280',
+              color: isExistingCase ? '#0f766e' : '#6b7280',
               letterSpacing: 0.8,
               textTransform: 'uppercase',
             }}
           >
-            Possible Condition
+            {isExistingCase ? 'Active Case' : 'Possible Condition'}
           </Text>
           <View
             style={{
@@ -96,12 +119,16 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnos
               paddingHorizontal: 8,
               paddingVertical: 3,
               borderRadius: 20,
-              backgroundColor: config.color + '22',
+              backgroundColor: (isExistingCase ? '#0f766e' : config.color) + '22',
             }}
           >
-            <Ionicons name={config.icon} size={11} color={config.color} />
-            <Text style={{ fontSize: 10, fontWeight: '700', color: config.color }}>
-              {config.label}
+            <Ionicons
+              name={isExistingCase ? 'medkit' : config.icon}
+              size={11}
+              color={isExistingCase ? '#0f766e' : config.color}
+            />
+            <Text style={{ fontSize: 10, fontWeight: '700', color: isExistingCase ? '#0f766e' : config.color }}>
+              {isExistingCase ? 'In Progress' : config.label}
             </Text>
           </View>
         </View>
@@ -122,15 +149,17 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnos
 
         {/* Confidence score */}
         {diagnosis.confidence != null && diagnosis.confidence > 0 ? (
-          <Text style={{ fontSize: 10.5, color: config.color, fontWeight: '600', marginTop: 6 }}>
+          <Text style={{ fontSize: 10.5, color: isExistingCase ? '#0f766e' : config.color, fontWeight: '600', marginTop: 6 }}>
             {diagnosis.confidence}% confidence
           </Text>
         ) : null}
 
-        {/* View report link */}
+        {/* View report / resume case link */}
         {diagnosisId ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8 }}>
-            <Text style={{ fontSize: 11, color: '#0AADA2', fontWeight: '600' }}>View full report</Text>
+            <Text style={{ fontSize: 11, color: '#0AADA2', fontWeight: '600' }}>
+              {isExistingCase ? 'View case & report' : 'View full report'}
+            </Text>
             <Ionicons name="chevron-forward" size={12} color="#0AADA2" />
           </View>
         ) : null}

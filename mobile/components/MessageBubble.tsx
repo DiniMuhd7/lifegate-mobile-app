@@ -53,6 +53,7 @@ interface MessageBubbleProps {
   diagnosis?: Diagnosis;
   prescription?: Prescription;
   diagnosisId?: string;
+  isExistingCase?: boolean;
   followUpQuestions?: string[];
   conditions?: ConditionScore[];
   riskFlags?: RiskFlag[];
@@ -74,6 +75,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   diagnosis,
   prescription,
   diagnosisId,
+  isExistingCase,
   followUpQuestions,
   conditions,
   riskFlags,
@@ -284,7 +286,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
             {/* Diagnosis card */}
             {diagnosis && diagnosis.condition?.trim() && (
-              <DiagnosisCard diagnosis={diagnosis} diagnosisId={diagnosisId} />
+              <DiagnosisCard diagnosis={diagnosis} diagnosisId={diagnosisId} isExistingCase={isExistingCase} />
             )}
 
             {/* Differential diagnosis */}

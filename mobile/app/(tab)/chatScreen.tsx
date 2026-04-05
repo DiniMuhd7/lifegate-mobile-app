@@ -123,6 +123,7 @@ const ChatScreen: React.FC = () => {
         diagnosis: msg.diagnosis,
         prescription: msg.prescription,
         diagnosisId: msg.diagnosisId,
+        isExistingCase: msg.isExistingCase,
         followUpQuestions: msg.followUpQuestions,
         conditions: msg.conditions,
         riskFlags: msg.riskFlags,

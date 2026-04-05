@@ -242,6 +242,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             diagnosis: aiResponse.diagnosis,
             prescription: aiResponse.prescription,
             diagnosisId: aiResponse.diagnosisId,
+            isExistingCase: aiResponse.isExistingCase,
             followUpQuestions: aiResponse.followUpQuestions,
             conditions: aiResponse.conditions,
             riskFlags: aiResponse.riskFlags,
@@ -255,15 +256,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
             conv.title ||
             `Chat - ${userMessage.text.substring(0, 30)}...`;
 
-          // Auto-escalation: use the backend authoritative flag OR detect client-side
-          // from urgency (fallback for cases where the backend flag is absent).
+          // Auto-escalation to Clinical Diagnosis mode.
+          // Triggers when:
+          //   a) backend sets escalated flag (authoritative)
+          //   b) urgency is HIGH or CRITICAL (client-side fallback)
+          //   c) AI sets mode:"clinical" — meaning it detected real symptoms,
+          //      regardless of urgency level (handles MEDIUM cases like colds)
+          // Works from general_health AND from mode-less conversations.
+          const inEscalatableMode =
+            conv.mode === 'general_health' || conv.mode === undefined || conv.mode === null;
           const clientSideEscalation =
-            conv.mode === 'general_health' &&
+            inEscalatableMode &&
             aiResponse.diagnosis?.urgency !== undefined &&
             ESCALATION_URGENCY.has(aiResponse.diagnosis.urgency);
+          const modeEscalation =
+            inEscalatableMode && aiResponse.mode === 'clinical';
           const shouldEscalate =
-            (conv.mode === 'general_health' && !!aiResponse.escalated) ||
-            clientSideEscalation;
+            (inEscalatableMode && !!aiResponse.escalated) ||
+            clientSideEscalation ||
+            modeEscalation;
 
           return {
             ...conv,
@@ -278,9 +289,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // Build escalation notice text if escalation occurred
         const escalatedConv = conversations.find((c) => c.id === conversationId);
-        const wasGeneralHealth = state.conversations.find(
-          (c) => c.id === conversationId
-        )?.mode === 'general_health';
+        const wasGeneralHealth = ['general_health', undefined, null].includes(
+          state.conversations.find((c) => c.id === conversationId)?.mode as string | undefined
+        );
         const didEscalate =
           wasGeneralHealth && escalatedConv?.mode === 'clinical_diagnosis';
 

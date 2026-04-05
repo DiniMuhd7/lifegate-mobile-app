@@ -14,6 +14,7 @@ export interface Message {
   diagnosis?: Diagnosis;
   prescription?: Prescription;
   diagnosisId?: string;
+  isExistingCase?: boolean;
   // Raw timestamp (ms) for grouping by date
   rawTimestamp?: number;
   // EDIS-specific fields
@@ -142,6 +143,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
               diagnosis={msg.diagnosis}
               prescription={msg.prescription}
               diagnosisId={msg.diagnosisId}
+              isExistingCase={msg.isExistingCase}
               followUpQuestions={msg.followUpQuestions}
               conditions={msg.conditions}
               riskFlags={msg.riskFlags}
