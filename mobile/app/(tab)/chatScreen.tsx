@@ -256,7 +256,7 @@ const ChatScreen: React.FC = () => {
               {/* Right: Chat icon + Settings */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <TouchableOpacity
-                  onPress={() => router.replace('/(tab)/chatScreen')}
+                  onPress={handleNewChat}
                   activeOpacity={0.7}
                   style={{ padding: 6 }}
                 >
