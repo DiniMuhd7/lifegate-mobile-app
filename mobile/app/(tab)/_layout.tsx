@@ -7,7 +7,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, BackHandler } from 'react-native';
-import { Drawer, router } from 'expo-router/drawer';
+import { Drawer } from 'expo-router/drawer';
+import { router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ConversationDrawer } from 'components/ConversationDrawer';
 import { ResumeSessionModal } from 'components/ResumeSessionModal';

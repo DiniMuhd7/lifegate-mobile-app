@@ -80,18 +80,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             isAuthenticated: true,
           });
         } else {
-          // Token exists but profile fetch failed
-          set({
-            isAuthenticated: false,
-            user: null,
-          });
+          // Token exists but profile fetch failed (expired / revoked) — purge it
+          await removeToken();
+          set({ isAuthenticated: false, user: null });
         }
       } else {
-        set({
-          isAuthenticated: false,
-        });
+        set({ isAuthenticated: false });
       }
     } catch {
+      await removeToken();
       set({ isAuthenticated: false, user: null });
     }
   },
@@ -148,8 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ loading: false, error: response.message ?? 'Verification failed' });
         return false;
       }
-      const rememberMe = get().pending2FA?.rememberMe ?? false;
-      if (rememberMe && response.token) {
+      if (response.token) {
         await saveToken(response.token);
       }
       set({
@@ -169,11 +165,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // -------- LOGOUT --------
   logout: async () => {
     await removeToken();
+    // Clear auth state
     set({
       user: null,
       isAuthenticated: false,
       error: null,
+      pending2FA: null,
     });
+    // Clear dependent stores so stale data doesn't bleed into the next session
+    try {
+      const { useSessionStore } = await import('../session-store');
+      useSessionStore.setState({
+        sessions: [],
+        incompleteSession: null,
+        activeServerSessionId: null,
+      });
+    } catch { /* best-effort */ }
+    try {
+      const { useChatStore } = await import('../chat-store');
+      useChatStore.setState({
+        conversations: [],
+        activeConversationId: null,
+        userId: null,
+      });
+    } catch { /* best-effort */ }
   },
 
   // -------- MDCN VERIFICATION --------
