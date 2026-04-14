@@ -43,6 +43,17 @@ export default function TabLayout() {
   // Maintain a live WebSocket connection for real-time diagnosis status updates.
   useDiagnosisWebSocket();
 
+  // ── Auth guard — redirect unauthenticated or wrong-role users ─────────────
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionLoading = useAuthStore((s) => s.sessionLoading);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!isAuthenticated) {
+      router.replace('/(auth)/login');
+    }
+  }, [isAuthenticated, sessionLoading]);
+
   // ── Health profile reminder ────────────────────────────────────────────────
   const user = useAuthStore((s) => s.user);
   const [profileReminderDismissed, setProfileReminderDismissed] = useState(false);

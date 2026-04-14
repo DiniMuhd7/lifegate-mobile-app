@@ -11,7 +11,6 @@ import {
   BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
@@ -110,6 +109,7 @@ const ChatScreen: React.FC = () => {
   );
   const messages = useMemo(() => activeConversation?.messages || [], [activeConversation]);
   const activeMode = activeConversation?.mode;
+  const activeCategory = activeConversation?.category;
   const escalationNotice = activeConversation?.escalationNotice || null;
 
   const { user, logout } = useAuthStore();
@@ -121,7 +121,6 @@ const ChatScreen: React.FC = () => {
   // Track which userId was last used to initialize the chat store so that
   // switching accounts always loads the correct user's conversation history.
   const initializedForUserId = useRef<string | null>(null);
-  const backPressTimeRef = useRef(0);
 
   // Hardware back button (Android) — mirrors the back arrow behaviour
   useEffect(() => {
@@ -144,30 +143,7 @@ const ChatScreen: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Android back button: double-press to exit with toast notification
-  useFocusEffect(
-    React.useCallback(() => {
-      const handleBackPress = () => {
-        const now = Date.now();
 
-        if (now - backPressTimeRef.current < 2000) {
-          BackHandler.exitApp();
-          return true;
-        }
-
-        backPressTimeRef.current = now;
-        router.replace('/(tab)/health');
-        return true;
-      };
-
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        handleBackPress
-      );
-
-      return () => subscription.remove();
-    }, [])
-  );
 
   useEffect(() => {
     if (!user?.id) {

@@ -61,7 +61,7 @@ export const PatientBottomTabBar = ({ activeTab }: PatientBottomTabBarProps) => 
         return (
           <Pressable
             key={tabKey}
-            onPress={() => router.push(tab.route as never)}
+            onPress={() => router.replace(tab.route as never)}
             className="flex-1 items-center justify-center py-4"
           >
             <Ionicons

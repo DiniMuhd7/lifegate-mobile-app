@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, router } from 'expo-router';
 import { View } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { BottomTabBar, type TabBarTab } from '../../components/BottomTabBar';
@@ -6,6 +6,7 @@ import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
 import { registerPhysicianPushToken, addNotificationResponseListener } from '../../utils/pushNotifications';
+import { useAuthStore } from 'stores/auth-store';
 
 export default function ProfTabLayout() {
   const router = useRouter();
@@ -38,6 +39,24 @@ export default function ProfTabLayout() {
   }, [router]);
 
   const handleDismissBanner = useCallback(() => setBanner(null), []);
+
+  // ── Auth guard ────────────────────────────────────────────────────────────
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const authUser = useAuthStore((s) => s.user);
+  const sessionLoading = useAuthStore((s) => s.sessionLoading);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+    if (!isAuthenticated) {
+      router.replace('/(auth)/login');
+    } else if (authUser?.role !== 'professional') {
+      if (authUser?.role === 'admin') {
+        router.replace('/(admin-tab)/dashboard');
+      } else {
+        router.replace('/(tab)/chatScreen');
+      }
+    }
+  }, [isAuthenticated, authUser, sessionLoading]);
 
   return (
     <View className="flex-1 bg-white">
