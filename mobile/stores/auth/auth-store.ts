@@ -244,11 +244,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch { /* best-effort */ }
     try {
       const { useChatStore } = await import('../chat-store');
-      useChatStore.setState({
-        conversations: [],
-        activeConversationId: null,
-        userId: null,
-      });
+      useChatStore.getState().resetChatState();
     } catch { /* best-effort */ }
     try {
       const { useHealthStore } = await import('../health-store');

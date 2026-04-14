@@ -27,7 +27,8 @@ export class ChatService {
     previousMessages: Message[],
     userMessage: string,
     category?: string,
-    mode?: string
+    mode?: string,
+    signal?: AbortSignal
   ): Promise<AIResponse> {
     const clientStart = Date.now();
     const LATENCY_TARGET_MS = 500;
@@ -56,7 +57,14 @@ export class ChatService {
         : {};
 
       // Call backend endpoint
-      const response = await api.post<{ data: AIResponse; escalated?: boolean; latency_ms?: number }>('/genai/chat', requestPayload, queryParams);
+      const response = await api.post<{ data: AIResponse; escalated?: boolean; latency_ms?: number }>(
+        '/genai/chat',
+        requestPayload,
+        {
+          ...queryParams,
+          signal,
+        }
+      );
 
       const clientLatencyMs = Date.now() - clientStart;
       const serverLatencyMs = response.data.latency_ms ?? Number(response.headers?.['x-ai-latency-ms'] ?? 0);

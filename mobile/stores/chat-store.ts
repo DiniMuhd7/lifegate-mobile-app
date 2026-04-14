@@ -1,68 +1,296 @@
 /**
  * Chat Store (Zustand)
- * Manages chat state following the HealthPilot specification:
- * - Optimistic UI (SENDING → SENT/FAILED)
- * - Handles AI orchestration via ChatService
- * - Persists conversations to AsyncStorage
- * - Supports multiple conversations with history
+ *
+ * Owns the client-side chat session lifecycle:
+ * - optimistic message updates
+ * - cancellable AI orchestration
+ * - conversation persistence
+ * - escalation and session finalization
+ *
+ * DESIGN NOTES:
+ * - The store keeps raw state only. Components derive active conversation data
+ *   with selectors instead of relying on hidden getters.
+ * - Async work is guarded with request ids and AbortController so stale AI
+ *   completions cannot mutate newer state.
+ * - Persistence is handled explicitly with debounced AsyncStorage writes so the
+ *   data model remains user-scoped and easy to reason about.
  */
 
 import { create } from 'zustand';
-import { Message, Conversation, MessageStatus, ConversationCategory, SessionMode } from 'types/chat-types';
+import {
+  AIResponse,
+  Conversation,
+  ConversationCategory,
+  FinalizeResult,
+  Message,
+  MessageStatus,
+  SessionMode,
+} from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
 import { SessionService } from 'services/session-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
 import { scheduleFollowUp } from 'utils/followUpScheduler';
 
-// Granular feedback phases shown during AI processing
+// Granular feedback phases shown during AI processing.
 export type ProcessingPhase = 'sending' | 'analyzing' | 'generating' | null;
 
-type ChatState = {
+type ConversationSnapshot = {
+  conversationId: string;
+  requestId: string;
+  userMessage: Message;
+  previousMessages: Message[];
+  previousConversation: Conversation;
+  mode?: SessionMode;
+  category?: ConversationCategory;
+};
+
+export type ChatState = {
   // State
   conversations: Conversation[];
   activeConversationId: string | null;
   userId: string | null;
-  isThinking: boolean; // AI is processing
-  processingPhase: ProcessingPhase; // Granular feedback during AI processing
-  isInitializing: boolean; // Chat loading from storage
+  isThinking: boolean;
+  processingPhase: ProcessingPhase;
+  isInitializing: boolean;
   error: string | null;
-  // Set when General Health Mode auto-escalates to Clinical Diagnosis Mode
-  escalationNotice: string | null;
-
-  // Derived
-  activeConversation: Conversation | null;
-  messages: Message[]; // Messages of active conversation
+  activeRequestId: string | null;
+  activeRequestConversationId: string | null;
+  activeAbortController: AbortController | null;
 
   // Actions
   initializeChat: (userId: string) => Promise<void>;
-  createConversation: (mode?: SessionMode) => string; // Returns new conversation ID
-  setConversationMode: (conversationId: string, mode: SessionMode) => void; // Set mode on an existing conversation
+  createConversation: (mode?: SessionMode) => string;
+  setConversationMode: (conversationId: string, mode: SessionMode) => void;
   setActiveConversation: (conversationId: string) => void;
-  sendMessage: (text: string, category?: ConversationCategory) => Promise<void>; // User sends message
-  retrySendMessage: (messageId: string) => Promise<void>; // Retry a FAILED message
-  loadConversationHistory: () => Promise<void>; // Load from storage
+  sendMessage: (text: string, category?: ConversationCategory) => Promise<void>;
+  retrySendMessage: (messageId: string) => Promise<void>;
+  loadConversationHistory: () => Promise<void>;
   deleteConversation: (conversationId: string) => void;
+  setConversationServerSessionId: (conversationId: string, serverSessionId: string) => void;
   processAIResponse: (userMessage: Message, conversationId: string) => Promise<void>;
   clearError: () => void;
-  clearEscalationNotice: () => void;
+  clearEscalationNotice: (conversationId?: string) => void;
+  resetChatState: () => void;
+  flushPendingPersistence: () => Promise<void>;
 };
 
-// Map a SessionMode to its backend ConversationCategory
+const ESCALATION_URGENCY = new Set(['HIGH', 'CRITICAL']);
+
 const modeToCategory = (mode: SessionMode): ConversationCategory =>
   mode === 'clinical_diagnosis' ? 'doctor_consultation' : 'general_health';
 
-// Urgency levels that trigger client-side escalation detection
-const ESCALATION_URGENCY = new Set(['HIGH', 'CRITICAL']);
+const generateId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-// Generate unique ID
-const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-// Format timestamp
 const now = () => Date.now();
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingPersistSnapshot: { userId: string; conversations: Conversation[] } | null = null;
+
+function cloneConversation(conversation: Conversation): Conversation {
+  return {
+    ...conversation,
+    messages: conversation.messages.map((message) => ({ ...message })),
+  };
+}
+
+function cloneConversations(conversations: Conversation[]): Conversation[] {
+  return conversations.map(cloneConversation);
+}
+
+async function persistSnapshot(snapshot: { userId: string; conversations: Conversation[] } | null) {
+  if (!snapshot || !snapshot.userId) return;
+  await PersistenceManager.saveConversations(snapshot.conversations, snapshot.userId);
+}
+
+function scheduleConversationPersist(userId: string, conversations: Conversation[]) {
+  if (!userId) return;
+
+  pendingPersistSnapshot = {
+    userId,
+    conversations: cloneConversations(conversations),
+  };
+
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+  }
+
+  persistTimer = setTimeout(() => {
+    const snapshot = pendingPersistSnapshot;
+    pendingPersistSnapshot = null;
+    persistTimer = null;
+
+    persistSnapshot(snapshot).catch((error) => {
+      console.error('Failed to persist conversations:', error);
+    });
+  }, 300);
+}
+
+function getConversation(conversations: Conversation[], conversationId: string) {
+  return conversations.find((conversation) => conversation.id === conversationId) || null;
+}
+
+function abortActiveRequest(state: ChatState) {
+  state.activeAbortController?.abort();
+}
+
+function buildUserMessage(text: string): Message {
+  return {
+    id: generateId(),
+    role: 'USER',
+    status: 'SENDING',
+    text,
+    timestamp: now(),
+  };
+}
+
+function buildAIMessage(aiResponse: AIResponse): Message {
+  return {
+    id: generateId(),
+    role: 'AI',
+    status: 'SENT',
+    text: aiResponse.text,
+    timestamp: now(),
+    diagnosis: aiResponse.diagnosis,
+    prescription: aiResponse.prescription,
+    diagnosisId: aiResponse.diagnosisId,
+    isExistingCase: aiResponse.isExistingCase,
+    followUpQuestions: aiResponse.followUpQuestions,
+    conditions: aiResponse.conditions,
+    riskFlags: aiResponse.riskFlags,
+    investigations: aiResponse.investigations,
+  };
+}
+
+function deriveConversationTitle(conversation: Conversation, userMessage: Message) {
+  return conversation.title || `Chat - ${userMessage.text.substring(0, 30)}...`;
+}
+
+function handleEscalation(
+  conversation: Conversation,
+  aiResponse: AIResponse,
+  previousMode: SessionMode | undefined
+) {
+  const isEscalatableMode = previousMode === 'general_health' || previousMode == null;
+  const clientSideEscalation =
+    isEscalatableMode &&
+    aiResponse.diagnosis?.urgency !== undefined &&
+    ESCALATION_URGENCY.has(aiResponse.diagnosis.urgency);
+  const modeEscalation = isEscalatableMode && aiResponse.mode === 'clinical';
+  const shouldEscalate =
+    (isEscalatableMode && !!aiResponse.escalated) || clientSideEscalation || modeEscalation;
+
+  if (!shouldEscalate) {
+    return conversation;
+  }
+
+  const urgency = aiResponse.diagnosis?.urgency ?? '';
+  const escalationNotice = urgency
+    ? `Your session has been escalated to Clinical Diagnosis mode because a ${urgency.toLowerCase()}-risk condition was detected. A licensed physician will review your case.`
+    : 'Your session has been escalated to Clinical Diagnosis mode. A licensed physician will review your case.';
+
+  return {
+    ...conversation,
+    mode: 'clinical_diagnosis' as SessionMode,
+    category: 'doctor_consultation' as ConversationCategory,
+    escalationNotice,
+  };
+}
+
+function appendAIMessage(
+  conversation: Conversation,
+  userMessage: Message,
+  aiResponse: AIResponse
+) {
+  const aiMessage = buildAIMessage(aiResponse);
+  const updatedMessages = conversation.messages.map((message) =>
+    message.id === userMessage.id ? { ...message, status: 'READ' as MessageStatus } : message
+  );
+
+  updatedMessages.push(aiMessage);
+
+  return {
+    conversation: {
+      ...conversation,
+      messages: updatedMessages,
+      title: deriveConversationTitle(conversation, userMessage),
+      updatedAt: now(),
+    },
+    aiMessageId: aiMessage.id,
+  };
+}
+
+async function fetchAIResponse(snapshot: ConversationSnapshot, signal: AbortSignal) {
+  return ChatService.sendMessage(
+    snapshot.previousMessages,
+    snapshot.userMessage.text,
+    snapshot.category,
+    snapshot.mode,
+    signal
+  );
+}
+
+async function finalizeDiagnosis(sessionId: string, conversationId: string, aiMessageId: string) {
+  const result: FinalizeResult = await ChatService.finalize(sessionId);
+
+  useChatStore.setState((state) => ({
+    conversations: state.conversations.map((conversation) => {
+      if (conversation.id !== conversationId) return conversation;
+
+      return {
+        ...conversation,
+        messages: conversation.messages.map((message) =>
+          message.id === aiMessageId
+            ? {
+                ...message,
+                diagnosisId: result.diagnosisId || message.diagnosisId,
+                conditions: result.conditions ?? message.conditions,
+                riskFlags: result.riskFlags ?? message.riskFlags,
+              }
+            : message
+        ),
+      };
+    }),
+  }));
+
+  const state = useChatStore.getState();
+  const updatedConversation = getConversation(state.conversations, conversationId);
+  if (updatedConversation) {
+    scheduleConversationPersist(state.userId || '', state.conversations);
+  }
+}
+
+async function syncWithServer(
+  conversation: Conversation,
+  aiResponse: AIResponse,
+  aiMessageId: string
+) {
+  if (!conversation.serverSessionId) return;
+
+  await SessionService.update(conversation.serverSessionId, {
+    title: conversation.title,
+    messages: conversation.messages,
+    status: 'active',
+  }).catch(() => {
+    // Non-critical — local storage remains the source of truth.
+  });
+
+  const userMessageCount = conversation.messages.filter((message) => message.role === 'USER').length;
+  const aiDiagnosisCount = conversation.messages.filter(
+    (message) => message.role === 'AI' && !!message.diagnosisId
+  ).length;
+  const isFirstDiagnosis =
+    conversation.mode === 'clinical_diagnosis' &&
+    !!aiResponse.diagnosis &&
+    userMessageCount >= 3 &&
+    aiDiagnosisCount === 1;
+
+  if (!isFirstDiagnosis) return;
+
+  await finalizeDiagnosis(conversation.serverSessionId, conversation.id, aiMessageId);
+}
+
 export const useChatStore = create<ChatState>((set, get) => ({
-  // -------- State --------
   conversations: [],
   activeConversationId: null,
   userId: null,
@@ -70,55 +298,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
   processingPhase: null,
   isInitializing: false,
   error: null,
-  escalationNotice: null,
+  activeRequestId: null,
+  activeRequestConversationId: null,
+  activeAbortController: null,
 
-  // -------- Derived --------
-  get activeConversation() {
-    const state = get();
-    return (
-      state.conversations.find((c) => c.id === state.activeConversationId) ||
-      null
-    );
-  },
-
-  get messages() {
-    return get().activeConversation?.messages || [];
-  },
-
-  // -------- Actions --------
-
-  // Initialize chat on app boot (load history)
   initializeChat: async (userId: string) => {
-    set({ isInitializing: true });
+    abortActiveRequest(get());
+    set({
+      isInitializing: true,
+      userId,
+      activeRequestId: null,
+      activeRequestConversationId: null,
+      activeAbortController: null,
+      isThinking: false,
+      processingPhase: null,
+      error: null,
+    });
+
     try {
       const conversations = await PersistenceManager.loadConversations(userId);
-      const defaultConvId =
-        conversations.length > 0 ? conversations[0].id : generateId();
+      const activeConversationId = conversations[0]?.id ?? null;
 
       set({
         conversations,
-        activeConversationId: defaultConvId,
-        userId,
+        activeConversationId,
+        isInitializing: false,
       });
 
-      // If no conversations exist, create first one
       if (conversations.length === 0) {
         get().createConversation();
       }
-      set({ isInitializing: false });
     } catch (error) {
       console.error('Failed to initialize chat:', error);
       set({ error: 'Failed to load chat history', isInitializing: false });
     }
   },
 
-  // Create new conversation (optionally pre-set session mode & derived category)
   createConversation: (mode?: SessionMode) => {
     const conversationId = generateId();
     const newConversation: Conversation = {
       id: conversationId,
       userId: get().userId || '',
       messages: [],
+      escalationNotice: null,
       ...(mode ? { mode, category: modeToCategory(mode) } : {}),
       createdAt: now(),
       updatedAt: now(),
@@ -129,29 +351,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeConversationId: conversationId,
     }));
 
+    scheduleConversationPersist(get().userId || '', get().conversations);
+
     return conversationId;
   },
 
-  // Set the session mode on an existing conversation (also updates derived category)
   setConversationMode: (conversationId: string, mode: SessionMode) => {
     set((state) => ({
-      conversations: state.conversations.map((conv) =>
-        conv.id === conversationId
-          ? { ...conv, mode, category: modeToCategory(mode) }
-          : conv
+      conversations: state.conversations.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              mode,
+              category: modeToCategory(mode),
+              updatedAt: now(),
+            }
+          : conversation
       ),
     }));
+
+    scheduleConversationPersist(get().userId || '', get().conversations);
   },
 
-  // Switch active conversation
   setActiveConversation: (conversationId: string) => {
     set({ activeConversationId: conversationId, error: null });
   },
 
-  // Main action: User sends message (Step A & B from spec)
   sendMessage: async (text: string, category?: ConversationCategory) => {
     try {
-      // Step B: Sanitize and validate
+      const state = get();
+
+      if (state.isThinking) {
+        set({ error: 'Please wait for the current response before sending another message.' });
+        return;
+      }
+
       const sanitized = sanitizeMessage(text);
       const validation = validateMessage(sanitized);
       if (!validation.isValid) {
@@ -159,168 +393,122 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      const state = get();
       const convId = state.activeConversationId;
       if (!convId) {
         set({ error: 'No active conversation' });
         return;
       }
 
-      // Step B: Create user message with SENDING status
-      const userMessage: Message = {
-        id: generateId(),
-        role: 'USER',
-        status: 'SENDING',
-        text: sanitized,
-        timestamp: now(),
+      const conversation = getConversation(state.conversations, convId);
+      if (!conversation) {
+        set({ error: 'No active conversation' });
+        return;
+      }
+
+      const userMessage = buildUserMessage(sanitized);
+      const requestId = generateId();
+      const abortController = new AbortController();
+      const allowCategoryOverride = !!category && conversation.messages.length === 0 && !conversation.mode;
+
+      const snapshot: ConversationSnapshot = {
+        conversationId: convId,
+        requestId,
+        userMessage,
+        previousMessages: conversation.messages,
+        previousConversation: conversation,
+        mode: conversation.mode,
+        category: allowCategoryOverride ? category : conversation.category,
       };
 
-      // Step B: Optimistic update
-      // Only allow a caller-supplied category to override when the conversation
-      // has no messages AND no mode has been set (i.e. mode-less quick-start).
-      set((state) => {
-        const conversations = state.conversations.map((conv) => {
-          if (conv.id !== convId) return conv;
-          const allowCategoryOverride =
-            category && conv.messages.length === 0 && !conv.mode;
+      set((current) => ({
+        conversations: current.conversations.map((existingConversation) => {
+          if (existingConversation.id !== convId) return existingConversation;
+
           return {
-            ...conv,
+            ...existingConversation,
             ...(allowCategoryOverride ? { category } : {}),
-            messages: [...conv.messages, userMessage],
+            messages: [...existingConversation.messages, userMessage],
             updatedAt: now(),
           };
-        });
-        return { conversations, isThinking: true, processingPhase: 'sending' as ProcessingPhase, error: null };
-      });
+        }),
+        isThinking: true,
+        processingPhase: 'sending',
+        error: null,
+        activeRequestId: requestId,
+        activeRequestConversationId: convId,
+        activeAbortController: abortController,
+      }));
 
-      // Step C: Orchestrate AI response
-      await get().processAIResponse(userMessage, convId);
+      await get().processAIResponse(snapshot.userMessage, snapshot.conversationId);
     } catch (error) {
       console.error('Error sending message:', error);
-      set({ error: 'Failed to send message', isThinking: false, processingPhase: null });
+      set({
+        error: 'Failed to send message',
+        isThinking: false,
+        processingPhase: null,
+        activeRequestId: null,
+        activeRequestConversationId: null,
+        activeAbortController: null,
+      });
     }
   },
 
-  // Step C: Process AI response (internal)
   processAIResponse: async (userMessage: Message, conversationId: string) => {
+    const state = get();
+    const requestId = state.activeRequestId;
+    const abortController = state.activeAbortController;
+    const conversationSnapshot = getConversation(state.conversations, conversationId);
+
+    if (!requestId || !abortController || !conversationSnapshot) {
+      return;
+    }
+
     try {
-      // Advance phase: AI is now analyzing the message
       set({ processingPhase: 'analyzing' });
 
-      // Get conversation for context
-      const state = get();
-      const conversation = state.conversations.find(
-        (c) => c.id === conversationId
-      );
-      if (!conversation) return;
+      const snapshot: ConversationSnapshot = {
+        conversationId,
+        requestId,
+        userMessage,
+        previousMessages: conversationSnapshot.messages.slice(0, -1),
+        previousConversation: conversationSnapshot,
+        mode: conversationSnapshot.mode,
+        category: conversationSnapshot.category,
+      };
 
-      // Call backend AI via ChatService (pass category for specialized prompting)
       set({ processingPhase: 'generating' });
-      const aiResponse = await ChatService.sendMessage(
-        conversation.messages.slice(0, -1), // All previous messages
-        userMessage.text,
-        conversation.category,
-        conversation.mode ?? undefined
+
+      const aiResponse = await fetchAIResponse(snapshot, abortController.signal);
+
+      if (abortController.signal.aborted || get().activeRequestId !== requestId) {
+        return;
+      }
+
+      const appended = appendAIMessage(conversationSnapshot, userMessage, aiResponse);
+      const escalatedConversation = handleEscalation(
+        appended.conversation,
+        aiResponse,
+        conversationSnapshot.mode
       );
 
-      // Step D: Handle success
-      set((state) => {
-        const conversations = state.conversations.map((conv) => {
-          if (conv.id !== conversationId) return conv;
+      set((current) => ({
+        conversations: current.conversations.map((conversation) =>
+          conversation.id === conversationId ? escalatedConversation : conversation
+        ),
+        isThinking: false,
+        processingPhase: null,
+        activeRequestId: null,
+        activeRequestConversationId: null,
+        activeAbortController: null,
+      }));
 
-          // Update user message status to READ (AI has received and responded)
-          const updatedMessages = conv.messages.map((msg) =>
-            msg.id === userMessage.id ? { ...msg, status: 'READ' as MessageStatus } : msg
-          );
+      scheduleConversationPersist(get().userId || '', get().conversations);
 
-          // Append AI message
-          const aiMessage: Message = {
-            id: generateId(),
-            role: 'AI',
-            status: 'SENT',
-            text: aiResponse.text,
-            timestamp: now(),
-            diagnosis: aiResponse.diagnosis,
-            prescription: aiResponse.prescription,
-            diagnosisId: aiResponse.diagnosisId,
-            isExistingCase: aiResponse.isExistingCase,
-            followUpQuestions: aiResponse.followUpQuestions,
-            conditions: aiResponse.conditions,
-            riskFlags: aiResponse.riskFlags,
-            investigations: aiResponse.investigations,
-          };
+      const updatedConversation = getConversation(get().conversations, conversationId);
+      if (updatedConversation) {
+        await syncWithServer(updatedConversation, aiResponse, appended.aiMessageId);
+      }
 
-          updatedMessages.push(aiMessage);
-
-          // Update conversation title if first message
-          const title =
-            conv.title ||
-            `Chat - ${userMessage.text.substring(0, 30)}...`;
-
-          // Auto-escalation to Clinical Diagnosis mode.
-          // Triggers when:
-          //   a) backend sets escalated flag (authoritative)
-          //   b) urgency is HIGH or CRITICAL (client-side fallback)
-          //   c) AI sets mode:"clinical" — meaning it detected real symptoms,
-          //      regardless of urgency level (handles MEDIUM cases like colds)
-          // Works from general_health AND from mode-less conversations.
-          const inEscalatableMode =
-            conv.mode === 'general_health' || conv.mode === undefined || conv.mode === null;
-          const clientSideEscalation =
-            inEscalatableMode &&
-            aiResponse.diagnosis?.urgency !== undefined &&
-            ESCALATION_URGENCY.has(aiResponse.diagnosis.urgency);
-          const modeEscalation =
-            inEscalatableMode && aiResponse.mode === 'clinical';
-          const shouldEscalate =
-            (inEscalatableMode && !!aiResponse.escalated) ||
-            clientSideEscalation ||
-            modeEscalation;
-
-          return {
-            ...conv,
-            ...(shouldEscalate
-              ? { mode: 'clinical_diagnosis' as SessionMode, category: 'doctor_consultation' as ConversationCategory }
-              : {}),
-            messages: updatedMessages,
-            title,
-            updatedAt: now(),
-          };
-        });
-
-        // Build escalation notice text if escalation occurred
-        const escalatedConv = conversations.find((c) => c.id === conversationId);
-        const wasGeneralHealth = ['general_health', undefined, null].includes(
-          state.conversations.find((c) => c.id === conversationId)?.mode as string | undefined
-        );
-        const didEscalate =
-          wasGeneralHealth && escalatedConv?.mode === 'clinical_diagnosis';
-
-        const urgency = aiResponse.diagnosis?.urgency ?? '';
-        const escalationNotice = didEscalate
-          ? `Your session has been escalated to Clinical Diagnosis mode because a ${
-              urgency.toLowerCase()
-            }-risk condition was detected. A licensed physician will review your case.`
-          : state.escalationNotice;
-
-        return {
-          conversations,
-          isThinking: false,
-          processingPhase: null,
-          escalationNotice,
-        };
-      });
-
-
-      
-      // Step D: Persist to storage
-      await PersistenceManager.saveConversations(
-        get().conversations,
-        get().userId || ''
-      );
-
-      // Schedule a device calendar event + local notification for the follow-up
-      // date whenever EDIS returns a followUpPlan alongside a diagnosis.
       if (
         aiResponse.followUpPlan &&
         aiResponse.diagnosisId &&
@@ -330,112 +518,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
           aiResponse.diagnosisId,
           aiResponse.diagnosis.condition,
           aiResponse.followUpPlan,
-          aiResponse.followUpDate ?? undefined,
+          aiResponse.followUpDate ?? undefined
         ).catch(() => {
           // Non-critical — silently skip if permissions are denied or scheduling fails.
         });
       }
-
-      // Background-sync: if this conversation is paired with a server session,
-      // update its messages and mark it active (in case it was abandoned).
-      const syncConv = get().conversations.find((c) => c.id === conversationId);
-      if (syncConv?.serverSessionId) {
-        SessionService.update(syncConv.serverSessionId, {
-          title: syncConv.title,
-          messages: syncConv.messages,
-          status: 'active',
-        }).catch(() => {
-          // Non-critical — local storage is the source of truth.
-        });
-
-        // Issue 7: Finalize the session when clinical_diagnosis mode produces its
-        // first diagnosis. This runs the full EDIS analysis on conversation history
-        // and queues the case for physician review.
-        // Guard: require at least 3 user messages so basic triage has occurred
-        // before the case is sent for physician review.
-        const userMessageCount = syncConv.messages.filter((m) => m.role === 'USER').length;
-        const isFirstDiagnosis =
-          syncConv.mode === 'clinical_diagnosis' &&
-          !!aiResponse.diagnosis &&
-          userMessageCount >= 3 &&
-          syncConv.messages.filter((m) => m.role === 'AI' && m.diagnosisId).length === 1;
-
-        if (isFirstDiagnosis) {
-          ChatService.finalize(syncConv.serverSessionId)
-            .then((result) => {
-              // Stamp the latest AI message with the richer finalized data if it
-              // doesn't already have a diagnosis id from the stateless route.
-              set((state) => ({
-                conversations: state.conversations.map((conv) => {
-                  if (conv.id !== conversationId) return conv;
-                  const msgs = [...conv.messages];
-                  const lastAI = [...msgs].reverse().find((m) => m.role === 'AI');
-                  if (!lastAI) return conv;
-                  return {
-                    ...conv,
-                    messages: msgs.map((m) =>
-                      m.id === lastAI.id
-                        ? {
-                            ...m,
-                            diagnosisId: result.diagnosisId || m.diagnosisId,
-                            conditions: result.conditions ?? m.conditions,
-                            riskFlags: result.riskFlags ?? m.riskFlags,
-                            investigations: m.investigations,
-                          }
-                        : m
-                    ),
-                  };
-                }),
-              }));
-            })
-            .catch(() => {
-              // Non-critical — stateless route already created the preliminary diagnosis.
-            });
-        }
-      }
     } catch (error) {
+      if (abortController.signal.aborted) {
+        return;
+      }
+
       console.error('AI response error:', error);
 
-      // Step D: Error path
-      set((state) => {
-        const conversations = state.conversations.map((conv) => {
-          if (conv.id !== conversationId) return conv;
+      const isInsufficientCredits = (error as Error)?.message === 'INSUFFICIENT_CREDITS';
+
+      set((current) => ({
+        conversations: current.conversations.map((conversation) => {
+          if (conversation.id !== conversationId) return conversation;
+
           return {
-            ...conv,
-            messages: conv.messages.map((msg) =>
-              msg.id === userMessage.id
-                ? { ...msg, status: 'FAILED' as MessageStatus }
-                : msg
+            ...conversation,
+            messages: conversation.messages.map((message) =>
+              message.id === userMessage.id ? { ...message, status: 'FAILED' as MessageStatus } : message
             ),
+            ...(isInsufficientCredits && conversation.mode === 'clinical_diagnosis'
+              ? {
+                  mode: 'general_health' as SessionMode,
+                  category: 'general_health' as ConversationCategory,
+                }
+              : {}),
           };
-        });
+        }),
+        isThinking: false,
+        processingPhase: null,
+        activeRequestId: null,
+        activeRequestConversationId: null,
+        activeAbortController: null,
+        error: isInsufficientCredits
+          ? 'INSUFFICIENT_CREDITS'
+          : 'Failed to get AI response. Please try again.',
+      }));
 
-        const isInsufficientCredits = (error as Error)?.message === 'INSUFFICIENT_CREDITS';
-
-        // Auto-downgrade from clinical_diagnosis → general_health when credits run out.
-        // The user still sees the top-up prompt; the mode switch lets them continue
-        // chatting without being blocked while they decide whether to top up.
-        const finalConversations = isInsufficientCredits
-          ? conversations.map((conv) =>
-              conv.id === conversationId && conv.mode === 'clinical_diagnosis'
-                ? { ...conv, mode: 'general_health' as SessionMode, category: 'general_health' as ConversationCategory }
-                : conv
-            )
-          : conversations;
-
-        return {
-          conversations: finalConversations,
-          isThinking: false,
-          processingPhase: null,
-          error: isInsufficientCredits
-            ? 'INSUFFICIENT_CREDITS'
-            : 'Failed to get AI response. Please try again.',
-        };
-      });
+      scheduleConversationPersist(get().userId || '', get().conversations);
     }
   },
 
-  // Load conversation history from storage
   loadConversationHistory: async () => {
     try {
       const conversations = await PersistenceManager.loadConversations(get().userId || '');
@@ -446,58 +573,134 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  // Retry a FAILED message
   retrySendMessage: async (messageId: string) => {
     const state = get();
+
+    if (state.isThinking) {
+      set({ error: 'Please wait for the current response before retrying a message.' });
+      return;
+    }
+
     const convId = state.activeConversationId;
-    const conversation = state.conversations.find((c) => c.id === convId);
+    const conversation = state.conversations.find((item) => item.id === convId);
     if (!convId || !conversation) return;
 
     const failedMsg = conversation.messages.find(
-      (m) => m.id === messageId && m.status === 'FAILED'
+      (message) => message.id === messageId && message.status === 'FAILED'
     );
     if (!failedMsg) return;
 
-    // Reset message to SENDING
-    set((s) => ({
-      conversations: s.conversations.map((conv) =>
-        conv.id !== convId
-          ? conv
+    const requestId = generateId();
+    const abortController = new AbortController();
+
+    set((current) => ({
+      conversations: current.conversations.map((item) =>
+        item.id !== convId
+          ? item
           : {
-              ...conv,
-              messages: conv.messages.map((msg) =>
-                msg.id === messageId ? { ...msg, status: 'SENDING' as MessageStatus } : msg
+              ...item,
+              messages: item.messages.map((message) =>
+                message.id === messageId ? { ...message, status: 'SENDING' as MessageStatus } : message
               ),
+              updatedAt: now(),
             }
       ),
       isThinking: true,
+      processingPhase: 'sending',
       error: null,
+      activeRequestId: requestId,
+      activeRequestConversationId: convId,
+      activeAbortController: abortController,
     }));
 
     await get().processAIResponse(failedMsg, convId);
   },
 
-  // Delete a conversation
   deleteConversation: (conversationId: string) => {
-    set((state) => {
-      const conversations = state.conversations.filter(
-        (c) => c.id !== conversationId
-      );
-      let activeId = state.activeConversationId;
+    const currentState = get();
+    if (currentState.activeRequestConversationId === conversationId) {
+      abortActiveRequest(currentState);
+    }
 
-      // Switch to first conversation if active was deleted
-      if (activeId === conversationId) {
-        activeId = conversations.length > 0 ? conversations[0].id : null;
-      }
+    set((state) => {
+      const conversations = state.conversations.filter((conversation) => conversation.id !== conversationId);
+      const activeConversationId =
+        state.activeConversationId === conversationId ? conversations[0]?.id ?? null : state.activeConversationId;
+
       return {
         conversations,
-        activeConversationId: activeId,
+        activeConversationId,
+        activeRequestId: state.activeRequestConversationId === conversationId ? null : state.activeRequestId,
+        activeRequestConversationId:
+          state.activeRequestConversationId === conversationId ? null : state.activeRequestConversationId,
+        activeAbortController:
+          state.activeRequestConversationId === conversationId ? null : state.activeAbortController,
       };
     });
+
+    scheduleConversationPersist(get().userId || '', get().conversations);
   },
-  // Clear error
+
+  setConversationServerSessionId: (conversationId: string, serverSessionId: string) => {
+    set((state) => ({
+      conversations: state.conversations.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, serverSessionId, updatedAt: now() }
+          : conversation
+      ),
+    }));
+
+    scheduleConversationPersist(get().userId || '', get().conversations);
+  },
+
   clearError: () => set({ error: null }),
 
-  // Clear escalation notice
-  clearEscalationNotice: () => set({ escalationNotice: null }),
+  clearEscalationNotice: (conversationId?: string) => {
+    const targetConversationId = conversationId || get().activeConversationId;
+    if (!targetConversationId) return;
+
+    set((state) => ({
+      conversations: state.conversations.map((conversation) =>
+        conversation.id === targetConversationId
+          ? { ...conversation, escalationNotice: null, updatedAt: now() }
+          : conversation
+      ),
+    }));
+
+    scheduleConversationPersist(get().userId || '', get().conversations);
+  },
+
+  resetChatState: () => {
+    abortActiveRequest(get());
+
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+    pendingPersistSnapshot = null;
+
+    set({
+      conversations: [],
+      activeConversationId: null,
+      userId: null,
+      isThinking: false,
+      processingPhase: null,
+      isInitializing: false,
+      error: null,
+      activeRequestId: null,
+      activeRequestConversationId: null,
+      activeAbortController: null,
+    });
+  },
+
+  flushPendingPersistence: async () => {
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+
+    const snapshot = pendingPersistSnapshot;
+    pendingPersistSnapshot = null;
+    await persistSnapshot(snapshot);
+  },
 }));

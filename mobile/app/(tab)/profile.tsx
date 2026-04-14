@@ -168,10 +168,10 @@ export default function PatientProfileScreen() {
               </View>
               <TouchableOpacity
                 onPress={() => setShowEditModal(true)}
-                className="flex-row items-center gap-1"
+                className="flex-row items-center gap-2 bg-[#E6F4F4] px-4 py-2 rounded-full active:opacity-70"
               >
-                <Ionicons name="create-outline" size={18} color="#00000" />
-                <Text className="text-xs font-semibold text-[#black]">Edit</Text>
+                <Ionicons name="create-outline" size={16} color="#0EA5A4" />
+                <Text className="text-sm font-semibold text-[#0EA5A4]">Edit</Text>
               </TouchableOpacity>
             </View>
 
@@ -192,10 +192,10 @@ export default function PatientProfileScreen() {
               </View>
               <TouchableOpacity
                 onPress={() => setShowPasswordModal(true)}
-                className="flex-row items-center gap-1"
+                className="flex-row items-center gap-2 bg-[#E6F4F4] px-4 py-2 rounded-full active:opacity-70"
               >
-                <Ionicons name="create-outline" size={14} color="#0000" />
-                <Text className="text-xs font-semibold text-black">Change Password</Text>
+                <Ionicons name="create-outline" size={14} color="#0EA5A4" />
+                <Text className="text-xs font-semibold text-[#0EA5A4]">Change Password</Text>
               </TouchableOpacity>
             </View>
             <Text className="text-sm text-gray-600">
@@ -243,11 +243,11 @@ export default function PatientProfileScreen() {
       {/* ── Edit Profile Modal ── */}
       <Modal visible={showEditModal} transparent animationType="slide">
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-10">
-            <View className="mb-5 flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-gray-900">Edit Profile</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <Ionicons name="close" size={22} color="#9CA3AF" />
+          <View className="bg-white rounded-t-3xl p-6 pb-10 max-h-[85%]">
+            <View className="mb-6 flex-row items-center justify-between">
+              <Text className="text-xl font-bold text-gray-900">Edit Profile</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)} className="active:opacity-70">
+                <Ionicons name="close" size={24} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
 
@@ -282,15 +282,9 @@ export default function PatientProfileScreen() {
               </View>
             </ScrollView>
 
-            <View className="flex-row gap-3 mt-2">
+            <View className="flex-row gap-3 mt-6">
               <View className="flex-1">
-                <PrimaryButton
-                  title="Cancel"
-                  type="secondary"
-                  onPress={() => setShowEditModal(false)}
-                />
-              </View>
-              <View className="flex-1">
+
                 <PrimaryButton title="Save Changes" onPress={handleSaveEdit} />
               </View>
             </View>
@@ -301,11 +295,11 @@ export default function PatientProfileScreen() {
       {/* ── Change Password Modal ── */}
       <Modal visible={showPasswordModal} transparent animationType="slide">
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-10">
-            <View className="mb-5 flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-gray-900">Change Password</Text>
-              <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
-                <Ionicons name="close" size={22} color="#9CA3AF" />
+          <View className="bg-white rounded-t-3xl p-6 pb-10 max-h-[85%]">
+            <View className="mb-6 flex-row items-center justify-between">
+              <Text className="text-xl font-bold text-gray-900">Change Password</Text>
+              <TouchableOpacity onPress={() => setShowPasswordModal(false)} className="active:opacity-70">
+                <Ionicons name="close" size={24} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
 
@@ -336,16 +330,16 @@ export default function PatientProfileScreen() {
             <View className="flex-row gap-3 mt-2">
               <View className="flex-1">
                 <PrimaryButton
-                  title="Cancel"
-                  type="secondary"
-                  onPress={() => setShowPasswordModal(false)}
+                  title="Change Password"
+                  onPress={handleChangePassword}
+                  loading={loading}
                 />
               </View>
               <View className="flex-1">
                 <PrimaryButton
-                  title="Change Password"
-                  onPress={handleChangePassword}
-                  loading={loading}
+                  title="Cancel"
+                  type="cancel"
+                  onPress={() => setShowPasswordModal(false)}
                 />
               </View>
             </View>

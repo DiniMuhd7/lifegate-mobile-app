@@ -13,7 +13,7 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSessionStore } from 'stores/session-store';
-import { useChatStore } from 'stores/chat-store';
+import { useChatStore } from '@/stores/chat-store';
 import type { SessionMode } from 'types/chat-types';
 
 export function ResumeSessionModal() {
@@ -56,6 +56,9 @@ export function ResumeSessionModal() {
               }
         ),
       }));
+
+      useChatStore.getState().setConversationServerSessionId(convId, incompleteSession.id);
+      await useChatStore.getState().flushPendingPersistence();
 
       // Track the active server session ID so background-sync updates the
       // correct record.

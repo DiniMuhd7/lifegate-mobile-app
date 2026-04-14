@@ -111,7 +111,7 @@ export default function SettingsScreen() {
           alignItems: 'center',
         }}
       >
-        <Pressable onPress={() => router.back()} style={{ padding: 4, marginRight: 12 }}>
+        <Pressable onPress={() => router.replace('/(tab)/health')} style={{ padding: 4, marginRight: 12 }}>
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </Pressable>
         <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827', flex: 1 }}>Settings</Text>

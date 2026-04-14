@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, Text } from "react-native";
 
-type ButtonType = "primary" | "secondary";
+type ButtonType = "primary" | "secondary" | "cancel";
 
 interface PrimaryButtonProps {
   title: string;
@@ -40,6 +40,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   }, [loading]);
 
   const isPrimary = type === "primary";
+  const isCancel = type === "cancel";
   const isDisabled = disabled || loading;
 
   return (
@@ -51,12 +52,14 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       } ${
         isPrimary
           ? "bg-[#0EA5A4]"
+          : isCancel
+          ? "bg-transparent border border-[#EF4444]"
           : "bg-transparent border border-[#0EA5A4]"
       }`}
     >
       <Text
         className={`font-semibold text-base ${
-          isPrimary ? "text-white" : "text-[#0EA5A4]"
+          isPrimary ? "text-white" : isCancel ? "text-[#EF4444] font-thin" : "text-[#0EA5A4]"
         }`}
       >
         {loading ? `${title}${dots}` : title}

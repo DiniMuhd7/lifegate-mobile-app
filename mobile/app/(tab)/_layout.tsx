@@ -15,8 +15,8 @@ import { ResumeSessionModal } from 'components/ResumeSessionModal';
 import { ProfileReminderBanner } from 'components/ProfileReminderBanner';
 import { Ionicons } from '@expo/vector-icons';
 import { useDiagnosisWebSocket } from 'utils/useWebSocket';
-import { useChatStore } from 'stores/chat-store';
-import { useSessionStore } from 'stores/session-store';
+import { useChatStore } from '@/stores/chat-store';
+import { useSessionStore } from '@/stores/session-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { User } from 'types/auth-types';
 
@@ -35,7 +35,7 @@ function isHealthProfileIncomplete(user: User | null): boolean {
 /**
  * Custom drawer content showing conversation history
  */
-const CustomDrawerContent = (props: any) => {
+const CustomDrawerContent = (props: { navigation: { closeDrawer: () => void } }) => {
   return <ConversationDrawer onClose={() => props.navigation.closeDrawer()} />;
 };
 
@@ -73,12 +73,18 @@ export default function TabLayout() {
       if (wasActive && goingToBackground) {
         // Snapshot current conversation state.
         const { conversations, activeConversationId, userId } = useChatStore.getState();
-        const activeConv = conversations.find((c) => c.id === activeConversationId);
+        const activeConv = conversations.find((conversation) => conversation.id === activeConversationId);
 
         // Only persist if the conversation has at least one sent message.
         if (activeConv && activeConv.messages.length > 0 && userId) {
-          const { activeServerSessionId, createSession, updateSession, setActiveServerSessionId } =
+          const {
+            activeServerSessionId,
+            createSession,
+            updateSession,
+            setActiveServerSessionId,
+          } =
             useSessionStore.getState();
+          const chatStore = useChatStore.getState();
 
           const payload = {
             title: activeConv.title,
@@ -94,19 +100,16 @@ export default function TabLayout() {
           } else {
             // First time going to background — create the server session.
             const created = await createSession(payload);
-            if (created) {
+            if (created && activeConversationId) {
               setActiveServerSessionId(created.id);
               // Also stamp the local conversation with the server session ID.
-              useChatStore.setState((state) => ({
-                conversations: state.conversations.map((c) =>
-                  c.id === activeConversationId
-                    ? { ...c, serverSessionId: created.id }
-                    : c
-                ),
-              }));
+              chatStore.setConversationServerSessionId(activeConversationId, created.id);
+              await chatStore.flushPendingPersistence();
             }
           }
         }
+
+        await useChatStore.getState().flushPendingPersistence();
       }
 
       if (nextState === 'active' && appState.current !== 'active') {

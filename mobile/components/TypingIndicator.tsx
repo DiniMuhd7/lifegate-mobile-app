@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ProcessingPhase } from 'stores/chat-store';
+import type { ProcessingPhase } from '@/stores/chat-store';
 
 const PHASE_LABELS: Record<NonNullable<ProcessingPhase>, string> = {
   sending: 'Sending message...',
@@ -15,11 +15,7 @@ interface TypingIndicatorProps {
 
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ phase }) => {
   const label = phase ? PHASE_LABELS[phase] : 'LifeGate is thinking...';
-  const dots = [
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-    useRef(new Animated.Value(0)).current,
-  ];
+  const dots = useRef([new Animated.Value(0), new Animated.Value(0), new Animated.Value(0)]).current;
 
   const labelAnim = useRef(new Animated.Value(0)).current;
 
@@ -44,7 +40,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ phase }) => {
     );
     animations.forEach((a) => a.start());
     return () => animations.forEach((a) => a.stop());
-  }, []);
+  }, [dots, labelAnim]);
 
   return (
     <View

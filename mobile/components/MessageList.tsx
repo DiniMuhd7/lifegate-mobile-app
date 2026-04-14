@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from './MessageBubble';
+import { TypingIndicator } from './TypingIndicator';
 import { UI_SPACING } from 'constants/constants';
 import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation } from 'types/chat-types';
 
@@ -28,6 +29,7 @@ interface MessageListProps {
   messages: Message[];
   onRetry?: (messageId: string) => void;
   onFollowUp?: (question: string) => void;
+  isTyping?: boolean;
 }
 
 const formatDividerDate = (ts: number): string => {
@@ -41,7 +43,7 @@ const formatDividerDate = (ts: number): string => {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 };
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onFollowUp }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onFollowUp, isTyping }) => {
   const scrollRef = useRef<ScrollView>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const isAtBottomRef = useRef(true);
@@ -153,6 +155,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
             />
           );
         })}
+        {isTyping && <TypingIndicator />}
         {/* Bottom spacing so last bubble clears the input bar */}
         <View className="h-4" />
       </ScrollView>

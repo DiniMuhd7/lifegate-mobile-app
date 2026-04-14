@@ -91,6 +91,7 @@ export type Conversation = {
   title?: string; // Auto-generated from first user message or explicit title
   category?: ConversationCategory; // Derived from mode; also set by suggested actions
   mode?: SessionMode; // The session routing mode chosen by the user
+  escalationNotice?: string | null; // Conversation-scoped escalation banner text
   /** ID of the paired server-side chat_sessions record, if synced. */
   serverSessionId?: string;
   createdAt: number;
