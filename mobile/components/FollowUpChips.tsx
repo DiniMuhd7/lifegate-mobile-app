@@ -5,9 +5,8 @@
  * below an AI message bubble. Tapping a chip sends it as the next user message.
  */
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 
 interface Props {
   questions: string[];
@@ -22,7 +21,7 @@ export const FollowUpChips: React.FC<Props> = ({ questions, onSelect }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
         <Ionicons name="help-circle-outline" size={12} color="#0f766e" />
         <Text style={{ fontSize: 10, fontWeight: '700', color: '#0f766e', letterSpacing: 0.5, textTransform: 'uppercase' }}>
-          Suggested questions
+          Additional questions
         </Text>
       </View>
       <ScrollView
@@ -32,13 +31,8 @@ export const FollowUpChips: React.FC<Props> = ({ questions, onSelect }) => {
         keyboardShouldPersistTaps="handled"
       >
         {questions.map((question, idx) => (
-          <TouchableOpacity
+          <View
             key={idx}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onSelect(question);
-            }}
-            activeOpacity={0.75}
             style={{
               backgroundColor: '#f0fdfa',
               borderWidth: 1,
@@ -55,7 +49,7 @@ export const FollowUpChips: React.FC<Props> = ({ questions, onSelect }) => {
             >
               {question}
             </Text>
-          </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
     </View>
