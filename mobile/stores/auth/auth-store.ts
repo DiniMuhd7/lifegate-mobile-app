@@ -44,6 +44,9 @@ type AuthState = {
   markMdcnVerified: () => Promise<boolean>;
 };
 
+// Prevent concurrent/duplicate restoreSession calls
+let _sessionRestoreInProgress = false;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   // -------- State --------
   user: null,
@@ -55,7 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   loading: false,
   error: null,
-  sessionLoading: false,
+  sessionLoading: true,
 
   // -------- Actions --------
 
@@ -77,7 +80,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // Restore session from secure storage and token
   restoreSession: async () => {
     // Prevent concurrent or duplicate calls.
-    if (get().sessionLoading) return;
+    if (_sessionRestoreInProgress) return;
+    _sessionRestoreInProgress = true;
     set({ sessionLoading: true });
     try {
       const refreshToken = await getRefreshToken();
@@ -103,6 +107,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await removeRefreshToken();
       setAccessToken(null);
       set({ isAuthenticated: false, user: null, sessionLoading: false });
+    } finally {
+      _sessionRestoreInProgress = false;
     }
   },
 
