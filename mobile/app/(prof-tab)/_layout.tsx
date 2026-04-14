@@ -1,4 +1,4 @@
-import { Stack, useRouter, router } from 'expo-router';
+import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
 import { View } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { BottomTabBar, type TabBarTab } from '../../components/BottomTabBar';
@@ -44,8 +44,10 @@ export default function ProfTabLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authUser = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    if (!navigationState?.key) return;
     if (sessionLoading) return;
     if (!isAuthenticated) {
       router.replace('/(auth)/login');
@@ -56,7 +58,7 @@ export default function ProfTabLayout() {
         router.replace('/(tab)/chatScreen');
       }
     }
-  }, [isAuthenticated, authUser, sessionLoading]);
+  }, [navigationState?.key, isAuthenticated, authUser, sessionLoading]);
 
   return (
     <View className="flex-1 bg-white">

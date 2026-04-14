@@ -8,7 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, BackHandler } from 'react-native';
 import { Drawer } from 'expo-router/drawer';
-import { router } from 'expo-router';
+import { router, useRootNavigationState } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ConversationDrawer } from 'components/ConversationDrawer';
 import { ResumeSessionModal } from 'components/ResumeSessionModal';
@@ -46,13 +46,15 @@ export default function TabLayout() {
   // ── Auth guard — redirect unauthenticated or wrong-role users ─────────────
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    if (!navigationState?.key) return;
     if (sessionLoading) return;
     if (!isAuthenticated) {
       router.replace('/(auth)/login');
     }
-  }, [isAuthenticated, sessionLoading]);
+  }, [navigationState?.key, isAuthenticated, sessionLoading]);
 
   // ── Health profile reminder ────────────────────────────────────────────────
   const user = useAuthStore((s) => s.user);

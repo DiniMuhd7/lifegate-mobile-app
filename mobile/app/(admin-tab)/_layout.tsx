@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { router } from 'expo-router';
+import { Stack, router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useAdminWebSocket } from '../../utils/useWebSocket';
 
@@ -10,8 +9,10 @@ export default function AdminTabLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    if (!navigationState?.key) return;
     if (sessionLoading) return;
     if (!isAuthenticated) {
       router.replace('/(auth)/login');
@@ -22,7 +23,7 @@ export default function AdminTabLayout() {
         router.replace('/(tab)/chatScreen');
       }
     }
-  }, [isAuthenticated, user, sessionLoading]);
+  }, [navigationState?.key, isAuthenticated, user, sessionLoading]);
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8fafc' } }}>
