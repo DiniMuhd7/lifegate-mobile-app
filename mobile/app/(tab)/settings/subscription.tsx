@@ -13,6 +13,7 @@ import WebView, { type WebViewNavigation } from 'react-native-webview';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
 import type { CreditBundle } from 'types/payment-types';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const CALLBACK_PREFIX = 'lifegate://payment/callback';
 const DEV_PREFIX = 'lifegate://payment/dev';
@@ -239,6 +240,7 @@ export default function SubscriptionScreen() {
           ) : null}
         </View>
       </Modal>
+      <PatientBottomTabBar activeTab="settings" />
     </View>
   );
 }

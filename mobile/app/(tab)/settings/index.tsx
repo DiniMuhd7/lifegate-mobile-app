@@ -2,6 +2,7 @@ import { View, Text, ScrollView, Pressable, TouchableOpacity } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const TEAL = '#0AADA2';
 const TEAL_LIGHT = '#f0fdfb';
@@ -281,6 +282,7 @@ export default function SettingsScreen() {
           LifeGate v1.0.0 · Built by DSHub
         </Text>
       </ScrollView>
+      <PatientBottomTabBar activeTab="settings" />
     </View>
   );
 }

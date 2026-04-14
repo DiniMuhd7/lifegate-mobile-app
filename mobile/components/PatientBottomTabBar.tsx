@@ -1,6 +1,7 @@
 import { View, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type PatientTab = 'chat' | 'health' | 'profile' | 'settings';
 
@@ -44,10 +45,18 @@ const TABS: Record<PatientTab, TabConfig> = {
 
 export const PatientBottomTabBar = ({ activeTab }: PatientBottomTabBarProps) => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-row border-t border-gray-200 bg-white mb-7">
-      {(Object.entries(TABS) as [PatientTab, TabConfig][]).map(([tabKey, tab]) => {
+    <View
+      style={{
+        flexDirection: 'row',
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        backgroundColor: '#fff',
+        paddingBottom: insets.bottom,
+      }}
+    >      {(Object.entries(TABS) as [PatientTab, TabConfig][]).map(([tabKey, tab]) => {
         const isActive = activeTab === tabKey;
         return (
           <Pressable

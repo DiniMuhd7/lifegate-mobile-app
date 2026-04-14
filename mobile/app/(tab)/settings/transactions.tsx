@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { usePaymentStore } from 'stores/payment-store';
 import type { PaymentTransaction } from 'types/payment-types';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const STATUS_STYLE = {
   success: { bg: '#dcfce7', text: '#166534', label: 'Successful' },
@@ -126,6 +127,7 @@ export default function TransactionsScreen() {
           }
         />
       )}
+      <PatientBottomTabBar activeTab="settings" />
     </View>
   );
 }

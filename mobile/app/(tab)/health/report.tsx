@@ -19,6 +19,7 @@ import { useDiagnosisStore } from 'stores/diagnosis-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
 import type { DiagnosisPrescription } from 'types/diagnosis-types';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -522,6 +523,7 @@ export default function HealthReportScreen() {
   const hasSharingAvailable = Platform.OS !== 'web';
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['top']}>
 
       {/* Header */}
@@ -709,5 +711,7 @@ export default function HealthReportScreen() {
         </View>
       )}
     </SafeAreaView>
+    <PatientBottomTabBar activeTab="health" />
+    </View>
   );
 }

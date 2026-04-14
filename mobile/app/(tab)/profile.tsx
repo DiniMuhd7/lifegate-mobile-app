@@ -18,6 +18,7 @@ import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { Dropdown } from 'components/DropDown';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
@@ -128,7 +129,8 @@ export default function PatientProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F0F8F8]">
+    <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
+    <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
       <ScrollView
         className="flex-1 pt-6"
         showsVerticalScrollIndicator={false}
@@ -347,6 +349,8 @@ export default function PatientProfileScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    <PatientBottomTabBar activeTab="profile" />
+    </View>
   );
 }
 

@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const TEAL = '#0EA5A4';
 
@@ -197,7 +198,8 @@ export default function ManageProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F0F8F8]">
+    <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
+    <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
       {/* ── Header ── */}
       <View className="flex-row items-center justify-between px-4 pt-3 pb-3 bg-[#F0F8F8]">
         <Pressable onPress={() => router.back()} className="p-1" accessibilityLabel="Go back">
@@ -394,5 +396,7 @@ export default function ManageProfileScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    <PatientBottomTabBar activeTab="settings" />
+    </View>
   );
 }

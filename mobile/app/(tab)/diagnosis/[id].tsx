@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
 import { DiagnosisService } from 'services/diagnosis-service';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 // ─── Urgency config ──────────────────────────────────────────────────────────
 const URGENCY_CONFIG: Record<
@@ -137,6 +138,7 @@ export default function DiagnosisReportScreen() {
   }
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
@@ -417,5 +419,7 @@ export default function DiagnosisReportScreen() {
         </ScrollView>
       )}
     </SafeAreaView>
+    <PatientBottomTabBar activeTab="health" />
+    </View>
   );
 }

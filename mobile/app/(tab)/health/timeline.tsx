@@ -15,6 +15,7 @@ import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -418,6 +419,7 @@ export default function HealthTimelineScreen() {
   const groups = useMemo(() => groupByMonth(listEntries), [listEntries]);
 
   return (
+    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['top']}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
@@ -544,5 +546,7 @@ export default function HealthTimelineScreen() {
         </ScrollView>
       )}
     </SafeAreaView>
+    <PatientBottomTabBar activeTab="health" />
+    </View>
   );
 }

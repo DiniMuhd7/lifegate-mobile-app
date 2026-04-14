@@ -9,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
   BackHandler,
-  ToastAndroid,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -22,9 +21,7 @@ import { MessageList } from 'components/MessageList';
 import type { Message as ChatMessage } from 'components/MessageList';
 import { ChatInputBar } from 'components/ChatInputBar';
 import { ProfileMenu } from 'components/ProfileMenu';
-import { SuggestedActions } from 'components/SuggestedActions';
-import { ModeSelectionModal } from 'components/ModeSelectionModal';
-import { useChatStore } from '@/stores/chat-store';
+import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
 import { GreetingSection } from 'components';
@@ -40,6 +37,57 @@ const MODE_BADGE: Record<SessionMode, { label: string; color: string; bg: string
   general_health: { label: 'AI-Only', color: '#0891b2', bg: '#e0f2fe' },
   clinical_diagnosis: { label: 'AI + Physician', color: '#0f766e', bg: '#ccfbf1' },
 };
+
+const CATEGORY_LABELS: Record<ConversationCategory, string> = {
+  doctor_consultation: 'Doctor Consultation',
+  general_health: 'General Health',
+  eye_checkup: 'Eye Check Up',
+  hearing_test: 'Hearing Test',
+  mental_health: 'Mental Health',
+};
+
+const TOPIC_SUGGESTIONS = [
+  {
+    icon: 'fitness-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    color: '#0AADA2',
+    bg: '#f0fdfa',
+    label: 'Report Symptoms',
+    sub: 'Describe how you feel for AI analysis',
+    prompt: 'I have some symptoms I would like to discuss. Please help me understand what might be going on.',
+  },
+  {
+    icon: 'rose-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    color: '#be185d',
+    bg: '#fdf2f8',
+    label: 'Maternal Health',
+    sub: 'Pregnancy, postnatal care & advice',
+    prompt: 'I have questions about maternal health, including pregnancy care, postnatal recovery, and newborn wellness.',
+  },
+  {
+    icon: 'happy-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    color: '#db2777',
+    bg: '#fdf2f8',
+    label: 'Mental Health',
+    sub: 'Talk about mood, stress, or anxiety',
+    prompt: 'I would like to talk about my mental health, including my mood, stress levels, or anxiety.',
+  },
+  {
+    icon: 'heart-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    color: '#dc2626',
+    bg: '#fef2f2',
+    label: 'Heart Health',
+    sub: 'Blood pressure, cholesterol and more',
+    prompt: 'I have questions about my heart health, including blood pressure and cholesterol.',
+  },
+  {
+    icon: 'nutrition-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    color: '#16a34a',
+    bg: '#f0fdf4',
+    label: 'Nutrition & Diet',
+    sub: 'Healthy eating and lifestyle tips',
+    prompt: 'I have questions about nutrition, healthy eating habits, and lifestyle improvements.',
+  },
+];
 
 const ChatScreen: React.FC = () => {
   const conversations = useChatStore((state) => state.conversations);
@@ -67,13 +115,26 @@ const ChatScreen: React.FC = () => {
   const { user, logout } = useAuthStore();
   const fetchBalance = usePaymentStore((state) => state.fetchBalance);
   const [showWelcome, setShowWelcome] = useState(true);
+  const showWelcomeRef = useRef(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showModeModal, setShowModeModal] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
   // Track which userId was last used to initialize the chat store so that
   // switching accounts always loads the correct user's conversation history.
   const initializedForUserId = useRef<string | null>(null);
   const backPressTimeRef = useRef(0);
+
+  // Hardware back button (Android) — mirrors the back arrow behaviour
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!showWelcomeRef.current) {
+        createConversation();
+      } else {
+        router.replace('/(tab)/health');
+      }
+      return true; // prevent default back action
+    });
+    return () => sub.remove();
+  }, [createConversation]);
 
   // Network connectivity
   useEffect(() => {
@@ -122,14 +183,15 @@ const ChatScreen: React.FC = () => {
 
   useEffect(() => {
     setShowWelcome(messages.length === 0);
+    showWelcomeRef.current = messages.length === 0;
   }, [messages.length]);
 
-  // Auto-prompt mode selection whenever the welcome screen is shown without a mode
+  // Auto-select general_health mode when conversation has no mode set
   useEffect(() => {
-    if (showWelcome && !isInitializing && activeConversation && !activeConversation.mode) {
-      setShowModeModal(true);
+    if (!isInitializing && activeConversation && !activeConversation.mode) {
+      setConversationMode(activeConversation.id, 'general_health');
     }
-  }, [showWelcome, isInitializing, activeConversation, activeConversation?.mode]);
+  }, [isInitializing, activeConversation?.id, activeConversation?.mode, setConversationMode]);
 
   useEffect(() => {
     // INSUFFICIENT_CREDITS is not auto-dismissed — user must act (top up or dismiss).
@@ -185,41 +247,15 @@ const ChatScreen: React.FC = () => {
     [sendMessage]
   );
 
-  const handleSuggestedAction = useCallback(
-    (prompt: string, category: ConversationCategory) => {
-      // Doctor Consultation → Clinical Diagnosis mode
-      // General Health → General Health mode
-      // All other categories send a message directly
-      if (category === 'doctor_consultation') {
-        if (activeConversation) setConversationMode(activeConversation.id, 'clinical_diagnosis');
-        return;
-      }
-      if (category === 'general_health') {
-        if (activeConversation) setConversationMode(activeConversation.id, 'general_health');
-        return;
-      }
-      sendMessage(prompt, category);
-    },
-    [sendMessage, activeConversation, setConversationMode]
-  );
-
   const handleNewChat = useCallback(() => {
-    if (messages.length > 0) {
-      // Archive current conversation and create a fresh one, then pick mode
-      createConversation();
-    }
-    setShowModeModal(true);
-  }, [createConversation, messages.length]);
+    createConversation();
+  }, [createConversation]);
 
-  const handleModeSelect = useCallback(
-    (mode: SessionMode) => {
-      if (activeConversation) {
-        setConversationMode(activeConversation.id, mode);
-      }
-      setShowModeModal(false);
-    },
-    [activeConversation, setConversationMode]
-  );
+  const headerSubtitle = activeMode
+    ? MODE_LABELS[activeMode]
+    : activeCategory
+      ? CATEGORY_LABELS[activeCategory]
+      : 'General Health';
 
   return (
     <>
@@ -243,25 +279,21 @@ const ChatScreen: React.FC = () => {
                 borderBottomColor: 'rgba(99,210,194,0.25)',
               }}
             >
-              {/* Left: Home button → Dashboard */}
+              {/* Left: Back arrow */}
               <TouchableOpacity
-                onPress={() => router.replace('/(tab)/health')}
+                onPress={() => {
+                  if (!showWelcome) {
+                    // In an active session — go back to the chat welcome screen
+                    createConversation();
+                  } else {
+                    // Already on welcome — go back to dashboard
+                    router.replace('/(tab)/health');
+                  }
+                }}
                 activeOpacity={0.7}
+                style={{ padding: 6 }}
               >
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    borderWidth: 2,
-                    borderColor: '#0f766e',
-                    backgroundColor: 'rgba(255,255,255,0.35)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Ionicons name="home" size={18} color="#0f766e" />
-                </View>
+                  <Ionicons name="arrow-back" size={26} color="#0f766e" />
               </TouchableOpacity>
 
               {/* Center: AI identity */}
@@ -279,14 +311,14 @@ const ChatScreen: React.FC = () => {
 
               </View>
 
-              {/* Right: Chat icon + Settings */}
+              {/* Right: Settings */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <TouchableOpacity
-                  onPress={handleNewChat}
+                  onPress={() => router.replace('/(tab)/settings')}
                   activeOpacity={0.7}
                   style={{ padding: 6 }}
                 >
-                  <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0f766e" />
+                  <Ionicons name="settings-outline" size={26} color="#0f766e" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -301,11 +333,6 @@ const ChatScreen: React.FC = () => {
                 await logout();
                 router.replace('/(auth)/login');
               }}
-            />
-
-            <ModeSelectionModal
-              visible={showModeModal}
-              onSelect={handleModeSelect}
             />
 
             {/* ── Escalation notice banner ── */}
@@ -390,48 +417,62 @@ const ChatScreen: React.FC = () => {
               >
                 <GreetingSection userName={user?.name || ''} />
 
-                {activeMode ? (
-                  /* Active mode badge */
-                  <View
+                {/* Topic suggestion list */}
+                <View style={{ marginTop: 24, gap: 10 }}>
+                  <Text
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginTop: 24,
-                      marginBottom: 4,
+                      fontSize: 13,
+                      fontWeight: '600',
+                      color: '#64748b',
+                      textAlign: 'center',
+                      marginBottom: 6,
                     }}
                   >
-                    <View
-                      style={{
-                        backgroundColor: MODE_BADGE[activeMode].bg,
-                        borderRadius: 20,
-                        paddingHorizontal: 12,
-                        paddingVertical: 5,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 5,
-                      }}
+                    What would you like to discuss today?
+                  </Text>
+                  {TOPIC_SUGGESTIONS.map((topic) => (
+                    <TouchableOpacity
+                      key={topic.label}
+                      onPress={() => sendMessage(topic.prompt)}
+                      activeOpacity={0.75}
                     >
-                      <Ionicons
-                        name={activeMode === 'clinical_diagnosis' ? 'medical' : 'heart'}
-                        size={13}
-                        color={MODE_BADGE[activeMode].color}
-                      />
-                      <Text
+                      <View
                         style={{
-                          fontSize: 12,
-                          fontWeight: '700',
-                          color: MODE_BADGE[activeMode].color,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: '#fff',
+                          borderWidth: 1,
+                          borderColor: '#e5e7eb',
+                          borderRadius: 16,
+                          padding: 14,
+                          gap: 14,
                         }}
                       >
-                        {MODE_LABELS[activeMode]} · {MODE_BADGE[activeMode].label}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
-
-                {/* Always show the static suggested actions */}
-                <SuggestedActions onSelect={handleSuggestedAction} />
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor: topic.bg,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name={topic.icon} size={22} color={topic.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>
+                            {topic.label}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                            {topic.sub}
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </ScrollView>
             ) : (
               <View className="flex-1">

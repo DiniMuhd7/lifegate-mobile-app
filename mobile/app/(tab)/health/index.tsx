@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import Logo from 'assets/logo.svg';
 import type { HealthTimelineEntry } from 'types/health-types';
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -478,13 +479,13 @@ function QuickActions() {
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="fitness-outline" size={20} color="#fff" />
+              <Ionicons name="eye-outline" size={20} color="#fff" />
             </View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
-              Report Symptoms
+              Eye Test
             </Text>
             <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
-              Chat with AI for analysis
+              AI-guided vision check
             </Text>
           </LinearGradient>
         </Pressable>
@@ -509,13 +510,13 @@ function QuickActions() {
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+              <Ionicons name="ear-outline" size={20} color="#fff" />
             </View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
-              Chat with LifeGate
+              Hearing Test
             </Text>
             <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
-              AI + Physician support
+              AI-guided hearing check
             </Text>
           </LinearGradient>
         </Pressable>
@@ -673,25 +674,13 @@ export default function HealthDashboardScreen() {
           borderBottomColor: 'rgba(99,210,194,0.25)',
         }}
       >
-        {/* Left: Chat button */}
+        {/* Left: LifeGate logo */}
         <TouchableOpacity
           onPress={() => router.replace('/(tab)/chatScreen' as never)}
           activeOpacity={0.7}
+          style={{ padding: 4 }}
         >
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              borderWidth: 2,
-              borderColor: '#0f766e',
-              backgroundColor: 'rgba(255,255,255,0.35)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color="#0f766e" />
-          </View>
+          <Logo width={32} height={32} />
         </TouchableOpacity>
 
         {/* Center: Brand */}
