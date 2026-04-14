@@ -4,6 +4,8 @@
 // ============================================================
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from 'services/auth-service';
 import { User } from 'types/auth-types';
 import { getRefreshToken, removeRefreshToken, removeToken, saveRefreshToken } from 'utils/tokenStorage';
@@ -47,7 +49,9 @@ type AuthState = {
 // Prevent concurrent/duplicate restoreSession calls
 let _sessionRestoreInProgress = false;
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
   // -------- State --------
   user: null,
   isAuthenticated: false,
@@ -276,4 +280,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
   },
-}));
+  }),
+  {
+    name: 'lifegate-auth',
+    storage: createJSONStorage(() => AsyncStorage),
+    // Only persist the fields needed to survive a page refresh.
+    // Sensitive tokens are stored separately via tokenStorage.
+    partialize: (state) => ({
+      user: state.user,
+      isAuthenticated: state.isAuthenticated,
+    }),
+    // Mark sessionLoading as false once hydration from storage completes.
+    // This unblocks the layout auth guards.
+    onRehydrateStorage: () => (state) => {
+      const target = state ?? useAuthStore.getState();
+      useAuthStore.setState({ sessionLoading: false });
+      // Silently refresh the access token in the background if user is authenticated.
+      if (target?.isAuthenticated) {
+        useAuthStore.getState().restoreSession().catch(() => {});
+      }
+    },
+  }
+));
