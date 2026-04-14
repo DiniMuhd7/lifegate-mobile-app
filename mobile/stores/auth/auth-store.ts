@@ -290,15 +290,15 @@ export const useAuthStore = create<AuthState>()(
       user: state.user,
       isAuthenticated: state.isAuthenticated,
     }),
-    // Mark sessionLoading as false once hydration from storage completes.
-    // This unblocks the layout auth guards.
-    onRehydrateStorage: () => (state) => {
-      const target = state ?? useAuthStore.getState();
-      useAuthStore.setState({ sessionLoading: false });
-      // Silently refresh the access token in the background if user is authenticated.
-      if (target?.isAuthenticated) {
-        useAuthStore.getState().restoreSession().catch(() => {});
-      }
-    },
   }
 ));
+
+// After the store is created, register the post-hydration callback.
+// This avoids a circular self-reference during store initialization.
+useAuthStore.persist.onFinishHydration((state) => {
+  useAuthStore.setState({ sessionLoading: false });
+  // Silently refresh the access token in the background if user is authenticated.
+  if (state.isAuthenticated) {
+    useAuthStore.getState().restoreSession().catch(() => {});
+  }
+});
