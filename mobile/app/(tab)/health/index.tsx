@@ -50,7 +50,7 @@ const STATUS_CFG: Record<
     label: 'Monitor',
     icon: 'eye',
     color: '#b45309',
-    bg: '#f59e0b',
+    bg: '#fffbeb',
     border: '#fde68a',
     gradientFrom: '#fef3c7',
     gradientTo: '#fffbeb',
@@ -460,7 +460,7 @@ function QuickActions() {
       </Text>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Pressable
-          onPress={() => router.push('/(tab)/chatScreen' as never)}
+          onPress={() => router.push('/(tab)/eyetest' as never)}
           style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
         >
           <LinearGradient

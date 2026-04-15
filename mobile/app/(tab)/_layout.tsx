@@ -195,6 +195,28 @@ export default function TabLayout() {
             ),
           }}
         />
+        {/* Eye Test */}
+        <Drawer.Screen
+          name="eyetest"
+          options={{
+            title: 'Eye Test',
+            drawerLabel: 'Eye Test',
+            drawerIcon: ({ color, size }) => (
+              <Ionicons name="eye-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        {/* Hearing Test */}
+        <Drawer.Screen
+          name="hearingtest"
+          options={{
+            title: 'Hearing Test',
+            drawerLabel: 'Hearing Test',
+            drawerIcon: ({ color, size }) => (
+              <Ionicons name="ear-outline" size={size} color={color} />
+            ),
+          }}
+        />
       </Drawer>
     </GestureHandlerRootView>
   );
