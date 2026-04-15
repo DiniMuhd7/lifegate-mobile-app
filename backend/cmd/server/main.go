@@ -48,6 +48,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
 	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -106,6 +107,9 @@ sessionsRepo := sessions.NewRepository(database)
 	edisEngine := edis.NewEngine(aiProvider)
 	genaiSvc := genai.NewService(edisEngine, database, natsClient, sessionsSvc)
 	genaiHandler := genai.NewHandler(genaiSvc)
+
+	sensorSvc := sensortests.NewService(edisEngine)
+	sensorHandler := sensortests.NewHandler(sensorSvc, authRepo)
 
 hub := wshub.NewHub()
 
@@ -418,6 +422,13 @@ physicianGroup.POST("/push-token", func(c *gin.Context) {
 		// Alert threshold configuration
 		adminGroup.GET("/settings/alerts", adminHandler.GetAlertThresholds)
 		adminGroup.PATCH("/settings/alerts/:key", adminHandler.UpdateAlertThreshold)
+	}
+
+	// Sensor-test interpretation (EDIS-backed vision + hearing)
+	sensorGroup := api.Group("/sensor-tests", middleware.Auth(cfg.JWTSecret))
+	{
+		sensorGroup.POST("/vision/interpret", sensorHandler.InterpretVision)
+		sensorGroup.POST("/hearing/interpret", sensorHandler.InterpretHearing)
 	}
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)
