@@ -1,14 +1,16 @@
 /**
  * Battery Results — Aggregated report for all completed sub-tests
  */
-import React, { useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, StatusBar, Share } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StatusBar, Share, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { interpretVision } from 'services/sensor-interpretation-service';
+import type { SensorInterpretResponse } from 'services/sensor-interpretation-service';
 import {
   buildClinicalSummary,
   WHO_VISUAL_CATEGORY_INFO,
@@ -777,6 +779,195 @@ function AIInterpretationPanel({
   );
 }
 
+// ─── EDIS Interpretation Panel ───────────────────────────────────────────────
+
+const URGENCY_COLOR: Record<string, string> = {
+  LOW:      '#16a34a',
+  MEDIUM:   '#d97706',
+  HIGH:     '#dc2626',
+  CRITICAL: '#7c2d12',
+};
+const URGENCY_BG: Record<string, string> = {
+  LOW:      '#f0fdf4',
+  MEDIUM:   '#fffbeb',
+  HIGH:     '#fef2f2',
+  CRITICAL: '#fff1f2',
+};
+const SEVERITY_COLOR: Record<string, string> = {
+  low:    '#16a34a',
+  medium: '#d97706',
+  high:   '#dc2626',
+};
+const INVEST_COLOR: Record<string, string> = {
+  ROUTINE: '#0AADA2',
+  URGENT:  '#d97706',
+  STAT:    '#dc2626',
+};
+
+function EDISVisionPanel({ edis }: { edis: SensorInterpretResponse }) {
+  const urgency     = edis.urgency?.toUpperCase() ?? 'LOW';
+  const urgColor    = URGENCY_COLOR[urgency] ?? '#374151';
+  const urgBg       = URGENCY_BG[urgency]   ?? '#f9fafb';
+
+  return (
+    <View
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 18,
+        borderWidth: 1.5,
+        borderColor: '#e5e7eb',
+        padding: 16,
+        marginBottom: 16,
+      }}
+    >
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#f0fdfc', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="cloud-outline" size={20} color={TEAL} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>
+            EDIS Clinical Interpretation
+          </Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+            {edis.providerName ? `Powered by ${edis.providerName}` : 'AI-backed probabilistic analysis'}
+          </Text>
+        </View>
+        <View style={{ backgroundColor: urgBg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: urgColor, textTransform: 'uppercase' }}>
+            {urgency}
+          </Text>
+        </View>
+      </View>
+
+      {/* Assessment */}
+      {edis.assessment ? (
+        <View style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+          <Text style={{ fontSize: 13, color: '#374151', lineHeight: 20 }}>{edis.assessment}</Text>
+        </View>
+      ) : null}
+
+      {/* Conditions */}
+      {edis.conditions.length > 0 ? (
+        <View style={{ marginBottom: 14 }}>
+          <Text style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
+            Differential / Conditions
+          </Text>
+          <View style={{ gap: 8 }}>
+            {edis.conditions.map((c, i) => {
+              const barColor = c.confidence >= 70 ? TEAL : c.confidence >= 40 ? '#d97706' : '#9ca3af';
+              return (
+                <View key={i} style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: '#111827' }}>{c.condition}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: barColor }}>{c.confidence}%</Text>
+                  </View>
+                  <View style={{ height: 5, backgroundColor: '#e5e7eb', borderRadius: 3, overflow: 'hidden', marginBottom: 6 }}>
+                    <View style={{ height: 5, width: `${c.confidence}%` as any, backgroundColor: barColor, borderRadius: 3 }} />
+                  </View>
+                  {c.description ? (
+                    <Text style={{ fontSize: 11, color: '#6b7280', lineHeight: 16 }}>{c.description}</Text>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Risk flags */}
+      {edis.riskFlags.length > 0 ? (
+        <View style={{ marginBottom: 14 }}>
+          <Text style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
+            Risk Flags
+          </Text>
+          <View style={{ gap: 6 }}>
+            {edis.riskFlags.map((rf, i) => {
+              const sev = rf.severity?.toLowerCase() ?? 'low';
+              const sc = SEVERITY_COLOR[sev] ?? '#6b7280';
+              return (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    backgroundColor: sc + '12',
+                    borderRadius: 10,
+                    padding: 10,
+                  }}
+                >
+                  <Ionicons name="warning-outline" size={14} color={sc} style={{ marginTop: 1 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: sc }}>{rf.flag}</Text>
+                    {rf.description ? (
+                      <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2, lineHeight: 16 }}>{rf.description}</Text>
+                    ) : null}
+                  </View>
+                  <View style={{ backgroundColor: sc + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: sc, textTransform: 'uppercase' }}>{sev}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Investigations */}
+      {edis.investigations.length > 0 ? (
+        <View style={{ marginBottom: 14 }}>
+          <Text style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>
+            Recommended Investigations
+          </Text>
+          <View style={{ gap: 6 }}>
+            {edis.investigations.map((inv, i) => {
+              const urg = inv.urgency?.toUpperCase() ?? 'ROUTINE';
+              const ic = INVEST_COLOR[urg] ?? '#374151';
+              return (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    paddingVertical: 8,
+                    borderBottomWidth: i < edis.investigations.length - 1 ? 1 : 0,
+                    borderBottomColor: '#f3f4f6',
+                  }}
+                >
+                  <View style={{ width: 28, height: 28, borderRadius: 7, backgroundColor: ic + '18', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="flask-outline" size={14} color={ic} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>{inv.test}</Text>
+                    {inv.reason ? (
+                      <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{inv.reason}</Text>
+                    ) : null}
+                  </View>
+                  <View style={{ backgroundColor: ic + '20', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: ic }}>{urg}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Physician review banner */}
+      {edis.needsPhysicianReview ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#eff6ff', borderRadius: 10, padding: 10 }}>
+          <Ionicons name="person-outline" size={16} color="#3b82f6" />
+          <Text style={{ flex: 1, fontSize: 12, color: '#1e40af', fontWeight: '600', lineHeight: 17 }}>
+            Physician review recommended. Please share these results with a healthcare provider.
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 // ─── Share helper ────────────────────────────────────────────────────────────────
 
 function buildShareText(results: SingleTestResult[], distanceCm: number): string {
@@ -816,6 +1007,22 @@ export default function BatteryResults() {
   const duration = session && session.completedAt
     ? Math.round((session.completedAt - session.startedAt) / 1000)
     : null;
+
+  // EDIS interpretation state
+  const [edisResult, setEdisResult] = useState<SensorInterpretResponse | null>(null);
+  const [edisLoading, setEdisLoading] = useState(false);
+
+  useEffect(() => {
+    if (results.length === 0) return;
+    let cancelled = false;
+    setEdisLoading(true);
+    interpretVision(results, behavioralReport)
+      .then((res) => { if (!cancelled) setEdisResult(res); })
+      .catch(() => { /* silently fall back to local AI panel */ })
+      .finally(() => { if (!cancelled) setEdisLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleShare = async () => {
     try {
@@ -874,9 +1081,18 @@ export default function BatteryResults() {
           {/* Clinical summary */}
           {results.length > 0 && <ClinicalSummaryPanel results={results} />}
 
-          {/* AI Interpretation */}
+          {/* AI / EDIS Interpretation */}
           {results.length > 0 && (
-            <AIInterpretationPanel results={results} behavioralReport={behavioralReport} />
+            edisLoading ? (
+              <View style={{ backgroundColor: '#fff', borderRadius: 18, borderWidth: 1.5, borderColor: '#e5e7eb', padding: 24, marginBottom: 16, alignItems: 'center', gap: 10 }}>
+                <ActivityIndicator size="small" color={TEAL} />
+                <Text style={{ fontSize: 13, color: '#9ca3af' }}>Generating EDIS clinical interpretation…</Text>
+              </View>
+            ) : edisResult?.success ? (
+              <EDISVisionPanel edis={edisResult} />
+            ) : (
+              <AIInterpretationPanel results={results} behavioralReport={behavioralReport} />
+            )
           )}
 
           {/* Individual results */}
