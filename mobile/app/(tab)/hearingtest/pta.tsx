@@ -222,9 +222,13 @@ export default function PTATest() {
   const [tonePhase, setTonePhase] = useState<'countdown' | 'playing' | 'waiting' | 'responded'>('countdown');
   const [countdown, setCountdown] = useState(3);
   const [showEarSwitch, setShowEarSwitch] = useState(false);
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const [elapsed, setElapsed] = useState(0);
+  // Start at 1 — circle is visible from the first countdown (3 → 2 → 1).
+  // Previously 0 made the countdown invisible until playback started.
+  const fadeAnim  = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const testStartRef = useRef(Date.now());
 
   const currentFreq = PTA_FREQUENCIES[freqIndex];
   const currentStaircase = staircases[currentFreq];
@@ -234,6 +238,15 @@ export default function PTATest() {
     if (!session) {
       router.replace('/(tab)/hearingtest' as never);
     }
+  }, []);
+
+  // ── Elapsed time counter ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setInterval(
+      () => setElapsed(Math.floor((Date.now() - testStartRef.current) / 1000)),
+      1000,
+    );
+    return () => clearInterval(t);
   }, []);
 
   // ── Start noise monitoring via microphone ──────────────────────────────────
@@ -272,6 +285,30 @@ export default function PTATest() {
     };
   }, []);
 
+  // ── Restart noise monitoring after each tone ───────────────────────────────
+  // The recording is fully stopped before each tone (stopAndUnload, not pause).
+  // After the tone, this re-creates the Recording from scratch so metering
+  // continues in the inter-trial gap.
+  const restartNoiseMonitoring = useCallback(async () => {
+    if (recordRef.current) return; // already running
+    try {
+      const { status } = await Audio.getPermissionsAsync();
+      if (status !== 'granted') return;
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        { ...Audio.RecordingOptionsPresets.LOW_QUALITY, isMeteringEnabled: true },
+        (s) => {
+          if (s.isRecording && s.metering !== undefined) {
+            appendMeteringSample(s.metering);
+            evaluateNoisePause();
+          }
+        },
+        200,
+      );
+      recordRef.current = recording;
+    } catch { /* mic unavailable — skip */ }
+  }, [appendMeteringSample, evaluateNoisePause]);
+
   // ── Tone lifecycle ────────────────────────────────────────────────────────
 
   const playCurrentTone = useCallback(async () => {
@@ -279,13 +316,24 @@ export default function PTATest() {
     const { currentDbHL } = currentStaircase;
 
     setTonePhase('playing');
-    fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 
     try {
-      // Stop noise monitoring while playing
-      await recordRef.current?.pauseAsync().catch(() => {});
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      // Fully stop recording before playback.
+      // stopAndUnloadAsync (not pauseAsync) guarantees iOS releases the
+      // AVAudioSession before we switch to Playback category.
+      // A simple pauseAsync + category-switch silently fails on iOS:
+      // createAsync then throws, catch sets tonePhase='waiting' with no sound,
+      // and the 4-s auto-timeout marks every trial as 'not heard'.
+      if (recordRef.current) {
+        await recordRef.current.stopAndUnloadAsync().catch(() => {});
+        recordRef.current = null;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+      });
 
       if (soundRef.current) {
         await soundRef.current.unloadAsync();
@@ -338,10 +386,10 @@ export default function PTATest() {
 
     soundRef.current?.stopAsync().catch(() => {});
 
-    // Resume noise monitor
-    Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true })
-      .then(() => recordRef.current?.startAsync())
-      .catch(() => {});
+    // Restart noise monitoring (recording was fully stopped before the tone;
+    // restartNoiseMonitoring recreates it so the next inter-trial interval
+    // is metered correctly).
+    restartNoiseMonitoring();
 
     recordTrial(heard, reactionMs);
 
@@ -370,7 +418,7 @@ export default function PTATest() {
         setCountdown(2);
       }
     }, randomITI());
-  }, [currentFreq, freqIndex, activeEar, recordTrial, finaliseCurrentFreq, finaliseEar]);
+  }, [currentFreq, freqIndex, activeEar, recordTrial, finaliseCurrentFreq, finaliseEar, restartNoiseMonitoring]);
 
   // ── Countdown before tone ──────────────────────────────────────────────────
 
@@ -421,7 +469,6 @@ export default function PTATest() {
   // ── Derived display values ─────────────────────────────────────────────────
 
   const currentDbHL = currentStaircase.currentDbHL;
-  const progress = freqIndex / PTA_FREQUENCIES.length;
   const earFreqProgress = ((freqIndex + (tonePhase === 'responded' ? 0.9 : 0)) / PTA_FREQUENCIES.length);
 
   const completedThresholds = PTA_FREQUENCIES
@@ -606,9 +653,17 @@ export default function PTATest() {
         </View>
 
         {/* Progress indicator */}
-        <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
-          <Text style={{ fontSize: 11, color: '#4b5563', textAlign: 'center' }}>
-            {activeEar === 'right' ? 'Right' : 'Left'} ear · Frequency {freqIndex + 1} of {PTA_FREQUENCIES.length}
+        <View style={{ paddingHorizontal: 18, paddingBottom: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 11, color: '#4b5563' }}>
+            {activeEar === 'right' ? 'Right' : 'Left'} ear
+          </Text>
+          <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#374151' }} />
+          <Text style={{ fontSize: 11, color: '#4b5563' }}>
+            Freq {freqIndex + 1} of {PTA_FREQUENCIES.length}
+          </Text>
+          <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#374151' }} />
+          <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280', fontVariant: ['tabular-nums'] }}>
+            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
           </Text>
         </View>
 
