@@ -18,6 +18,8 @@ import {
   NEAR_GRADE_COLOR,
   NEAR_GRADE_LABEL,
 } from 'services/clinical-standards-engine';
+import { generateAIInterpretation } from 'services/vision-ai-engine';
+import type { AIInterpretation } from 'services/vision-ai-engine';
 import type {
   SingleTestResult, AcuityResult, ColorResult,
   AstigmatismResult, ContrastResult, NearVisionResult,
@@ -380,6 +382,401 @@ function BehavioralPanel({ report }: { report: BehavioralReport }) {
   );
 }
 
+// ─── AI Interpretation Panel ──────────────────────────────────────────────────
+
+const CONF_COLOR: Record<AIInterpretation['confidenceGrade'], string> = {
+  high:     '#16a34a',
+  moderate: '#d97706',
+  low:      '#dc2626',
+};
+const CONF_BG: Record<AIInterpretation['confidenceGrade'], string> = {
+  high:     '#f0fdf4',
+  moderate: '#fffbeb',
+  low:      '#fef2f2',
+};
+const PROB_COLOR: Record<string, string> = {
+  likely:   '#0AADA2',
+  possible: '#d97706',
+  unlikely: '#9ca3af',
+};
+const REMARK_ICON_COLOR: Record<string, string> = {
+  finding:    '#0AADA2',
+  suggestion: '#7c3aed',
+  warning:    '#d97706',
+  info:       '#6b7280',
+};
+const REMARK_BG: Record<string, string> = {
+  finding:    '#f0fdfc',
+  suggestion: '#f5f3ff',
+  warning:    '#fffbeb',
+  info:       '#f9fafb',
+};
+
+function ConfidenceBar({ score, grade }: { score: number; grade: AIInterpretation['confidenceGrade'] }) {
+  const color = CONF_COLOR[grade];
+  return (
+    <View style={{ marginTop: 10 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Confidence
+        </Text>
+        <Text style={{ fontSize: 12, fontWeight: '700', color }}>
+          {score}% · {grade.charAt(0).toUpperCase() + grade.slice(1)}
+        </Text>
+      </View>
+      <View style={{ height: 6, backgroundColor: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+        <View
+          style={{
+            height: 6,
+            width: `${score}%`,
+            backgroundColor: color,
+            borderRadius: 4,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+
+function InsightRow({
+  icon,
+  label,
+  value,
+  sub,
+  valueColor,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  sub?: string;
+  valueColor?: string;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingVertical: 9,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+      }}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          backgroundColor: '#f0fdfc',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={icon as React.ComponentProps<typeof Ionicons>['name']} size={16} color={TEAL} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>{label}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: valueColor ?? '#111827' }}>{value}</Text>
+        {sub ? (
+          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2, lineHeight: 16 }}>{sub}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function AIInterpretationPanel({
+  results,
+  behavioralReport,
+}: {
+  results: SingleTestResult[];
+  behavioralReport?: BehavioralReport | null;
+}) {
+  const ai = generateAIInterpretation(results, behavioralReport);
+
+  return (
+    <View
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 18,
+        borderWidth: 1.5,
+        borderColor: '#e5e7eb',
+        padding: 16,
+        marginBottom: 16,
+      }}
+    >
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <View
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            backgroundColor: '#f0fdfc',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="sparkles" size={18} color={TEAL} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>
+            AI Interpretation
+          </Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+            Algorithmic clinical insights — not a diagnosis
+          </Text>
+        </View>
+        <View
+          style={{
+            backgroundColor: CONF_BG[ai.confidenceGrade],
+            borderRadius: 8,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '700',
+              color: CONF_COLOR[ai.confidenceGrade],
+              textTransform: 'uppercase',
+            }}
+          >
+            {ai.confidenceScore}% conf.
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Visual Acuity ── */}
+      {ai.acuity ? (
+        <InsightRow
+          icon="eye-outline"
+          label="Visual Acuity"
+          value={`${ai.acuity.logMAR.toFixed(1)} LogMAR ≈ ${ai.acuity.snellen6}`}
+          sub={ai.acuity.description}
+          valueColor={ai.acuity.logMAR <= 0.10 ? '#16a34a' : ai.acuity.logMAR <= 0.30 ? '#d97706' : '#dc2626'}
+        />
+      ) : null}
+
+      {/* ── Refractive Error ── */}
+      <View
+        style={{
+          paddingVertical: 9,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f3f4f6',
+          gap: 6,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: '#f0fdfc',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="glasses-outline" size={16} color={TEAL} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
+              Refractive Error Likelihood
+            </Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>
+              {ai.refractive.label}
+            </Text>
+          </View>
+          <View
+            style={{
+              backgroundColor:
+                PROB_COLOR[ai.refractive.probability] + '22',
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: '700',
+                color: PROB_COLOR[ai.refractive.probability],
+                textTransform: 'capitalize',
+              }}
+            >
+              {ai.refractive.probability}
+            </Text>
+          </View>
+        </View>
+        <Text style={{ fontSize: 12, color: '#374151', lineHeight: 18, marginLeft: 42 }}>
+          {ai.refractive.description}
+        </Text>
+        {ai.refractive.estimatedRange ? (
+          <View style={{ marginLeft: 42 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: '#f0fdfc',
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                alignSelf: 'flex-start',
+              }}
+            >
+              <Ionicons name="resize-outline" size={13} color={TEAL} />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: TEAL }}>
+                Est. sphere: {ai.refractive.estimatedRange}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {/* ── Astigmatism ── */}
+      <View
+        style={{
+          paddingVertical: 9,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f3f4f6',
+          gap: 6,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: '#f0fdfc',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="compass-outline" size={16} color={TEAL} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
+              Astigmatism Probability
+            </Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>
+              {ai.astigmatism.detected
+                ? `${ai.astigmatism.probability.charAt(0).toUpperCase() + ai.astigmatism.probability.slice(1)} probability`
+                : 'Not detected'}
+            </Text>
+          </View>
+          {ai.astigmatism.axisEstimate !== null ? (
+            <View
+              style={{
+                backgroundColor: '#fef3c7',
+                borderRadius: 8,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+              }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400e' }}>
+                ×{ai.astigmatism.axisEstimate}°
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        {ai.astigmatism.detected ? (
+          <Text style={{ fontSize: 12, color: '#374151', lineHeight: 18, marginLeft: 42 }}>
+            {ai.astigmatism.note}
+          </Text>
+        ) : null}
+        {ai.astigmatism.axisTypeLabel ? (
+          <View style={{ marginLeft: 42 }}>
+            <View
+              style={{
+                backgroundColor: '#fef3c7',
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+                alignSelf: 'flex-start',
+              }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '600', color: '#92400e' }}>
+                {ai.astigmatism.axisTypeLabel}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+      </View>
+
+      {/* ── Color Vision ── */}
+      <InsightRow
+        icon="color-palette-outline"
+        label="Color Deficiency Classification"
+        value={ai.colorVision.label}
+        sub={ai.colorVision.note}
+        valueColor={
+          ai.colorVision.classification === 'normal_trichromacy'
+            ? '#16a34a'
+            : ai.colorVision.classification === 'insufficient_data'
+            ? '#9ca3af'
+            : '#d97706'
+        }
+      />
+
+      {/* ── Confidence bar ── */}
+      <ConfidenceBar score={ai.confidenceScore} grade={ai.confidenceGrade} />
+
+      {/* ── Remarks ── */}
+      {ai.remarks.length > 0 ? (
+        <View style={{ marginTop: 14 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              color: '#9ca3af',
+              textTransform: 'uppercase',
+              letterSpacing: 0.6,
+              marginBottom: 8,
+            }}
+          >
+            Additional Remarks
+          </Text>
+          <View style={{ gap: 6 }}>
+            {ai.remarks.map((remark, i) => (
+              <View
+                key={i}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  backgroundColor: REMARK_BG[remark.type],
+                  borderRadius: 10,
+                  padding: 10,
+                }}
+              >
+                <Ionicons
+                  name={remark.icon as React.ComponentProps<typeof Ionicons>['name']}
+                  size={15}
+                  color={REMARK_ICON_COLOR[remark.type]}
+                  style={{ marginTop: 1 }}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    color: remark.type === 'info' ? '#6b7280' : '#374151',
+                    lineHeight: 18,
+                  }}
+                >
+                  {remark.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 // ─── Share helper ────────────────────────────────────────────────────────────────
 
 function buildShareText(results: SingleTestResult[], distanceCm: number): string {
@@ -476,6 +873,11 @@ export default function BatteryResults() {
 
           {/* Clinical summary */}
           {results.length > 0 && <ClinicalSummaryPanel results={results} />}
+
+          {/* AI Interpretation */}
+          {results.length > 0 && (
+            <AIInterpretationPanel results={results} behavioralReport={behavioralReport} />
+          )}
 
           {/* Individual results */}
           {results.map((r) => {
