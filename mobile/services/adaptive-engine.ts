@@ -172,18 +172,18 @@ export const COLOR_PLATES: ColorPlate[] = [
   { id: 2,  correctAnswer: '8',  deficientAnswer: '',   type: 'vanishing' },
   // Plate 3: Vanishing — only normals see "5"
   { id: 3,  correctAnswer: '5',  deficientAnswer: '',   type: 'vanishing' },
-  // Plate 4: Vanishing — only normals see "29"
-  { id: 4,  correctAnswer: '29', deficientAnswer: '',   type: 'vanishing' },
-  // Plate 5: Vanishing — only normals see "74"
-  { id: 5,  correctAnswer: '74', deficientAnswer: '',   type: 'vanishing' },
+  // Plate 4: Vanishing — only normals see "6"
+  { id: 4,  correctAnswer: '6',  deficientAnswer: '',   type: 'vanishing' },
+  // Plate 5: Vanishing — only normals see "3"
+  { id: 5,  correctAnswer: '3',  deficientAnswer: '',   type: 'vanishing' },
   // Plate 6: Deficient-read — only deficients see "6"
   { id: 6,  correctAnswer: '',   deficientAnswer: '6',  type: 'deficient_only' },
-  // Plate 7: Vanishing — only normals see "45"
-  { id: 7,  correctAnswer: '45', deficientAnswer: '',   type: 'vanishing' },
+  // Plate 7: Vanishing — only normals see "4"
+  { id: 7,  correctAnswer: '4',  deficientAnswer: '',   type: 'vanishing' },
   // Plate 8: Vanishing — only normals see "7"
   { id: 8,  correctAnswer: '7',  deficientAnswer: '',   type: 'vanishing' },
-  // Plate 9: Vanishing — only normals see "16"
-  { id: 9,  correctAnswer: '16', deficientAnswer: '',   type: 'vanishing' },
+  // Plate 9: Vanishing — only normals see "9"
+  { id: 9,  correctAnswer: '9',  deficientAnswer: '',   type: 'vanishing' },
   // Plate 10: Deficient-read — only deficients see "2"
   { id: 10, correctAnswer: '',   deficientAnswer: '2',  type: 'deficient_only' },
 ];
@@ -194,21 +194,21 @@ export interface PlateColorScheme {
   figure: string[];      // dot hex colors that form the digit
 }
 
-const PROTAN_CONFUSION_BG  = ['#8B7355','#A08060','#907050','#C0A080','#B09070'];
-const PROTAN_CONFUSION_FIG = ['#CC4422','#BB3311','#DD5533','#AA2200','#FF6644'];
-const NORMAL_BG            = ['#A8A8A8','#909090','#B8B8B8','#808080','#C8C8C8'];
+const CVD_CONFUSION_BG  = ['#7A7A28','#8C8C38','#9A9A48','#6A6A20','#AAAAB0'];
+const CVD_CONFUSION_FIG = ['#D45015','#C44010','#E46020','#CC5020','#B83A0A'];
+const NORMAL_BG         = ['#A0A0A0','#888888','#B4B4B4','#7C7C7C','#C0C0C0'];
 
 const PLATE_SCHEMES: Record<number, PlateColorScheme> = {
-  1:  { background: NORMAL_BG,            figure: ['#FF4444','#EE3333','#DD2222'] },
-  2:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  3:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  4:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  5:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  6:  { background: ['#888','#999','#777','#AAA','#BBB'], figure: ['#CC8844','#BB7733','#DD9955'] },
-  7:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  8:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  9:  { background: PROTAN_CONFUSION_BG,  figure: PROTAN_CONFUSION_FIG },
-  10: { background: ['#888','#999','#777','#AAA','#BBB'], figure: ['#CC8844','#BB7733','#DD9955'] },
+  1:  { background: NORMAL_BG,        figure: ['#FF3333','#EE2222','#DD1111','#FF4444'] },
+  2:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  3:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  4:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  5:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  6:  { background: NORMAL_BG,        figure: ['#8B6914','#7A5810','#9C7A18','#AA8C22'] },
+  7:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  8:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  9:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
+  10: { background: NORMAL_BG,        figure: ['#8B6914','#7A5810','#9C7A18','#AA8C22'] },
 };
 
 export function getPlateScheme(plateId: number): PlateColorScheme {
@@ -336,16 +336,16 @@ export interface NearVisionLevel {
 }
 
 export const NEAR_VISION_LEVELS: NearVisionLevel[] = [
-  { points: 4,  nNotation: 'N4',  fontSize: 9,  sampleText: 'The quick brown fox jumps over the lazy dog.' },
-  { points: 5,  nNotation: 'N5',  fontSize: 11, sampleText: 'The quick brown fox jumps over the lazy dog.' },
-  { points: 6,  nNotation: 'N6',  fontSize: 13, sampleText: 'The quick brown fox jumps over the lazy dog.' },
-  { points: 8,  nNotation: 'N8',  fontSize: 17, sampleText: 'The quick brown fox jumps.' },
-  { points: 10, nNotation: 'N10', fontSize: 21, sampleText: 'The quick brown fox.' },
-  { points: 12, nNotation: 'N12', fontSize: 25, sampleText: 'The quick fox.' },
-  { points: 14, nNotation: 'N14', fontSize: 30, sampleText: 'Brown fox.' },
-  { points: 18, nNotation: 'N18', fontSize: 38, sampleText: 'Quick fox.' },
-  { points: 24, nNotation: 'N24', fontSize: 50, sampleText: 'Fox.' },
-  { points: 36, nNotation: 'N36', fontSize: 76, sampleText: 'Hi.' },
+  { points: 4,  nNotation: 'N4',  fontSize: 9,  sampleText: 'The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.' },
+  { points: 5,  nNotation: 'N5',  fontSize: 11, sampleText: 'The quick brown fox jumps over the lazy dog. Reading fine print requires good near vision.' },
+  { points: 6,  nNotation: 'N6',  fontSize: 13, sampleText: 'The quick brown fox jumps over the lazy dog. Newspaper text is about this size.' },
+  { points: 8,  nNotation: 'N8',  fontSize: 17, sampleText: 'Near vision allows comfortable reading. Good near vision matters for daily tasks.' },
+  { points: 10, nNotation: 'N10', fontSize: 21, sampleText: 'Can you read this text clearly at your normal reading distance?' },
+  { points: 12, nNotation: 'N12', fontSize: 25, sampleText: 'Reading glasses may help with text this size.' },
+  { points: 14, nNotation: 'N14', fontSize: 30, sampleText: 'Hold at a comfortable reading distance.' },
+  { points: 18, nNotation: 'N18', fontSize: 38, sampleText: 'Can you read this line?' },
+  { points: 24, nNotation: 'N24', fontSize: 50, sampleText: 'Read this text.' },
+  { points: 36, nNotation: 'N36', fontSize: 76, sampleText: 'Large text.' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════

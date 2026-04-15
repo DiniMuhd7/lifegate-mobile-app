@@ -32,15 +32,13 @@ function seededRand(seed: number) {
 }
 
 interface Dot { x: number; y: number; r: number; color: string; }
+interface FigureRect { x1: number; y1: number; x2: number; y2: number; }
 
 function buildPlateDots(plate: ColorPlate): Dot[] {
   const scheme = getPlateScheme(plate.id);
   const rand = seededRand(plate.id * 7919);
-  const dots: Dot[] = [];
-  const total = 380;
-  const figureDigit = plate.correctAnswer || plate.deficientAnswer;
+  const figureStr = plate.correctAnswer || plate.deficientAnswer;
 
-  // Pre-compute simple bitmask for digits 0-9 on a 3x5 grid
   const DIGIT_BITMASK: Record<string, number[]> = {
     '0': [1,1,1, 1,0,1, 1,0,1, 1,0,1, 1,1,1],
     '1': [0,1,0, 0,1,0, 0,1,0, 0,1,0, 0,1,0],
@@ -54,30 +52,49 @@ function buildPlateDots(plate: ColorPlate): Dot[] {
     '9': [1,1,1, 1,0,1, 1,1,1, 0,0,1, 1,1,1],
   };
 
-  // Build a set of figure positions (cells for each digit character)
-  const figureSet = new Set<string>();
-  const chars = figureDigit.split('');
+  const chars = figureStr.split('').filter((c) => DIGIT_BITMASK[c]);
+  const numChars = Math.max(chars.length, 1);
+
+  // Figure region: digits occupy ~44% of plate width, centred
+  const cellW = (PLATE_SIZE * 0.44) / (numChars * 3);
+  const cellH = (PLATE_SIZE * 0.46) / 5;
+  const offsetX = (PLATE_SIZE - numChars * 3 * cellW) / 2;
+  const offsetY = (PLATE_SIZE - 5 * cellH) / 2;
+
+  const figureRects: FigureRect[] = [];
   chars.forEach((ch, ci) => {
-    const mask = DIGIT_BITMASK[ch] ?? [];
-    mask.forEach((on, bi) => {
+    (DIGIT_BITMASK[ch] ?? []).forEach((on, bi) => {
       if (!on) return;
       const col = bi % 3;
-      const row = Math.floor(bi / 5);
-      const gx = Math.floor(PLATE_SIZE * (0.25 + ci * 0.28 + col * 0.08));
-      const gy = Math.floor(PLATE_SIZE * (0.3 + row * 0.1));
-      figureSet.add(`${Math.round(gx / 18)},${Math.round(gy / 18)}`);
+      const row = Math.floor(bi / 3); // FIXED: was bi/5 which gave wrong row
+      figureRects.push({
+        x1: offsetX + (ci * 3 + col) * cellW,
+        y1: offsetY + row * cellH,
+        x2: offsetX + (ci * 3 + col + 1) * cellW,
+        y2: offsetY + (row + 1) * cellH,
+      });
     });
   });
 
-  for (let i = 0; i < total; i++) {
-    const x = rand() * (PLATE_SIZE - 10) + 5;
-    const y = rand() * (PLATE_SIZE - 10) + 5;
+  function isInFigure(x: number, y: number): boolean {
+    return figureRects.some((r) => x >= r.x1 && x < r.x2 && y >= r.y1 && y < r.y2);
+  }
+
+  const cx = PLATE_SIZE / 2;
+  const cy = PLATE_SIZE / 2;
+  const radius = PLATE_SIZE * 0.47;
+  const dots: Dot[] = [];
+  let attempts = 0;
+
+  while (dots.length < 520 && attempts < 4000) {
+    attempts++;
+    const x = rand() * PLATE_SIZE;
+    const y = rand() * PLATE_SIZE;
+    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius) continue;
     const r = DOT_RADIUS_RANGE[0] + rand() * (DOT_RADIUS_RANGE[1] - DOT_RADIUS_RANGE[0]);
-    const key = `${Math.round(x / 18)},${Math.round(y / 18)}`;
-    const isFigure = figureSet.has(key);
-    const palette = isFigure ? scheme.figure : scheme.background;
-    const color = palette[Math.floor(rand() * palette.length)];
-    dots.push({ x, y, r, color });
+    const figure = isInFigure(x, y);
+    const palette = figure ? scheme.figure : scheme.background;
+    dots.push({ x, y, r, color: palette[Math.floor(rand() * palette.length)] });
   }
   return dots;
 }
@@ -163,6 +180,49 @@ export default function ColorVisionTest() {
 
   if (!plate) return null;
 
+  // ── Demo plate (plate 1) ── show a practice overlay, don't require digit input
+  if (plate.id === 1) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 }}>
+            <View style={{ width: 38, height: 38 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>Color Vision</Text>
+              <Text style={{ fontSize: 11, color: '#9ca3af' }}>Practice plate</Text>
+            </View>
+          </View>
+          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 16 }}>
+            <View style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+              <Ionicons name="information-circle-outline" size={20} color="#3b82f6" />
+              <Text style={{ flex: 1, fontSize: 13, color: '#1e40af', lineHeight: 20 }}>
+                <Text style={{ fontWeight: '800' }}>Practice plate</Text>
+                {' — '}everyone should see the number{' '}
+                <Text style={{ fontWeight: '800' }}>12</Text>.
+                {' '}Each plate will show a number hidden in coloured dots.
+                Tap the number you see, or tap{' '}
+                <Text style={{ fontWeight: '700' }}>?</Text>
+                {' '}if you see nothing.
+              </Text>
+            </View>
+            <PseudoPlate plate={plate} />
+            <Pressable
+              onPress={() => handleSubmit('12')}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? TEAL_DARK : TEAL,
+                borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4,
+              })}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>I see 12 — Start Test →</Text>
+            </Pressable>
+          </View>
+          <PatientBottomTabBar />
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   const progress = colorPlateIndex / COLOR_PLATES.length;
 
   return (
@@ -189,7 +249,11 @@ export default function ColorVisionTest() {
           {/* Plate */}
           <View style={{ paddingTop: 20, paddingHorizontal: 24 }}>
             <Text style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-              What number do you see? Tap "?" if you can't see any.
+              What number do you see in the dots?{' '}
+              <Text style={{ fontWeight: '700', color: '#374151' }}>Tap the number</Text>
+              {' '}or tap{' '}
+              <Text style={{ fontWeight: '700', color: '#374151' }}>?</Text>
+              {' '}if you cannot see any.
             </Text>
             <PseudoPlate plate={plate} />
           </View>
@@ -202,13 +266,15 @@ export default function ColorVisionTest() {
                   key={d}
                   onPress={() => handleSubmit(d === '?' ? '' : d)}
                   style={({ pressed }) => ({
-                    width: 52, height: 52, borderRadius: 12,
-                    backgroundColor: pressed ? '#f0fdfc' : '#f9fafb',
-                    borderWidth: 2, borderColor: '#e5e7eb',
+                    width: d === '?' ? 72 : 52, height: 52, borderRadius: 12,
+                    backgroundColor: d === '?' ? (pressed ? '#fef2f2' : '#fff7f7') : (pressed ? '#f0fdfc' : '#f9fafb'),
+                    borderWidth: 2,
+                    borderColor: d === '?' ? '#fca5a5' : '#e5e7eb',
                     alignItems: 'center', justifyContent: 'center',
                   })}
                 >
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: '#374151' }}>{d}</Text>
+                  <Text style={{ fontSize: 20, fontWeight: '800', color: d === '?' ? '#dc2626' : '#374151' }}>{d}</Text>
+                  {d === '?' && <Text style={{ fontSize: 9, color: '#dc2626', fontWeight: '600' }}>nothing</Text>}
                 </Pressable>
               ))}
             </View>

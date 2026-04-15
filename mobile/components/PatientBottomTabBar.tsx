@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export type PatientTab = 'chat' | 'health' | 'profile' | 'settings';
 
 interface PatientBottomTabBarProps {
-  activeTab: PatientTab;
+  activeTab?: PatientTab;
 }
 
 interface TabConfig {
@@ -57,7 +57,7 @@ export const PatientBottomTabBar = ({ activeTab }: PatientBottomTabBarProps) => 
         paddingBottom: insets.bottom,
       }}
     >      {(Object.entries(TABS) as [PatientTab, TabConfig][]).map(([tabKey, tab]) => {
-        const isActive = activeTab === tabKey;
+        const isActive = activeTab !== undefined && activeTab === tabKey;
         return (
           <Pressable
             key={tabKey}

@@ -491,7 +491,7 @@ function QuickActions() {
         </Pressable>
 
         <Pressable
-          onPress={() => router.push('/(tab)/chatScreen' as never)}
+          onPress={() => router.push('/(tab)/hearingtest' as never)}
           style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
         >
           <LinearGradient

@@ -43,11 +43,24 @@ export default function NearVisionTest() {
   }, [currentLevel, isLast]);
 
   const handleCannotRead = useCallback(() => {
-    // If they fail the first (largest) level, record that level as not readable
-    finishTest(smallestRead ?? -1);
+    // smallestRead is null when user failed even the largest text (N36)
+    finishTest(smallestRead ?? 0);
   }, [smallestRead]);
 
   const finishTest = useCallback((bestPoints: number) => {
+    if (bestPoints <= 0) {
+      // Cannot read any level — severe near vision impairment
+      recordTestResult({
+        testId: 'near',
+        smallestReadablePoints: 0,
+        nNotation: 'N/A',
+        jaegerNotation: 'J20+',
+        snellenNearEquivalent: 'Unable to read',
+        completedAt: Date.now(),
+      });
+      router.replace('/(tab)/eyetest/battery-results' as never);
+      return;
+    }
     const level = NEAR_VISION_LEVELS.find((l) => l.points === bestPoints);
     const nv = lookupNearVision(bestPoints);
     recordTestResult({
@@ -59,7 +72,7 @@ export default function NearVisionTest() {
       completedAt: Date.now(),
     });
     router.replace('/(tab)/eyetest/battery-results' as never);
-  }, []);
+  }, [recordTestResult]);
 
   if (!currentLevel) return null;
 
@@ -86,16 +99,24 @@ export default function NearVisionTest() {
         </View>
 
         <ScrollView contentContainerStyle={{ flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 20 }}>
-          <Text style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 24 }}>
-            Hold phone at your normal reading distance. Can you read the text below clearly?
+          <Text style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 24, lineHeight: 18 }}>
+            Hold your phone at a{' '}
+            <Text style={{ fontWeight: '700', color: '#374151' }}>comfortable reading distance</Text>
+            {' '}(typically 33–40 cm).
+            Can you read ALL the text below clearly without squinting?
           </Text>
 
           {/* Text sample */}
           <View style={{ backgroundColor: '#fafafa', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 28 }}>
-            <Text style={{ fontSize: 10, color: '#9ca3af', marginBottom: 6, textAlign: 'center' }}>
-              {currentLevel.nNotation} · {currentLevel.points}pt
-            </Text>
-            <Text style={{ fontSize: currentLevel.fontSize, color: '#111827', lineHeight: currentLevel.fontSize * 1.5, textAlign: 'center' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+              <View style={{ backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ fontSize: 10, color: '#6b7280', fontWeight: '600' }}>{currentLevel.nNotation}</Text>
+              </View>
+              <View style={{ backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ fontSize: 10, color: '#6b7280', fontWeight: '600' }}>{currentLevel.points} pt</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: currentLevel.fontSize, color: '#111827', lineHeight: currentLevel.fontSize * 1.6, textAlign: 'left', fontFamily: 'Georgia, serif' }}>
               {currentLevel.sampleText}
             </Text>
           </View>

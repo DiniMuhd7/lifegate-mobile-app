@@ -15,6 +15,7 @@ import { useVisionStore } from 'stores/vision-store';
 import {
   LOGMAR_LEVELS,
   logmarToLetterHeightPx,
+  logmarToSnellen,
   randomOptotype,
   randomOptotypes,
 } from 'services/adaptive-engine';
@@ -57,13 +58,11 @@ export default function AcuityTest() {
   const switchPromptTime = useRef<number>(0);
   const switchTriggered = useRef(false);
 
-  // Current target letter + choices — regenerated each trial
-  const [target, setTarget] = useState(() => randomOptotype());
-  const [choices, setChoices] = useState(() => {
-    const opts = randomOptotypes(NUM_CHOICES - 1);
-    const t = randomOptotype(opts[opts.length - 1]);
-    const all = [...opts, t].sort(() => Math.random() - 0.5);
-    return all;
+  // Current target letter + choices — generated together so target is always present
+  const [{ target, choices }, setStimulus] = useState(() => {
+    const t = randomOptotype();
+    const distractors = randomOptotypes(NUM_CHOICES - 1);
+    return { target: t, choices: [...distractors, t].sort(() => Math.random() - 0.5) };
   });
   const [answered, setAnswered] = useState<string | null>(null);
 
@@ -104,12 +103,10 @@ export default function AcuityTest() {
     ]).start(() => {
       recordAcuityTrial({ logMAR: currentLogMAR, letterHeightPx: letterPx, letter: target, response: correct ? 'correct' : 'incorrect', reactionMs });
 
-      // Next trial
-      const newTarget = randomOptotype();
-      const opts = randomOptotypes(NUM_CHOICES - 1);
-      const all = [...opts, newTarget].sort(() => Math.random() - 0.5);
-      setTarget(newTarget);
-      setChoices(all);
+      // Next trial — always include the new target in choices
+      const newT = randomOptotype();
+      const distractors = randomOptotypes(NUM_CHOICES - 1);
+      setStimulus({ target: newT, choices: [...distractors, newT].sort(() => Math.random() - 0.5) });
       setAnswered(null);
       trialStart.current = Date.now();
       Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
@@ -170,7 +167,7 @@ export default function AcuityTest() {
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>Visual Acuity</Text>
-            <Text style={{ fontSize: 11, color: '#9ca3af' }}>Trial {trialsCount + 1} · LogMAR {currentLogMAR.toFixed(1)}</Text>
+            <Text style={{ fontSize: 11, color: '#9ca3af' }}>Trial {trialsCount + 1} · ~{logmarToSnellen(currentLogMAR)} · {eyeSide} eye</Text>
           </View>
           <View style={{ backgroundColor: '#f0fdfc', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: TEAL }}>{reversals}/6 reversals</Text>
@@ -183,9 +180,14 @@ export default function AcuityTest() {
         </View>
 
         {/* Instruction */}
-        <Text style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', marginTop: 14, paddingHorizontal: 24 }}>
-          Cover your <Text style={{ fontWeight: '800', color: eyeSide === 'left' ? '#3b82f6' : '#8b5cf6' }}>{eyeSide}</Text> eye. Identify the letter shown.
-        </Text>
+        <View style={{ marginTop: 12, marginHorizontal: 18, backgroundColor: '#f0fdfc', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="eye-off-outline" size={16} color={TEAL} />
+          <Text style={{ flex: 1, fontSize: 13, color: '#0f766e', lineHeight: 18 }}>
+            Cover your{' '}
+            <Text style={{ fontWeight: '800' }}>{eyeSide.toUpperCase()}</Text>
+            {' '}eye completely. Select the letter you see below.
+          </Text>
+        </View>
 
         {/* Optotype display */}
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

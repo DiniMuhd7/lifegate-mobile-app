@@ -159,20 +159,43 @@ export default function AstigmatismTest() {
           <View style={{ height: 3, width: `${progress * 100}%`, backgroundColor: '#8b5cf6', borderRadius: 2 }} />
         </View>
 
-        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 20 }}>
-          <Text style={{ textAlign: 'center', fontSize: 14, color: '#374151', lineHeight: 22 }}>
-            Look at the clock dial below. Tap the{' '}
-            <Text style={{ fontWeight: '800' }}>line that appears darkest or thickest</Text>.
-            {'\n'}If all lines look equal, tap any line.
-          </Text>
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24, gap: 16 }}>
+          <View style={{ backgroundColor: '#f5f3ff', borderRadius: 10, padding: 12, flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+            <Ionicons name="eye-outline" size={16} color="#7c3aed" />
+            <Text style={{ flex: 1, fontSize: 13, color: '#4c1d95', lineHeight: 20 }}>
+              Relax your eyes and look at the dial naturally.
+              Tap the{' '}<Text style={{ fontWeight: '800' }}>line that looks darkest or thickest</Text>.
+              If all lines look the same, tap the button below the dial.
+            </Text>
+          </View>
 
           <ClockDial selected={selected} onSelect={setSelected} />
 
           {selected !== null && (
-            <Text style={{ textAlign: 'center', fontSize: 13, color: TEAL, fontWeight: '700' }}>
-              Selected: {selected}° axis
-            </Text>
+            <View style={{ backgroundColor: '#f5f3ff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="checkmark-circle" size={14} color="#7c3aed" />
+              <Text style={{ fontSize: 13, color: '#7c3aed', fontWeight: '700' }}>
+                {selected === 90 ? 'No preference selected' : `Axis ${selected}° selected`}
+              </Text>
+            </View>
           )}
+
+          {/* All lines equal option */}
+          <Pressable
+            onPress={() => setSelected(90)}
+            style={({ pressed }) => ({
+              borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
+              borderWidth: 1.5,
+              borderColor: selected === 90 ? '#7c3aed' : '#d1d5db',
+              backgroundColor: selected === 90 ? '#f5f3ff' : (pressed ? '#f9fafb' : '#fff'),
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
+            })}
+          >
+            <Ionicons name="remove-circle-outline" size={18} color={selected === 90 ? '#7c3aed' : '#9ca3af'} />
+            <Text style={{ fontSize: 13, fontWeight: '600', color: selected === 90 ? '#7c3aed' : '#6b7280' }}>
+              All lines look equal
+            </Text>
+          </Pressable>
         </View>
 
         {/* Confirm */}

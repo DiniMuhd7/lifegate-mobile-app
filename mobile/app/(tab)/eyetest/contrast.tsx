@@ -126,7 +126,15 @@ export default function ContrastTest() {
 
         <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 20, paddingHorizontal: 24 }}>
           <Text style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', lineHeight: 20 }}>
-            Do you see a <Text style={{ fontWeight: '800' }}>striped pattern</Text> in the box below?
+            Look at the box below without squinting.{' '}
+            <Text style={{ fontWeight: '800' }}>Can you see any stripes or banding</Text>
+            , however faint?{' '}
+            {sf >= 8 && (
+              <Text style={{ color: '#d97706', fontWeight: '600' }}>Fine detail — look carefully at the centre. </Text>
+            )}
+            {sf <= 1 && (
+              <Text style={{ color: '#6b7280' }}>Coarse, wide stripes. </Text>
+            )}
           </Text>
 
           <View style={{ alignItems: 'center', gap: 14 }}>
