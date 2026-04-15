@@ -6,7 +6,7 @@
  * Staircase terminates after 6 reversals → finaliseAcuity() → next test.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StatusBar, Animated, Modal } from 'react-native';
+import { View, Text, Pressable, StatusBar, Animated, Modal, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -190,7 +190,7 @@ export default function AcuityTest() {
         </View>
 
         {/* Optotype display */}
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafafa' }}>
           <Animated.Text
             style={{
               fontSize: Math.max(16, Math.min(letterPx, 200)),
@@ -204,12 +204,24 @@ export default function AcuityTest() {
           </Animated.Text>
         </View>
 
+        {/* Trial history dots — last 8 trials */}
+        {trialsCount > 0 && (
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 5, paddingBottom: 6, paddingHorizontal: 18 }}>
+            {acuityTrials.slice(-8).map((t, i) => (
+              <View key={i} style={{
+                width: 9, height: 9, borderRadius: 5,
+                backgroundColor: t.response === 'correct' ? '#10b981' : '#f87171',
+              }} />
+            ))}
+          </View>
+        )}
+
         {/* Choice panel */}
-        <View style={{ paddingHorizontal: 18, paddingBottom: 16 }}>
-          <Text style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 10 }}>
-            Which letter is it?
+        <View style={{ paddingHorizontal: 14, paddingBottom: 16 }}>
+          <Text style={{ textAlign: 'center', fontSize: 11, color: '#9ca3af', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Tap the letter you see
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             {choices.map((c) => {
               const isCorrect = c === target;
               const wasChosen = c === answered;
@@ -224,13 +236,13 @@ export default function AcuityTest() {
                   onPress={() => handleAnswer(c)}
                   disabled={!!answered}
                   style={({ pressed }) => ({
-                    width: 64, height: 64, borderRadius: 14,
+                    flex: 1, height: 72, borderRadius: 16,
                     backgroundColor: bg, borderWidth: 2, borderColor: border,
                     alignItems: 'center', justifyContent: 'center',
                     opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <Text style={{ fontSize: 28, fontWeight: '900', color: textColor, fontFamily: 'Courier New' }}>{c}</Text>
+                  <Text style={{ fontSize: 26, fontWeight: '900', color: textColor, fontFamily: 'Courier New' }}>{c}</Text>
                 </Pressable>
               );
             })}

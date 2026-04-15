@@ -137,42 +137,61 @@ export default function ContrastTest() {
             )}
           </Text>
 
-          <View style={{ alignItems: 'center', gap: 14 }}>
+          <View style={{ alignItems: 'center', gap: 12 }}>
+            {/* Frequency indicator */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: `${SF_COLORS[contrastSfIndex % SF_COLORS.length]}18`, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: SF_COLORS[contrastSfIndex % SF_COLORS.length] }}>{sf} cpd</Text>
+              </View>
+              <Text style={{ fontSize: 11, color: '#9ca3af' }}>{contrastPct}% contrast</Text>
+            </View>
+
             <SineGrating spatialFreq={sf} contrastPercent={contrastPct} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+
+            {/* SF dot progress row */}
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
               {CS_SPATIAL_FREQS.map((f, i) => (
-                <View key={f} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i === contrastSfIndex ? SF_COLORS[i % SF_COLORS.length] : (contrastStaircases[i]?.done ? '#d1d5db' : '#e5e7eb') }} />
+                <View
+                  key={f}
+                  style={{
+                    width: i === contrastSfIndex ? 24 : 8,
+                    height: 8, borderRadius: 4,
+                    backgroundColor: i === contrastSfIndex
+                      ? SF_COLORS[i % SF_COLORS.length]
+                      : contrastStaircases[i]?.done ? '#a7f3d0' : '#e5e7eb',
+                  }}
+                />
               ))}
             </View>
           </View>
 
           {/* Response buttons */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             <Pressable
               onPress={() => handleResponse(false)}
               disabled={answered}
               style={({ pressed }) => ({
-                flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center',
+                flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
                 backgroundColor: pressed ? '#fef2f2' : '#fff',
                 borderWidth: 2, borderColor: '#fca5a5',
-                opacity: answered ? 0.5 : 1,
+                opacity: answered ? 0.45 : 1,
               })}
             >
-              <Ionicons name="eye-off-outline" size={22} color="#dc2626" />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#dc2626', marginTop: 4 }}>Can't see it</Text>
+              <Ionicons name="eye-off-outline" size={28} color="#dc2626" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}>Can't see it</Text>
             </Pressable>
             <Pressable
               onPress={() => handleResponse(true)}
               disabled={answered}
               style={({ pressed }) => ({
-                flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center',
+                flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
                 backgroundColor: pressed ? '#f0fdf4' : '#fff',
                 borderWidth: 2, borderColor: '#86efac',
-                opacity: answered ? 0.5 : 1,
+                opacity: answered ? 0.45 : 1,
               })}
             >
-              <Ionicons name="eye-outline" size={22} color="#16a34a" />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#16a34a', marginTop: 4 }}>I see it</Text>
+              <Ionicons name="eye-outline" size={28} color="#16a34a" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}>I see it</Text>
             </Pressable>
           </View>
         </View>

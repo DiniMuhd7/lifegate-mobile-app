@@ -451,16 +451,27 @@ export default function BatteryResults() {
           {/* Hero */}
           <LinearGradient
             colors={[TEAL, TEAL_DARK]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 20, padding: 22, alignItems: 'center', marginBottom: 20 }}
+            style={{ borderRadius: 22, padding: 24, alignItems: 'center', marginBottom: 20 }}
           >
-            <Ionicons name="checkmark-done-circle" size={48} color="#fff" />
-            <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 10 }}>
+            <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+              <Ionicons name="checkmark-done-circle" size={44} color="#fff" />
+            </View>
+            <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff' }}>
               Assessment Complete
             </Text>
-            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4, textAlign: 'center' }}>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 6, textAlign: 'center' }}>
               {results.length} test{results.length !== 1 ? 's' : ''} completed
               {duration != null ? `  ·  ${Math.ceil(duration / 60)} min` : ''}
             </Text>
+            {results.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {results.map((r) => (
+                  <View key={r.testId} style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600', textTransform: 'capitalize' }}>{r.testId}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </LinearGradient>
 
           {/* Clinical summary */}
@@ -497,17 +508,20 @@ export default function BatteryResults() {
           {/* Actions */}
           <View style={{ gap: 10 }}>
             <Pressable onPress={handleShare}
-              style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center' })}>
+              style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
+              <Ionicons name="share-social-outline" size={18} color="#374151" />
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>Share Results</Text>
             </Pressable>
             <Pressable onPress={handleRetake}
-              style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center' })}>
+              style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
+              <Ionicons name="refresh-outline" size={18} color="#374151" />
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>Retake Battery</Text>
             </Pressable>
             <Pressable onPress={() => router.replace('/(tab)/health' as never)}
               style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}>
               <LinearGradient colors={[TEAL, TEAL_DARK]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={{ paddingVertical: 14, borderRadius: 14, alignItems: 'center' }}>
+                style={{ paddingVertical: 14, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
+                <Ionicons name="heart-outline" size={18} color="#fff" />
                 <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Back to Dashboard</Text>
               </LinearGradient>
             </Pressable>

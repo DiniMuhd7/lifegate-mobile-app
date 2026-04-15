@@ -107,47 +107,46 @@ export default function NearVisionTest() {
           </Text>
 
           {/* Text sample */}
-          <View style={{ backgroundColor: '#fafafa', borderRadius: 14, padding: 20, borderWidth: 1, borderColor: '#e5e7eb', marginBottom: 28 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
-              <View style={{ backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 10, color: '#6b7280', fontWeight: '600' }}>{currentLevel.nNotation}</Text>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 22, borderWidth: 1.5, borderColor: '#e5e7eb', marginBottom: 24,
+            shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+              <View style={{ backgroundColor: '#f0fdfc', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: `${TEAL}30` }}>
+                <Text style={{ fontSize: 11, color: TEAL, fontWeight: '700' }}>{currentLevel.nNotation}</Text>
               </View>
-              <View style={{ backgroundColor: '#f3f4f6', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 10, color: '#6b7280', fontWeight: '600' }}>{currentLevel.points} pt</Text>
+              <View style={{ backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 }}>
+                <Text style={{ fontSize: 11, color: '#6b7280', fontWeight: '600' }}>{currentLevel.points} pt</Text>
               </View>
             </View>
-            <Text style={{ fontSize: currentLevel.fontSize, color: '#111827', lineHeight: currentLevel.fontSize * 1.6, textAlign: 'left', fontFamily: 'Georgia, serif' }}>
+            <Text style={{ fontSize: currentLevel.fontSize, color: '#111827', lineHeight: currentLevel.fontSize * 1.6, textAlign: 'left' }}>
               {currentLevel.sampleText}
             </Text>
           </View>
 
           {/* Buttons */}
-          <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             <Pressable
               onPress={handleCannotRead}
               style={({ pressed }) => ({
-                flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center',
+                flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
                 backgroundColor: pressed ? '#fef2f2' : '#fff',
                 borderWidth: 2, borderColor: '#fca5a5',
               })}
             >
-              <Ionicons name="close" size={20} color="#dc2626" />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#dc2626', marginTop: 4 }}>
-                Can't read
-              </Text>
+              <Ionicons name="close-circle-outline" size={28} color="#dc2626" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}>Can't read</Text>
             </Pressable>
 
             <Pressable
               onPress={handleCanRead}
               style={({ pressed }) => ({
-                flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center',
+                flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
                 backgroundColor: pressed ? '#f0fdf4' : '#fff',
                 borderWidth: 2, borderColor: '#86efac',
               })}
             >
-              <Ionicons name="checkmark" size={20} color="#16a34a" />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#16a34a', marginTop: 4 }}>
-                {isLast ? 'Can read (finish)' : 'Can read — next'}
+              <Ionicons name="checkmark-circle-outline" size={28} color="#16a34a" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}>
+                {isLast ? 'Yes — finish' : 'Yes — next'}
               </Text>
             </Pressable>
           </View>

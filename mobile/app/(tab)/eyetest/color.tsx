@@ -134,7 +134,7 @@ function nextScreen(testStatus: Record<string, string>) {
 
 // ─── DIGIT BUTTONS for answer ─────────────────────────────────────────────────
 
-const DIGIT_CHOICES = ['1','2','3','4','5','6','7','8','9','?'];
+const DIGIT_ROWS = [['1','2','3'], ['4','5','6'], ['7','8','9']] as const;
 
 export default function ColorVisionTest() {
   const {
@@ -258,26 +258,40 @@ export default function ColorVisionTest() {
             <PseudoPlate plate={plate} />
           </View>
 
-          {/* Digit buttons */}
-          <View style={{ paddingHorizontal: 18, marginTop: 16 }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-              {DIGIT_CHOICES.map((d) => (
-                <Pressable
-                  key={d}
-                  onPress={() => handleSubmit(d === '?' ? '' : d)}
-                  style={({ pressed }) => ({
-                    width: d === '?' ? 72 : 52, height: 52, borderRadius: 12,
-                    backgroundColor: d === '?' ? (pressed ? '#fef2f2' : '#fff7f7') : (pressed ? '#f0fdfc' : '#f9fafb'),
-                    borderWidth: 2,
-                    borderColor: d === '?' ? '#fca5a5' : '#e5e7eb',
-                    alignItems: 'center', justifyContent: 'center',
-                  })}
-                >
-                  <Text style={{ fontSize: 20, fontWeight: '800', color: d === '?' ? '#dc2626' : '#374151' }}>{d}</Text>
-                  {d === '?' && <Text style={{ fontSize: 9, color: '#dc2626', fontWeight: '600' }}>nothing</Text>}
-                </Pressable>
-              ))}
-            </View>
+          {/* Digit pad — 3×3 grid + I-see-nothing */}
+          <View style={{ paddingHorizontal: 18, marginTop: 12, gap: 8 }}>
+            {DIGIT_ROWS.map((row, ri) => (
+              <View key={ri} style={{ flexDirection: 'row', gap: 8 }}>
+                {row.map((d) => (
+                  <Pressable
+                    key={d}
+                    onPress={() => handleSubmit(d)}
+                    style={({ pressed }) => ({
+                      flex: 1, height: 60, borderRadius: 14,
+                      backgroundColor: pressed ? '#f0fdfc' : '#f9fafb',
+                      borderWidth: 1.5, borderColor: '#e5e7eb',
+                      alignItems: 'center', justifyContent: 'center',
+                    })}
+                  >
+                    <Text style={{ fontSize: 24, fontWeight: '800', color: '#374151' }}>{d}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ))}
+            {/* Nothing / can’t see button — full width */}
+            <Pressable
+              onPress={() => handleSubmit('')}
+              style={({ pressed }) => ({
+                height: 54, borderRadius: 14, marginTop: 2,
+                backgroundColor: pressed ? '#fef2f2' : '#fff7f7',
+                borderWidth: 2, borderColor: '#fca5a5',
+                alignItems: 'center', justifyContent: 'center',
+                flexDirection: 'row', gap: 8,
+              })}
+            >
+              <Ionicons name="eye-off-outline" size={19} color="#dc2626" />
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#dc2626' }}>I see nothing</Text>
+            </Pressable>
           </View>
         </View>
 

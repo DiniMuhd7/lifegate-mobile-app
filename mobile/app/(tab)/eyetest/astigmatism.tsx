@@ -60,31 +60,33 @@ function ClockDial({ selected, onSelect }: { selected: number | null; onSelect: 
           key={deg}
           style={{
             position: 'absolute',
-            left: cx - 1,
+            left: cx - 1.5,
             top: cy - r,
-            width: 2,
+            width: 3,
             height: r * 2,
-            backgroundColor: isSelected ? TEAL : '#374151',
-            opacity: isSelected ? 1 : 0.7,
+            backgroundColor: isSelected ? TEAL : '#1f2937',
+            opacity: isSelected ? 1 : 0.65,
             transform: [{ rotate: `${deg}deg` }],
-            transformOrigin: `1px ${r}px`,
+            transformOrigin: `1.5px ${r}px`,
           } as any}
         />
       ))}
 
-      {/* Hit targets (invisible pressable areas around outer edge) */}
+      {/* Hit targets (pressable areas at outer edge — min 44×44) */}
       {lines.map(({ deg, cx: hx, cy: hy, isSelected }) => (
         <Pressable
           key={`hit-${deg}`}
           onPress={() => onSelect(deg)}
           style={{
             position: 'absolute',
-            left: hx - 18,
-            top: hy - 18,
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: isSelected ? 'rgba(10,173,162,0.2)' : 'transparent',
+            left: hx - 22,
+            top: hy - 22,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: isSelected ? `${TEAL}22` : 'transparent',
+            borderWidth: isSelected ? 2 : 1,
+            borderColor: isSelected ? TEAL : 'transparent',
             alignItems: 'center',
             justifyContent: 'center',
           }}
