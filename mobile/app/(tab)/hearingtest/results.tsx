@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useHearingStore } from 'stores/hearing-store';
 import { estimateThreshold, AUDIOGRAM_SHAPE_LABELS, AUDIOGRAM_SHAPE_ICON } from 'services/pta-engine';
 import { SIN_GRADE_COLOR, SIN_GRADE_ICON } from 'services/speech-in-noise-engine';
@@ -82,6 +83,11 @@ function xFor(freq: PTAFrequency): number {
 
 function freqLabel(hz: number): string {
   return hz >= 1000 ? `${hz / 1000}k` : `${hz}`;
+}
+
+/** Human-readable frequency label for chips: "250 Hz", "1 kHz", etc. */
+function chipFreqLabel(hz: number): string {
+  return hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`;
 }
 
 function AudiogramChart({
@@ -353,7 +359,7 @@ function EarCard({
               }}
             >
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#374151' }}>{t.dbHL} dBHL</Text>
-              <Text style={{ fontSize: 9, color: '#9ca3af' }}>{freqLabel(t.frequency)} Hz</Text>
+              <Text style={{ fontSize: 9, color: '#9ca3af' }}>{chipFreqLabel(t.frequency)}</Text>
             </View>
           ))}
         </View>
@@ -731,11 +737,12 @@ export default function HearingResults() {
       ?? estimateThreshold(staircases[f]),
   })).filter((t) => t.dbHL !== undefined) as ThresholdPoint[];
 
-  const leftThresholds: ThresholdPoint[] = PTA_FREQUENCIES.map((f) => ({
-    frequency: f,
-    dbHL: session?.leftEar?.thresholds.find((t) => t.frequency === f)?.dbHL
-      ?? 0,
-  })).filter((t) => (session?.leftEar) !== undefined) as ThresholdPoint[];
+  const leftThresholds: ThresholdPoint[] = session?.leftEar
+    ? (PTA_FREQUENCIES.map((f) => {
+        const found = session.leftEar!.thresholds.find((t) => t.frequency === f);
+        return found ? { frequency: f, dbHL: found.dbHL } : null;
+      }).filter((t): t is ThresholdPoint => t !== null))
+    : [];
 
   const rightWHO   = session?.rightEar?.who ?? null;
   const leftWHO    = session?.leftEar?.who ?? null;
@@ -777,6 +784,52 @@ export default function HearingResults() {
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
+          {/* Summary hero */}
+          <LinearGradient
+            colors={[`${overallColor}20`, `${overallColor}08`]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1.5, borderColor: `${overallColor}30` }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 }}>
+                  HEARING ASSESSMENT
+                </Text>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: '#111827' }}>
+                  {WHO_GRADE_LABEL[worstGrade]}
+                </Text>
+              </View>
+              <View style={{ backgroundColor: overallColor, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>Grade {worstGrade}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 }}>
+                <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2.5, borderColor: RIGHT_COLOR, marginBottom: 2 }} />
+                <Text style={{ fontSize: 17, fontWeight: '900', color: RIGHT_COLOR }}>
+                  {rightWHO ? `${rightWHO.pureTonaAverage.toFixed(0)}` : '—'}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#6b7280' }}>Right dBHL</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 }}>
+                <View style={{ width: 14, height: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
+                  <View style={{ position: 'absolute', width: 12, height: 2.5, backgroundColor: LEFT_COLOR, transform: [{ rotate: '45deg' }] }} />
+                  <View style={{ position: 'absolute', width: 12, height: 2.5, backgroundColor: LEFT_COLOR, transform: [{ rotate: '-45deg' }] }} />
+                </View>
+                <Text style={{ fontSize: 17, fontWeight: '900', color: leftWHO ? LEFT_COLOR : '#9ca3af' }}>
+                  {leftWHO ? `${leftWHO.pureTonaAverage.toFixed(0)}` : '—'}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#6b7280' }}>{leftWHO ? 'Left dBHL' : 'Left — N/A'}</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 }}>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#16a34a" style={{ marginBottom: 2 }} />
+                <Text style={{ fontSize: 14, fontWeight: '900', color: '#111827' }}>PTA</Text>
+                <Text style={{ fontSize: 9, color: '#6b7280' }}>Complete</Text>
+              </View>
+            </View>
+          </LinearGradient>
+
           {/* Audiogram */}
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#f3f4f6' }}>
             <Text style={{ fontSize: 14, fontWeight: '800', color: '#374151', marginBottom: 4 }}>Audiogram</Text>

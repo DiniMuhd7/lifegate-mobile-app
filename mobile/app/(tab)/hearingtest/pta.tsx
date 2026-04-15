@@ -582,10 +582,10 @@ export default function PTATest() {
           </View>
         </View>
 
-        {/* Staircase debug strip */}
+        {/* Progress indicator */}
         <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
-          <Text style={{ fontSize: 10, color: '#374151', textAlign: 'center' }}>
-            Trial {currentStaircase.trials.length + 1} · {currentDbHL} dBHL · {currentStaircase.reversals.length} reversals
+          <Text style={{ fontSize: 11, color: '#4b5563', textAlign: 'center' }}>
+            {activeEar === 'right' ? 'Right' : 'Left'} ear · Frequency {freqIndex + 1} of {PTA_FREQUENCIES.length}
           </Text>
         </View>
 

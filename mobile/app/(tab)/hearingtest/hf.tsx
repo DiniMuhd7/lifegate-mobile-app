@@ -301,6 +301,14 @@ export default function HFTest() {
             <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', textAlign: 'center' }}>
               High-Frequency Test
             </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ backgroundColor: '#1f2937', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af' }}>~3 min</Text>
+              </View>
+              <View style={{ backgroundColor: '#1f2937', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af' }}>3 frequencies</Text>
+              </View>
+            </View>
             <Text style={{ fontSize: 15, color: '#9ca3af', textAlign: 'center', lineHeight: 24 }}>
               Testing at{' '}
               <Text style={{ color: '#f59e0b', fontWeight: '700' }}>9, 10, and 12 kHz</Text>
@@ -309,13 +317,13 @@ export default function HFTest() {
 
             <View style={{ backgroundColor: '#1f2937', borderRadius: 14, padding: 14, gap: 10, width: '100%' }}>
               <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 16 }}>🎧</Text>
+                <Ionicons name="headset-outline" size={18} color="#f59e0b" />
                 <Text style={{ flex: 1, fontSize: 13, color: '#d1d5db', lineHeight: 20 }}>
                   Wear over-ear headphones for best accuracy at these frequencies.
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 16 }}>🔕</Text>
+                <Ionicons name="notifications-off-outline" size={18} color="#f59e0b" />
                 <Text style={{ flex: 1, fontSize: 13, color: '#d1d5db', lineHeight: 20 }}>
                   Sit in a quiet room — high-frequency tones are very soft.
                 </Text>
@@ -493,7 +501,7 @@ export default function HFTest() {
               disabled={phase !== 'waiting'}
               onPress={() => handleResponse(true)}
               style={({ pressed }) => ({
-                flex: 1,
+                flex: 1.5,
                 paddingVertical: 18,
                 borderRadius: 16,
                 backgroundColor:

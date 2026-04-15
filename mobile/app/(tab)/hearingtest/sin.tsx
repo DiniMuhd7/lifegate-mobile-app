@@ -258,6 +258,14 @@ export default function SINTest() {
             <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', textAlign: 'center' }}>
               Speech-in-Noise
             </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ backgroundColor: '#1f2937', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af' }}>~2 min</Text>
+              </View>
+              <View style={{ backgroundColor: '#1f2937', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
+                <Text style={{ fontSize: 12, color: '#9ca3af' }}>6 levels</Text>
+              </View>
+            </View>
             <Text style={{ fontSize: 15, color: '#9ca3af', textAlign: 'center', lineHeight: 24 }}>
               You will hear tones embedded in background noise at{' '}
               <Text style={{ color: '#fff', fontWeight: '700' }}>6 difficulty levels</Text>.{'\n\n'}
@@ -454,7 +462,7 @@ export default function SINTest() {
               disabled={phase !== 'waiting'}
               onPress={() => handleResponse(true)}
               style={({ pressed }) => ({
-                flex: 1,
+                flex: 1.5,
                 paddingVertical: 18,
                 borderRadius: 16,
                 backgroundColor:
