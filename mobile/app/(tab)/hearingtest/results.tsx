@@ -27,6 +27,8 @@ import {
   RELIABILITY_GRADE_DESCRIPTION,
   FLAG_TYPE_ICON,
 } from 'services/behavioral-analysis-engine';
+import { generateAIHearingInterpretation } from 'services/hearing-ai-engine';
+import type { AIHearingInterpretation } from 'services/hearing-ai-engine';
 import type { PTAFrequency, TestEar, WHOGrade, SINResult, HFResult, BehavioralReport } from 'types/hearing-types';
 import { PTA_FREQUENCIES, HF_FREQUENCIES } from 'types/hearing-types';
 
@@ -724,6 +726,437 @@ function ExtendedTestsSection({
   );
 }
 
+// ─── AI Interpretation Panel ──────────────────────────────────────────────────
+
+const AI_CONF_COLOR: Record<AIHearingInterpretation['confidenceGrade'], string> = {
+  high:     '#16a34a',
+  moderate: '#d97706',
+  low:      '#dc2626',
+};
+
+const AI_REMARK_ICON_COLOR: Record<string, string> = {
+  finding:    '#0AADA2',
+  suggestion: '#7c3aed',
+  warning:    '#d97706',
+  info:       '#6b7280',
+};
+
+const AI_REMARK_BG: Record<string, string> = {
+  finding:    '#f0fdfc',
+  suggestion: '#f5f3ff',
+  warning:    '#fffbeb',
+  info:       '#f9fafb',
+};
+
+const PATTERN_COLOR: Record<AIHearingInterpretation['pattern']['dominant'], string> = {
+  normal:         '#16a34a',
+  noise_induced:  '#dc2626',
+  presbycusis:    '#7c3aed',
+  sloping_hf:     '#d97706',
+  flat:           '#6b7280',
+  rising:         '#3b82f6',
+  cookie_bite:    '#ea580c',
+  mixed:          '#92400e',
+  irregular:      '#9ca3af',
+};
+
+const SYMMETRY_ICON: Record<AIHearingInterpretation['symmetry'], string> = {
+  symmetric:      'checkmark-circle-outline',
+  asymmetric:     'git-compare-outline',
+  unilateral:     'remove-circle-outline',
+  cannot_assess:  'help-circle-outline',
+};
+
+function AIConfidenceBar({
+  score,
+  grade,
+}: {
+  score: number;
+  grade: AIHearingInterpretation['confidenceGrade'];
+}) {
+  const color = AI_CONF_COLOR[grade];
+  return (
+    <View style={{ marginTop: 10 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={{ fontSize: 11, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Confidence
+        </Text>
+        <Text style={{ fontSize: 12, fontWeight: '700', color }}>
+          {score}% · {grade.charAt(0).toUpperCase() + grade.slice(1)}
+        </Text>
+      </View>
+      <View style={{ height: 6, backgroundColor: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+        <View style={{ height: 6, width: `${score}%` as any, backgroundColor: color, borderRadius: 4 }} />
+      </View>
+    </View>
+  );
+}
+
+function AIEarRow({
+  insight,
+}: {
+  insight: AIHearingInterpretation['earRight'];
+}) {
+  if (!insight) return null;
+  const ear      = insight.ear;
+  const earColor = ear === 'right' ? RIGHT_COLOR : LEFT_COLOR;
+  const earLabel = ear === 'right' ? 'Right Ear' : 'Left Ear';
+  const symbol   = ear === 'right' ? '○' : '×';
+
+  const gradeColor =
+    insight.grade === 0 ? '#16a34a'
+    : insight.grade === 1 ? '#65a30d'
+    : insight.grade === 2 ? '#d97706'
+    : insight.grade === 3 ? '#ea580c'
+    : '#dc2626';
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+      }}
+    >
+      <View
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 17,
+          backgroundColor: `${earColor}18`,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ fontSize: 14, fontWeight: '900', color: earColor }}>{symbol}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>{earLabel}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: gradeColor }}>
+          {insight.gradeLabel}
+        </Text>
+        {insight.shapeLabel ? (
+          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+            {insight.shapeLabel}
+          </Text>
+        ) : null}
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        <Text style={{ fontSize: 17, fontWeight: '900', color: gradeColor }}>
+          {insight.pta3}
+          <Text style={{ fontSize: 10, fontWeight: '600', color: '#9ca3af' }}> dBHL</Text>
+        </Text>
+        <View
+          style={{
+            backgroundColor: `${gradeColor}20`,
+            borderRadius: 6,
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+          }}
+        >
+          <Text style={{ fontSize: 10, fontWeight: '700', color: gradeColor }}>
+            Grade {insight.grade}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function AIHearingInterpretationPanel({
+  session,
+  sinResult,
+  hfResult,
+}: {
+  session: import('types/hearing-types').HearingSession | null;
+  sinResult: SINResult | null;
+  hfResult:  HFResult  | null;
+}) {
+  const ai = generateAIHearingInterpretation(
+    session?.rightEar ?? null,
+    session?.leftEar  ?? null,
+    sinResult,
+    hfResult,
+  );
+
+  const patternColor = PATTERN_COLOR[ai.pattern.dominant];
+
+  return (
+    <View
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: '#e5e7eb',
+        padding: 16,
+        marginBottom: 16,
+      }}
+    >
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            backgroundColor: '#f0fdfc',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="sparkles" size={20} color={TEAL} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>
+            AI Interpretation
+          </Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+            Algorithmic clinical insights — not a diagnosis
+          </Text>
+        </View>
+        <View
+          style={{
+            backgroundColor: `${AI_CONF_COLOR[ai.confidenceGrade]}18`,
+            borderRadius: 8,
+            paddingHorizontal: 9,
+            paddingVertical: 4,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: '800',
+              color: AI_CONF_COLOR[ai.confidenceGrade],
+              textTransform: 'uppercase',
+            }}
+          >
+            {ai.confidenceScore}% conf.
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Per-ear classification ──────────────────────────────────────────── */}
+      <View style={{ marginBottom: 2 }}>
+        <Text
+          style={{
+            fontSize: 11,
+            color: '#9ca3af',
+            textTransform: 'uppercase',
+            letterSpacing: 0.6,
+            marginBottom: 4,
+          }}
+        >
+          Hearing Loss Classification
+        </Text>
+        <AIEarRow insight={ai.earRight} />
+        <AIEarRow insight={ai.earLeft} />
+        {!ai.earRight && !ai.earLeft && (
+          <Text style={{ fontSize: 12, color: '#9ca3af', paddingVertical: 8 }}>
+            No ear data available.
+          </Text>
+        )}
+      </View>
+
+      {/* ── Pattern detection ───────────────────────────────────────────────── */}
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: `${patternColor}0e`,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: `${patternColor}30`,
+          padding: 14,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <Ionicons name="analytics-outline" size={16} color={patternColor} />
+          <Text style={{ flex: 1, fontSize: 13, fontWeight: '800', color: '#111827' }}>
+            Pattern Detection
+          </Text>
+          <View
+            style={{
+              backgroundColor: `${patternColor}22`,
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '700',
+                color: patternColor,
+                textTransform: 'uppercase',
+                letterSpacing: 0.4,
+              }}
+            >
+              {ai.pattern.probability} probability
+            </Text>
+          </View>
+        </View>
+
+        <Text style={{ fontSize: 13, fontWeight: '700', color: patternColor, marginBottom: 5 }}>
+          {ai.pattern.label}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#374151', lineHeight: 18, marginBottom: 8 }}>
+          {ai.pattern.note}
+        </Text>
+
+        {/* Evidence points */}
+        {ai.pattern.evidencePoints.length > 0 && (
+          <View style={{ gap: 4 }}>
+            {ai.pattern.evidencePoints.map((pt, i) => (
+              <View key={i} style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
+                <Text style={{ color: patternColor, fontSize: 12, marginTop: 1 }}>•</Text>
+                <Text style={{ flex: 1, fontSize: 11, color: '#6b7280', lineHeight: 17 }}>
+                  {pt}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* NIHL risk badge */}
+        {ai.pattern.nihlRisk && (
+          <View
+            style={{
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: '#fee2e2',
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Ionicons name="warning-outline" size={13} color="#dc2626" />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#dc2626' }}>
+              NIHL Risk Flagged
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Symmetry ────────────────────────────────────────────────────────── */}
+      <View
+        style={{
+          marginTop: 12,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 10,
+          paddingVertical: 10,
+          borderTopWidth: 1,
+          borderTopColor: '#f3f4f6',
+        }}
+      >
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            backgroundColor:
+              ai.symmetry === 'symmetric' ? '#f0fdf4'
+              : ai.symmetry === 'asymmetric' ? '#fef2f2'
+              : '#f9fafb',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons
+            name={SYMMETRY_ICON[ai.symmetry] as React.ComponentProps<typeof Ionicons>['name']}
+            size={16}
+            color={
+              ai.symmetry === 'symmetric' ? '#16a34a'
+              : ai.symmetry === 'asymmetric' ? '#dc2626'
+              : '#6b7280'
+            }
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 2 }}>
+            Binaural Symmetry
+          </Text>
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: '700',
+              color:
+                ai.symmetry === 'symmetric' ? '#16a34a'
+                : ai.symmetry === 'asymmetric' ? '#dc2626'
+                : '#374151',
+            }}
+          >
+            {ai.symmetry === 'symmetric'    ? 'Symmetric'
+             : ai.symmetry === 'asymmetric' ? 'Asymmetric'
+             : ai.symmetry === 'unilateral' ? 'Unilateral (one ear tested)'
+             : 'Cannot Assess'}
+          </Text>
+          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2, lineHeight: 16 }}>
+            {ai.symmetryNote}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Confidence bar ──────────────────────────────────────────────────── */}
+      <AIConfidenceBar score={ai.confidenceScore} grade={ai.confidenceGrade} />
+
+      {/* ── Additional remarks ──────────────────────────────────────────────── */}
+      {ai.remarks.length > 0 && (
+        <View style={{ marginTop: 14 }}>
+          <Text
+            style={{
+              fontSize: 11,
+              color: '#9ca3af',
+              textTransform: 'uppercase',
+              letterSpacing: 0.6,
+              marginBottom: 8,
+            }}
+          >
+            Additional Remarks
+          </Text>
+          <View style={{ gap: 6 }}>
+            {ai.remarks.map((remark, i) => (
+              <View
+                key={i}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                  backgroundColor: AI_REMARK_BG[remark.type],
+                  borderRadius: 10,
+                  padding: 10,
+                }}
+              >
+                <Ionicons
+                  name={remark.icon as React.ComponentProps<typeof Ionicons>['name']}
+                  size={15}
+                  color={AI_REMARK_ICON_COLOR[remark.type]}
+                  style={{ marginTop: 1 }}
+                />
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    color: remark.type === 'info' ? '#6b7280' : '#374151',
+                    lineHeight: 18,
+                  }}
+                >
+                  {remark.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ─── Main results screen ──────────────────────────────────────────────────────
 
 export default function HearingResults() {
@@ -855,6 +1288,13 @@ export default function HearingResults() {
 
           {/* Extended tests */}
           <ExtendedTestsSection sinResult={sinResult} hfResult={hfResult} />
+
+          {/* AI Interpretation */}
+          <AIHearingInterpretationPanel
+            session={session}
+            sinResult={sinResult}
+            hfResult={hfResult}
+          />
 
           {/* Disclaimer */}
           <View style={{ backgroundColor: '#fffbeb', borderRadius: 14, padding: 14, marginTop: 4, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
