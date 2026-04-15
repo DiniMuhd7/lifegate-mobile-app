@@ -222,7 +222,9 @@ export default function PTATest() {
   const [tonePhase, setTonePhase] = useState<'countdown' | 'playing' | 'waiting' | 'responded'>('countdown');
   const [countdown, setCountdown] = useState(3);
   const [showEarSwitch, setShowEarSwitch] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   const currentFreq = PTA_FREQUENCIES[freqIndex];
   const currentStaircase = staircases[currentFreq];
@@ -390,6 +392,22 @@ export default function PTATest() {
     return () => clearInterval(t);
   }, [tonePhase, noisePauseActive]);
 
+  // ── Pulse animation while playing ─────────────────────────────────────────
+  useEffect(() => {
+    if (tonePhase === 'playing') {
+      pulseLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.13, duration: 480, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.0,  duration: 480, useNativeDriver: true }),
+        ]),
+      );
+      pulseLoop.current.start();
+    } else {
+      pulseLoop.current?.stop();
+      pulseAnim.setValue(1);
+    }
+  }, [tonePhase]);
+
   // ── Ear-switch modal confirm ───────────────────────────────────────────────
 
   const handleEarSwitchConfirm = () => {
@@ -433,24 +451,16 @@ export default function PTATest() {
             </Text>
           </View>
 
-          {/* Channel isolation indicator */}
-          <View style={{ flexDirection: 'row', gap: 3, alignItems: 'center', backgroundColor: '#1f2937', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 }}>
-            {/* Left channel block */}
-            <View style={{
-              width: 14, height: 20, borderRadius: 3,
-              backgroundColor: activeEar === 'left' && tonePhase === 'playing' ? '#3b82f6' : (activeEar === 'left' ? '#1e3a5f' : '#111827'),
-              borderWidth: 1.5,
-              borderColor: activeEar === 'left' ? '#3b82f6' : '#374151',
-            }} />
-            {/* Divider */}
-            <View style={{ width: 1, height: 16, backgroundColor: '#374151' }} />
-            {/* Right channel block */}
-            <View style={{
-              width: 14, height: 20, borderRadius: 3,
-              backgroundColor: activeEar === 'right' && tonePhase === 'playing' ? '#ef4444' : (activeEar === 'right' ? '#3b1f1f' : '#111827'),
-              borderWidth: 1.5,
-              borderColor: activeEar === 'right' ? '#ef4444' : '#374151',
-            }} />
+          {/* Headphone channel indicator */}
+          <View style={{ backgroundColor: '#1f2937', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons
+              name="headset-outline"
+              size={16}
+              color={tonePhase === 'playing' ? FREQ_COLORS[currentFreq] : '#4b5563'}
+            />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: tonePhase === 'playing' ? '#d1d5db' : '#4b5563' }}>
+              {activeEar === 'right' ? 'Right' : 'Left'}
+            </Text>
           </View>
         </View>
 
@@ -485,8 +495,8 @@ export default function PTATest() {
           </Text>
           {completedThresholds.length > 0
             ? <MiniAudiogram thresholds={completedThresholds} ear={activeEar} />
-            : <Text style={{ fontSize: 12, color: '#374151', textAlign: 'center', paddingVertical: 20 }}>
-                Thresholds will appear here as testing progresses
+            : <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', paddingVertical: 20 }}>
+                Thresholds will appear as testing progresses
               </Text>
           }
         </View>
@@ -501,12 +511,13 @@ export default function PTATest() {
               height: 160,
               borderRadius: 80,
               borderWidth: 3,
-              borderColor: FREQ_COLORS[currentFreq],
+              borderColor: tonePhase === 'waiting' ? '#4b5563' : FREQ_COLORS[currentFreq],
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: tonePhase === 'playing' ? `${FREQ_COLORS[currentFreq]}22` : 'transparent',
               opacity: fadeAnim,
               marginBottom: 28,
+              transform: [{ scale: pulseAnim }],
             }}
           >
             {tonePhase === 'countdown' && (
@@ -534,7 +545,14 @@ export default function PTATest() {
             )}
           </Animated.View>
 
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#9ca3af', textAlign: 'center', marginBottom: 28, lineHeight: 22 }}>
+          <Text style={{
+            fontSize: tonePhase === 'waiting' ? 16 : 14,
+            fontWeight: tonePhase === 'waiting' ? '800' : '600',
+            color: tonePhase === 'waiting' ? '#e5e7eb' : '#6b7280',
+            textAlign: 'center',
+            marginBottom: 28,
+            lineHeight: 22,
+          }}>
             {tonePhase === 'countdown'
               ? `Listen for a ${freqLabel(currentFreq)} tone.`
               : tonePhase === 'playing'
@@ -574,6 +592,11 @@ export default function PTATest() {
                 alignItems: 'center',
                 backgroundColor: tonePhase === 'waiting' ? (pressed ? TEAL_D : TEAL) : '#0d1a19',
                 opacity: tonePhase === 'waiting' ? 1 : 0.4,
+                shadowColor: TEAL,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: tonePhase === 'waiting' ? 0.45 : 0,
+                shadowRadius: 14,
+                elevation: tonePhase === 'waiting' ? 6 : 0,
               })}
             >
               <Ionicons name="ear" size={32} color="#fff" />

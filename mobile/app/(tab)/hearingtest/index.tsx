@@ -14,6 +14,7 @@ import {
   Pressable,
   StatusBar,
   ScrollView,
+  Animated,
   Platform,
   Alert,
 } from 'react-native';
@@ -41,21 +42,75 @@ const ALL_STEPS: HearingCalibrationStep[] = ['headphone', 'volume', 'reference',
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
-function StepDots({ current }: { current: HearingCalibrationStep }) {
+function StepBadges({ current }: { current: HearingCalibrationStep }) {
   const idx = ALL_STEPS.indexOf(current);
   return (
-    <View style={{ flexDirection: 'row', gap: 7, alignItems: 'center' }}>
-      {ALL_STEPS.map((s, i) => (
-        <View
-          key={s}
-          style={{
-            width: i === idx ? 22 : 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: i <= idx ? TEAL : '#d1d5db',
-          }}
-        />
-      ))}
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {ALL_STEPS.map((s, i) => {
+        const done   = i < idx;
+        const active = i === idx;
+        return (
+          <View key={s} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View
+              style={{
+                width: 24, height: 24, borderRadius: 12,
+                backgroundColor: done || active ? TEAL : '#f3f4f6',
+                alignItems: 'center', justifyContent: 'center',
+                borderWidth: 1.5,
+                borderColor: done || active ? TEAL : '#e5e7eb',
+              }}
+            >
+              {done
+                ? <Ionicons name="checkmark" size={13} color="#fff" />
+                : <Text style={{ fontSize: 11, fontWeight: '800', color: active ? '#fff' : '#9ca3af' }}>{i + 1}</Text>
+              }
+            </View>
+            {i < ALL_STEPS.length - 1 && (
+              <View style={{ width: 8, height: 2, backgroundColor: done ? TEAL : '#e5e7eb' }} />
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Animated recording rings ───────────────────────────────────────────────────────────
+
+function RecordingRings() {
+  const scale   = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale,   { toValue: 1.9, duration: 900, useNativeDriver: true }),
+          Animated.timing(scale,   { toValue: 1.0, duration: 0,   useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0,   duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.8, duration: 0,   useNativeDriver: true }),
+        ]),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  return (
+    <View style={{ width: 96, height: 96, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 80, height: 80, borderRadius: 40,
+          borderWidth: 2, borderColor: '#dc2626',
+          opacity, transform: [{ scale }],
+        }}
+      />
+      <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="mic" size={40} color="#dc2626" />
+      </View>
     </View>
   );
 }
@@ -480,9 +535,7 @@ function NoiseStep() {
 
       {phase === 'recording' && (
         <View style={{ alignItems: 'center', gap: 16, paddingVertical: 32 }}>
-          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#fef2f2', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="mic" size={40} color="#dc2626" />
-          </View>
+          <RecordingRings />
           <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>Listening…</Text>
           <Text style={{ fontSize: 13, color: '#6b7280' }}>Please remain quiet for 3 seconds</Text>
         </View>
@@ -668,7 +721,7 @@ export default function HearingTestIndex() {
               {stepTitles[calibrationStep]}
             </Text>
           </View>
-          <StepDots current={calibrationStep} />
+          <StepBadges current={calibrationStep} />
         </View>
 
         <ScrollView
