@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
+import { useAuthStore } from 'stores/auth-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { interpretVision } from 'services/sensor-interpretation-service';
 import type { SensorInterpretResponse } from 'services/sensor-interpretation-service';
@@ -19,6 +20,7 @@ import {
   PR_GRADE_LABEL,
   NEAR_GRADE_COLOR,
   NEAR_GRADE_LABEL,
+  lookupCSPercentile,
 } from 'services/clinical-standards-engine';
 import { generateAIInterpretation } from 'services/vision-ai-engine';
 import type { AIInterpretation } from 'services/vision-ai-engine';
@@ -112,13 +114,14 @@ function AstigmatismCard({ r }: { r: AstigmatismResult }) {
   );
 }
 
-function ContrastCard({ r }: { r: ContrastResult }) {
+function ContrastCard({ r, age }: { r: ContrastResult; age?: number }) {
   const logCS = r.pelliRobsonLogCS;
   const grade = r.contrastGrade;
   const good = logCS !== undefined ? logCS >= 1.65 : false;
   const lowest = r.curve.length > 0 ? Math.min(...r.curve.map((c) => c.threshold)) : null;
   const gradeColor = grade ? PR_GRADE_COLOR[grade] : '#6b7280';
   const gradeLabel = grade ? PR_GRADE_LABEL[grade] : null;
+  const percentile = logCS !== undefined ? lookupCSPercentile(logCS, age) : null;
   return (
     <View style={cardStyle(good ? '#f0fdf4' : '#fffbeb', good ? '#86efac' : '#fde68a')}>
       <Row icon="contrast-outline" label="Contrast Sensitivity"
@@ -130,6 +133,16 @@ function ContrastCard({ r }: { r: ContrastResult }) {
             <Text style={{ fontSize: 11, fontWeight: '700', color: gradeColor }}>{gradeLabel}</Text>
           </View>
           <Text style={{ fontSize: 11, color: '#9ca3af' }}>Pelli-Robson equivalent</Text>
+        </View>
+      )}
+      {percentile && (
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <View style={{ backgroundColor: '#e0f2fe', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#0369a1' }}>
+              Better than {percentile.percentile}% ({percentile.ageBandLabel})
+            </Text>
+          </View>
+          <Text style={{ fontSize: 11, color: '#9ca3af' }}>Age-matched normative percentile</Text>
         </View>
       )}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -1002,11 +1015,23 @@ function buildShareText(results: SingleTestResult[], distanceCm: number): string
 
 export default function BatteryResults() {
   const { session, viewingDistanceCm, resetBattery, behavioralReport } = useVisionStore();
+  const user = useAuthStore((s) => s.user);
 
   const results = session?.results ?? [];
   const duration = session && session.completedAt
     ? Math.round((session.completedAt - session.startedAt) / 1000)
     : null;
+
+  const userAge = useMemo(() => {
+    if (!user?.dob) return undefined;
+    const dob = new Date(user.dob);
+    if (Number.isNaN(dob.getTime())) return undefined;
+    const now = new Date();
+    let age = now.getFullYear() - dob.getFullYear();
+    const monthDelta = now.getMonth() - dob.getMonth();
+    if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < dob.getDate())) age -= 1;
+    return age >= 0 ? age : undefined;
+  }, [user?.dob]);
 
   // EDIS interpretation state
   const [edisResult, setEdisResult] = useState<SensorInterpretResponse | null>(null);
@@ -1100,7 +1125,7 @@ export default function BatteryResults() {
             if (r.testId === 'acuity')       return <AcuityCard key="acuity" r={r as AcuityResult} />;
             if (r.testId === 'color')        return <ColorCard key="color" r={r as ColorResult} />;
             if (r.testId === 'astigmatism')  return <AstigmatismCard key="astigmatism" r={r as AstigmatismResult} />;
-            if (r.testId === 'contrast')     return <ContrastCard key="contrast" r={r as ContrastResult} />;
+            if (r.testId === 'contrast')     return <ContrastCard key="contrast" r={r as ContrastResult} age={userAge} />;
             if (r.testId === 'near')         return <NearCard key="near" r={r as NearVisionResult} />;
             return null;
           })}

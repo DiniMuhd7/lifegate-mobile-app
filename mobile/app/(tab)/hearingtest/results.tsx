@@ -588,6 +588,15 @@ function SINResultCard({ result }: { result: SINResult }) {
           <Text style={{ fontSize: 10, color: '#6b7280' }}>Levels tested</Text>
         </View>
       </View>
+
+      {/* Limitation note — tones ≠ sentences */}
+      <View style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#fde68a', flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+        <Text style={{ fontSize: 14 }}>ℹ️</Text>
+        <Text style={{ fontSize: 11, color: '#92400e', flex: 1, lineHeight: 16 }}>
+          <Text style={{ fontWeight: '700' }}>Note: </Text>
+          This test uses tones in noise. Clinical QuickSIN uses sentence lists, which also measures phoneme discrimination. A tone-based result may underestimate real-world speech-in-noise difficulty. A formal audiologist assessment is recommended if any noise-related difficulty is experienced.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -1482,6 +1491,12 @@ export default function HearingResults() {
             <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 16 }}>
               Lower is better (0 dBHL = normal). Green zone = normal hearing range.
             </Text>
+            <View style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#fde68a', marginBottom: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              <Text style={{ fontSize: 14 }}>⚠️</Text>
+              <Text style={{ fontSize: 11, color: '#92400e', flex: 1, lineHeight: 16 }}>
+                Consumer headphones are not calibrated audiometers. Absolute dBHL values can vary by about ±10 to 15 dB. Use this as a screening trend, and confirm abnormal results with a clinical audiology test.
+              </Text>
+            </View>
             {/* Y-axis label */}
             <Text style={{ position: 'absolute', top: 80, left: 8, fontSize: 9, color: '#9ca3af', transform: [{ rotate: '-90deg' }] }}>
               dB HL →

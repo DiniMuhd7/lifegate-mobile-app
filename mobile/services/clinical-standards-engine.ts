@@ -180,9 +180,21 @@ export function scoreIshihara(
   const passed           = screeningCorrect >= Math.ceil(screeningTotal * 0.75);
 
   // CVD-confirming plates (deficient-only): IDs 6, 10
-  // If subject answered these (non-empty), it confirms CVD
   const deficientPlates = trials.filter((t) => [6, 10].includes(t.plateId));
   const answeredDeficient = deficientPlates.filter((t) => t.givenAnswer.trim() !== '').length;
+
+  // ── Protan vs Deutan classification (plates 11–14) ────────────────────────
+  // Plates 11–12 use protan confusion colours: protan reads deficientAnswer.
+  // Plates 13–14 use deutan confusion colours: deutan reads deficientAnswer.
+  const classTrials = trials.filter((t) => [11, 12, 13, 14].includes(t.plateId));
+  let protanErrors = 0;
+  let deutanErrors = 0;
+  for (const t of classTrials) {
+    if (!t.isCorrect && t.givenAnswer.trim() !== '') {
+      if ([11, 12].includes(t.plateId)) protanErrors += 1;
+      if ([13, 14].includes(t.plateId)) deutanErrors += 1;
+    }
+  }
 
   let cvdType: CVDType = 'normal_trichromacy';
   let severity: IshiharaScore['severity'] = 'none';
@@ -191,9 +203,14 @@ export function scoreIshihara(
     : 100;
 
   if (!passed) {
-    // Protan/deutan distinction requires plates 14–17 of full Ishihara set.
-    // With our 10-plate subset, we can only confirm CVD presence.
-    cvdType = answeredDeficient > 0 ? 'protan_or_deutan' : 'protan_or_deutan';
+    // Classify CVD type using classification plates when available
+    if (classTrials.length >= 2) {
+      if (protanErrors > deutanErrors)      cvdType = 'protan';
+      else if (deutanErrors > protanErrors) cvdType = 'deutan';
+      else                                  cvdType = 'protan_or_deutan';
+    } else {
+      cvdType = answeredDeficient > 0 ? 'protan_or_deutan' : 'protan_or_deutan';
+    }
 
     const errorRate = 1 - (screeningCorrect / Math.max(1, screeningTotal));
     if (errorRate <= 0.25)     severity = 'mild';
@@ -355,6 +372,73 @@ export const PR_GRADE_LABEL: Record<PelliRobsonResult['grade'], string> = {
   reduced:          'Reduced',
   severely_reduced: 'Severely Reduced',
 };
+
+export interface CSPercentileResult {
+  percentile: number;
+  ageBandLabel: string;
+}
+
+type CSNormativeBand = {
+  minAge: number;
+  maxAge: number;
+  label: string;
+  p5: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+};
+
+const CS_NORMATIVE_BANDS: CSNormativeBand[] = [
+  { minAge: 18, maxAge: 39, label: '18-39', p5: 1.35, p25: 1.55, p50: 1.70, p75: 1.82, p90: 1.95 },
+  { minAge: 40, maxAge: 59, label: '40-59', p5: 1.25, p25: 1.45, p50: 1.60, p75: 1.75, p90: 1.88 },
+  { minAge: 60, maxAge: 79, label: '60-79', p5: 1.10, p25: 1.30, p50: 1.48, p75: 1.62, p90: 1.75 },
+  { minAge: 80, maxAge: 120, label: '80+', p5: 0.95, p25: 1.15, p50: 1.32, p75: 1.48, p90: 1.62 },
+];
+
+const CS_NORMATIVE_FALLBACK: CSNormativeBand = {
+  minAge: 18,
+  maxAge: 120,
+  label: 'Adults',
+  p5: 1.20,
+  p25: 1.42,
+  p50: 1.58,
+  p75: 1.73,
+  p90: 1.86,
+};
+
+function clampPercentile(p: number): number {
+  return Math.max(1, Math.min(99, Math.round(p)));
+}
+
+function lerpPercentile(value: number, a: number, b: number, pa: number, pb: number): number {
+  if (Math.abs(b - a) < 0.0001) return pb;
+  return pa + ((value - a) / (b - a)) * (pb - pa);
+}
+
+function estimatePercentileFromBand(logCS: number, band: CSNormativeBand): number {
+  if (logCS <= band.p5) return clampPercentile(lerpPercentile(logCS, band.p5 - 0.30, band.p5, 1, 5));
+  if (logCS <= band.p25) return clampPercentile(lerpPercentile(logCS, band.p5, band.p25, 5, 25));
+  if (logCS <= band.p50) return clampPercentile(lerpPercentile(logCS, band.p25, band.p50, 25, 50));
+  if (logCS <= band.p75) return clampPercentile(lerpPercentile(logCS, band.p50, band.p75, 50, 75));
+  if (logCS <= band.p90) return clampPercentile(lerpPercentile(logCS, band.p75, band.p90, 75, 90));
+  return clampPercentile(lerpPercentile(logCS, band.p90, band.p90 + 0.25, 90, 99));
+}
+
+/**
+ * Estimates age-matched percentile rank for Pelli-Robson equivalent log CS.
+ * Uses broad clinical age bands and piecewise interpolation.
+ */
+export function lookupCSPercentile(logCS: number, age?: number | null): CSPercentileResult {
+  const band = (typeof age === 'number' && Number.isFinite(age))
+    ? CS_NORMATIVE_BANDS.find((b) => age >= b.minAge && age <= b.maxAge) ?? CS_NORMATIVE_FALLBACK
+    : CS_NORMATIVE_FALLBACK;
+
+  return {
+    percentile: estimatePercentileFromBand(logCS, band),
+    ageBandLabel: band.label,
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4.  ASTIGMATISM — Radial clock-dial / Maddox cross clinical interpretation
