@@ -5,6 +5,18 @@ import { Ionicons } from '@expo/vector-icons';
 
 interface GreetingSectionProps {
   userName?: string;
+  /** Gradient start/end colours — defaults to teal when omitted */
+  gradientColors?: [string, string];
+  /** Short status label shown in the top-right badge */
+  statusLabel?: string;
+  /** Ionicons name to show alongside the status label */
+  statusIcon?: React.ComponentProps<typeof Ionicons>['name'];
+  /** Name/title of the most recent case */
+  lastReportedCase?: string;
+  /** Formatted relative date of the last reported case (e.g. "Yesterday") */
+  lastReportedDate?: string;
+  /** Number of currently active cases */
+  activeCases?: number;
 }
 
 const getTimeGreeting = (): { label: string; icon: React.ComponentProps<typeof Ionicons>['name'] } => {
@@ -14,7 +26,15 @@ const getTimeGreeting = (): { label: string; icon: React.ComponentProps<typeof I
   return { label: 'Good evening', icon: 'moon-outline' };
 };
 
-export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) => {
+export const GreetingSection: React.FC<GreetingSectionProps> = ({
+  userName,
+  gradientColors = ['#0AADA2', '#043B3C'],
+  statusLabel = 'General Health',
+  statusIcon = 'heart',
+  lastReportedCase,
+  lastReportedDate,
+  activeCases,
+}) => {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
 
@@ -31,7 +51,7 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) =>
   return (
     <Animated.View style={{ opacity: fade, transform: [{ translateY: slide }] }}>
       <LinearGradient
-        colors={['#0AADA2', '#043B3C']}
+        colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -67,8 +87,8 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) =>
               paddingVertical: 5,
             }}
           >
-            <Ionicons name="heart" size={12} color="#fff" />
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>General Health</Text>
+            <Ionicons name={statusIcon} size={12} color="#fff" />
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{statusLabel}</Text>
           </View>
         </View>
 
@@ -83,20 +103,48 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({ userName }) =>
         {/* Divider */}
         <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.15)', marginVertical: 14 }} />
 
-        {/* Stats row */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {[
-            { icon: 'shield-checkmark-outline' as React.ComponentProps<typeof Ionicons>['name'], label: 'AI-Powered' },
-            { icon: 'medical-outline' as React.ComponentProps<typeof Ionicons>['name'], label: 'Doctor Reviewed' },
-            { icon: 'lock-closed-outline' as React.ComponentProps<typeof Ionicons>['name'], label: 'Private & Secure' },
-          ].map((item) => (
-            <View key={item.label} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-              <Ionicons name={item.icon} size={16} color="rgba(255,255,255,0.85)" />
-              <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', fontWeight: '600', textAlign: 'center' }}>
-                {item.label}
+        {/* Stats row — mirrors HealthStatusCard bottom section */}
+        <View style={{ flexDirection: 'row', gap: 16 }}>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 10,
+                color: 'rgba(255,255,255,0.6)',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+              }}
+            >
+              Last Reported
+            </Text>
+            <Text
+              style={{ fontSize: 13, fontWeight: '700', color: '#fff', marginTop: 3 }}
+              numberOfLines={1}
+            >
+              {lastReportedCase ?? '—'}
+            </Text>
+            {lastReportedDate && (
+              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
+                {lastReportedDate}
               </Text>
-            </View>
-          ))}
+            )}
+          </View>
+          <View
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingLeft: 16,
+              borderLeftWidth: 1,
+              borderLeftColor: 'rgba(255,255,255,0.2)',
+            }}
+          >
+            <Text style={{ fontSize: 28, fontWeight: '800', color: '#fff' }}>
+              {activeCases ?? 0}
+            </Text>
+            <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>
+              Active
+            </Text>
+          </View>
         </View>
       </LinearGradient>
     </Animated.View>

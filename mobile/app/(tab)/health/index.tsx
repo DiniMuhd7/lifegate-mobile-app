@@ -76,6 +76,21 @@ const URGENCY_STATUS: Record<string, HealthStatus> = {
   CRITICAL: 'High Risk',
 };
 
+// Richer dark gradients for the greeting card (separate from the light pastel
+// gradients used in HealthStatusCard which are designed for a white page).
+const GREETING_GRADIENT: Record<HealthStatus, [string, string]> & { default: [string, string] } = {
+  Stable:      ['#16a34a', '#14532d'],
+  Monitor:     ['#d97706', '#78350f'],
+  'High Risk': ['#dc2626', '#7f1d1d'],
+  default:     ['#0AADA2', '#043B3C'],
+};
+
+const GREETING_STATUS_ICON: Record<HealthStatus, React.ComponentProps<typeof Ionicons>['name']> = {
+  Stable:      'shield-checkmark',
+  Monitor:     'eye',
+  'High Risk': 'warning',
+};
+
 const URGENCY_COLOR: Record<string, string> = {
   LOW: '#16a34a',
   MEDIUM: '#d97706',
@@ -730,7 +745,7 @@ export default function HealthDashboardScreen() {
 
       {/* ── Loading ── */}
       <ScrollView
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -751,12 +766,19 @@ export default function HealthDashboardScreen() {
           </View>
         ) : (
           <View>
-          {/* Greeting card */}
+          {/* Greeting card — colours follow current health status */}
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <GreetingSection userName={user?.name || ''} />
+            <GreetingSection
+              userName={user?.name || ''}
+              gradientColors={GREETING_GRADIENT[status] ?? GREETING_GRADIENT.default}
+              statusLabel={STATUS_CFG[status].label}
+              statusIcon={GREETING_STATUS_ICON[status]}
+              lastReportedCase={latest ? (latest.condition || latest.title) : undefined}
+              lastReportedDate={latest ? formatRelativeDate(latest.createdAt) : undefined}
+              activeCases={totalActive}
+            />
           </View>
 
-          <HealthStatusCard status={status} latest={latest} totalActive={totalActive} />
           <AIInsightCard insight={insight} />
           <QuickActions />
 
