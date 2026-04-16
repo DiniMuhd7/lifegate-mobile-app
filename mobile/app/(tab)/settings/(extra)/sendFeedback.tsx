@@ -1,4 +1,4 @@
-import { View, Text, Pressable, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, Pressable, TextInput, Alert, ActivityIndicator, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -16,6 +16,7 @@ export default function SendFeedbackScreen() {
   const [contactEmail, setContactEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!lifegateId) {
@@ -24,7 +25,35 @@ export default function SendFeedbackScreen() {
     if (!contactEmail) {
       setContactEmail(user?.email || '');
     }
+    if (!issueType && issues.length > 0) {
+      setIssueType(issues[0].value);
+    }
   }, [user, lifegateId, contactEmail]);
+
+  const openEmailFallback = async () => {
+    const supportEmail = 'contact@dshub.com.ng';
+    const subject = encodeURIComponent(`LifeGate Support: ${issueType || 'General Inquiry'}`);
+    const body = encodeURIComponent(
+      [
+        `LifeGate ID: ${lifegateId || 'Not provided'}`,
+        `Contact Email: ${contactEmail || 'Not provided'}`,
+        '',
+        'Issue Description:',
+        description || 'No description provided.',
+      ].join('\n')
+    );
+    const mailto = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+
+    const canOpen = await Linking.canOpenURL(mailto);
+    if (canOpen) {
+      await Linking.openURL(mailto);
+      setSuccessMessage('Support email draft opened. Please press send in your mail app.');
+      setErrorMessage('');
+      return;
+    }
+
+    setErrorMessage('Unable to open mail app. Please try again later.');
+  };
 
   const handleSubmit = async () => {
     if (!issueType.trim() || !description.trim() || !contactEmail.trim()) {
@@ -33,6 +62,7 @@ export default function SendFeedbackScreen() {
     }
 
     setSuccessMessage('');
+    setErrorMessage('');
 
     setSubmitting(true);
     const result = await SupportService.contactSupport({
@@ -45,7 +75,15 @@ export default function SendFeedbackScreen() {
     setSubmitting(false);
 
     if (!result.success) {
-      Alert.alert('Unable to Send', result.message || 'Please try again.');
+      setErrorMessage(result.message || 'Could not submit support request from app.');
+      Alert.alert(
+        'Submission Failed',
+        `${result.message || 'Could not submit support request from app.'}\n\nOpen your mail app instead?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Mail App', onPress: () => void openEmailFallback() },
+        ]
+      );
       return;
     }
 
@@ -98,6 +136,15 @@ export default function SendFeedbackScreen() {
             <View className="flex-row items-start gap-2">
               <Ionicons name="checkmark-circle" size={18} color="#059669" style={{ marginTop: 1 }} />
               <Text className="flex-1 text-sm text-[#065F46] leading-5">{successMessage}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {errorMessage ? (
+          <View className="rounded-2xl bg-[#FEF2F2] border border-[#FECACA] px-4 py-3 mb-4">
+            <View className="flex-row items-start gap-2">
+              <Ionicons name="alert-circle" size={18} color="#DC2626" style={{ marginTop: 1 }} />
+              <Text className="flex-1 text-sm text-[#991B1B] leading-5">{errorMessage}</Text>
             </View>
           </View>
         ) : null}

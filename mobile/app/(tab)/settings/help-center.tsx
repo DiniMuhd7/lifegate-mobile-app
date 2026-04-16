@@ -1,8 +1,9 @@
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, Linking, Platform } from 'react-native';
 import { useState } from 'react';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 
 const HelpItem = ({
   icon,
@@ -67,6 +68,44 @@ export default function HelpScreen() {
   const params = useLocalSearchParams<{ feedback?: string; referenceId?: string }>();
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(true);
   const feedbackSent = params.feedback === 'sent' && showFeedbackSuccess;
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const appName = Constants.expoConfig?.name ?? 'LifeGate';
+
+  const handleAppInfo = () => {
+    Alert.alert(
+      `${appName} App Info`,
+      [
+        `Version: ${appVersion}`,
+        'Publisher: LifeGate by DSHub',
+        'Platform: AI-assisted triage with physician review',
+        'Support: contact@dshub.com.ng',
+      ].join('\n'),
+      [
+        { text: 'Close', style: 'cancel' },
+        {
+          text: 'About Page',
+          onPress: () => router.push('/(tab)/settings/contact-us'),
+        },
+      ]
+    );
+  };
+
+  const handleRateUs = async () => {
+    const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.lazyapp.lifegatemobile';
+    const appStoreUrl = 'https://apps.apple.com';
+    const targetUrl = Platform.OS === 'ios' ? appStoreUrl : playStoreUrl;
+
+    try {
+      const supported = await Linking.canOpenURL(targetUrl);
+      if (!supported) {
+        Alert.alert('Unavailable', 'Unable to open app store right now.');
+        return;
+      }
+      await Linking.openURL(targetUrl);
+    } catch {
+      Alert.alert('Unavailable', 'Unable to open app store right now.');
+    }
+  };
 
   const faqs = [
     {
@@ -84,6 +123,18 @@ export default function HelpScreen() {
     {
       q: 'How do I contact support quickly?',
       a: 'Use Contact Us to call or email support directly. You can also send feedback from this Help Center.',
+    },
+    {
+      q: 'Does LifeGate replace my doctor?',
+      a: 'No. LifeGate supports early triage and guidance, while licensed physicians handle clinical review and final treatment decisions where required.',
+    },
+    {
+      q: 'How do I improve diagnosis quality?',
+      a: 'Keep your health profile updated, provide clear symptom timelines, include relevant history, and complete requested sensor tests carefully.',
+    },
+    {
+      q: 'What should I do in an emergency?',
+      a: 'If you have severe symptoms such as chest pain, breathing difficulty, or loss of consciousness, seek immediate emergency medical care instead of waiting for app responses.',
     },
   ];
 
@@ -142,12 +193,14 @@ export default function HelpScreen() {
         <HelpItem
           title="App Info"
           subtitle="Version, release notes, and compliance"
+          onPress={handleAppInfo}
           icon={<Feather name="info" size={18} color="#38887D" />}
         />
 
         <HelpItem
           title="Rate Us"
           subtitle="Tell us how we can improve your experience"
+          onPress={handleRateUs}
           icon={<Feather name="star" size={18} color="#38887D" />}
         />
 

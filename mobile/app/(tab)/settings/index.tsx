@@ -83,8 +83,8 @@ export default function SettingsScreen() {
       items: [
         {
           icon: 'mail-outline',
-          label: 'Contact Us',
-          sublabel: 'Send us a message',
+          label: 'About',
+          sublabel: 'Learn about LifeGate',
           onPress: () => router.push('/(tab)/settings/contact-us'),
         },
         {
