@@ -93,6 +93,7 @@ FIELD RULES:
     METABOLIC_RISK, MENTAL_HEALTH_CRISIS, SEPSIS_RISK, HYPERTENSIVE_CRISIS,
     PEDIATRIC_CONCERN, OBSTETRIC_RISK, GASTROINTESTINAL_RISK, RENAL_RISK
 - mode: "general" for pure wellness, nutrition, or informational queries with no active symptoms. Use "clinical" whenever the user reports ANY physical symptom (pain, fever, vomiting, cough, fatigue, dizziness, etc.), a 'conditions' list is present, OR any diagnosis is included — regardless of confidence level.
+- MODE GATE (HARD RULE): When mode="general", you MUST omit ALL of the following fields entirely: 'diagnosis', 'conditions', 'riskFlags', 'prescription', 'followUpPlan'. These fields are exclusively for mode="clinical". If you find yourself wanting to include any of these fields, switch mode to "clinical" first — never include clinical fields under mode="general".
 - urgency: LOW (home monitoring ok), MEDIUM (see a doctor within a few days), HIGH (see a doctor today), CRITICAL (emergency).
 - followUpPlan: MANDATORY whenever a 'diagnosis' is present. Specify: daysUntil (integer — how many days until the patient should check back in; use 2 for CRITICAL/HIGH, 5 for MEDIUM, 7 for LOW), and triggerSymptoms (array of 2–4 specific symptom strings that should prompt the user to seek care immediately before the follow-up date, e.g. "fever above 39°C", "severe chest pain", "difficulty breathing"). Omit only when no diagnosis is present.
 
