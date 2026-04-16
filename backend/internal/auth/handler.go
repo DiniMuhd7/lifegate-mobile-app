@@ -203,7 +203,12 @@ Language:  req.Language,
 
 pair, err := h.svc.Register(u, req.Password)
 if err != nil {
-respond(c, http.StatusBadRequest, false, err.Error(), nil)
+	switch {
+	case errors.Is(err, ErrEmailAlreadyRegistered), errors.Is(err, ErrPhoneAlreadyRegistered):
+		respond(c, http.StatusConflict, false, err.Error(), nil)
+	default:
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+	}
 return
 }
 respond(c, http.StatusCreated, true, "Registration successful", gin.H{"token": pair.Token, "refresh_token": pair.RefreshToken, "user": pair.User})
@@ -306,6 +311,8 @@ if err != nil {
 switch {
 case errors.Is(err, ErrEmailAlreadyRegistered):
 respond(c, http.StatusConflict, false, err.Error(), nil)
+		case errors.Is(err, ErrPhoneAlreadyRegistered):
+			respond(c, http.StatusConflict, false, err.Error(), nil)
 case errors.Is(err, ErrOTPRateLimited):
 respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
 default:

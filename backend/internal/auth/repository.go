@@ -73,6 +73,22 @@ row := r.db.QueryRow(
 return scanUser(row)
 }
 
+// ExistsNonProfessionalByPhoneDigits returns true when a non-professional user
+// already exists with the same phone number (compared by digits only).
+func (r *Repository) ExistsNonProfessionalByPhoneDigits(phoneDigits string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(
+		`SELECT EXISTS(
+			SELECT 1
+			FROM users
+			WHERE role <> 'professional'
+			  AND regexp_replace(COALESCE(phone, ''), '[^0-9]+', '', 'g') = $1
+		)`,
+		phoneDigits,
+	).Scan(&exists)
+	return exists, err
+}
+
 func (r *Repository) FindUserByID(id string) (*User, error) {
 row := r.db.QueryRow(
 `SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,

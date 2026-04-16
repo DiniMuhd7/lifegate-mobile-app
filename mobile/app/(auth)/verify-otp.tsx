@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
 import { PrimaryButton } from 'components/Button';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useRootNavigationState } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { usePasswordRecoveryStore } from 'stores/auth/password-recovery-store';
@@ -12,6 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VerifyOtpScreen() {
   const { email, mode } = useLocalSearchParams<{ email: string; mode: string }>();
+  const navigationState = useRootNavigationState();
+  const pendingNavigationRef = useRef<null | (() => void)>(null);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -25,6 +27,22 @@ export default function VerifyOtpScreen() {
     const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (!navigationState?.key) return;
+    if (!pendingNavigationRef.current) return;
+    const navigate = pendingNavigationRef.current;
+    pendingNavigationRef.current = null;
+    navigate();
+  }, [navigationState?.key]);
+
+  const runNavigation = (navigate: () => void) => {
+    if (navigationState?.key) {
+      navigate();
+      return;
+    }
+    pendingNavigationRef.current = navigate;
+  };
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -59,7 +77,7 @@ export default function VerifyOtpScreen() {
         const success = await verifyOtpForPasswordRecovery(email, otpString);
         if (success) {
           const token = usePasswordRecoveryStore.getState().resetToken;
-          router.push({ pathname: '/(auth)/reset-password', params: { token } });
+          runNavigation(() => router.push({ pathname: '/(auth)/reset-password', params: { token } }));
         } else {
           const { error: storeError } = usePasswordRecoveryStore.getState();
           setError(storeError || 'Invalid verification code');
@@ -68,7 +86,9 @@ export default function VerifyOtpScreen() {
         const { verifyRegistration } = useRegistrationStore.getState();
         const success = await verifyRegistration(email, otpString);
         if (success) {
-          router.push({ pathname: '/(auth)/(user)/profile', params: { emailVerified: 'true' } });
+          runNavigation(() =>
+            router.push({ pathname: '/(auth)/(user)/profile', params: { emailVerified: 'true' } })
+          );
         } else {
           const { error: storeError } = useRegistrationStore.getState();
           setError(storeError || 'Invalid verification code');
@@ -77,7 +97,7 @@ export default function VerifyOtpScreen() {
         const { verifyPhysician2FA } = useAuthStore.getState();
         const success = await verifyPhysician2FA(email, otpString);
         if (success) {
-          router.replace('/(prof-tab)/consultation');
+          runNavigation(() => router.replace('/(prof-tab)/consultation'));
         } else {
           const { error: storeError } = useAuthStore.getState();
           setError(storeError || 'Invalid verification code');

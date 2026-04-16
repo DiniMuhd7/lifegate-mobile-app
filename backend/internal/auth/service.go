@@ -201,12 +201,28 @@ func (s *Service) Login(ctx context.Context, email, password, clientIP string) (
 }
 
 func (s *Service) Register(u *User, password string) (*TokenPair, error) {
+	u.Phone = normalizePhoneDigits(u.Phone)
+	if u.Role != "professional" && u.Phone != "" {
+		exists, err := s.repo.ExistsNonProfessionalByPhoneDigits(u.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate phone uniqueness: %w", err)
+		}
+		if exists {
+			return nil, ErrPhoneAlreadyRegistered
+		}
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 	if err := s.repo.CreateUser(u, string(hash)); err != nil {
 		return nil, err
+	}
+	if u.Role != "professional" && s.trialGranter != nil {
+		if err := s.trialGranter.GrantTrialCredits(u.ID); err != nil {
+			log.Printf("[auth] failed to grant trial credits for user %s: %v", u.ID, err)
+		}
 	}
 	token, err := s.generateJWT(u)
 	if err != nil {
@@ -242,6 +258,10 @@ const otpTTL = 600
 // ErrEmailAlreadyRegistered is returned when registration is attempted with an already-existing email.
 var ErrEmailAlreadyRegistered = errors.New("email is already registered")
 
+// ErrPhoneAlreadyRegistered is returned when registration is attempted with a
+// phone number already used by a non-professional account.
+var ErrPhoneAlreadyRegistered = errors.New("phone number is already registered")
+
 // ErrOTPRateLimited is returned when too many OTP requests are sent for a single email.
 var ErrOTPRateLimited = errors.New("too many OTP requests, please try again later")
 
@@ -263,10 +283,22 @@ var ErrPhysician2FARateLimited = errors.New("too many login attempts, please try
 func (s *Service) StartRegistration(ctx context.Context, payload RegisterStartPayload) (string, int, error) {
 // Normalize email
 payload.Email = strings.ToLower(strings.TrimSpace(payload.Email))
+payload.Phone = normalizePhoneDigits(payload.Phone)
 
 // Reject if email already has a confirmed account
 if _, err := s.repo.FindUserByEmail(payload.Email); err == nil {
 return "", 0, ErrEmailAlreadyRegistered
+}
+
+// Anti-abuse: allow only one non-professional account per phone number.
+if payload.Role != "professional" && payload.Phone != "" {
+	exists, err := s.repo.ExistsNonProfessionalByPhoneDigits(payload.Phone)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to validate phone uniqueness: %w", err)
+	}
+	if exists {
+		return "", 0, ErrPhoneAlreadyRegistered
+	}
 }
 
 // OTP send rate limiting: max 3 per hour per email (check before increment).
@@ -366,6 +398,21 @@ func (s *Service) VerifyOTP(ctx context.Context, email, otp string) (*TokenPair,
 	return tp, nil
 }
 
+func normalizePhoneDigits(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	for _, ch := range phone {
+		if ch >= '0' && ch <= '9' {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
+}
+
 func (s *Service) completeRegistrationFromDB(pr *PendingRegistration) (*TokenPair, error) {
 var payload RegisterStartPayload
 if err := json.Unmarshal(pr.Payload, &payload); err != nil {
@@ -405,7 +452,9 @@ return nil, err
 
 // Grant trial credits to new patient accounts (non-physician roles).
 if u.Role != "professional" && s.trialGranter != nil {
-	_ = s.trialGranter.GrantTrialCredits(u.UserID)
+	if err := s.trialGranter.GrantTrialCredits(u.ID); err != nil {
+		log.Printf("[auth] failed to grant trial credits for user %s: %v", u.ID, err)
+	}
 }
 
 token, err := s.generateJWT(u)

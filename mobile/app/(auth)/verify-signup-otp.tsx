@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
 import { PrimaryButton } from 'components/Button';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useRootNavigationState } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRegistrationStore } from 'stores/auth/registration-store';
@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VerifySignupOtpScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
+  const navigationState = useRootNavigationState();
+  const pendingNavigationRef = useRef<null | (() => void)>(null);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,6 +21,22 @@ export default function VerifySignupOtpScreen() {
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { otpExpiresIn } = useRegistrationStore();
+
+  useEffect(() => {
+    if (!navigationState?.key) return;
+    if (!pendingNavigationRef.current) return;
+    const navigate = pendingNavigationRef.current;
+    pendingNavigationRef.current = null;
+    navigate();
+  }, [navigationState?.key]);
+
+  const runNavigation = (navigate: () => void) => {
+    if (navigationState?.key) {
+      navigate();
+      return;
+    }
+    pendingNavigationRef.current = navigate;
+  };
 
   // Initialize countdown timer
   useEffect(() => {
@@ -101,10 +119,10 @@ export default function VerifySignupOtpScreen() {
 
         if (userRole === 'professional') {
           // Route professional users to MDCN license verification screen
-          router.replace('/(auth)/mdcn-verify');
+          runNavigation(() => router.replace('/(auth)/mdcn-verify'));
         } else {
           // Route regular users to health dashboard
-          router.replace('/(tab)/health');
+          runNavigation(() => router.replace('/(tab)/health'));
         }
       } else {
         const { error: storeError } = useRegistrationStore.getState();

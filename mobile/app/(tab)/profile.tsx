@@ -121,6 +121,13 @@ export default function PatientProfileScreen() {
       : profileCompletion >= 50
         ? { label: 'Almost there', color: '#B45309', bg: '#FEF3C7' }
         : { label: 'Needs updates', color: '#B91C1C', bg: '#FEE2E2' };
+  const criticalHealthFields = [
+    { label: 'Blood type', value: user.blood_type },
+    { label: 'Genotype', value: user.genotype },
+    { label: 'Allergies', value: user.allergies },
+    { label: 'Emergency contact', value: user.emergency_contact },
+  ];
+  const missingCritical = criticalHealthFields.filter((item) => !String(item.value ?? '').trim());
 
   const handleSaveEdit = () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
@@ -250,6 +257,43 @@ export default function PatientProfileScreen() {
             </View>
           </View>
 
+          <View className="px-4 pt-1 pb-1">
+            <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="medkit-outline" size={18} color="#0EA5A4" />
+                  <Text className="text-lg font-black text-gray-900">Care Readiness</Text>
+                </View>
+                <View className={`px-2.5 py-1 rounded-full ${missingCritical.length === 0 ? 'bg-[#DCFCE7]' : 'bg-[#FEF3C7]'}`}>
+                  <Text className={`text-xs font-bold ${missingCritical.length === 0 ? 'text-[#166534]' : 'text-[#92400E]'}`}>
+                    {missingCritical.length === 0 ? 'Complete' : `${missingCritical.length} missing`}
+                  </Text>
+                </View>
+              </View>
+
+              <Text className="text-sm text-gray-600 leading-5 mb-3">
+                {missingCritical.length === 0
+                  ? 'Your critical safety details are complete for faster and safer triage.'
+                  : `Add ${missingCritical.slice(0, 2).map((item) => item.label.toLowerCase()).join(' and ')} to improve diagnosis safety.`}
+              </Text>
+
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => router.push('/(tab)/settings/manage-profile')}
+                  className="flex-1 h-10 rounded-xl bg-[#0EA5A4] items-center justify-center active:opacity-80"
+                >
+                  <Text className="text-sm font-bold text-white">Update Health Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tab)/settings/notification')}
+                  className="h-10 px-3 rounded-xl border border-[#CDE9E8] bg-[#F1FAFA] items-center justify-center active:opacity-80"
+                >
+                  <Ionicons name="notifications-outline" size={18} color="#0EA5A4" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
           <View className="px-4 pt-2">
             <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-[#E7F0F0]">
               <View className="flex-row items-center justify-between mb-4">
@@ -330,6 +374,18 @@ export default function PatientProfileScreen() {
                   }
                 }}
               />
+            </View>
+
+            <View className="bg-white rounded-2xl p-4 mt-3 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center gap-2 mb-3">
+                <Ionicons name="heart-outline" size={18} color="#0EA5A4" />
+                <Text className="text-lg font-black text-gray-900">Health Snapshot</Text>
+              </View>
+              <InfoRow label="Blood Type" value={user.blood_type} showDivider />
+              <InfoRow label="Genotype" value={user.genotype} showDivider />
+              <InfoRow label="Known Allergies" value={user.allergies} showDivider />
+              <InfoRow label="Current Medications" value={user.current_medications} showDivider />
+              <InfoRow label="Emergency Contact" value={user.emergency_contact} />
             </View>
           </View>
         </ScrollView>

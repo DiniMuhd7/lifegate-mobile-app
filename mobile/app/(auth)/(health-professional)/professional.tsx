@@ -1,5 +1,5 @@
 import { View, ScrollView } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useRootNavigationState } from 'expo-router';
 import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
@@ -27,15 +27,24 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 };
 
 export default function ProfessionalScreen() {
+  const navigationState = useRootNavigationState();
   const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const runNavigation = useCallback(
+    (navigate: () => void) => {
+      if (!navigationState?.key) return;
+      navigate();
+    },
+    [navigationState?.key]
+  );
 
   useFocusEffect(
     useCallback(() => {
       if (!userDraft.name || !userDraft.email || !userDraft.password) {
-        router.replace('/(auth)/(health-professional)');
+        runNavigation(() => router.replace('/(auth)/(health-professional)'));
       }
-    }, [userDraft.name, userDraft.email, userDraft.password])
+    }, [userDraft.name, userDraft.email, userDraft.password, runNavigation])
   );
 
   const handleFieldChange = (fieldName: string, value: string) => {

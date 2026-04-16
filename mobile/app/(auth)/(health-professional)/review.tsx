@@ -2,22 +2,31 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, Linking } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { useRegistrationStore } from 'stores/auth-store';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useRootNavigationState } from 'expo-router';
 import { validateRegistration, ValidationError } from 'utils/validation';
 import { InfoRow } from 'components/InfoRow';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ReviewScreen() {
+  const navigationState = useRootNavigationState();
   const { userDraft, error: backendError, loading, startRegistration, clearError } = useRegistrationStore();
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [agreed, setAgreed] = useState(false);
 
+  const runNavigation = useCallback(
+    (navigate: () => void) => {
+      if (!navigationState?.key) return;
+      navigate();
+    },
+    [navigationState?.key]
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (!userDraft.certificate || !userDraft.certificateName || !userDraft.certificateId) {
-        router.replace('/(auth)/(health-professional)/license');
+        runNavigation(() => router.replace('/(auth)/(health-professional)/license'));
       }
-    }, [userDraft.certificate, userDraft.certificateName, userDraft.certificateId])
+    }, [userDraft.certificate, userDraft.certificateName, userDraft.certificateId, runNavigation])
   );
 
   const handleFinalSubmit = async () => {
@@ -35,10 +44,12 @@ export default function ReviewScreen() {
     const success = await startRegistration('professional');
     if (success) {
       const { pendingRegistrationEmail } = useRegistrationStore.getState();
-      router.replace({
-        pathname: '/(auth)/verify-signup-otp',
-        params: { email: pendingRegistrationEmail },
-      });
+      runNavigation(() =>
+        router.replace({
+          pathname: '/(auth)/verify-signup-otp',
+          params: { email: pendingRegistrationEmail },
+        })
+      );
     }
   };
 

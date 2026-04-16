@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useRootNavigationState } from 'expo-router';
 import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
@@ -23,10 +23,19 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 };
 
 export default function LicenseScreen() {
+  const navigationState = useRootNavigationState();
   const { userDraft, setUserField, setCertificateFile } = useRegistrationStore();
   const [isAdding, setIsAdding] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [certificateError, setCertificateError] = useState<string>('');
+
+  const runNavigation = useCallback(
+    (navigate: () => void) => {
+      if (!navigationState?.key) return;
+      navigate();
+    },
+    [navigationState?.key]
+  );
 
   const handleFieldChange = (fieldName: string, value: string) => {
     if (!isValidField(fieldName)) return;
@@ -41,9 +50,9 @@ export default function LicenseScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!userDraft.phone || !userDraft.gender || !userDraft.specialization) {
-        router.replace('/(auth)/(health-professional)/professional');
+        runNavigation(() => router.replace('/(auth)/(health-professional)/professional'));
       }
-    }, [userDraft.phone, userDraft.gender, userDraft.specialization])
+    }, [userDraft.phone, userDraft.gender, userDraft.specialization, runNavigation])
   );
 
   const canProceed = () => {

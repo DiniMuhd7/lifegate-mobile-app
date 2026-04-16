@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const supportPhones = ['+2349013453490', '+2349110192583'];
 
   const handlePhonePress = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
@@ -40,6 +41,13 @@ export default function AboutScreen() {
           </Text>
         </View>
 
+        <View className="mb-3 rounded-2xl bg-[#E9F8F7] border border-[#BEECE9] px-4 py-4">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-[#0B8E8D] mb-2">Our Mission</Text>
+          <Text className="text-sm text-gray-700 leading-6">
+            Deliver safe, accessible, and clinician-supervised digital healthcare for everyday users and high-risk patients alike.
+          </Text>
+        </View>
+
         <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
           <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">What LifeGate Does</Text>
           <FeatureRow icon="chatbubble-ellipses-outline" title="AI Health Triage" subtitle="Structured symptom analysis with context-aware guidance." />
@@ -53,6 +61,13 @@ export default function AboutScreen() {
           <Text className="text-sm text-gray-700 leading-6">
             LifeGate is designed to support, not replace, clinical judgement. Cases requiring deeper assessment are routed for physician review, and users are advised to seek urgent in-person care when red-flag symptoms are detected.
           </Text>
+        </View>
+
+        <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Why People Choose LifeGate</Text>
+          <FeatureRow icon="time-outline" title="Faster First Response" subtitle="Get timely guidance before your care window narrows." />
+          <FeatureRow icon="people-outline" title="Human Oversight" subtitle="Physicians step in for cases that require deeper clinical review." />
+          <FeatureRow icon="lock-closed-outline" title="Privacy Conscious" subtitle="Sensitive health context is handled securely across your care journey." />
         </View>
 
         <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
@@ -76,11 +91,20 @@ export default function AboutScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => handlePhonePress('+2349013453490')}
+            onPress={() => handlePhonePress(supportPhones[0])}
             className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80 mb-3"
           >
             <Ionicons name="call-outline" size={20} color="#14A8A8" />
-            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">+2349013453490, +2349110192583</Text>
+            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">+2349013453490</Text>
+            <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
+          </Pressable>
+
+          <Pressable
+            onPress={() => handlePhonePress(supportPhones[1])}
+            className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80 mb-3"
+          >
+            <Ionicons name="call-outline" size={20} color="#14A8A8" />
+            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">+2349110192583</Text>
             <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
           </Pressable>
 

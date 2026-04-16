@@ -110,6 +110,18 @@ func (s *Service) GetBundles() []Bundle {
 
 // GetCreditBalance fetches a user's wallet balance (creates row if absent).
 func (s *Service) GetCreditBalance(userID string) (*CreditBalance, error) {
+	if err := s.ensureInitialTrialGrant(userID); err != nil {
+		return nil, err
+	}
+
+	if err := s.normalizeLegacyTrialTransactions(userID); err != nil {
+		return nil, err
+	}
+
+	if err := s.reconcileCreditBalance(userID); err != nil {
+		return nil, err
+	}
+
 	cb := &CreditBalance{UserID: userID}
 	err := s.db.QueryRow(
 		`SELECT balance, updated_at::text FROM credits WHERE user_id = $1::uuid`,
@@ -131,9 +143,103 @@ func (s *Service) GetCreditBalance(userID string) (*CreditBalance, error) {
 	return cb, err
 }
 
-// GrantTrialCredits inserts TrialCredits into a new user's wallet and records it
-// in payment_transactions so it appears in the transaction history.
-// It is idempotent: if a credits row already exists the INSERT is skipped.
+// ensureInitialTrialGrant self-heals accounts created before trial-grant wiring
+// was fixed. It grants TrialCredits once for non-professional users who have
+// no payment transaction history, no credit deductions, and no existing balance.
+func (s *Service) ensureInitialTrialGrant(userID string) error {
+	var role string
+	if err := s.db.QueryRow(
+		`SELECT role FROM users WHERE id = $1::uuid`,
+		userID,
+	).Scan(&role); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+	if role == "professional" {
+		return nil
+	}
+
+	var txCount int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(1) FROM payment_transactions WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&txCount); err != nil {
+		return err
+	}
+	if txCount > 0 {
+		return nil
+	}
+
+	var deductionCount int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(1) FROM credit_deductions WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&deductionCount); err != nil {
+		return err
+	}
+	if deductionCount > 0 {
+		return nil
+	}
+
+	var balance int
+	err := s.db.QueryRow(
+		`SELECT balance FROM credits WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&balance)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	if err == nil && balance > 0 {
+		return nil
+	}
+
+	return s.GrantTrialCredits(userID)
+}
+
+// reconcileCreditBalance keeps the credits wallet aligned with ledger truth:
+// successful credit grants minus credit deductions.
+func (s *Service) reconcileCreditBalance(userID string) error {
+	var granted int
+	if err := s.db.QueryRow(
+		`SELECT COALESCE(SUM(credits_granted), 0)
+		 FROM payment_transactions
+		 WHERE user_id = $1::uuid AND status IN ('success', 'successful')`,
+		userID,
+	).Scan(&granted); err != nil {
+		return err
+	}
+
+	var deducted int
+	if err := s.db.QueryRow(
+		`SELECT COALESCE(SUM(amount), 0)
+		 FROM credit_deductions
+		 WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&deducted); err != nil {
+		return err
+	}
+
+	expected := granted - deducted
+	if expected < 0 {
+		expected = 0
+	}
+
+	_, err := s.db.Exec(
+		`INSERT INTO credits (user_id, balance, updated_at)
+		 VALUES ($1::uuid, $2, NOW())
+		 ON CONFLICT (user_id)
+		 DO UPDATE SET balance = EXCLUDED.balance, updated_at = NOW()`,
+		userID,
+		expected,
+	)
+	return err
+}
+
+// GrantTrialCredits inserts TrialCredits into a user's wallet and records it
+// in payment_transactions so it appears in transaction history.
+// It is idempotent via a deterministic tx_ref per user.
 func (s *Service) GrantTrialCredits(userID string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -141,31 +247,34 @@ func (s *Service) GrantTrialCredits(userID string) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Create the credits wallet with the trial balance.  ON CONFLICT DO NOTHING
-	// ensures we never double-grant if this is somehow called twice.
-	var inserted bool
+	txRef := fmt.Sprintf("TRIAL-%s", userID)
+
+	// Record the trial grant once. If this tx_ref already exists, the user has
+	// already received trial credits and we should not grant again.
+	var shouldGrant bool
 	err = tx.QueryRow(
-		`INSERT INTO credits (user_id, balance)
-		 VALUES ($1::uuid, $2)
-		 ON CONFLICT (user_id) DO NOTHING
+		`INSERT INTO payment_transactions
+		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
+		 VALUES ($1::uuid, $2, 0, $3, 'success', 'trial')
+		 ON CONFLICT (tx_ref) DO NOTHING
 		 RETURNING true`,
-		userID, TrialCredits,
-	).Scan(&inserted)
+		userID, txRef, TrialCredits,
+	).Scan(&shouldGrant)
 	if err == sql.ErrNoRows {
-		// Row already existed — do not grant again.
+		// Trial already granted earlier.
 		return tx.Commit()
 	}
 	if err != nil {
 		return err
 	}
 
-	// Log the trial grant so it is visible in the transaction history.
+	// Grant credits whether or not the wallet row already exists.
 	if _, err := tx.Exec(
-		`INSERT INTO payment_transactions
-		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
-		 VALUES ($1::uuid, $2, 0, $3, 'success', 'trial')`,
+		`INSERT INTO credits (user_id, balance, updated_at)
+		 VALUES ($1::uuid, $2, NOW())
+		 ON CONFLICT (user_id)
+		 DO UPDATE SET balance = credits.balance + EXCLUDED.balance, updated_at = NOW()`,
 		userID,
-		fmt.Sprintf("TRIAL-%s", userID[:8]),
 		TrialCredits,
 	); err != nil {
 		return err
@@ -334,6 +443,10 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 
 // GetTransactions returns the payment history for a user.
 func (s *Service) GetTransactions(userID string, limit int) ([]PaymentTransaction, error) {
+	if err := s.normalizeLegacyTrialTransactions(userID); err != nil {
+		return nil, err
+	}
+
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
@@ -363,6 +476,43 @@ func (s *Service) GetTransactions(userID string, limit int) ([]PaymentTransactio
 		out = append(out, pt)
 	}
 	return out, rows.Err()
+}
+
+// normalizeLegacyTrialTransactions repairs old trial rows that were stored as
+// pending even though they represent free granted credits.
+func (s *Service) normalizeLegacyTrialTransactions(userID string) error {
+	// Normalize legacy status values so API responses and aggregation stay consistent.
+	if _, err := s.db.Exec(
+		`UPDATE payment_transactions
+		 SET status = 'success', updated_at = NOW()
+		 WHERE user_id = $1::uuid
+		   AND status IN ('successful', 'SUCCESS')`,
+		userID,
+	); err != nil {
+		return err
+	}
+
+	if _, err := s.db.Exec(
+		`UPDATE payment_transactions
+		 SET status = 'failed', updated_at = NOW()
+		 WHERE user_id = $1::uuid
+		   AND status IN ('declined', 'DECLINED')`,
+		userID,
+	); err != nil {
+		return err
+	}
+
+	_, err := s.db.Exec(
+		`UPDATE payment_transactions
+		 SET status = 'success', updated_at = NOW()
+		 WHERE user_id = $1::uuid
+		   AND bundle_id = 'trial'
+		   AND amount = 0
+		   AND credits_granted > 0
+		   AND status = 'pending'`,
+		userID,
+	)
+	return err
 }
 
 // ── Flutterwave HTTP helpers ──────────────────────────────────────────────────

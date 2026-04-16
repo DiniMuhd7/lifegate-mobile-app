@@ -22,6 +22,8 @@ const TEAL = '#0EA5A4';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GENOTYPES = ['AA', 'AS', 'SS', 'SC', 'AC', 'CC'];
+const COMMON_ALLERGIES = ['Penicillin', 'Sulfa drugs', 'NSAIDs', 'Seafood', 'Peanuts'];
+const COMMON_MEDICATIONS = ['Metformin', 'Lisinopril', 'Amlodipine', 'Atorvastatin'];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -85,6 +87,33 @@ function FocusableInput({
         minHeight: multiline ? (numberOfLines ?? 3) * 24 + 22 : undefined,
       }}
     />
+  );
+}
+
+function QuickFillRow({
+  title,
+  items,
+  onSelect,
+}: {
+  title: string;
+  items: string[];
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <View className="mb-4">
+      <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{title}</Text>
+      <View className="flex-row flex-wrap gap-2">
+        {items.map((item) => (
+          <Pressable
+            key={item}
+            onPress={() => onSelect(item)}
+            className="px-3 py-1.5 rounded-full border border-[#D1F2EF] bg-[#F0FFFE] active:opacity-80"
+          >
+            <Text className="text-xs font-semibold text-[#0B8E8D]">{item}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -197,6 +226,25 @@ export default function ManageProfileScreen() {
     }
   };
 
+  const summaryFields = [
+    { label: 'Blood Type', value: bloodType.trim() },
+    { label: 'Genotype', value: genotype.trim() },
+    { label: 'Allergies', value: allergies.trim() },
+    { label: 'Medical History', value: medicalHistory.trim() },
+    { label: 'Current Medications', value: currentMedications.trim() },
+    { label: 'Emergency Contact', value: emergencyContact.trim() },
+  ];
+  const missingSummary = summaryFields.filter((item) => !item.value).map((item) => item.label);
+
+  const appendWithComma = (current: string, next: string) => {
+    const normalized = current
+      .split(',')
+      .map((token) => token.trim().toLowerCase())
+      .filter(Boolean);
+    if (normalized.includes(next.toLowerCase())) return current;
+    return current.trim() ? `${current.trim()}, ${next}` : next;
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
     <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
@@ -217,6 +265,25 @@ export default function ManageProfileScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={TEAL} />}
           keyboardShouldPersistTaps="handled"
         >
+          <View className="rounded-2xl mb-4 px-4 py-4 bg-white border border-[#D7ECEB]">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center gap-2">
+                <Ionicons name="shield-checkmark-outline" size={16} color={TEAL} />
+                <Text className="text-sm font-bold text-gray-900">Health Readiness</Text>
+              </View>
+              <View className={`px-2.5 py-1 rounded-full ${isDirty ? 'bg-[#FEF3C7]' : 'bg-[#DCFCE7]'}`}>
+                <Text className={`text-xs font-bold ${isDirty ? 'text-[#92400E]' : 'text-[#166534]'}`}>
+                  {isDirty ? 'Unsaved changes' : 'Synced'}
+                </Text>
+              </View>
+            </View>
+            <Text className="text-sm text-gray-600 leading-5">
+              {missingSummary.length === 0
+                ? 'Your health profile is complete and ready for safer AI-assisted consultations.'
+                : `${missingSummary.length} key section${missingSummary.length > 1 ? 's are' : ' is'} still missing: ${missingSummary.slice(0, 2).join(', ')}${missingSummary.length > 2 ? '...' : ''}.`}
+            </Text>
+          </View>
+
           {/* AI context banner */}
           <View className="rounded-2xl mb-4 px-4 py-3 flex-row items-center gap-3" style={{ backgroundColor: '#f0fffe', borderWidth: 1, borderColor: '#99f6e4' }}>
             <Ionicons name="sparkles" size={18} color={TEAL} />
@@ -322,6 +389,11 @@ export default function ManageProfileScreen() {
               numberOfLines={2}
               accessibilityLabel="Known allergies"
             />
+            <QuickFillRow
+              title="Quick add"
+              items={COMMON_ALLERGIES}
+              onSelect={(value) => setAllergies((prev) => appendWithComma(prev, value))}
+            />
 
             <FieldLabel
               label="Medical History"
@@ -347,6 +419,11 @@ export default function ManageProfileScreen() {
               multiline
               numberOfLines={2}
               accessibilityLabel="Current medications"
+            />
+            <QuickFillRow
+              title="Common medications"
+              items={COMMON_MEDICATIONS}
+              onSelect={(value) => setCurrentMedications((prev) => appendWithComma(prev, value))}
             />
           </View>
 

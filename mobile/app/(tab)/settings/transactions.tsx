@@ -20,7 +20,14 @@ const STATUS_STYLE = {
 } as const;
 
 function TransactionRow({ item }: { item: PaymentTransaction }) {
-  const s = STATUS_STYLE[item.status] ?? STATUS_STYLE.pending;
+  const rawStatus = String(item.status ?? '').toLowerCase();
+  const normalizedStatus =
+    rawStatus === 'success' || rawStatus === 'successful'
+      ? 'success'
+      : rawStatus === 'failed' || rawStatus === 'declined'
+        ? 'failed'
+        : 'pending';
+  const s = STATUS_STYLE[normalizedStatus] ?? STATUS_STYLE.pending;
   const date = item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-NG', {
     day: 'numeric', month: 'short', year: 'numeric',
   }) : '';

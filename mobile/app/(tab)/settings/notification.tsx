@@ -14,6 +14,19 @@ export default function NotificationScreen() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  const permissionTone = enabled
+    ? {
+        label: 'Active',
+        cardBg: '#ECFDF5',
+        cardBorder: '#A7F3D0',
+        text: '#065F46',
+      }
+    : {
+        label: 'Inactive',
+        cardBg: '#FFFBEB',
+        cardBorder: '#FDE68A',
+        text: '#92400E',
+      };
 
   // Read the real OS permission state on mount and whenever the app comes back to
   // foreground (in case the user toggled it in system settings).
@@ -78,6 +91,34 @@ export default function NotificationScreen() {
       </View>
 
       <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 24 }}>
+        <View
+          className="rounded-2xl px-4 py-4 mb-4 border"
+          style={{ backgroundColor: permissionTone.cardBg, borderColor: permissionTone.cardBorder }}
+        >
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2">
+              <Ionicons
+                name={enabled ? 'notifications' : 'notifications-off'}
+                size={18}
+                color={permissionTone.text}
+              />
+              <Text className="text-sm font-semibold" style={{ color: permissionTone.text }}>
+                Notification Status
+              </Text>
+            </View>
+            <View className="px-2.5 py-1 rounded-full" style={{ backgroundColor: '#FFFFFF99' }}>
+              <Text className="text-xs font-bold" style={{ color: permissionTone.text }}>
+                {permissionTone.label}
+              </Text>
+            </View>
+          </View>
+          <Text className="text-sm mt-2 leading-5" style={{ color: permissionTone.text }}>
+            {enabled
+              ? 'You will receive important alerts for follow-ups, escalations, and physician updates.'
+              : 'Turn this on to avoid missing critical care reminders and case status changes.'}
+          </Text>
+        </View>
+
         <View className="rounded-2xl bg-[#E9F8F7] border border-[#BEECE9] px-4 py-4 mb-4">
           <View className="flex-row items-start gap-3">
             <Ionicons name="shield-checkmark-outline" size={20} color="#0EA5A4" style={{ marginTop: 1 }} />
@@ -94,6 +135,13 @@ export default function NotificationScreen() {
           <Text className="text-sm text-gray-600">
             {enabled ? 'Enabled on this device' : 'Disabled. Tap the switch to enable.'}
           </Text>
+
+          <View className="mt-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] px-3 py-3">
+            <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">What You Will Receive</Text>
+            <Text className="text-sm text-gray-600">• Escalation alerts for urgent cases</Text>
+            <Text className="text-sm text-gray-600 mt-1">• Follow-up reminders and schedules</Text>
+            <Text className="text-sm text-gray-600 mt-1">• Account and physician response updates</Text>
+          </View>
 
           <Pressable
             onPress={() => Linking.openSettings()}
