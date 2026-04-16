@@ -200,7 +200,7 @@ func (s *Service) Login(ctx context.Context, email, password, clientIP string) (
 	return &TokenPair{Token: token, RefreshToken: refreshToken, User: user}, nil
 }
 
-func (s *Service) Register(u *User, password string) (*TokenPair, error) {
+func (s *Service) Register(ctx context.Context, u *User, password string) (*TokenPair, error) {
 	u.Phone = normalizePhoneDigits(u.Phone)
 	if u.Role != "professional" && u.Phone != "" {
 		exists, err := s.repo.ExistsNonProfessionalByPhoneDigits(u.Phone)
@@ -228,7 +228,7 @@ func (s *Service) Register(u *User, password string) (*TokenPair, error) {
 	if err != nil {
 		return nil, err
 	}
-	refreshToken, err := s.IssueRefreshToken(context.Background(), u.ID)
+	refreshToken, err := s.IssueRefreshToken(ctx, u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +368,7 @@ func (s *Service) VerifyOTP(ctx context.Context, email, otp string) (*TokenPair,
 			_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
 			return nil, fmt.Errorf("invalid OTP")
 		}
-		tp, tpErr := s.completeRegistrationFromDB(pr)
+		tp, tpErr := s.completeRegistrationFromDB(ctx, pr)
 		if tpErr != nil {
 			return nil, tpErr
 		}
@@ -387,7 +387,7 @@ func (s *Service) VerifyOTP(ctx context.Context, email, otp string) (*TokenPair,
 		return nil, fmt.Errorf("registration data not found")
 	}
 
-	tp, err := s.completeRegistrationFromDB(pr)
+	tp, err := s.completeRegistrationFromDB(ctx, pr)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +413,7 @@ func normalizePhoneDigits(phone string) string {
 	return b.String()
 }
 
-func (s *Service) completeRegistrationFromDB(pr *PendingRegistration) (*TokenPair, error) {
+func (s *Service) completeRegistrationFromDB(ctx context.Context, pr *PendingRegistration) (*TokenPair, error) {
 var payload RegisterStartPayload
 if err := json.Unmarshal(pr.Payload, &payload); err != nil {
 return nil, fmt.Errorf("invalid registration payload")
@@ -461,7 +461,7 @@ token, err := s.generateJWT(u)
 if err != nil {
 	return nil, err
 }
-refreshToken, err := s.IssueRefreshToken(context.Background(), u.ID)
+refreshToken, err := s.IssueRefreshToken(ctx, u.ID)
 if err != nil {
 	return nil, err
 }

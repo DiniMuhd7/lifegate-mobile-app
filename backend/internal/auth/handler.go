@@ -201,7 +201,7 @@ Gender:    req.Gender,
 Language:  req.Language,
 }
 
-pair, err := h.svc.Register(u, req.Password)
+pair, err := h.svc.Register(c.Request.Context(), u, req.Password)
 if err != nil {
 	switch {
 	case errors.Is(err, ErrEmailAlreadyRegistered), errors.Is(err, ErrPhoneAlreadyRegistered):

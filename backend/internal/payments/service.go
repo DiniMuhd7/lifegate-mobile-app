@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
 )
 
@@ -87,24 +88,38 @@ const flwBaseURL = "https://api.flutterwave.com/v3"
 // TrialCredits is the number of free credits granted to every new patient account.
 const TrialCredits = 5
 
+// flwHTTPTimeout caps Flutterwave API calls to prevent the service from
+// hanging indefinitely when the payment provider is slow or unreachable.
+const flwHTTPTimeout = 30 * time.Second
+
 // Service handles payment operations.
 type Service struct {
 	db          *sql.DB
 	secretKey   string
 	publicKey   string
 	redirectURL string
+	httpClient  *http.Client
 }
 
 func NewService(db *sql.DB, secretKey, publicKey, redirectURL string) *Service {
-	return &Service{db: db, secretKey: secretKey, publicKey: publicKey, redirectURL: redirectURL}
+	return &Service{
+		db:          db,
+		secretKey:   secretKey,
+		publicKey:   publicKey,
+		redirectURL: redirectURL,
+		httpClient:  &http.Client{Timeout: flwHTTPTimeout},
+	}
 }
 
-// GetBundles returns all available credit bundles.
+// GetBundles returns all available credit bundles sorted by price ascending.
 func (s *Service) GetBundles() []Bundle {
 	out := make([]Bundle, 0, len(Bundles))
 	for _, b := range Bundles {
 		out = append(out, b)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].AmountNaira < out[j].AmountNaira
+	})
 	return out
 }
 
@@ -478,38 +493,22 @@ func (s *Service) GetTransactions(userID string, limit int) ([]PaymentTransactio
 	return out, rows.Err()
 }
 
-// normalizeLegacyTrialTransactions repairs old trial rows that were stored as
-// pending even though they represent free granted credits.
+// normalizeLegacyTrialTransactions repairs rows with non-canonical status values
+// in a single statement so callers pay one round-trip regardless of how many
+// rows need fixing.
 func (s *Service) normalizeLegacyTrialTransactions(userID string) error {
-	// Normalize legacy status values so API responses and aggregation stay consistent.
-	if _, err := s.db.Exec(
-		`UPDATE payment_transactions
-		 SET status = 'success', updated_at = NOW()
-		 WHERE user_id = $1::uuid
-		   AND LOWER(status) = 'successful'`,
-		userID,
-	); err != nil {
-		return err
-	}
-
-	if _, err := s.db.Exec(
-		`UPDATE payment_transactions
-		 SET status = 'failed', updated_at = NOW()
-		 WHERE user_id = $1::uuid
-		   AND LOWER(status) = 'declined'`,
-		userID,
-	); err != nil {
-		return err
-	}
-
 	_, err := s.db.Exec(
 		`UPDATE payment_transactions
-		 SET status = 'success', updated_at = NOW()
+		 SET status = CASE
+		   WHEN LOWER(status) = 'successful' THEN 'success'
+		   WHEN LOWER(status) = 'declined'   THEN 'failed'
+		   WHEN bundle_id = 'trial' AND amount = 0 AND credits_granted > 0
+		        AND LOWER(status) = 'pending' THEN 'success'
+		   ELSE status
+		 END,
+		 updated_at = NOW()
 		 WHERE user_id = $1::uuid
-		   AND bundle_id = 'trial'
-		   AND amount = 0
-		   AND credits_granted > 0
-		   AND LOWER(status) = 'pending'`,
+		   AND LOWER(status) IN ('successful', 'declined', 'pending')`,
 		userID,
 	)
 	return err
@@ -529,7 +528,7 @@ func (s *Service) flwInitiate(req flwInitiateRequest) (string, error) {
 	httpReq.Header.Set("Authorization", "Bearer "+s.secretKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
 		return "", err
 	}
@@ -556,7 +555,7 @@ func (s *Service) flwVerify(flwTxID string, expectedAmount int) (bool, error) {
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+s.secretKey)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
 		return false, err
 	}
