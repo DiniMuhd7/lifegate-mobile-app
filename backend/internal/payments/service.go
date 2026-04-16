@@ -85,7 +85,7 @@ type flwVerifyResponse struct {
 const flwBaseURL = "https://api.flutterwave.com/v3"
 
 // TrialCredits is the number of free credits granted to every new patient account.
-const TrialCredits = 3
+const TrialCredits = 5
 
 // Service handles payment operations.
 type Service struct {
@@ -205,7 +205,7 @@ func (s *Service) reconcileCreditBalance(userID string) error {
 	if err := s.db.QueryRow(
 		`SELECT COALESCE(SUM(credits_granted), 0)
 		 FROM payment_transactions
-		 WHERE user_id = $1::uuid AND status IN ('success', 'successful')`,
+		 WHERE user_id = $1::uuid AND LOWER(status) IN ('success', 'successful')`,
 		userID,
 	).Scan(&granted); err != nil {
 		return err
@@ -486,7 +486,7 @@ func (s *Service) normalizeLegacyTrialTransactions(userID string) error {
 		`UPDATE payment_transactions
 		 SET status = 'success', updated_at = NOW()
 		 WHERE user_id = $1::uuid
-		   AND status IN ('successful', 'SUCCESS')`,
+		   AND LOWER(status) = 'successful'`,
 		userID,
 	); err != nil {
 		return err
@@ -496,7 +496,7 @@ func (s *Service) normalizeLegacyTrialTransactions(userID string) error {
 		`UPDATE payment_transactions
 		 SET status = 'failed', updated_at = NOW()
 		 WHERE user_id = $1::uuid
-		   AND status IN ('declined', 'DECLINED')`,
+		   AND LOWER(status) = 'declined'`,
 		userID,
 	); err != nil {
 		return err
@@ -509,7 +509,7 @@ func (s *Service) normalizeLegacyTrialTransactions(userID string) error {
 		   AND bundle_id = 'trial'
 		   AND amount = 0
 		   AND credits_granted > 0
-		   AND status = 'pending'`,
+		   AND LOWER(status) = 'pending'`,
 		userID,
 	)
 	return err
