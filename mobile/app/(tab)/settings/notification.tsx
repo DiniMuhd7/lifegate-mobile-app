@@ -1,8 +1,9 @@
-import { View, Text, Pressable, AppState, AppStateStatus, Linking } from 'react-native';
+import { View, Text, Pressable, AppState, AppStateStatus, Linking, ScrollView } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 async function getPermissionStatus(): Promise<boolean> {
   const { status } = await Notifications.getPermissionsAsync();
@@ -11,6 +12,7 @@ async function getPermissionStatus(): Promise<boolean> {
 
 export default function NotificationScreen() {
   const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   // Read the real OS permission state on mount and whenever the app comes back to
@@ -28,6 +30,7 @@ export default function NotificationScreen() {
   }, []);
 
   const handleToggle = async () => {
+    setBusy(true);
     if (enabled) {
       // Can't revoke programmatically — direct the user to system settings.
       await Linking.openSettings();
@@ -35,17 +38,26 @@ export default function NotificationScreen() {
       const { status } = await Notifications.requestPermissionsAsync();
       setEnabled(status === 'granted');
     }
+    setBusy(false);
   };
 
   const NotificationToggle = () => (
     <Pressable
       onPress={handleToggle}
-      className="flex-row items-center justify-between py-4 px-4">
+      className="flex-row items-center justify-between py-4 px-4 bg-white rounded-2xl border border-[#E4EEEE] active:opacity-80">
       <View className="flex-row items-center flex-1">
-        <Text className="ml-4 text-base text-gray-900">Push Notification</Text>
+        <View className="h-10 w-10 rounded-full bg-[#E8F6F6] items-center justify-center">
+          <Ionicons name="notifications-outline" size={18} color="#0EA5A4" />
+        </View>
+        <View className="ml-3">
+          <Text className="text-base font-semibold text-gray-900">Push Notifications</Text>
+          <Text className="text-xs text-gray-500 mt-0.5">
+            Alerts for diagnoses, follow-ups, and account updates
+          </Text>
+        </View>
       </View>
       <View
-        className={`h-7 w-14 rounded-full flex-row items-center px-1 ${
+        className={`h-7 w-14 rounded-full flex-row items-center px-1 ${busy ? 'opacity-60' : ''} ${
           enabled ? 'bg-[#0EA5A4]' : 'bg-gray-300'
         }`}>
         <View
@@ -56,19 +68,41 @@ export default function NotificationScreen() {
   );
 
   return (
-    <View className="flex-1 bg-white justify-start">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 pt-12 pb-6">
-        <Pressable onPress={() => router.back()} className="p-2">
-          <Ionicons name="chevron-back" size={24} color="black" />
+    <SafeAreaView className="flex-1 bg-[#F2F8F8]" edges={['top']}>
+      <View className="flex-row items-center justify-between px-4 pt-3 pb-4">
+        <Pressable onPress={() => router.back()} className="p-2 rounded-full bg-white">
+          <Ionicons name="chevron-back" size={22} color="#111827" />
         </Pressable>
-        <Text className="text-xl font-bold text-black">Notifications</Text>
+        <Text className="text-xl font-black text-gray-900">Notifications</Text>
         <View className="w-10" />
       </View>
 
-      {/* Blank white content area */}
-      <View className=" bg-white" />
-      <NotificationToggle/>
-    </View>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 24 }}>
+        <View className="rounded-2xl bg-[#E9F8F7] border border-[#BEECE9] px-4 py-4 mb-4">
+          <View className="flex-row items-start gap-3">
+            <Ionicons name="shield-checkmark-outline" size={20} color="#0EA5A4" style={{ marginTop: 1 }} />
+            <Text className="flex-1 text-sm text-gray-700 leading-5">
+              Stay informed about urgent medical updates and care reminders in real time.
+            </Text>
+          </View>
+        </View>
+
+        <NotificationToggle />
+
+        <View className="mt-5 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
+          <Text className="text-sm font-semibold text-gray-900 mb-1">Permission Status</Text>
+          <Text className="text-sm text-gray-600">
+            {enabled ? 'Enabled on this device' : 'Disabled. Tap the switch to enable.'}
+          </Text>
+
+          <Pressable
+            onPress={() => Linking.openSettings()}
+            className="mt-4 h-10 rounded-xl bg-[#F0F8F8] border border-[#D8EBEB] items-center justify-center active:opacity-80"
+          >
+            <Text className="text-sm font-semibold text-[#0EA5A4]">Open Device Settings</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

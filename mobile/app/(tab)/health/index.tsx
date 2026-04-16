@@ -482,7 +482,7 @@ function QuickActions() {
               <Ionicons name="eye-outline" size={20} color="#fff" />
             </View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
-              Eye Test
+              Vision Test
             </Text>
             <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
               AI-guided vision check

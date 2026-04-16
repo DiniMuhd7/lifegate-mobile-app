@@ -211,7 +211,7 @@ function DeviceStep() {
           Optional: Card Width Calibration
         </Text>
         <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 16, lineHeight: 18 }}>
-          Hold a standard credit / ID card against the screen. Drag the teal
+          Hold a standard ID card against the screen. Drag the teal
           bar until it matches the <Text style={{ fontWeight: '700' }}>short edge</Text> of the card
           ({CREDIT_CARD_MM.height} mm).
         </Text>

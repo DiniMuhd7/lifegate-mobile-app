@@ -31,12 +31,12 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/alerts"
 	auditpkg "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/audit"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/edis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/edis"
+	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
@@ -45,11 +45,12 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
-	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/support"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -78,29 +79,29 @@ func main() {
 	}
 
 	// Infrastructure
-database := db.Connect(cfg.DatabaseURL)
-defer database.Close()
+	database := db.Connect(cfg.DatabaseURL)
+	defer database.Close()
 
 	// Run any pending migrations automatically on startup.
 	if err := db.RunMigrations(database, migrations.FS); err != nil {
 		log.Fatalf("FATAL: database migration failed: %v", err)
 	}
 
-redisClient := redisclient.Connect(cfg.RedisURL)
-natsClient := natsclient.Connect(cfg.NatsURL)
-defer natsClient.Close()
+	redisClient := redisclient.Connect(cfg.RedisURL)
+	natsClient := natsclient.Connect(cfg.NatsURL)
+	defer natsClient.Close()
 
-// AI provider
-aiProvider := ai.NewProvider(cfg)
-log.Printf("AI provider: %s", aiProvider.Name())
+	// AI provider
+	aiProvider := ai.NewProvider(cfg)
+	log.Printf("AI provider: %s", aiProvider.Name())
 
-// Layers
-authRepo := auth.NewRepository(database)
-authSvc := auth.NewService(authRepo, redisClient, cfg)
-authSvc.SetNATSPublisher(natsClient)
-authHandler := auth.NewHandler(authSvc, cfg.UploadDir)
+	// Layers
+	authRepo := auth.NewRepository(database)
+	authSvc := auth.NewService(authRepo, redisClient, cfg)
+	authSvc.SetNATSPublisher(natsClient)
+	authHandler := auth.NewHandler(authSvc, cfg.UploadDir)
 
-sessionsRepo := sessions.NewRepository(database)
+	sessionsRepo := sessions.NewRepository(database)
 	sessionsSvc := sessions.NewService(sessionsRepo, redisClient)
 	sessionsHandler := sessions.NewHandler(sessionsSvc)
 
@@ -111,7 +112,7 @@ sessionsRepo := sessions.NewRepository(database)
 	sensorSvc := sensortests.NewService(edisEngine)
 	sensorHandler := sensortests.NewHandler(sensorSvc, authRepo)
 
-hub := wshub.NewHub()
+	hub := wshub.NewHub()
 
 	// NATS → WebSocket bridge: subscribe to durable NATS subjects and push
 	// real-time events to the relevant connected clients.
@@ -170,6 +171,8 @@ hub := wshub.NewHub()
 
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)
+	supportSvc := support.NewService(cfg)
+	supportHandler := support.NewHandler(supportSvc)
 
 	// Admin system
 	adminRepo := admin.NewRepository(database)
@@ -193,119 +196,124 @@ hub := wshub.NewHub()
 	followUpWorker := followupsvc.NewService(database, natsClient, pushSvc)
 	go followUpWorker.Start(context.Background())
 
-// Router
-r := gin.New()
-r.Use(middleware.Logger())
-r.Use(middleware.CORS())
-r.Use(gin.Recovery())
-// Attach the audit writer to every request context.
-r.Use(func(c *gin.Context) {
-	ctx := auditpkg.NewContext(c.Request.Context(), adminSvc)
-	c.Request = c.Request.WithContext(ctx)
-	c.Next()
-})
-
-api := r.Group("/api")
-
-// Auth routes
-authGroup := api.Group("/auth")
-{
-authGroup.POST("/login", authHandler.Login)
-authGroup.POST("/login/verify-2fa", authHandler.VerifyPhysician2FA)
-authGroup.POST("/login/resend-2fa", authHandler.ResendPhysician2FA)
-authGroup.POST("/register", authHandler.Register)
-authGroup.POST("/register/start", authHandler.RegisterStart)
-authGroup.POST("/register/verify", authHandler.RegisterVerify)
-authGroup.POST("/register/resend", authHandler.RegisterResend)
-authGroup.POST("/password/send-reset-code", authHandler.SendPasswordResetCode)
-authGroup.POST("/password/verify-reset-code", authHandler.VerifyResetCode)
-authGroup.POST("/password/reset", authHandler.ResetPassword)
-authGroup.POST("/refresh", authHandler.Refresh)
-authGroup.POST("/logout", authHandler.Logout)
-authGroup.GET("/me", middleware.Auth(cfg.JWTSecret), authHandler.Me)
-authGroup.PUT("/change-password", middleware.Auth(cfg.JWTSecret), authHandler.ChangePassword)
-authGroup.PUT("/health-profile", middleware.Auth(cfg.JWTSecret), authHandler.UpdateHealthProfile)
-authGroup.PATCH("/mdcn-verify", middleware.Auth(cfg.JWTSecret), authHandler.MarkMDCNVerified)
-}
-
-// GenAI routes
-genaiGroup := api.Group("/genai", middleware.Auth(cfg.JWTSecret))
-{
-	// For clinical_diagnosis category, deduct 1 credit before calling the AI.
-	// We peek at the category query param to avoid consuming the JSON body.
-	// The mobile client sends ?category=clinical_diagnosis as a query param
-	// in addition to the body so we can gate without body re-reading.
-	genaiGroup.POST("/chat", func(c *gin.Context) {
-		if c.Query("category") == "clinical_diagnosis" {
-			uid, _ := c.Get("userID")
-			uidStr, _ := uid.(string)
-			ok, err := paymentsSvc.DeductCredit(uidStr, "")
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Credit check failed"})
-				c.Abort()
-				return
-			}
-			if !ok {
-				c.JSON(http.StatusPaymentRequired, gin.H{
-					"success": false,
-					"code":    "INSUFFICIENT_CREDITS",
-					"message": "You have no diagnosis credits remaining. Please top up to continue.",
-				})
-				c.Abort()
-				return
-			}
-		}
-		genaiHandler.Chat(c)
+	// Router
+	r := gin.New()
+	r.Use(middleware.Logger())
+	r.Use(middleware.CORS())
+	r.Use(gin.Recovery())
+	// Attach the audit writer to every request context.
+	r.Use(func(c *gin.Context) {
+		ctx := auditpkg.NewContext(c.Request.Context(), adminSvc)
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
 	})
-	genaiGroup.POST("/health-check", genaiHandler.HealthCheck)
-	genaiGroup.GET("/status", genaiHandler.Status)
-}
 
-// Session-scoped AI routes
-chatSessionsGroup := api.Group("/chat/sessions", middleware.Auth(cfg.JWTSecret))
-{
-	chatSessionsGroup.POST("/:id/ai-message", genaiHandler.ChatSession)
-	chatSessionsGroup.POST("/:id/finalize", genaiHandler.FinalizeSession)
-}
+	api := r.Group("/api")
+
+	// Auth routes
+	authGroup := api.Group("/auth")
+	{
+		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/login/verify-2fa", authHandler.VerifyPhysician2FA)
+		authGroup.POST("/login/resend-2fa", authHandler.ResendPhysician2FA)
+		authGroup.POST("/register", authHandler.Register)
+		authGroup.POST("/register/start", authHandler.RegisterStart)
+		authGroup.POST("/register/verify", authHandler.RegisterVerify)
+		authGroup.POST("/register/resend", authHandler.RegisterResend)
+		authGroup.POST("/password/send-reset-code", authHandler.SendPasswordResetCode)
+		authGroup.POST("/password/verify-reset-code", authHandler.VerifyResetCode)
+		authGroup.POST("/password/reset", authHandler.ResetPassword)
+		authGroup.POST("/refresh", authHandler.Refresh)
+		authGroup.POST("/logout", authHandler.Logout)
+		authGroup.GET("/me", middleware.Auth(cfg.JWTSecret), authHandler.Me)
+		authGroup.PUT("/change-password", middleware.Auth(cfg.JWTSecret), authHandler.ChangePassword)
+		authGroup.PUT("/health-profile", middleware.Auth(cfg.JWTSecret), authHandler.UpdateHealthProfile)
+		authGroup.PATCH("/mdcn-verify", middleware.Auth(cfg.JWTSecret), authHandler.MarkMDCNVerified)
+	}
+
+	supportGroup := api.Group("/support", middleware.Auth(cfg.JWTSecret))
+	{
+		supportGroup.POST("/contact", supportHandler.ContactSupport)
+	}
+
+	// GenAI routes
+	genaiGroup := api.Group("/genai", middleware.Auth(cfg.JWTSecret))
+	{
+		// For clinical_diagnosis category, deduct 1 credit before calling the AI.
+		// We peek at the category query param to avoid consuming the JSON body.
+		// The mobile client sends ?category=clinical_diagnosis as a query param
+		// in addition to the body so we can gate without body re-reading.
+		genaiGroup.POST("/chat", func(c *gin.Context) {
+			if c.Query("category") == "clinical_diagnosis" {
+				uid, _ := c.Get("userID")
+				uidStr, _ := uid.(string)
+				ok, err := paymentsSvc.DeductCredit(uidStr, "")
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Credit check failed"})
+					c.Abort()
+					return
+				}
+				if !ok {
+					c.JSON(http.StatusPaymentRequired, gin.H{
+						"success": false,
+						"code":    "INSUFFICIENT_CREDITS",
+						"message": "You have no diagnosis credits remaining. Please top up to continue.",
+					})
+					c.Abort()
+					return
+				}
+			}
+			genaiHandler.Chat(c)
+		})
+		genaiGroup.POST("/health-check", genaiHandler.HealthCheck)
+		genaiGroup.GET("/status", genaiHandler.Status)
+	}
+
+	// Session-scoped AI routes
+	chatSessionsGroup := api.Group("/chat/sessions", middleware.Auth(cfg.JWTSecret))
+	{
+		chatSessionsGroup.POST("/:id/ai-message", genaiHandler.ChatSession)
+		chatSessionsGroup.POST("/:id/finalize", genaiHandler.FinalizeSession)
+	}
 
 	// Physician routes — require both a valid JWT and the "physician" (or "admin") role.
 	physicianGroup := api.Group("/physician", middleware.Auth(cfg.JWTSecret), middleware.PhysicianOnly())
-{
-physicianGroup.GET("/reports", physicianHandler.GetReports)
-physicianGroup.GET("/stats", physicianHandler.GetStats)
-physicianGroup.POST("/reports/:id/review", physicianHandler.ReviewReport)
-// Case queue (Pending / Active / Completed grouped)
-physicianGroup.GET("/cases", physicianHandler.GetCaseQueue)
-// Full case detail for the case review screen
-physicianGroup.GET("/cases/:id", physicianHandler.GetCaseDetail)
-// Atomically take (lock) a Pending case → Active
-physicianGroup.POST("/cases/:id/take", physicianHandler.TakeCase)
-// Physician inline edit of AI output (condition / urgency / confidence)
-physicianGroup.PATCH("/cases/:id/ai", physicianHandler.UpdateAIOutput)
-// Patient profile for inline display during case review
-physicianGroup.GET("/patients/:id", physicianHandler.GetPatientProfile)
-// Earnings dashboard and history
-physicianGroup.GET("/earnings", physicianHandler.GetEarningsSummary)
-physicianGroup.GET("/earnings/history", physicianHandler.GetEarningsHistory)
-physicianGroup.GET("/payouts", physicianHandler.GetPayouts)
-// Register/update device push token for in-app notifications
-physicianGroup.POST("/push-token", func(c *gin.Context) {
-	var req notifications.RegisterTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "token is required"})
-		return
+	{
+		physicianGroup.GET("/reports", physicianHandler.GetReports)
+		physicianGroup.GET("/stats", physicianHandler.GetStats)
+		physicianGroup.POST("/reports/:id/review", physicianHandler.ReviewReport)
+		// Case queue (Pending / Active / Completed grouped)
+		physicianGroup.GET("/cases", physicianHandler.GetCaseQueue)
+		// Full case detail for the case review screen
+		physicianGroup.GET("/cases/:id", physicianHandler.GetCaseDetail)
+		// Atomically take (lock) a Pending case → Active
+		physicianGroup.POST("/cases/:id/take", physicianHandler.TakeCase)
+		// Physician inline edit of AI output (condition / urgency / confidence)
+		physicianGroup.PATCH("/cases/:id/ai", physicianHandler.UpdateAIOutput)
+		// Patient profile for inline display during case review
+		physicianGroup.GET("/patients/:id", physicianHandler.GetPatientProfile)
+		// Earnings dashboard and history
+		physicianGroup.GET("/earnings", physicianHandler.GetEarningsSummary)
+		physicianGroup.GET("/earnings/history", physicianHandler.GetEarningsHistory)
+		physicianGroup.GET("/payouts", physicianHandler.GetPayouts)
+		// Register/update device push token for in-app notifications
+		physicianGroup.POST("/push-token", func(c *gin.Context) {
+			var req notifications.RegisterTokenRequest
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "token is required"})
+				return
+			}
+			uid, _ := c.Get("userID")
+			uidStr, _ := uid.(string)
+			if err := pushSvc.RegisterToken(c.Request.Context(), uidStr, req.Token); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "failed to store token"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Push token registered"})
+		})
 	}
-	uid, _ := c.Get("userID")
-	uidStr, _ := uid.(string)
-	if err := pushSvc.RegisterToken(c.Request.Context(), uidStr, req.Token); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "failed to store token"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Push token registered"})
-})
-}
 
-// Review routes
+	// Review routes
 	reviewGroup := api.Group("/review", middleware.Auth(cfg.JWTSecret))
 	{
 		reviewGroup.GET("/analysis", reviewHandler.GetAnalysis)

@@ -87,6 +87,41 @@ export default function PatientProfileScreen() {
     );
   }
 
+  const profileFields = [user.name, user.email, user.phone, user.gender, user.dob, user.language];
+  const profileCompletion = Math.round(
+    (profileFields.filter((value) => !!String(value ?? '').trim()).length / profileFields.length) * 100
+  );
+  const firstName = user.name?.split(' ')[0] || 'Patient';
+  const initials =
+    user.name
+      ?.split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || 'P';
+  const formattedDob = (() => {
+    if (!user.dob) return '';
+    const parsed = new Date(user.dob);
+    if (Number.isNaN(parsed.getTime())) return user.dob;
+    return parsed.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  })();
+  const passwordChecks = {
+    minLength: passwordForm.new.length >= 6,
+    hasUpper: /[A-Z]/.test(passwordForm.new),
+    hasNumber: /\d/.test(passwordForm.new),
+    matches: passwordForm.new.length > 0 && passwordForm.new === passwordForm.confirm,
+  };
+  const completionTone =
+    profileCompletion >= 80
+      ? { label: 'Strong profile', color: '#0F766E', bg: '#CCFBF1' }
+      : profileCompletion >= 50
+        ? { label: 'Almost there', color: '#B45309', bg: '#FEF3C7' }
+        : { label: 'Needs updates', color: '#B91C1C', bg: '#FEE2E2' };
+
   const handleSaveEdit = () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
       Alert.alert('Validation', 'Please fill in all fields');
@@ -130,226 +165,323 @@ export default function PatientProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
-    <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
-      <ScrollView
-        className="flex-1 pt-6"
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-      >
-        {/* ── Top Bar ── */}
-        <View className="flex-row items-center px-4 pt-3 pb-2">
-          <TouchableOpacity className="p-1" onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#1A1A2E" />
-          </TouchableOpacity>
-          <Text className="flex-1 text-center text-2xl font-bold text-gray-900">
-            Patient Profile
-          </Text>
-          {/* spacer to keep title centered */}
-          <View style={{ width: 30 }} />
-        </View>
-
-        <View className="px-4 pb-10">
-          {/* ── Profile Card ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 flex-row items-center shadow-sm">
-            {/* Avatar */}
-            <View className="h-14 w-14 rounded-full bg-[#E6F4F4] items-center justify-center mr-4">
-              <Ionicons name="person" size={36} color="#0EA5A4" />
-            </View>
-            <View>
-              <Text className="text-lg font-bold text-gray-900">{user.name}</Text>
-              <Text className="text-sm text-gray-500">{user.patient_id}</Text>
-            </View>
-          </View>
-
-          {/* ── Personal Information ── */}
-          <View className="bg-white rounded-2xl p-4 mb-2 shadow-sm">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center gap-2">
-                <Ionicons name="person-outline" size={16} color="#0EA5A4" />
-                <Text className="text-xl font-bold text-gray-900">Personal Information</Text>
-              </View>
+      <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
+        >
+          <View className="px-4 pt-4 pb-3">
+            <View className="flex-row items-center mb-3">
               <TouchableOpacity
-                onPress={() => setShowEditModal(true)}
-                className="flex-row items-center gap-2 bg-[#E6F4F4] px-4 py-2 rounded-full active:opacity-70"
+                className="h-10 w-10 rounded-full bg-white items-center justify-center active:opacity-70"
+                onPress={() => router.back()}
               >
-                <Ionicons name="create-outline" size={16} color="#0EA5A4" />
-                <Text className="text-sm font-semibold text-[#0EA5A4]">Edit</Text>
+                <Ionicons name="arrow-back" size={20} color="#1A1A2E" />
               </TouchableOpacity>
+              <Text className="flex-1 text-center text-2xl font-black text-gray-900 mr-10">
+                Profile
+              </Text>
             </View>
 
-            <InfoRow label="Full Name" value={user.name} showDivider />
-            <InfoRow label="Email" value={user.email} showDivider />
-            {user.phone && <InfoRow label="Phone Number" value={user.phone} showDivider />}
-            {user.gender && <InfoRow label="Gender" value={user.gender} showDivider />}
-            {user.dob && <InfoRow label="Date of Birth" value={user.dob} showDivider />}
-            {user.patient_id && <InfoRow label="Patient ID" value={user.patient_id} />}
-          </View>
+            <View className="bg-white rounded-3xl p-5 shadow-sm border border-[#DCEFEF] overflow-hidden">
+              <View className="absolute -top-6 -right-4 h-28 w-28 rounded-full bg-[#E4F6F6]" />
+              <View className="absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-[#F2FBFB]" />
 
-          {/* ── Password & Security ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center gap-2">
-                <Ionicons name="shield-checkmark-outline" size={16} color="#0EA5A4" />
-                <Text className="text-sm font-bold text-gray-900">Password & Security</Text>
+              <View className="flex-row items-center mb-4">
+                <View className="h-16 w-16 rounded-full bg-[#DFF4F3] items-center justify-center mr-4 border-2 border-[#A9E4E2]">
+                  <Text className="text-xl font-black text-[#0B8E8D]">{initials}</Text>
+                  <View className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-[#10B981] border-2 border-white" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-[#0EA5A4]">
+                    Welcome back
+                  </Text>
+                  <Text className="text-2xl font-black text-gray-900">{firstName}</Text>
+                  <Text className="text-sm text-gray-500 mt-0.5">
+                    {user.patient_id ? `ID: ${user.patient_id}` : 'Patient account'}
+                  </Text>
+                </View>
               </View>
-              <TouchableOpacity
-                onPress={() => setShowPasswordModal(true)}
-                className="flex-row items-center gap-2 bg-[#E6F4F4] px-4 py-2 rounded-full active:opacity-70"
-              >
-                <Ionicons name="create-outline" size={14} color="#0EA5A4" />
-                <Text className="text-xs font-semibold text-[#0EA5A4]">Change Password</Text>
-              </TouchableOpacity>
-            </View>
-            <Text className="text-sm text-gray-600">
-              Password last changed:{' '}
-              <Text className="font-semibold text-gray-800">3 months ago</Text>
-            </Text>
-          </View>
 
-          {/* ── Language ── */}
-          <View className="bg-white rounded-2xl p-4 shadow-sm">
-            <View className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center gap-2">
-                <Ionicons name="globe-outline" size={24} color="#0EA5A4" />
-                <Text className="text-xl font-bold text-gray-900">Language</Text>
-              </View>
-              {languageSaving && <ActivityIndicator size="small" color="#0EA5A4" />}
-            </View>
-            <Dropdown
-              label=""
-              options={LANGUAGE_OPTIONS}
-              placeholder="Select Preferred Language"
-              selectedValue={user.language || ''}
-              onChange={async (value) => {
-                // Optimistically update the store so the rest of the app
-                // reflects the change without waiting for the server.
-                useAuthStore.setState((s) => ({
-                  user: s.user ? { ...s.user, language: value } : s.user,
-                }));
-                setLanguageSaving(true);
-                const ok = await updateHealthProfile({ language: value });
-                setLanguageSaving(false);
-                if (!ok) {
-                  // Roll back optimistic update on failure.
-                  useAuthStore.setState((s) => ({
-                    user: s.user ? { ...s.user, language: user.language ?? '' } : s.user,
-                  }));
-                  Alert.alert('Error', 'Could not save language preference. Please try again.');
-                }
-              }}
-            />
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* ── Edit Profile Modal ── */}
-      <Modal visible={showEditModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-10 max-h-[85%]">
-            <View className="mb-6 flex-row items-center justify-between">
-              <Text className="text-xl font-bold text-gray-900">Edit Profile</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)} className="active:opacity-70">
-                <Ionicons name="close" size={24} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <LabeledInput
-                label="First Name"
-                required
-                placeholder="First Name"
-                value={editForm.firstName}
-                onChangeText={(text) => setEditForm({ ...editForm, firstName: text })}
-              />
-              <LabeledInput
-                label="Last Name"
-                required
-                placeholder="Last Name"
-                value={editForm.lastName}
-                onChangeText={(text) => setEditForm({ ...editForm, lastName: text })}
-              />
-              <LabeledInput
-                label="Phone Number"
-                placeholder="Phone Number"
-                value={editForm.phone}
-                onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
-                keyboardType="phone-pad"
-              />
-
-              <View className="bg-gray-100 rounded-xl px-4 py-3 mb-5">
-                <Text className="text-xs text-gray-500">
-                  <Text className="font-semibold text-gray-700">Note: </Text>
-                  Email, Date of Birth and Patient ID cannot be changed.
+              <View className="mb-3">
+                <View className="flex-row items-center justify-between mb-1.5">
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Profile Completion
+                  </Text>
+                  <Text className="text-sm font-bold text-gray-800">{profileCompletion}%</Text>
+                </View>
+                <View className="h-2.5 rounded-full bg-[#E8F3F3] overflow-hidden">
+                  <View className="h-2.5 rounded-full bg-[#0EA5A4]" style={{ width: `${profileCompletion}%` }} />
+                </View>
+                <Text className="text-xs text-gray-500 mt-2">
+                  Complete your profile for smoother consultations and follow-ups.
                 </Text>
               </View>
-            </ScrollView>
 
-            <View className="flex-row gap-3 mt-6">
-              <View className="flex-1">
+              <View className="flex-row items-center justify-between gap-2 mt-1">
+                <View className="flex-row items-center gap-2 flex-1">
+                  <View
+                    className="px-3 py-1.5 rounded-full"
+                    style={{ backgroundColor: completionTone.bg }}
+                  >
+                    <Text
+                      className="text-xs font-semibold"
+                      style={{ color: completionTone.color }}
+                    >
+                      {completionTone.label}
+                    </Text>
+                  </View>
+                  <View className="px-3 py-1.5 rounded-full bg-[#EEF7FF]">
+                    <Text className="text-xs font-semibold text-[#1D4ED8]">
+                      {user.language || 'Language not set'}
+                    </Text>
+                  </View>
+                </View>
 
-                <PrimaryButton title="Save Changes" onPress={handleSaveEdit} />
+                <TouchableOpacity
+                  onPress={() => setShowEditModal(true)}
+                  className="h-9 px-3 rounded-lg bg-[#0EA5A4] items-center justify-center active:opacity-80"
+                >
+                  <Text className="text-xs font-bold text-white">Edit Profile</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
-        </View>
-      </Modal>
 
-      {/* ── Change Password Modal ── */}
-      <Modal visible={showPasswordModal} transparent animationType="slide">
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-10 max-h-[85%]">
-            <View className="mb-6 flex-row items-center justify-between">
-              <Text className="text-xl font-bold text-gray-900">Change Password</Text>
-              <TouchableOpacity onPress={() => setShowPasswordModal(false)} className="active:opacity-70">
-                <Ionicons name="close" size={24} color="#9CA3AF" />
+          <View className="px-4 pt-2">
+            <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center justify-between mb-4">
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="person-outline" size={18} color="#0EA5A4" />
+                  <Text className="text-lg font-black text-gray-900">Personal Information</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowEditModal(true)}
+                  className="flex-row items-center gap-2 bg-[#E6F4F4] px-4 py-2 rounded-full active:opacity-70"
+                >
+                  <Ionicons name="create-outline" size={15} color="#0EA5A4" />
+                  <Text className="text-sm font-semibold text-[#0EA5A4]">Edit</Text>
+                </TouchableOpacity>
+              </View>
+
+              <InfoRow label="Full Name" value={user.name} showDivider />
+              <InfoRow label="Email Address" value={user.email} showDivider />
+              <InfoRow label="Phone Number" value={user.phone} showDivider />
+              <InfoRow label="Gender" value={user.gender} showDivider />
+              <InfoRow label="Date of Birth" value={formattedDob || user.dob} showDivider />
+              <InfoRow label="Patient ID" value={user.patient_id} />
+            </View>
+
+            <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#0EA5A4" />
+                  <Text className="text-lg font-black text-gray-900">Password & Security</Text>
+                </View>
+              </View>
+
+              <Text className="text-sm text-gray-600 leading-5 mb-4">
+                Use a strong password and update it periodically to protect your health records.
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => setShowPasswordModal(true)}
+                className="h-11 rounded-xl bg-[#0EA5A4] items-center justify-center active:opacity-80"
+              >
+                <Text className="text-sm font-bold text-white">Change Password</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <LabeledInput
-                label="Current Password"
-                placeholder="Enter current password"
-                value={passwordForm.current}
-                onChangeText={(text) => setPasswordForm({ ...passwordForm, current: text })}
-                secureToggle
-              />
-              <LabeledInput
-                label="New Password"
-                placeholder="Enter new password"
-                value={passwordForm.new}
-                onChangeText={(text) => setPasswordForm({ ...passwordForm, new: text })}
-                secureToggle
-              />
-              <LabeledInput
-                label="Confirm New Password"
-                placeholder="Confirm new password"
-                value={passwordForm.confirm}
-                onChangeText={(text) => setPasswordForm({ ...passwordForm, confirm: text })}
-                secureToggle
-              />
-            </ScrollView>
-
-            <View className="flex-row gap-3 mt-2">
-              <View className="flex-1">
-                <PrimaryButton
-                  title="Change Password"
-                  onPress={handleChangePassword}
-                  loading={loading}
-                />
+            <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="globe-outline" size={18} color="#0EA5A4" />
+                  <Text className="text-lg font-black text-gray-900">Preferred Language</Text>
+                </View>
+                {languageSaving && <ActivityIndicator size="small" color="#0EA5A4" />}
               </View>
-              <View className="flex-1">
-                <PrimaryButton
-                  title="Cancel"
-                  type="cancel"
-                  onPress={() => setShowPasswordModal(false)}
+
+              <Text className="text-sm text-gray-600 mb-3 leading-5">
+                This setting helps us personalize communication and instructions.
+              </Text>
+
+              <Dropdown
+                label=""
+                options={LANGUAGE_OPTIONS}
+                placeholder="Select preferred language"
+                selectedValue={user.language || ''}
+                onChange={async (value) => {
+                  // Optimistically update the store so the rest of the app
+                  // reflects the change without waiting for the server.
+                  useAuthStore.setState((s) => ({
+                    user: s.user ? { ...s.user, language: value } : s.user,
+                  }));
+                  setLanguageSaving(true);
+                  const ok = await updateHealthProfile({ language: value });
+                  setLanguageSaving(false);
+                  if (!ok) {
+                    // Roll back optimistic update on failure.
+                    useAuthStore.setState((s) => ({
+                      user: s.user ? { ...s.user, language: user.language ?? '' } : s.user,
+                    }));
+                    Alert.alert('Error', 'Could not save language preference. Please try again.');
+                  }
+                }}
+              />
+            </View>
+          </View>
+        </ScrollView>
+
+        <Modal visible={showEditModal} transparent animationType="slide">
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-white rounded-t-3xl p-6 pb-10 max-h-[85%]">
+              <View className="w-12 h-1.5 rounded-full bg-gray-200 self-center mb-5" />
+              <View className="mb-4 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-2">
+                  <View className="h-8 w-8 rounded-full bg-[#E8F6F6] items-center justify-center">
+                    <Ionicons name="create-outline" size={16} color="#0EA5A4" />
+                  </View>
+                  <Text className="text-xl font-black text-gray-900">Edit Profile</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowEditModal(false)} className="active:opacity-70">
+                  <Ionicons name="close" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+
+              <Text className="text-sm text-gray-600 mb-4 leading-5">
+                Update how your personal details appear in your account.
+              </Text>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <LabeledInput
+                  label="First Name"
+                  required
+                  placeholder="First Name"
+                  value={editForm.firstName}
+                  onChangeText={(text) => setEditForm({ ...editForm, firstName: text })}
                 />
+                <LabeledInput
+                  label="Last Name"
+                  required
+                  placeholder="Last Name"
+                  value={editForm.lastName}
+                  onChangeText={(text) => setEditForm({ ...editForm, lastName: text })}
+                />
+                <LabeledInput
+                  label="Phone Number"
+                  placeholder="Phone Number"
+                  value={editForm.phone}
+                  onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
+                  keyboardType="phone-pad"
+                />
+
+                <View className="bg-[#F4FAFA] rounded-xl border border-[#DFEFEF] px-4 py-3 mb-5">
+                  <Text className="text-xs text-gray-500 leading-5">
+                    <Text className="font-semibold text-gray-700">Note: </Text>
+                    Email, date of birth, and patient ID cannot be changed from this screen.
+                  </Text>
+                </View>
+              </ScrollView>
+
+              <View className="flex-row gap-3 mt-2">
+                <View className="flex-1">
+                  <PrimaryButton title="Save Changes" onPress={handleSaveEdit} />
+                </View>
+                <View className="flex-1">
+                  <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowEditModal(false)} />
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-    <PatientBottomTabBar activeTab="profile" />
+        </Modal>
+
+        <Modal visible={showPasswordModal} transparent animationType="slide">
+          <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-white rounded-t-3xl p-6 pb-10 max-h-[85%]">
+              <View className="w-12 h-1.5 rounded-full bg-gray-200 self-center mb-5" />
+              <View className="mb-4 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-2">
+                  <View className="h-8 w-8 rounded-full bg-[#E8F6F6] items-center justify-center">
+                    <Ionicons name="shield-checkmark-outline" size={16} color="#0EA5A4" />
+                  </View>
+                  <Text className="text-xl font-black text-gray-900">Change Password</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowPasswordModal(false)} className="active:opacity-70">
+                  <Ionicons name="close" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+
+              <Text className="text-sm text-gray-600 mb-4 leading-5">
+                For security, choose a new password with at least 6 characters.
+              </Text>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <LabeledInput
+                  label="Current Password"
+                  placeholder="Enter current password"
+                  value={passwordForm.current}
+                  onChangeText={(text) => setPasswordForm({ ...passwordForm, current: text })}
+                  secureToggle
+                />
+                <LabeledInput
+                  label="New Password"
+                  placeholder="Enter new password"
+                  value={passwordForm.new}
+                  onChangeText={(text) => setPasswordForm({ ...passwordForm, new: text })}
+                  secureToggle
+                />
+                <LabeledInput
+                  label="Confirm New Password"
+                  placeholder="Confirm new password"
+                  value={passwordForm.confirm}
+                  onChangeText={(text) => setPasswordForm({ ...passwordForm, confirm: text })}
+                  secureToggle
+                />
+
+                <View className="rounded-xl border border-[#DFEFEF] bg-[#F4FAFA] px-3 py-3 mb-4">
+                  <PasswordHintRow label="At least 6 characters" ok={passwordChecks.minLength} />
+                  <PasswordHintRow label="Contains an uppercase letter" ok={passwordChecks.hasUpper} />
+                  <PasswordHintRow label="Contains a number" ok={passwordChecks.hasNumber} />
+                  <PasswordHintRow label="Passwords match" ok={passwordChecks.matches} />
+                </View>
+              </ScrollView>
+
+              <View className="flex-row gap-3 mt-2">
+                <View className="flex-1">
+                  <PrimaryButton
+                    title="Update Password"
+                    onPress={handleChangePassword}
+                    loading={loading}
+                  />
+                </View>
+                <View className="flex-1">
+                  <PrimaryButton
+                    title="Cancel"
+                    type="cancel"
+                    onPress={() => setShowPasswordModal(false)}
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+      <PatientBottomTabBar activeTab="profile" />
+    </View>
+  );
+}
+
+function PasswordHintRow({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <View className="flex-row items-center py-1">
+      <Ionicons
+        name={ok ? 'checkmark-circle' : 'ellipse-outline'}
+        size={14}
+        color={ok ? '#0EA5A4' : '#9CA3AF'}
+      />
+      <Text className={`ml-2 text-xs ${ok ? 'text-[#0B8E8D]' : 'text-gray-500'}`}>{label}</Text>
     </View>
   );
 }
@@ -366,8 +498,8 @@ function InfoRow({
 }) {
   return (
     <View className={`py-3 ${showDivider ? 'border-b border-gray-100' : ''}`}>
-      <Text className="text-sm font-black text-black mb-0.5">{label}</Text>
-      <Text className="text-sm text-gray-800">{value || '—'}</Text>
+      <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">{label}</Text>
+      <Text className="text-base font-semibold text-gray-900">{value || 'Not provided'}</Text>
     </View>
   );
 }

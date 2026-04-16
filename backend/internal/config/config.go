@@ -14,9 +14,9 @@ type Config struct {
 	RedisURL    string
 	NatsURL     string
 
-	JWTSecret            string
-	JWTExpiry            string
-	RefreshTokenExpiry   string
+	JWTSecret          string
+	JWTExpiry          string
+	RefreshTokenExpiry string
 
 	AIProvider string
 
@@ -34,11 +34,12 @@ type Config struct {
 
 	ResendAPIKey string
 	EmailFrom    string
+	SupportEmail string
 
 	UploadDir string
 
-	FlutterwaveSecretKey string
-	FlutterwavePublicKey  string
+	FlutterwaveSecretKey   string
+	FlutterwavePublicKey   string
 	FlutterwaveRedirectURL string
 
 	// HealthDataKey is used to derive the AES-256 key for encrypting
@@ -86,12 +87,13 @@ func Load() *Config {
 
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
 		EmailFrom:    getEnv("EMAIL_FROM", "noreply@lifegate.app"),
+		SupportEmail: getEnv("SUPPORT_EMAIL", "contact@dshub.com.ng"),
 
 		UploadDir: getEnv("UPLOAD_DIR", "./uploads"),
 
 		FlutterwaveSecretKey:   getEnv("FLW_SECRET_KEY", ""),
-		FlutterwavePublicKey:    getEnv("FLW_PUBLIC_KEY", ""),
-		FlutterwaveRedirectURL:  getEnv("FLW_REDIRECT_URL", "lifegate://payment/callback"),
+		FlutterwavePublicKey:   getEnv("FLW_PUBLIC_KEY", ""),
+		FlutterwaveRedirectURL: getEnv("FLW_REDIRECT_URL", "lifegate://payment/callback"),
 
 		HealthDataKey: getEnv("HEALTH_DATA_KEY", getEnv("JWT_SECRET", "changeme-secret")),
 
