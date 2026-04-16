@@ -6,10 +6,17 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import WebView, { type WebViewNavigation } from 'react-native-webview';
+import { type WebViewNavigation } from 'react-native-webview';
+
+// WebView is only loaded on native to avoid the "platform not supported" error on web.
+const isWeb = Platform.OS === 'web';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const WebView = isWeb ? null : require('react-native-webview').default;
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
 import type { CreditBundle } from 'types/payment-types';
@@ -34,10 +41,15 @@ export default function SubscriptionScreen() {
     verifyPayment,
     clearError,
     clearPaymentLink,
+    paymentLoading,
   } = usePaymentStore();
 
   const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
   const [showWebView, setShowWebView] = useState(false);
+  const [cancelledMsg, setCancelledMsg] = useState(false);
+  // Web-only: shown after the payment tab is opened so the user can confirm
+  const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     fetchBalance();
@@ -45,13 +57,54 @@ export default function SubscriptionScreen() {
   }, []);
 
   useEffect(() => {
-    if (paymentLink) setShowWebView(true);
+    if (!paymentLink) return;
+    if (isWeb) {
+      // Open Flutterwave in a new browser tab – WebView is unsupported on web.
+      if (typeof window !== 'undefined') {
+        window.open(paymentLink, '_blank', 'noopener,noreferrer');
+      } else {
+        Linking.openURL(paymentLink);
+      }
+      setShowVerifyPrompt(true);
+    } else {
+      setShowWebView(true);
+    }
   }, [paymentLink]);
 
   const handleBuyCredits = useCallback(() => {
     if (!selectedBundle) return;
     initiatePayment(selectedBundle, user?.name ?? undefined);
   }, [selectedBundle, user?.name, initiatePayment]);
+
+  // Web path: user pressed "I've paid" after completing payment in the browser tab.
+  const handleWebVerify = useCallback(async () => {
+    if (!activeTxRef) return;
+    setVerifying(true);
+    try {
+      const tx = await verifyPayment(activeTxRef, '');
+      setShowVerifyPrompt(false);
+      clearPaymentLink();
+      if (tx.status === 'success') {
+        router.push({
+          pathname: '/(tab)/settings/checkOutScreen',
+          params: {
+            txRef: tx.txRef,
+            amount: String(tx.amount),
+            creditsGranted: String(tx.creditsGranted),
+            createdAt: tx.createdAt,
+          },
+        });
+        return;
+      }
+    } catch (_) {}
+    setVerifying(false);
+    setShowVerifyPrompt(false);
+    clearPaymentLink();
+    router.push({
+      pathname: '/(tab)/settings/payment-failed',
+      params: { bundleId: selectedBundle ?? '' },
+    });
+  }, [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink]);
 
   const handleNavChange = useCallback(
     async (nav: WebViewNavigation) => {
@@ -66,12 +119,29 @@ export default function SubscriptionScreen() {
       const params = new URL(url.replace('lifegate://', 'https://dummy.host/')).searchParams;
       const status = params.get('status') ?? '';
       const txRef = params.get('tx_ref') ?? activeTxRef ?? '';
-      const flwTxId = params.get('transaction_id') ?? params.get('flw_tx_id') ?? '0';
+      const flwTxId = params.get('transaction_id') ?? params.get('flw_tx_id') ?? '';
+
+      // User explicitly cancelled — return quietly without a failure screen
+      if (status === 'cancelled') {
+        setCancelledMsg(true);
+        return;
+      }
 
       if ((status === 'successful' || isDev) && txRef) {
         try {
           const tx = await verifyPayment(txRef, flwTxId);
-          if (tx.status === 'success') return;
+          if (tx.status === 'success') {
+            router.push({
+              pathname: '/(tab)/settings/checkOutScreen',
+              params: {
+                txRef: tx.txRef,
+                amount: String(tx.amount),
+                creditsGranted: String(tx.creditsGranted),
+                createdAt: tx.createdAt,
+              },
+            });
+            return;
+          }
         } catch (_) {}
       }
 
@@ -104,6 +174,15 @@ export default function SubscriptionScreen() {
           <View className="w-10" />
         </View>
 
+        {cancelledMsg ? (
+          <View className="mx-4 mb-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 flex-row items-center gap-2">
+            <Ionicons name="information-circle-outline" size={16} color="#b45309" />
+            <Text className="text-sm text-amber-700 flex-1">Payment was cancelled. No charges were made.</Text>
+            <Pressable onPress={() => setCancelledMsg(false)}>
+              <Ionicons name="close" size={16} color="#b45309" />
+            </Pressable>
+          </View>
+        ) : null}
         {error ? (
           <View className="mx-4 mb-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 flex-row items-center gap-2">
             <Ionicons name="warning-outline" size={16} color="#dc2626" />
@@ -199,12 +278,12 @@ export default function SubscriptionScreen() {
           ) : null}
 
           <Pressable
-            disabled={!selectedBundle || loading}
+            disabled={!selectedBundle || paymentLoading}
             onPress={handleBuyCredits}
             className={`rounded-xl py-4 items-center mb-4 flex-row justify-center gap-2 ${
-              selectedBundle && !loading ? 'bg-[#0EA5A4]' : 'bg-gray-300'
+              selectedBundle && !paymentLoading ? 'bg-[#0EA5A4]' : 'bg-gray-300'
             }`}>
-            {loading ? (
+            {paymentLoading ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
               <>
@@ -216,43 +295,90 @@ export default function SubscriptionScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Flutterwave payment WebView */}
-      <Modal
-        visible={showWebView}
-        animationType="slide"
-        onRequestClose={() => {
-          setShowWebView(false);
-          clearPaymentLink();
-        }}>
-        <View className="flex-1">
-          <View className="flex-row items-center px-4 pt-12 pb-3 bg-white border-b border-gray-100">
-            <Pressable
-              onPress={() => {
-                setShowWebView(false);
-                clearPaymentLink();
-              }}
-              className="p-2">
-              <Ionicons name="close" size={24} color="black" />
-            </Pressable>
-            <Text className="ml-3 text-base font-semibold text-gray-900">Secure Payment</Text>
-            <View className="ml-auto">
-              <Ionicons name="lock-closed" size={16} color="#0EA5A4" />
+      {/* Flutterwave payment WebView — native only */}
+      {!isWeb && (
+        <Modal
+          visible={showWebView}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowWebView(false);
+            clearPaymentLink();
+          }}>
+          <View className="flex-1">
+            <View className="flex-row items-center px-4 pt-12 pb-3 bg-white border-b border-gray-100">
+              <Pressable
+                onPress={() => {
+                  setShowWebView(false);
+                  clearPaymentLink();
+                }}
+                className="p-2">
+                <Ionicons name="close" size={24} color="black" />
+              </Pressable>
+              <Text className="ml-3 text-base font-semibold text-gray-900">Secure Payment</Text>
+              <View className="ml-auto">
+                <Ionicons name="lock-closed" size={16} color="#0EA5A4" />
+              </View>
+            </View>
+            {paymentLink && WebView ? (
+              <WebView
+                source={{ uri: paymentLink }}
+                onNavigationStateChange={handleNavChange}
+                startInLoadingState
+                renderLoading={() => (
+                  <View className="flex-1 items-center justify-center">
+                    <ActivityIndicator color="#0EA5A4" size="large" />
+                  </View>
+                )}
+              />
+            ) : null}
+          </View>
+        </Modal>
+      )}
+
+      {/* Web-only: prompt user to confirm payment after browser tab */}
+      {isWeb && (
+        <Modal
+          visible={showVerifyPrompt}
+          animationType="fade"
+          transparent
+          onRequestClose={() => {
+            setShowVerifyPrompt(false);
+            clearPaymentLink();
+          }}>
+          <View className="flex-1 bg-black/50 items-center justify-center px-6">
+            <View className="bg-white rounded-2xl p-6 w-full">
+              <View className="items-center mb-4">
+                <Ionicons name="open-outline" size={40} color="#0EA5A4" />
+              </View>
+              <Text className="text-xl font-bold text-gray-900 text-center mb-2">
+                Complete Payment
+              </Text>
+              <Text className="text-sm text-gray-600 text-center mb-6 leading-5">
+                A new browser tab has been opened with the Flutterwave payment page.
+                Once you have completed the payment, press the button below to confirm.
+              </Text>
+              <Pressable
+                onPress={handleWebVerify}
+                disabled={verifying}
+                className={`rounded-xl py-4 items-center mb-3 ${verifying ? 'bg-gray-300' : 'bg-[#0EA5A4]'}`}>
+                {verifying ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <Text className="text-base font-semibold text-white">I've Completed Payment</Text>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setShowVerifyPrompt(false);
+                  clearPaymentLink();
+                }}
+                className="rounded-xl py-4 items-center border border-gray-200">
+                <Text className="text-base font-semibold text-gray-600">Cancel</Text>
+              </Pressable>
             </View>
           </View>
-          {paymentLink ? (
-            <WebView
-              source={{ uri: paymentLink }}
-              onNavigationStateChange={handleNavChange}
-              startInLoadingState
-              renderLoading={() => (
-                <View className="flex-1 items-center justify-center">
-                  <ActivityIndicator color="#0EA5A4" size="large" />
-                </View>
-              )}
-            />
-          ) : null}
-        </View>
-      </Modal>
+        </Modal>
+      )}
       <PatientBottomTabBar activeTab="settings" />
     </View>
   );

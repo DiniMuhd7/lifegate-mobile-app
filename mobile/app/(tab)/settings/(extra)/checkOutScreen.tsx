@@ -2,15 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons} from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Svg, { Circle, Path } from 'react-native-svg';
-
-interface CheckoutScreenProps {
-  transactionDate?: string;
-  transactionId?: string;
-  paymentMethod?: string;
-  amount?: string;
-}
 
 const SuccessCheckmark = () => {
   return (
@@ -73,14 +66,23 @@ const TransactionDetailRow = ({ label, value, highlight = false }: { label: stri
   );
 };
 
-export default function CheckoutScreen({
-  transactionDate = '19th, Mar. 2026',
-  transactionId = 'LG1000119032026',
-  paymentMethod = 'Master card-2244',
-  amount = '₦5,000',
-}: CheckoutScreenProps) {
+export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { txRef, amount, creditsGranted, createdAt } = useLocalSearchParams<{
+    txRef?: string;
+    amount?: string;
+    creditsGranted?: string;
+    createdAt?: string;
+  }>();
+
+  const formattedDate = createdAt
+    ? new Date(createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
+    : new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const displayAmount = amount ? `₦${Number(amount).toLocaleString()}` : '—';
+  const displayTxRef = txRef ?? '—';
+  const displayCredits = creditsGranted ? `+${creditsGranted} credits` : null;
 
   return (
     <View
@@ -102,15 +104,17 @@ export default function CheckoutScreen({
           Payment Successful!
         </Text>
         <Text className="text-base text-gray-600 text-center mb-10">
-          Thank you for subscribing.{'\n'}Payment Confirmed
+          Thank you for your purchase.{'\n'}Your credits have been added.
         </Text>
 
         {/* Transaction Details */}
-        <View className="w-full bg-white rounded-2xl overflow-hidden mb-8" style={{
-        }}>
-          <TransactionDetailRow label="Transaction Date" value={transactionDate} />
-          <TransactionDetailRow label="Transaction ID" value={transactionId} />
-          <TransactionDetailRow label="Payment Method" value={paymentMethod} />
+        <View className="w-full bg-white rounded-2xl overflow-hidden mb-8">
+          <TransactionDetailRow label="Transaction Date" value={formattedDate} />
+          <TransactionDetailRow label="Transaction ID" value={displayTxRef} />
+          {displayCredits ? (
+            <TransactionDetailRow label="Credits Added" value={displayCredits} />
+          ) : null}
+          <TransactionDetailRow label="Amount Paid" value={displayAmount} />
           <TransactionDetailRow label="Payment Status" value="Success" highlight={true} />
         </View>
       </View>
@@ -118,7 +122,7 @@ export default function CheckoutScreen({
       {/* --- Done Button --- */}
       <View className="px-5 pb-6">
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.replace('/(tab)/settings/subscription')}
           activeOpacity={0.8}
           className="w-full bg-[#14A8A8] rounded-2xl py-4 items-center justify-center"
         >
