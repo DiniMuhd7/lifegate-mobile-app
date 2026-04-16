@@ -488,7 +488,21 @@ export default function HealthTimelineScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={timelineLoading} onRefresh={onRefresh} tintColor="#0AADA2" />}
         >
-          {/* Summary strip */}
+          {/* Summary strip — Total / Active / Resolved */}
+          <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
+            {[
+              { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
+              { label: 'Active', value: patientTimeline.filter((e) => e.status !== 'Completed').length, color: '#d97706' },
+              { label: 'Resolved', value: patientTimeline.filter((e) => e.status === 'Completed').length, color: '#16a34a' },
+            ].map((s, i, arr) => (
+              <View key={s.label} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRightWidth: i < arr.length - 1 ? 1 : 0, borderRightColor: '#f3f4f6' }}>
+                <Text style={{ fontSize: 22, fontWeight: '800', color: s.color }}>{s.value}</Text>
+                <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontWeight: '500' }}>{s.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Recorded / Abnormal / Recurring strip */}
           <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
             {[
               { label: 'Recorded', value: dateFiltered.length, color: '#0891b2' },

@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { GreetingSection } from 'components/GreetingSection';
 import Logo from 'assets/logo.svg';
 import type { HealthTimelineEntry } from 'types/health-types';
 
@@ -654,7 +655,7 @@ export default function HealthDashboardScreen() {
     () => patientTimeline.filter((e) => e.status !== 'Completed').length,
     [patientTimeline]
   );
-  const recentCases = useMemo(() => patientTimeline.slice(0, 4), [patientTimeline]);
+  const recentCases = useMemo(() => patientTimeline.slice(0, 3), [patientTimeline]);
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   return (
@@ -750,10 +751,10 @@ export default function HealthDashboardScreen() {
           </View>
         ) : (
           <View>
-          {/* Unread alerts banner */}
-          {unreadAlertCount > 0 && (
-            <UnreadAlertsBanner unreadAlertCount={unreadAlertCount} />
-          )}
+          {/* Greeting card */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <GreetingSection userName={user?.name || ''} />
+          </View>
 
           <HealthStatusCard status={status} latest={latest} totalActive={totalActive} />
           <AIInsightCard insight={insight} />
@@ -833,41 +834,6 @@ export default function HealthDashboardScreen() {
             </View>
           </View>
 
-          {/* Stats strip */}
-          {patientTimeline.length > 0 && (
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-around',
-                marginHorizontal: 16,
-                marginTop: 12,
-                backgroundColor: '#fff',
-                borderRadius: 16,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: '#f3f4f6',
-              }}
-            >
-              {[
-                { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
-                { label: 'Active', value: totalActive, color: '#d97706' },
-                {
-                  label: 'Resolved',
-                  value: patientTimeline.filter((e) => e.status === 'Completed').length,
-                  color: '#16a34a',
-                },
-              ].map((stat) => (
-                <View key={stat.label} style={{ alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 24, fontWeight: '800', color: stat.color }}>
-                    {stat.value}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '500' }}>
-                    {stat.label}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
           </View>
         )}
       </ScrollView>
