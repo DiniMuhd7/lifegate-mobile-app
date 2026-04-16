@@ -56,6 +56,19 @@ export interface SensorInterpretResponse {
   providerName: string;
 }
 
+function normalizeInterpretResponse(data: Partial<SensorInterpretResponse> | null | undefined): SensorInterpretResponse {
+  return {
+    success: Boolean(data?.success),
+    assessment: data?.assessment ?? '',
+    conditions: Array.isArray(data?.conditions) ? data.conditions : [],
+    riskFlags: Array.isArray(data?.riskFlags) ? data.riskFlags : [],
+    investigations: Array.isArray(data?.investigations) ? data.investigations : [],
+    urgency: data?.urgency ?? 'LOW',
+    needsPhysicianReview: Boolean(data?.needsPhysicianReview),
+    providerName: data?.providerName ?? '',
+  };
+}
+
 // ─── Vision mapper ────────────────────────────────────────────────────────────
 
 function buildVisionBody(
@@ -160,11 +173,11 @@ export async function interpretVision(
   behavioralReport?: BehavioralReport | null,
 ): Promise<SensorInterpretResponse> {
   const body = buildVisionBody(results, behavioralReport);
-  const { data } = await api.post<SensorInterpretResponse>(
+  const { data } = await api.post<Partial<SensorInterpretResponse>>(
     '/sensor-tests/vision/interpret',
     body,
   );
-  return data;
+  return normalizeInterpretResponse(data);
 }
 
 /**
@@ -178,9 +191,9 @@ export async function interpretHearing(
   hfResult:  HFResult   | null,
 ): Promise<SensorInterpretResponse> {
   const body = buildHearingBody(rightEar, leftEar, sinResult, hfResult);
-  const { data } = await api.post<SensorInterpretResponse>(
+  const { data } = await api.post<Partial<SensorInterpretResponse>>(
     '/sensor-tests/hearing/interpret',
     body,
   );
-  return data;
+  return normalizeInterpretResponse(data);
 }
