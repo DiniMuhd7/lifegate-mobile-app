@@ -16,6 +16,7 @@ const VALID_FIELDS = {
   gender: true,
   healthHistory: true,
   language: true,
+  referredByCode: true,
 } as const;
 
 type ValidFieldName = keyof typeof VALID_FIELDS;
@@ -99,6 +100,21 @@ export default function UserProfileStep() {
           placeholder="Select preferred language"
         />
         <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
+
+        <View className="mb-2 mt-1">
+          <Text className="mb-1.5 font-medium text-gray-700">
+            Referral Code{' '}
+            <Text className="text-xs font-normal text-gray-400">(optional)</Text>
+          </Text>
+          <TextInput
+            value={userDraft.referredByCode || ''}
+            onChangeText={(value: string) => setUserField('referredByCode', value.trim().toUpperCase())}
+            placeholder="Enter referral code"
+            placeholderTextColor="#9CA3AF"
+            autoCapitalize="characters"
+            className="rounded-xl p-3 text-sm text-gray-800 bg-[#F2F4F7]"
+          />
+        </View>
 
         <View className="mb-2 mt-1">
           <Text className="mb-1.5 font-medium text-gray-700">

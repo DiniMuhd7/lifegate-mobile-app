@@ -97,7 +97,10 @@ export const AuthService = {
    */
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     try {
-      const response = await api.post<BackendLoginResponse>('/auth/register', payload);
+      const response = await api.post<BackendLoginResponse>('/auth/register', {
+        ...payload,
+        referred_by_code: payload.referredByCode,
+      });
 
       if (!response.data.success || !response.data.data) {
         return {
@@ -126,9 +129,15 @@ export const AuthService = {
   ): Promise<RegistrationStartResponse> {
     try {
       const isFormData = payload instanceof FormData;
+      const body = isFormData
+        ? payload
+        : {
+            ...payload,
+            referred_by_code: payload.referredByCode,
+          };
       const { data } = await api.post<RegistrationStartResponse>(
         '/auth/register/start',
-        payload,
+        body,
         isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
       );
       return data;

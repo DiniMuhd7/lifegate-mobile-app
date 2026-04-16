@@ -97,8 +97,17 @@ export default function UserReviewStep() {
               icon="language-outline"
               label="Preferred Language"
               value={userDraft.language || '—'}
-              isLast={!userDraft.healthHistory}
+              isLast={!userDraft.healthHistory && !userDraft.referredByCode}
             />
+
+            {userDraft.referredByCode ? (
+              <InfoRow
+                icon="gift-outline"
+                label="Referral Code"
+                value={userDraft.referredByCode}
+                isLast={!userDraft.healthHistory}
+              />
+            ) : null}
           </View>
 
           {userDraft.healthHistory ? (

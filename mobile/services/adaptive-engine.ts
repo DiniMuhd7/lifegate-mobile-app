@@ -186,6 +186,16 @@ export const COLOR_PLATES: ColorPlate[] = [
   { id: 9,  correctAnswer: '9',  deficientAnswer: '',   type: 'vanishing' },
   // Plate 10: Deficient-read — only deficients see "2"
   { id: 10, correctAnswer: '',   deficientAnswer: '2',  type: 'deficient_only' },
+  // ── Protan/Deutan classification plates (Ishihara plates 11–14 equivalent) ──
+  // Plate 11: Protan-read — protan subjects see "6", deutan subjects see "2"
+  // (Normals see "2"; this plate distinguishes the two CVD types)
+  { id: 11, correctAnswer: '2',  deficientAnswer: '6',  type: 'classification' },
+  // Plate 12: Protan-read — protan subjects see "5", deutan subjects see "3"
+  { id: 12, correctAnswer: '3',  deficientAnswer: '5',  type: 'classification' },
+  // Plate 13: Deutan-read — deutan subjects see "5", protan subjects see "3"
+  { id: 13, correctAnswer: '3',  deficientAnswer: '5',  type: 'classification' },
+  // Plate 14: Both CVD groups see different digits; used to confirm type
+  { id: 14, correctAnswer: '7',  deficientAnswer: '4',  type: 'classification' },
 ];
 
 // CVD color palettes (Protan / Deutan confusion colours)
@@ -198,6 +208,11 @@ const CVD_CONFUSION_BG  = ['#7A7A28','#8C8C38','#9A9A48','#6A6A20','#AAAAB0'];
 const CVD_CONFUSION_FIG = ['#D45015','#C44010','#E46020','#CC5020','#B83A0A'];
 const NORMAL_BG         = ['#A0A0A0','#888888','#B4B4B4','#7C7C7C','#C0C0C0'];
 
+// Protan confusion: red→olive, distinguishes protan from deutan
+const PROTAN_FIG = ['#C03000','#B02800','#D04010','#A82000','#B83818'];
+// Deutan confusion: green→olive, distinguishes deutan from protan
+const DEUTAN_FIG = ['#508000','#406800','#609010','#387000','#4A7808'];
+
 const PLATE_SCHEMES: Record<number, PlateColorScheme> = {
   1:  { background: NORMAL_BG,        figure: ['#FF3333','#EE2222','#DD1111','#FF4444'] },
   2:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
@@ -209,6 +224,11 @@ const PLATE_SCHEMES: Record<number, PlateColorScheme> = {
   8:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
   9:  { background: CVD_CONFUSION_BG, figure: CVD_CONFUSION_FIG },
   10: { background: NORMAL_BG,        figure: ['#8B6914','#7A5810','#9C7A18','#AA8C22'] },
+  // Classification plates use red-green axis confusion colours
+  11: { background: CVD_CONFUSION_BG, figure: PROTAN_FIG },
+  12: { background: CVD_CONFUSION_BG, figure: PROTAN_FIG },
+  13: { background: CVD_CONFUSION_BG, figure: DEUTAN_FIG },
+  14: { background: CVD_CONFUSION_BG, figure: DEUTAN_FIG },
 };
 
 export function getPlateScheme(plateId: number): PlateColorScheme {

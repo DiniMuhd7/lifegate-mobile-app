@@ -102,7 +102,8 @@ export type ColorPlateType =
   | 'normal_only'          // only normals read it correctly
   | 'deficient_only'       // only deficients read it correctly
   | 'vanishing'            // vanishes for deficients
-  | 'hidden_digit';        // only deficients see it
+  | 'hidden_digit'         // only deficients see it
+  | 'classification';      // protan/deutan classification plate (Ishihara 11–14 equivalent)
 
 export interface ColorPlate {
   id: number;

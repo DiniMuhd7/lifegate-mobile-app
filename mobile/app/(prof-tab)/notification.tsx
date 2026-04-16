@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,32 +8,108 @@ import {
   RefreshControl,
   Pressable,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useHealthStore } from 'stores/health-store';
+import { useNotificationStore } from 'stores/notification-store';
 import type { PreventiveAlert, AlertSeverity } from 'types/health-types';
+import type { PhysicianNotification } from 'stores/notification-store';
 
-const SEVERITY_CFG: Record<AlertSeverity, { color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  LOW:      { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: 'checkmark-circle-outline' },
-  MEDIUM:   { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: 'warning-outline' },
-  HIGH:     { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: 'alert-circle-outline' },
-  CRITICAL: { color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe', icon: 'pulse-outline' },
+// ─── Severity config for health alerts ───────────────────────────────────────
+
+const SEVERITY_CFG: Record<AlertSeverity, { color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  LOW:      { color: '#16a34a', bg: '#f0fdf4', icon: 'checkmark-circle-outline' },
+  MEDIUM:   { color: '#d97706', bg: '#fffbeb', icon: 'warning-outline' },
+  HIGH:     { color: '#dc2626', bg: '#fef2f2', icon: 'alert-circle-outline' },
+  CRITICAL: { color: '#7c3aed', bg: '#faf5ff', icon: 'pulse-outline' },
 };
 
-function timeAgo(iso: string) {
-  try {
-    const diff = Date.now() - new Date(iso).getTime();
-    const h = Math.floor(diff / 3_600_000);
-    if (h < 1) return 'Just now';
-    if (h < 24) return `${h}h ago`;
-    return `${Math.floor(h / 24)}d ago`;
-  } catch {
-    return '';
-  }
+// ─── Unified item type ────────────────────────────────────────────────────────
+
+type UnifiedItem =
+  | { kind: 'case'; data: PhysicianNotification; sortKey: number }
+  | { kind: 'health'; data: PreventiveAlert; sortKey: number };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function timeAgo(ms: number) {
+  const diff = Date.now() - ms;
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return 'Just now';
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
-function NotificationCard({
+// ─── Case notification card ───────────────────────────────────────────────────
+
+const CASE_TYPE_CFG: Record<PhysicianNotification['type'], { color: string; bg: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
+  new_case:    { color: '#0AADA2', bg: '#f0fdfc', icon: 'briefcase-outline', label: 'New Case' },
+  case_status: { color: '#f59e0b', bg: '#fffbeb', icon: 'refresh-circle-outline', label: 'Case Update' },
+};
+
+function CaseNotificationCard({
+  notification,
+  onPress,
+}: {
+  notification: PhysicianNotification;
+  onPress: (n: PhysicianNotification) => void;
+}) {
+  const cfg = CASE_TYPE_CFG[notification.type] ?? CASE_TYPE_CFG.case_status;
+  return (
+    <Pressable
+      onPress={() => onPress(notification)}
+      style={({ pressed }) => ({ opacity: pressed ? 0.87 : 1 })}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          backgroundColor: notification.isRead ? '#fff' : cfg.bg,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f3f4f6',
+        }}
+      >
+        <View
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: cfg.color + '18',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 2,
+          }}
+        >
+          <Ionicons name={cfg.icon} size={20} color={cfg.color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827', flex: 1, marginRight: 6 }} numberOfLines={1}>
+              {cfg.label}
+            </Text>
+            {!notification.isRead && (
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: cfg.color }} />
+            )}
+          </View>
+          <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 3, lineHeight: 17 }} numberOfLines={3}>
+            {notification.message}
+          </Text>
+          <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
+            {timeAgo(notification.timestamp)}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// ─── Health alert card ────────────────────────────────────────────────────────
+
+function HealthAlertCard({
   alert,
   onPress,
 }: {
@@ -58,7 +134,6 @@ function NotificationCard({
           borderBottomColor: '#f3f4f6',
         }}
       >
-        {/* Icon */}
         <View
           style={{
             width: 40,
@@ -72,8 +147,6 @@ function NotificationCard({
         >
           <Ionicons name={sev.icon} size={20} color={sev.color} />
         </View>
-
-        {/* Text */}
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827', flex: 1, marginRight: 6 }} numberOfLines={2}>
@@ -87,13 +160,15 @@ function NotificationCard({
             {alert.message}
           </Text>
           <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
-            {timeAgo(alert.createdAt)}  ·  {alert.severity}
+            {timeAgo(new Date(alert.createdAt).getTime())}  ·  {alert.severity}
           </Text>
         </View>
       </View>
     </Pressable>
   );
 }
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function NotificationScreen() {
   const {
@@ -102,73 +177,128 @@ export default function NotificationScreen() {
     physicianAlertsError,
     fetchPhysicianAlerts,
     markPhysicianAlertRead,
-    unreadPhysicianAlertCount,
   } = useHealthStore();
+
+  const {
+    notifications: caseNotifications,
+    unreadCount: caseUnreadCount,
+    markRead: markCaseRead,
+    markAllRead: markAllCasesRead,
+  } = useNotificationStore();
 
   useEffect(() => {
     fetchPhysicianAlerts();
-  }, []);
+  }, [fetchPhysicianAlerts]);
 
   const onRefresh = useCallback(async () => {
     await fetchPhysicianAlerts();
   }, [fetchPhysicianAlerts]);
 
-  const handleAlertPress = (alert: PreventiveAlert) => {
+  const handleHealthAlertPress = useCallback((alert: PreventiveAlert) => {
     markPhysicianAlertRead(alert.id);
     if (alert.diagnosisId) {
-      router.push('/(prof-tab)/patientHistory' as never);
+      router.push({ pathname: '/(prof-tab)/caseQueue', params: { diagnosisId: alert.diagnosisId } });
     }
-  };
+  }, [markPhysicianAlertRead]);
 
-  const sorted = [...physicianAlerts].sort((a, b) => {
-    if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
-    const order: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-    return (order[a.severity] ?? 4) - (order[b.severity] ?? 4);
-  });
+  const handleCaseNotificationPress = useCallback((n: PhysicianNotification) => {
+    markCaseRead(n.id);
+    if (n.caseId) {
+      router.push({ pathname: '/(prof-tab)/caseQueue', params: { caseId: n.caseId } });
+    }
+  }, [markCaseRead]);
+
+  // Merge both sources into a unified list sorted newest-first, unread items first
+  const unified: UnifiedItem[] = useMemo(() => {
+    const items: UnifiedItem[] = [
+      ...caseNotifications.map((n) => ({
+        kind: 'case' as const,
+        data: n,
+        sortKey: n.timestamp,
+      })),
+      ...physicianAlerts.map((a) => ({
+        kind: 'health' as const,
+        data: a,
+        sortKey: new Date(a.createdAt).getTime(),
+      })),
+    ];
+
+    return items.sort((a, b) => {
+      // Unread first
+      const aRead = a.kind === 'case' ? a.data.isRead : a.data.isRead;
+      const bRead = b.kind === 'case' ? b.data.isRead : b.data.isRead;
+      if (aRead !== bRead) return aRead ? 1 : -1;
+      // Then newest first
+      return b.sortKey - a.sortKey;
+    });
+  }, [caseNotifications, physicianAlerts]);
+
+  const totalUnread = caseUnreadCount + physicianAlerts.filter((a) => !a.isRead).length;
+  const isLoading = physicianAlertsLoading && physicianAlerts.length === 0 && caseNotifications.length === 0;
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* Header */}
-      <View className="flex-row items-center px-6 pt-12 pb-4 border-b border-gray-200">
-        <TouchableOpacity onPress={() => router.back()}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 24,
+          paddingTop: 16,
+          paddingBottom: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: '#f3f4f6',
+        }}
+      >
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="chevron-back" size={28} color="#0AADA2" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold text-gray-800 mr-8">
+        <Text style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: '#111827' }}>
           Notifications
         </Text>
-        {unreadPhysicianAlertCount > 0 && (
+        {/* Total unread badge */}
+        {totalUnread > 0 ? (
           <View
             style={{
               backgroundColor: '#dc2626',
               borderRadius: 999,
               paddingHorizontal: 8,
               paddingVertical: 2,
-              position: 'absolute',
-              right: 24,
-              top: 54,
+              minWidth: 28,
+              alignItems: 'center',
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
-              {unreadPhysicianAlertCount} new
-            </Text>
+            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{totalUnread}</Text>
           </View>
+        ) : (
+          <View style={{ width: 28 }} />
         )}
       </View>
 
+      {/* Mark all read */}
+      {totalUnread > 0 && (
+        <Pressable
+          onPress={markAllCasesRead}
+          style={{ alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8 }}
+        >
+          <Text style={{ fontSize: 12, color: '#0AADA2', fontWeight: '600' }}>Mark all read</Text>
+        </Pressable>
+      )}
+
       {/* Loading */}
-      {physicianAlertsLoading && physicianAlerts.length === 0 && (
+      {isLoading && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#0AADA2" />
           <Text style={{ marginTop: 12, color: '#6b7280', fontSize: 14 }}>Loading notifications…</Text>
         </View>
       )}
 
-      {/* Error */}
-      {!physicianAlertsLoading && !!physicianAlertsError && (
+      {/* Error (only when there's nothing to show at all) */}
+      {!isLoading && !!physicianAlertsError && unified.length === 0 && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Ionicons name="cloud-offline-outline" size={48} color="#9ca3af" />
           <Text style={{ marginTop: 12, fontSize: 15, fontWeight: '600', color: '#374151' }}>
-            Could not load notifications
+            Could not load health alerts
           </Text>
           <Pressable
             onPress={fetchPhysicianAlerts}
@@ -180,36 +310,45 @@ export default function NotificationScreen() {
       )}
 
       {/* Empty state */}
-      {!physicianAlertsLoading && !physicianAlertsError && sorted.length === 0 && (
+      {!isLoading && unified.length === 0 && !physicianAlertsError && (
         <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ justifyContent: 'center', alignItems: 'center' }}
+          contentContainerStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={physicianAlertsLoading} onRefresh={onRefresh} tintColor="#0AADA2" />}
         >
-          <View className="items-center justify-center py-16">
-            <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+          <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+            <View style={{ marginBottom: 16, height: 64, width: 64, alignItems: 'center', justifyContent: 'center', borderRadius: 32, backgroundColor: '#f3f4f6' }}>
               <Ionicons name="notifications-off" size={32} color="#999" />
             </View>
-            <Text className="text-center text-lg font-semibold text-gray-800">
-              No notifications
-            </Text>
-            <Text className="mt-2 text-center text-sm text-gray-500 px-6">
-              Escalated or overdue patient cases will appear here.
+            <Text style={{ fontSize: 17, fontWeight: '600', color: '#111827' }}>No notifications</Text>
+            <Text style={{ marginTop: 8, fontSize: 13, color: '#6b7280', textAlign: 'center', paddingHorizontal: 32 }}>
+              New cases, case updates, and health alerts will appear here.
             </Text>
           </View>
         </ScrollView>
       )}
 
-      {/* Notification list */}
-      {sorted.length > 0 && (
+      {/* Unified notification list */}
+      {unified.length > 0 && (
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={physicianAlertsLoading} onRefresh={onRefresh} tintColor="#0AADA2" />}
         >
-          {sorted.map((alert) => (
-            <NotificationCard key={alert.id} alert={alert} onPress={handleAlertPress} />
-          ))}
+          {unified.map((item) =>
+            item.kind === 'case' ? (
+              <CaseNotificationCard
+                key={`case-${item.data.id}`}
+                notification={item.data}
+                onPress={handleCaseNotificationPress}
+              />
+            ) : (
+              <HealthAlertCard
+                key={`health-${item.data.id}`}
+                alert={item.data}
+                onPress={handleHealthAlertPress}
+              />
+            )
+          )}
         </ScrollView>
       )}
     </SafeAreaView>

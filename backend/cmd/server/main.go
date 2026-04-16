@@ -44,6 +44,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/payments"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
@@ -168,9 +169,13 @@ func main() {
 		cfg.FlutterwaveRedirectURL,
 	)
 	paymentsHandler := payments.NewHandler(paymentsSvc)
+	referralSvc := referral.NewService(database)
+	referralSvc.SetCreditGranter(paymentsSvc)
+	referralHandler := referral.NewHandler(referralSvc)
 
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)
+	authSvc.SetReferralProcessor(referralSvc)
 	supportSvc := support.NewService(cfg)
 	supportHandler := support.NewHandler(supportSvc)
 
@@ -341,6 +346,7 @@ func main() {
 	api.POST("/payments/verify", middleware.Auth(cfg.JWTSecret), paymentsHandler.VerifyPayment)
 	api.GET("/payments/transactions", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetTransactions)
 	api.GET("/credits/balance", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditBalance)
+	api.GET("/referral/stats", middleware.Auth(cfg.JWTSecret), referralHandler.GetStats)
 
 	// Patient push-token registration (Expo push token stored per-user for
 	// completion notifications).

@@ -42,6 +42,7 @@ const emptyDraft: UserDraft = {
   gender: '',
   language: '',
   healthHistory: '',
+  referredByCode: '',
   role: undefined,
   specialization: '',
   certificateName: '',
@@ -101,6 +102,7 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
       gender,
       language,
       healthHistory,
+      referredByCode,
       specialization,
       certificateName,
       certificateId,
@@ -122,6 +124,9 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
       payload.append('language', language.toLowerCase());
       if (healthHistory) {
         payload.append('health_history', healthHistory);
+      }
+      if (referredByCode?.trim()) {
+        payload.append('referred_by_code', referredByCode.trim().toUpperCase());
       }
       // Add professional-specific fields
       if (role === 'professional') {

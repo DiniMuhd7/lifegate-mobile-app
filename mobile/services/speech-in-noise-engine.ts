@@ -144,15 +144,44 @@ export function classifySIN(snrLoss: number): SINClassification {
 
 // ─── Build full SINResult ─────────────────────────────────────────────────────
 
+/**
+ * Clinical limitation note surfaced to the clinician / patient in results.
+ *
+ * Real QuickSIN uses IEEE Harvard sentence lists (phoneme-rich speech stimuli)
+ * rather than pure tones. Tone-in-noise tests detection only, not the
+ * phoneme discrimination that drives speech understanding difficulty.
+ * This note ensures the limitation is never hidden from the report.
+ */
+export const SIN_LIMITATION_NOTE =
+  'Note: This test uses tone-in-noise stimuli rather than sentence lists ' +
+  '(IEEE/QuickSIN). It measures auditory detection in noise — not phoneme ' +
+  'discrimination. Results should be confirmed with a clinical Speech-in-Noise ' +
+  'evaluation (QuickSIN/HINT) for full speech understanding assessment.';
+
+/**
+ * Phoneme-weighted SNR loss estimate.
+ *
+ * Because tones offer no phonemic redundancy, pure-tone SIN thresholds
+ * typically underestimate real-world speech difficulty by ~3–5 dB SNR.
+ * This correction adjusts the SNR loss upward to approximate sentence-based
+ * SNR50, which gives a more conservative (safer) clinical estimate.
+ *
+ * Reference: Wilson RH (2003) Clinical experience with the Words-in-Noise test.
+ * J Am Acad Audiol 14:111–124.
+ */
+export const TONE_TO_SENTENCE_SNR_CORRECTION_DB = 3.5;
+
 export function buildSINResult(trials: SINTrial[]): SINResult {
-  const snr50    = computeSNR50(trials);
-  const snrLoss  = snr50 - NORMAL_SNR50;
-  const { grade, label, recommendation } = classifySIN(snrLoss);
+  const snr50   = computeSNR50(trials);
+  const snrLoss = snr50 - NORMAL_SNR50;
+  // Apply correction to approximate sentence-based SNR loss
+  const correctedSnrLoss = snrLoss + TONE_TO_SENTENCE_SNR_CORRECTION_DB;
+  const { grade, label, recommendation } = classifySIN(correctedSnrLoss);
 
   return {
     trials,
     snr50,
-    snrLoss,
+    snrLoss: correctedSnrLoss,
     grade,
     label,
     recommendation,

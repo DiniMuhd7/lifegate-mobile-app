@@ -8,11 +8,13 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
+import { useReferralStore } from 'stores/referral-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
@@ -32,6 +34,7 @@ const LANGUAGE_OPTIONS = [
 export default function PatientProfileScreen() {
   const { user } = useAuthStore();
   const { changePassword, updateHealthProfile, loading, getProfile, error } = useProfileStore();
+  const { stats: referralStats, fetchStats: fetchReferralStats, loading: referralLoading } = useReferralStore();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -50,7 +53,8 @@ export default function PatientProfileScreen() {
 
   useEffect(() => {
     getProfile();
-  }, [getProfile]);
+    fetchReferralStats();
+  }, [getProfile, fetchReferralStats]);
 
   useEffect(() => {
     console.log('Profile store updated:', { user });
@@ -65,7 +69,7 @@ export default function PatientProfileScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    const success = await getProfile();
+    const [success] = await Promise.all([getProfile(), fetchReferralStats()]);
     setIsRefreshing(false);
     if (!success) {
       Alert.alert('Failed to Refresh', error || 'Could not fetch your profile. Please try again.', [
@@ -167,6 +171,23 @@ export default function PatientProfileScreen() {
       }
     } catch {
       Alert.alert('Error', 'An error occurred while changing password');
+    }
+  };
+
+  const handleShareReferralCode = async () => {
+    const code = (referralStats?.referralCode || user.referral_code || '').trim();
+    if (!code) {
+      Alert.alert('Referral code unavailable', 'Your referral code is not ready yet. Please try again shortly.');
+      return;
+    }
+
+    try {
+      await Share.share({
+        title: 'Join LifeGate',
+        message: `Use my LifeGate referral code ${code} to sign up. I earn 5 credits for each successful referral.`,
+      });
+    } catch {
+      Alert.alert('Unable to share', 'Please try again.');
     }
   };
 
@@ -290,6 +311,48 @@ export default function PatientProfileScreen() {
                 >
                   <Ionicons name="notifications-outline" size={18} color="#0EA5A4" />
                 </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View className="px-4 pt-1 pb-1">
+            <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="gift-outline" size={18} color="#0EA5A4" />
+                  <Text className="text-lg font-black text-gray-900">Referral Rewards</Text>
+                </View>
+                {referralLoading && <ActivityIndicator size="small" color="#0EA5A4" />}
+              </View>
+
+              <Text className="text-sm text-gray-600 leading-5 mb-3">
+                Invite friends with your code. You earn 5 credits for every successful referral.
+              </Text>
+
+              <View className="rounded-xl bg-[#F1FAFA] border border-[#CDE9E8] px-3 py-3 mb-3">
+                <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">Your Referral Code</Text>
+                <Text className="text-xl font-black text-[#0B8E8D] mt-1">{referralStats?.referralCode || user.referral_code || 'Loading...'}</Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleShareReferralCode}
+                className="h-10 rounded-xl bg-[#0EA5A4] items-center justify-center active:opacity-80 mb-3"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="share-social-outline" size={16} color="#FFFFFF" />
+                  <Text className="text-sm font-bold text-white">Share Referral Code</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View className="flex-row gap-2">
+                <View className="flex-1 rounded-xl bg-[#F8FAFC] px-3 py-3 border border-[#E5E7EB]">
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">Successful Referrals</Text>
+                  <Text className="text-2xl font-black text-gray-900 mt-1">{referralStats?.totalReferrals ?? 0}</Text>
+                </View>
+                <View className="flex-1 rounded-xl bg-[#ECFDF5] px-3 py-3 border border-[#D1FAE5]">
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-[#065F46]">Bonus Credits Earned</Text>
+                  <Text className="text-2xl font-black text-[#047857] mt-1">{referralStats?.bonusEarned ?? 0}</Text>
+                </View>
               </View>
             </View>
           </View>

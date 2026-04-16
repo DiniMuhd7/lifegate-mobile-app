@@ -298,6 +298,47 @@ func (s *Service) GrantTrialCredits(userID string) error {
 	return tx.Commit()
 }
 
+// ReferralBonus is the number of credits awarded to a referrer for each successful referral.
+const ReferralBonus = 5
+
+// GrantReferralBonus credits ReferralBonus to the referrer's wallet and records the
+// transaction. It is idempotent via the txRef (format "REF-<referrerShort>-<referredShort>").
+func (s *Service) GrantReferralBonus(referrerID, txRef string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var inserted bool
+	err = tx.QueryRow(
+		`INSERT INTO payment_transactions
+		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
+		 VALUES ($1::uuid, $2, 0, $3, 'success', 'referral')
+		 ON CONFLICT (tx_ref) DO NOTHING
+		 RETURNING true`,
+		referrerID, txRef, ReferralBonus,
+	).Scan(&inserted)
+	if err == sql.ErrNoRows {
+		return tx.Commit() // already granted
+	}
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.Exec(
+		`INSERT INTO credits (user_id, balance, updated_at)
+		 VALUES ($1::uuid, $2, NOW())
+		 ON CONFLICT (user_id)
+		 DO UPDATE SET balance = credits.balance + EXCLUDED.balance, updated_at = NOW()`,
+		referrerID, ReferralBonus,
+	); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 // DeductCredit atomically deducts 1 credit and logs it. Returns false if balance is 0.
 func (s *Service) DeductCredit(userID, diagnosisID string) (bool, error) {
 	tx, err := s.db.Begin()

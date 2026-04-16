@@ -18,6 +18,7 @@ export type User = {
   
   // Health information
   health_history?: string;
+  referral_code?: string;
   blood_type?: string | null;
   genotype?: string | null;
   allergies?: string | null;
@@ -53,6 +54,7 @@ export type UserDraft = {
   gender: string;
   language: string;
   healthHistory: string;
+  referredByCode?: string;
   role?: 'user' | 'professional'; // Set based on registration choice
   // Health professional specific fields
   specialization?: string;
@@ -83,6 +85,7 @@ export type RegisterPayload = {
   gender: string;
   language: string;
   healthHistory: string;
+  referredByCode?: string;
   role: 'user' | 'professional' | 'admin';
   // Health professional specific fields (optional)
   specialization?: string;
@@ -133,6 +136,7 @@ export type RegistrationStartPayload = {
   gender: string;
   language: string;
   healthHistory?: string;
+  referredByCode?: string;
   // Professional fields
   specialization?: string;
   certificateName?: string;
