@@ -485,7 +485,7 @@ function QuickActions() {
           marginBottom: 10,
         }}
       >
-        Test Simulation
+        Simulation
       </Text>
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'stretch', paddingHorizontal: 20 }}>
         <Pressable
