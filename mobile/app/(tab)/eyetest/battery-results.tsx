@@ -840,10 +840,10 @@ function EDISVisionPanel({ edis }: { edis: SensorInterpretResponse }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>
-            EDIS Clinical Interpretation
+            LifeGate Interpretation
           </Text>
           <Text style={{ fontSize: 11, color: '#9ca3af' }}>
-            {edis.providerName ? `Powered by ${edis.providerName}` : 'AI-backed probabilistic analysis'}
+            {edis.providerName ? `Powered by ${edis.providerName.replace(/openai/gi, 'DSHub')}` : 'AI-backed probabilistic analysis'}
           </Text>
         </View>
         <View style={{ backgroundColor: urgBg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>

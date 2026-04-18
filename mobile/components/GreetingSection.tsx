@@ -17,6 +17,8 @@ interface GreetingSectionProps {
   lastReportedDate?: string;
   /** Number of currently active cases */
   activeCases?: number;
+  /** AI Health Insight text shown below the user's name */
+  insightText?: string;
 }
 
 const getTimeGreeting = (): { label: string; icon: React.ComponentProps<typeof Ionicons>['name'] } => {
@@ -34,6 +36,7 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({
   lastReportedCase,
   lastReportedDate,
   activeCases,
+  insightText,
 }) => {
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
@@ -96,8 +99,11 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({
         <Text style={{ fontSize: 26, fontWeight: '800', color: '#fff', lineHeight: 32 }}>
           {displayName}! 👋
         </Text>
-        <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 4, lineHeight: 20 }}>
-          How are you feeling today? I'm here to help with your health questions.
+        <Text
+          numberOfLines={2}
+          style={{ fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.92)', marginTop: 4, lineHeight: 21 }}
+        >
+          {insightText ?? 'Drink 8+ glasses of water daily and maintain a balanced diet.'}
         </Text>
 
         {/* Divider */}

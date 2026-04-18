@@ -94,13 +94,29 @@ services:
         value: contact@dshub.com.ng
 
       # CORS — comma-separated list of allowed origins (Expo Go, web client, etc.)
-      # Example: https://lifegate-backend.onrender.com,exp://...
+      # Example: https://lifegate-mobile-web.onrender.com,exp://...
       - key: ALLOWED_ORIGINS
         sync: false
 
       # Upload directory (must match the disk mountPath above)
       - key: UPLOAD_DIR
         value: /app/uploads
+
+  # ─── Expo Web App (Static Site) ───────────────────────────────────────────
+  - type: static
+    name: lifegate-mobile-web
+    rootDir: mobile
+    buildCommand: npm ci && npm run export:web
+    staticPublishPath: dist
+
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://lifegate-backend.onrender.com/api
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
 
   # ─── NATS JetStream (Private Service) ──────────────────────────────────────
   # Reachable internally as nats://lifegate-nats:4222

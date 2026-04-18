@@ -86,14 +86,14 @@ func Load() *Config {
 		ClaudeCodeModel: getEnv("CLAUDE_CODE_MODEL", "claude-opus-4-5"),
 
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
-		EmailFrom:    getEnv("EMAIL_FROM", "noreply@lifegate.app"),
+		EmailFrom:    getEnv("EMAIL_FROM", "noreply@dshub.com.ng"),
 		SupportEmail: getEnv("SUPPORT_EMAIL", "contact@dshub.com.ng"),
 
 		UploadDir: getEnv("UPLOAD_DIR", "./uploads"),
 
 		FlutterwaveSecretKey:   getEnv("FLW_SECRET_KEY", ""),
 		FlutterwavePublicKey:   getEnv("FLW_PUBLIC_KEY", ""),
-		FlutterwaveRedirectURL: getEnv("FLW_REDIRECT_URL", "lifegate://payment/callback"),
+		FlutterwaveRedirectURL: getEnv("FLW_REDIRECT_URL", ""),
 
 		HealthDataKey: getEnv("HEALTH_DATA_KEY", getEnv("JWT_SECRET", "changeme-secret")),
 

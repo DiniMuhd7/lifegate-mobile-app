@@ -25,6 +25,7 @@ import {
   Animated,
   Modal,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,11 +46,14 @@ import { PTA_FREQUENCIES } from 'types/hearing-types';
 // ─── Inter-trial gap jitter ───────────────────────────────────────────────────
 // Randomise the gap between response and next tone presentation to eliminate
 // rhythmic anticipation (a known source of false positives in automated PTA).
-const ITI_MIN_MS = 800;
-const ITI_MAX_MS = 1_800;
+const ITI_MIN_MS = 400;
+const ITI_MAX_MS = 800;
 function randomITI(): number {
   return Math.round(ITI_MIN_MS + Math.random() * (ITI_MAX_MS - ITI_MIN_MS));
 }
+
+/** Maximum time (ms) the user has to respond before auto-advancing. */
+const RESPONSE_TIMEOUT_MS = 3_000;
 
 const TEAL   = '#0AADA2';
 const TEAL_D = '#0f766e';
@@ -218,9 +222,11 @@ export default function PTATest() {
   const soundRef   = useRef<Audio.Sound | null>(null);
   const recordRef  = useRef<Audio.Recording | null>(null);
   const trialStart = useRef<number>(0);
+  const blobUrlRef = useRef<string | null>(null);
 
   const [tonePhase, setTonePhase] = useState<'countdown' | 'playing' | 'waiting' | 'responded'>('countdown');
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(2);
+  const [responseCountdown, setResponseCountdown] = useState(RESPONSE_TIMEOUT_MS / 1000);
   const [showEarSwitch, setShowEarSwitch] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   // Start at 1 — circle is visible from the first countdown (3 → 2 → 1).
@@ -339,6 +345,11 @@ export default function PTATest() {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
+      // Revoke any previous web blob URL to free memory
+      if (Platform.OS === 'web' && blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
 
       const amplitude = dbHLToAmplitude(currentDbHL, currentFreq, deviceProfile.estimatedMaxDbSPL);
       // Stereo WAV with tone routed exclusively to the active ear's channel
@@ -346,11 +357,20 @@ export default function PTATest() {
         currentFreq, 1_500, amplitude,
         activeEar === 'right' ? 'right' : 'left',
       );
-      const wavFile = new FSFile(FSPaths.cache, `tone_${activeEar}_${currentFreq}_${currentDbHL}.wav`);
-      wavFile.write(wavBytes);
+
+      let audioUri: string;
+      if (Platform.OS === 'web') {
+        const blob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
+        audioUri = URL.createObjectURL(blob);
+        blobUrlRef.current = audioUri;
+      } else {
+        const wavFile = new FSFile(FSPaths.cache, `tone_${activeEar}_${currentFreq}_${currentDbHL}.wav`);
+        wavFile.write(wavBytes);
+        audioUri = wavFile.uri;
+      }
 
       const { sound } = await Audio.Sound.createAsync(
-        { uri: wavFile.uri },
+        { uri: audioUri },
         { shouldPlay: true, volume: 1.0 },
       );
       soundRef.current = sound;
@@ -358,9 +378,14 @@ export default function PTATest() {
 
       sound.setOnPlaybackStatusUpdate((s) => {
         if (s.isLoaded && s.didJustFinish) {
+          // Revoke blob URL now that playback is done
+          if (Platform.OS === 'web' && blobUrlRef.current) {
+            URL.revokeObjectURL(blobUrlRef.current);
+            blobUrlRef.current = null;
+          }
           // Tone ended — wait a bit for user to respond
           setTonePhase('waiting');
-          // Auto-timeout: if no response in 4 s, mark as not heard
+          // Auto-timeout: if no response, mark as not heard
           setTimeout(() => {
             setTonePhase((prev) => {
               if (prev === 'waiting') {
@@ -369,12 +394,22 @@ export default function PTATest() {
               }
               return prev;
             });
-          }, 4_000);
+          }, RESPONSE_TIMEOUT_MS);
         }
       });
     } catch (e) {
       console.warn('Tone playback error:', e);
       setTonePhase('waiting');
+      // Auto-timeout in error path so the test is never stuck waiting
+      setTimeout(() => {
+        setTonePhase((prev) => {
+          if (prev === 'waiting') {
+            handleResponse(false);
+            return 'responded';
+          }
+          return prev;
+        });
+      }, RESPONSE_TIMEOUT_MS);
     }
   }, [currentStaircase, currentFreq, deviceProfile]);
 
@@ -410,12 +445,12 @@ export default function PTATest() {
         } else {
           finaliseCurrentFreq();
           setTonePhase('countdown');
-          setCountdown(2);
+          setCountdown(1);
         }
       } else {
         // Next trial for same frequency
         setTonePhase('countdown');
-        setCountdown(2);
+        setCountdown(1);
       }
     }, randomITI());
   }, [currentFreq, freqIndex, activeEar, recordTrial, finaliseCurrentFreq, finaliseEar, restartNoiseMonitoring]);
@@ -440,6 +475,19 @@ export default function PTATest() {
     return () => clearInterval(t);
   }, [tonePhase, noisePauseActive]);
 
+  // ── Response window countdown ──────────────────────────────────────────────
+  useEffect(() => {
+    if (tonePhase !== 'waiting') {
+      setResponseCountdown(RESPONSE_TIMEOUT_MS / 1000);
+      return;
+    }
+    setResponseCountdown(RESPONSE_TIMEOUT_MS / 1000);
+    const t = setInterval(() => {
+      setResponseCountdown((c) => Math.max(0, c - 1));
+    }, 1_000);
+    return () => clearInterval(t);
+  }, [tonePhase]);
+
   // ── Pulse animation while playing ─────────────────────────────────────────
   useEffect(() => {
     if (tonePhase === 'playing') {
@@ -463,13 +511,25 @@ export default function PTATest() {
     finaliseEar();
     startEarTest('left');
     setTonePhase('countdown');
-    setCountdown(3);
+    setCountdown(2);
   };
 
   // ── Derived display values ─────────────────────────────────────────────────
 
   const currentDbHL = currentStaircase.currentDbHL;
   const earFreqProgress = ((freqIndex + (tonePhase === 'responded' ? 0.9 : 0)) / PTA_FREQUENCIES.length);
+
+  // Overall progress across both ears (0–1)
+  const AVG_TRIALS_PER_FREQ = 5; // ~5 trials to converge with 2 reversals
+  const AVG_SECS_PER_TRIAL  = 4.5;
+  const TOTAL_FREQS         = PTA_FREQUENCIES.length * 2; // 12
+  const earOffset           = activeEar === 'right' ? 0 : PTA_FREQUENCIES.length;
+  const completedFreqUnits  = earOffset + freqIndex;
+  const currentFreqFraction = Math.min(currentStaircase.trials.length / AVG_TRIALS_PER_FREQ, 0.95);
+  const overallProgress     = Math.min((completedFreqUnits + currentFreqFraction) / TOTAL_FREQS, 1);
+  const freqsRemaining      = TOTAL_FREQS - completedFreqUnits - currentFreqFraction;
+  const secsRemaining       = Math.max(0, Math.round(freqsRemaining * AVG_TRIALS_PER_FREQ * AVG_SECS_PER_TRIAL));
+  const minsRemaining       = Math.max(1, Math.ceil(secsRemaining / 60));
 
   const completedThresholds = PTA_FREQUENCIES
     .slice(0, freqIndex)
@@ -511,17 +571,52 @@ export default function PTATest() {
           </View>
         </View>
 
-        {/* Frequency progress bar */}
-        <View style={{ marginHorizontal: 18, marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            {PTA_FREQUENCIES.map((f, i) => (
-              <Text key={f} style={{ fontSize: 9, color: i === freqIndex ? '#fff' : (i < freqIndex ? FREQ_COLORS[f] : '#374151'), fontWeight: i === freqIndex ? '800' : '400' }}>
-                {freqLabel(f)}
-              </Text>
-            ))}
+        {/* Overall progress bar (both ears combined) */}
+        <View style={{ marginHorizontal: 18, marginBottom: 6 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {/* Per-ear freq dots */}
+              {PTA_FREQUENCIES.map((f, i) => (
+                <View
+                  key={`R-${f}`}
+                  style={{
+                    width: i === freqIndex && activeEar === 'right' ? 16 : 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: activeEar === 'left' || i < freqIndex
+                      ? FREQ_COLORS[f]
+                      : i === freqIndex && activeEar === 'right'
+                      ? FREQ_COLORS[f]
+                      : '#1f2937',
+                    opacity: i === freqIndex && activeEar === 'right' ? 1 : 0.7,
+                  }}
+                />
+              ))}
+              <View style={{ width: 6, height: 8 }} />
+              {PTA_FREQUENCIES.map((f, i) => (
+                <View
+                  key={`L-${f}`}
+                  style={{
+                    width: i === freqIndex && activeEar === 'left' ? 16 : 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: activeEar === 'left' && i < freqIndex
+                      ? FREQ_COLORS[f]
+                      : i === freqIndex && activeEar === 'left'
+                      ? FREQ_COLORS[f]
+                      : '#1f2937',
+                    opacity: activeEar === 'left' && i === freqIndex ? 1 : 0.5,
+                  }}
+                />
+              ))}
+            </View>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6b7280' }}>
+              {Math.round(overallProgress * 100)}% · ~{minsRemaining} min left
+            </Text>
           </View>
-          <View style={{ height: 4, backgroundColor: '#1f2937', borderRadius: 2 }}>
-            <View style={{ height: 4, width: `${earFreqProgress * 100}%`, backgroundColor: FREQ_COLORS[currentFreq], borderRadius: 2 }} />
+          {/* Combined fill bar */}
+          <View style={{ height: 3, backgroundColor: '#1f2937', borderRadius: 2 }}>
+            <View style={{ height: 3, width: `${overallProgress * 100}%`, backgroundColor: TEAL, borderRadius: 2 }} />
           </View>
         </View>
 
@@ -597,7 +692,7 @@ export default function PTATest() {
             fontWeight: tonePhase === 'waiting' ? '800' : '600',
             color: tonePhase === 'waiting' ? '#e5e7eb' : '#6b7280',
             textAlign: 'center',
-            marginBottom: 28,
+            marginBottom: 16,
             lineHeight: 22,
           }}>
             {tonePhase === 'countdown'
@@ -608,6 +703,25 @@ export default function PTATest() {
               ? 'Press the button if you heard the tone'
               : 'Response recorded'}
           </Text>
+
+          {/* Response timeout bar — visible only during 'waiting' */}
+          {tonePhase === 'waiting' && (
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              <View style={{ height: 3, backgroundColor: '#1f2937', borderRadius: 2, overflow: 'hidden' }}>
+                <View
+                  style={{
+                    height: 3,
+                    width: `${(responseCountdown / (RESPONSE_TIMEOUT_MS / 1000)) * 100}%`,
+                    backgroundColor: responseCountdown <= 1 ? '#dc2626' : '#4b5563',
+                    borderRadius: 2,
+                  }}
+                />
+              </View>
+              <Text style={{ fontSize: 10, color: '#4b5563', textAlign: 'right', marginTop: 3 }}>
+                {responseCountdown}s
+              </Text>
+            </View>
+          )}
 
           {/* Response buttons */}
           <View style={{ flexDirection: 'row', gap: 14, width: '100%' }}>
@@ -652,14 +766,14 @@ export default function PTATest() {
           </View>
         </View>
 
-        {/* Progress indicator */}
+        {/* Footer: elapsed + freq position */}
         <View style={{ paddingHorizontal: 18, paddingBottom: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
           <Text style={{ fontSize: 11, color: '#4b5563' }}>
             {activeEar === 'right' ? 'Right' : 'Left'} ear
           </Text>
           <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#374151' }} />
           <Text style={{ fontSize: 11, color: '#4b5563' }}>
-            Freq {freqIndex + 1} of {PTA_FREQUENCIES.length}
+            {freqLabel(currentFreq)} ({freqIndex + 1}/{PTA_FREQUENCIES.length})
           </Text>
           <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: '#374151' }} />
           <Text style={{ fontSize: 12, fontWeight: '600', color: '#6b7280', fontVariant: ['tabular-nums'] }}>
@@ -675,10 +789,9 @@ export default function PTATest() {
                 <Ionicons name="swap-horizontal-outline" size={32} color="#93c5fd" />
               </View>
               <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', textAlign: 'center' }}>
-                Right Ear Complete
+                Right Ear Complete — Halfway There!
               </Text>
               <Text style={{ fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 22 }}>
-                Right ear testing is done.{'\n'}
                 Now place the headphone on your{' '}
                 <Text style={{ fontWeight: '800', color: '#c4b5fd' }}>left ear</Text> and confirm when ready.
               </Text>

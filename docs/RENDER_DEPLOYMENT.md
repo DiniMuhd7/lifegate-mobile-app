@@ -137,9 +137,64 @@ curl https://lifegatemobilebackend-2.onrender.com/health
 
 ---
 
-## Part 2 — Mobile App (EAS Build)
+## Part 2 — Expo Web on Render (Public URL)
 
-### Step 7 — Install dependencies
+### Step 7 — Build the web app locally once
+
+```bash
+cd mobile
+npm ci
+npm run export:web
+```
+
+This generates a static Expo web build in `mobile/dist`. The command was verified against the current app and completes successfully with Expo Router.
+
+---
+
+### Step 8 — Deploy the static site from `render.yaml`
+
+The Blueprint now provisions a second Render service named `lifegate-mobile-web`:
+
+- Type: Static Site
+- Root directory: `mobile`
+- Build command: `npm ci && npm run export:web`
+- Publish directory: `dist`
+
+After you apply the Blueprint in Render, the site will be available at:
+
+```text
+https://lifegate-mobile-web.onrender.com
+```
+
+The static site uses a rewrite rule to `/index.html`, so Expo Router deep links continue to work.
+
+---
+
+### Step 9 — Set backend CORS for the public web URL
+
+In the Render dashboard, open `lifegate-backend` → **Environment** and set `ALLOWED_ORIGINS` to include the web site origin:
+
+```env
+ALLOWED_ORIGINS=https://lifegate-mobile-web.onrender.com
+```
+
+If you also use Expo Go or another frontend origin, add them as a comma-separated list.
+
+---
+
+### Step 10 — Verify the live site
+
+Open the public URL and confirm:
+
+- The app shell loads without a blank screen.
+- API requests go to `https://lifegate-backend.onrender.com/api`.
+- Refreshing a nested route still resolves correctly.
+
+---
+
+## Part 3 — Mobile App (EAS Build)
+
+### Step 11 — Install dependencies
 
 ```bash
 cd mobile
@@ -148,9 +203,9 @@ npm ci
 
 ---
 
-### Step 8 — Set the production API URL
+### Step 12 — Set the production API URL
 
-The file `mobile/.env.production` already contains:
+Create `mobile/.env.production` with:
 
 ```env
 EXPO_PUBLIC_API_URL=https://lifegatemobilebackend-2.onrender.com/api
@@ -160,7 +215,7 @@ If your Render service was given a different name, update this URL to match the 
 
 ---
 
-### Step 9 — Configure EAS
+### Step 13 — Configure EAS
 
 ```bash
 # Log in to your Expo account
@@ -174,7 +229,7 @@ The `eas.json` already has a `production` build profile. Confirm `app.json` has 
 
 ---
 
-### Step 10 — Build for production
+### Step 14 — Build for production
 
 ```bash
 # Android APK / AAB
@@ -191,7 +246,7 @@ EAS injects `EXPO_PUBLIC_API_URL` from `mobile/.env.production` automatically at
 
 ---
 
-### Step 11 — Download and test the build
+### Step 15 — Download and test the build
 
 After the build completes (~10–15 min), EAS prints a download URL. Install the APK on a device and verify:
 
@@ -201,7 +256,7 @@ After the build completes (~10–15 min), EAS prints a download URL. Install the
 
 ---
 
-## Part 3 — Custom Domain (optional)
+## Part 4 — Custom Domain (optional)
 
 1. In the Render dashboard, open `lifegate-backend` → **Settings** → **Custom Domains**.
 2. Add your domain (e.g. `api.lifegate.app`) and copy the CNAME value.
@@ -237,6 +292,12 @@ After the build completes (~10–15 min), EAS prints a download URL. Install the
 | `SMTP_FROM` | `noreply@lifegate.app` | From address on outbound emails |
 | `ALLOWED_ORIGINS` | — | Comma-separated allowed CORS origins |
 | `UPLOAD_DIR` | `/app/uploads` | Persistent disk mount path |
+
+### Web Static Site (Render)
+
+| Variable | Value | Description |
+|---|---|---|
+| `EXPO_PUBLIC_API_URL` | `https://lifegate-backend.onrender.com/api` | Backend API base URL embedded into the static web build |
 
 ### Mobile (`mobile/.env.production`)
 

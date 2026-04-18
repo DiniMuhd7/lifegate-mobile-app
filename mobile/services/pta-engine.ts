@@ -36,9 +36,10 @@ export const START_DBHL = 40;
  * "not heard" to "heard" (direction flips from up → down).  These are the
  * clinically meaningful events in the modified Hughson-Westlake method.
  *
- * BSA / ASHA guidelines recommend 3 ascending reversals for automated PTA.
+ * 2 is sufficient for a user-facing screening tool and cuts test duration
+ * by ~30% vs. the clinical 3-reversal protocol.
  */
-const ASCENDING_REVERSALS_NEEDED = 3;
+const ASCENDING_REVERSALS_NEEDED = 2;
 
 // ─── Staircase initialisation ─────────────────────────────────────────────────
 

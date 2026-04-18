@@ -229,6 +229,13 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 		raw.Prescription = nil
 	}
 
+	// ── Sensor category bypass ────────────────────────────────────────────────
+	// Device-measured results (vision battery, audiometry) carry no patient HPI
+	// by design — the data are objective measurements, not symptom reports.
+	// The HPI gate must not strip their diagnosis; follow-up intake questions
+	// are also irrelevant for these categories.
+	isSensorCategory := category == "eye_checkup" || category == "hearing_test"
+
 	// ── HPI gate — enforce triage-before-diagnosis server-side ────────────────
 	// Requires ALL five OLDCARTS fields before a diagnosis is released.
 	// The prompt allows onset+duration+severityScore to unlock diagnosis, but
@@ -238,29 +245,38 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 	// without a confirmed diagnosis.
 	// Once HPI is fully complete, followUpQuestions are cleared so triage
 	// chips don't appear alongside the diagnosis card in the UI.
+	// NOTE: sensor categories bypass this gate entirely — see above.
 	hpiComplete := raw.HPI != nil &&
 		raw.HPI.Onset != "" &&
 		raw.HPI.Duration != "" &&
 		raw.HPI.SeverityScore > 0 &&
 		raw.HPI.Location != "" &&
 		raw.HPI.Character != ""
-	if !hpiComplete && raw.Diagnosis != nil {
-		log.Printf("[EDIS] premature diagnosis stripped (hpi incomplete): condition=%q", raw.Diagnosis.Condition)
-		raw.Diagnosis = nil
-		raw.Prescription = nil
-		raw.FollowUpPlan = nil
-	}
-	if hpiComplete {
-		// Triage is done — suppress follow-up questions so chips don't render
-		// alongside the diagnosis card in the client.
+	if !isSensorCategory {
+		if !hpiComplete && raw.Diagnosis != nil {
+			log.Printf("[EDIS] premature diagnosis stripped (hpi incomplete): condition=%q", raw.Diagnosis.Condition)
+			raw.Diagnosis = nil
+			raw.Prescription = nil
+			raw.FollowUpPlan = nil
+		}
+		if hpiComplete {
+			// Triage is done — suppress follow-up questions so chips don't render
+			// alongside the diagnosis card in the client.
+			raw.FollowUpQuestions = nil
+		}
+	} else {
+		// Sensor categories never require HPI intake — always clear follow-up
+		// questions so the UI doesn't show symptom intake chips for test results.
 		raw.FollowUpQuestions = nil
 	}
 
 	// ── Diagnosis synthesis fallback ───────────────────────────────────────────
-	// Only synthesise a diagnosis from the top condition when:
+	// Synthesise a diagnosis from the top condition when:
 	//   a) The AI deliberately omitted 'diagnosis' despite high-confidence conditions
-	//   b) HPI intake is sufficiently complete (onset + duration + severityScore known)
-	if raw.Diagnosis == nil && len(raw.Conditions) > 0 && raw.Conditions[0].Confidence >= 50 && hpiComplete {
+	//   b) For conversational categories: HPI intake is sufficiently complete
+	//   c) For sensor categories: always eligible (device data is the HPI substitute)
+	synthesisEligible := isSensorCategory || hpiComplete
+	if raw.Diagnosis == nil && len(raw.Conditions) > 0 && raw.Conditions[0].Confidence >= 50 && synthesisEligible {
 		top := raw.Conditions[0]
 		raw.Diagnosis = &ai.Diagnosis{
 			Condition:   top.Condition,

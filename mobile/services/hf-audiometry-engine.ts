@@ -39,7 +39,7 @@ export const HF_RETSPL: Record<HFFrequency, number> = {
 // Normal HF sensitivity is 20–40 dBHL for 9–12 kHz.
 // Start at 60 dBHL so the first descending run quickly finds the threshold.
 export const HF_START_DBHL = 60;
-const HF_ASCENDING_REVERSALS_NEEDED = 3;
+const HF_ASCENDING_REVERSALS_NEEDED = 2;
 
 // ─── Staircase management ────────────────────────────────────────────────────
 

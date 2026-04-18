@@ -333,7 +333,7 @@ export function stepContrastStaircase(
     contrastPercent: next,
     direction: newDir,
     reversals,
-    done: reversals.length >= 4,
+    done: reversals.length >= 6,
   };
 }
 
@@ -378,7 +378,7 @@ export const BATTERY_META: BatteryTestMeta[] = [
     label: 'Visual Acuity',
     icon: 'eye-outline',
     description: 'LogMAR adaptive letter chart (20/200 → 20/10)',
-    estimatedSec: 120,
+    estimatedSec: 180,
   },
   {
     id: 'color',
@@ -399,7 +399,7 @@ export const BATTERY_META: BatteryTestMeta[] = [
     label: 'Contrast Sensitivity',
     icon: 'contrast-outline',
     description: 'Spatial frequency threshold curve',
-    estimatedSec: 90,
+    estimatedSec: 150,
   },
   {
     id: 'near',

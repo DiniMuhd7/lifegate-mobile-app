@@ -253,7 +253,8 @@ function VolumeStep() {
 
 function ReferenceStep() {
   const { deviceProfile, setCalibrationStep, setDeviceMaxDbSPL } = useHearingStore();
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const soundRef   = useRef<Audio.Sound | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'playing' | 'done'>('idle');
   const [heard, setHeard] = useState<boolean | null>(null);
 
@@ -280,21 +281,38 @@ function ReferenceStep() {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
+      if (Platform.OS === 'web' && blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
 
       // Generate reference tone: 1 kHz, 60 dBHL, 2 seconds
       const amplitude = dbHLToAmplitude(60, 1000, deviceProfile.estimatedMaxDbSPL);
       const wavBytes = generateToneWAV(1000, 2000, amplitude);
-      const wavFile = new FSFile(FSPaths.cache, 'ref_1000hz.wav');
-      wavFile.write(wavBytes);
+
+      let audioUri: string;
+      if (Platform.OS === 'web') {
+        const blob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
+        audioUri = URL.createObjectURL(blob);
+        blobUrlRef.current = audioUri;
+      } else {
+        const wavFile = new FSFile(FSPaths.cache, 'ref_1000hz.wav');
+        wavFile.write(wavBytes);
+        audioUri = wavFile.uri;
+      }
 
       const { sound } = await Audio.Sound.createAsync(
-        { uri: wavFile.uri },
+        { uri: audioUri },
         { shouldPlay: true, volume: 1.0 },
       );
       soundRef.current = sound;
 
       sound.setOnPlaybackStatusUpdate((s) => {
         if (s.isLoaded && s.didJustFinish) {
+          if (Platform.OS === 'web' && blobUrlRef.current) {
+            URL.revokeObjectURL(blobUrlRef.current);
+            blobUrlRef.current = null;
+          }
           setStatus('done');
         }
       });

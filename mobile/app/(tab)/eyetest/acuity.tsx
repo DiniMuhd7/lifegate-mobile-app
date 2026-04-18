@@ -115,7 +115,7 @@ export default function AcuityTest() {
 
   const trialsCount = acuityTrials.length;
   const reversals = acuityStaircase?.reversals.length ?? 0;
-  const progress = Math.min(reversals / 6, 1);
+  const progress = Math.min(reversals / 8, 1);
 
   // Trigger the eye-switch prompt once after the 4th trial
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function AcuityTest() {
             <Text style={{ fontSize: 11, color: '#9ca3af' }}>Trial {trialsCount + 1} · ~{logmarToSnellen(currentLogMAR)} · {eyeSide} eye</Text>
           </View>
           <View style={{ backgroundColor: '#f0fdfc', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: TEAL }}>{reversals}/6 reversals</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: TEAL }}>{reversals}/8 reversals</Text>
           </View>
         </View>
 

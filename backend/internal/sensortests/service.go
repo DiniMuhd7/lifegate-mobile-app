@@ -130,6 +130,7 @@ func buildVisionPrompt(req VisionInterpretRequest) string {
 	b.WriteString("2. Any patterns suggesting specific conditions (myopia, astigmatism, color deficiency, etc.)\n")
 	b.WriteString("3. Urgency of professional eye examination\n")
 	b.WriteString("4. Recommended next steps\n")
+	b.WriteString("\nIMPORTANT: These are objective device-measured results. This is NOT a symptom conversation — do NOT ask follow-up questions and do NOT apply HPI/OLDCARTS intake rules. Provide a direct clinical interpretation including diagnosis, conditions, riskFlags, and investigations based solely on the numbers above.\n")
 
 	return b.String()
 }
@@ -188,6 +189,7 @@ func buildHearingPrompt(req HearingInterpretRequest) string {
 	b.WriteString("2. Any patterns suggesting specific aetiology (noise-induced, age-related, other)\n")
 	b.WriteString("3. Urgency of audiologist referral\n")
 	b.WriteString("4. Recommended next steps\n")
+	b.WriteString("\nIMPORTANT: These are objective device-measured results. This is NOT a symptom conversation — do NOT ask follow-up questions and do NOT apply HPI/OLDCARTS intake rules. Provide a direct clinical interpretation including diagnosis, conditions, riskFlags, and investigations based solely on the audiometric data above.\n")
 
 	return b.String()
 }

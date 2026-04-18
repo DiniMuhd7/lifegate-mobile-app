@@ -66,6 +66,11 @@ export default function ContrastTest() {
   } = useVisionStore();
 
   const [answered, setAnswered] = useState(false);
+  // Minimum stimulus viewing time before response buttons become active.
+  // Gives the visual system time to adapt to subtle contrast changes.
+  const MIN_VIEW_MS = 1500;
+  const [buttonsReady, setButtonsReady] = useState(false);
+  const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!testStatus || testStatus.contrast !== 'active') {
@@ -75,7 +80,14 @@ export default function ContrastTest() {
     startContrastTest();
   }, []);
 
-  useEffect(() => { setAnswered(false); }, [contrastSfIndex, contrastStaircases[contrastSfIndex]?.contrastPercent]);
+  // Reset answered state and start the minimum-view timer on each new stimulus.
+  useEffect(() => {
+    setAnswered(false);
+    setButtonsReady(false);
+    if (viewTimerRef.current) clearTimeout(viewTimerRef.current);
+    viewTimerRef.current = setTimeout(() => setButtonsReady(true), MIN_VIEW_MS);
+    return () => { if (viewTimerRef.current) clearTimeout(viewTimerRef.current); };
+  }, [contrastSfIndex, contrastStaircases[contrastSfIndex]?.contrastPercent]);
 
   const sf = CS_SPATIAL_FREQS[contrastSfIndex];
   const staircase = contrastStaircases[contrastSfIndex];
@@ -85,7 +97,7 @@ export default function ContrastTest() {
   const trialStart = useRef(Date.now());
 
   const handleResponse = useCallback((seen: boolean) => {
-    if (answered || !sf) return;
+    if (answered || !sf || !buttonsReady) return;
     setAnswered(true);
     const reactionMs = Date.now() - trialStart.current;
     recordContrastTrial({ spatialFrequency: sf, contrastPercent: contrastPct, response: seen ? 'seen' : 'not_seen', reactionMs });
@@ -97,7 +109,7 @@ export default function ContrastTest() {
         advanceContrastSf();
       }
     }, 300);
-  }, [answered, sf, contrastPct, sfDone]);
+  }, [answered, buttonsReady, sf, contrastPct, sfDone]);
 
   const totalSf = CS_SPATIAL_FREQS.length;
   const progress = (contrastSfIndex + (sfDone ? 1 : 0)) / totalSf;
@@ -165,16 +177,16 @@ export default function ContrastTest() {
             </View>
           </View>
 
-          {/* Response buttons */}
+          {/* Response buttons — locked for MIN_VIEW_MS so user has time to assess */}
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Pressable
               onPress={() => handleResponse(false)}
-              disabled={answered}
+              disabled={answered || !buttonsReady}
               style={({ pressed }) => ({
                 flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
                 backgroundColor: pressed ? '#fef2f2' : '#fff',
                 borderWidth: 2, borderColor: '#fca5a5',
-                opacity: answered ? 0.45 : 1,
+                opacity: answered || !buttonsReady ? 0.45 : 1,
               })}
             >
               <Ionicons name="eye-off-outline" size={28} color="#dc2626" />
@@ -182,12 +194,12 @@ export default function ContrastTest() {
             </Pressable>
             <Pressable
               onPress={() => handleResponse(true)}
-              disabled={answered}
+              disabled={answered || !buttonsReady}
               style={({ pressed }) => ({
                 flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
                 backgroundColor: pressed ? '#f0fdf4' : '#fff',
                 borderWidth: 2, borderColor: '#86efac',
-                opacity: answered ? 0.45 : 1,
+                opacity: answered || !buttonsReady ? 0.45 : 1,
               })}
             >
               <Ionicons name="eye-outline" size={28} color="#16a34a" />

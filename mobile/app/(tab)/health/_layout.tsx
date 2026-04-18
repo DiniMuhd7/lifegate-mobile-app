@@ -7,6 +7,11 @@ export default function HealthLayout() {
       <Stack.Screen name="timeline" />
       <Stack.Screen name="report" />
       <Stack.Screen name="alerts" />
+      <Stack.Screen name="checkins" />
+      <Stack.Screen name="survey" />
+      <Stack.Screen name="offers" />
+      <Stack.Screen name="explore" />
+      <Stack.Screen name="referrals" />
     </Stack>
   );
 }

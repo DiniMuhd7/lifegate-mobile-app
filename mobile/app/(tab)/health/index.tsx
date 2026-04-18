@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
+import { scheduleHealthInsightNotification } from 'utils/pushNotifications';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { GreetingSection } from 'components/GreetingSection';
 import Logo from 'assets/logo.svg';
@@ -128,7 +129,7 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
 } {
   if (entries.length === 0) {
     return {
-      text: 'Drink at least 8 glasses of water daily and maintain a balanced diet to support your immune system.',
+      text: 'Drink 8+ glasses of water daily and eat a balanced diet to stay healthy.',
       icon: 'water-outline',
       color: '#0891b2',
     };
@@ -138,7 +139,7 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   const condition = latest.condition || latest.title || '';
   const cond = condition.toLowerCase();
   const isActive = latest.status !== 'Completed';
-  const activeNote = isActive ? ' Follow up with LifeGate if symptoms change.' : '';
+  const activeNote = isActive ? ' Follow up with your doctor if symptoms change.' : '';
   const prev = entries[1];
   const URGENCY_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 };
   const latestRank = URGENCY_RANK[latest.urgency] ?? 0;
@@ -147,7 +148,7 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   // ── CRITICAL urgency ──────────────────────────────────────────────────────
   if (latest.urgency === 'CRITICAL') {
     return {
-      text: `Your active ${condition} case requires emergency attention — call emergency services or go to A&E immediately.`,
+      text: `${condition}: seek emergency care now. Call emergency services immediately.`,
       icon: 'alert-circle',
       color: '#dc2626',
     };
@@ -156,84 +157,96 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   // ── Condition-specific actionable tips ────────────────────────────────────
   if (cond.includes('malaria')) {
     return {
-      text: `Complete your full antimalarial course, sleep under treated nets, and stay hydrated with ORS or fluids.${activeNote}`,
+      text: `Finish your antimalarial course, sleep under a net, and stay hydrated.${activeNote}`,
+
       icon: 'thermometer-outline',
       color: '#d97706',
     };
   }
   if (cond.includes('typhoid')) {
     return {
-      text: `Eat soft foods, drink only boiled or bottled water, and complete your antibiotic course without interruption.${activeNote}`,
+      text: `Eat soft foods, drink boiled water, and complete your antibiotics.${activeNote}`,
+
       icon: 'flask-outline',
       color: '#d97706',
     };
   }
   if (cond.includes('hypertension') || cond.includes('blood pressure')) {
     return {
-      text: `Reduce salt intake, exercise 30 minutes daily, avoid stress, and take your medication at the same time every day.${activeNote}`,
+      text: `Limit salt, exercise daily, and take your medication at the same time each day.${activeNote}`,
+
       icon: 'heart-outline',
       color: '#dc2626',
     };
   }
   if (cond.includes('diabetes')) {
     return {
-      text: `Monitor your blood glucose daily, avoid sugary drinks, eat at regular intervals, and do light exercise after meals.${activeNote}`,
+      text: `Check blood glucose daily, avoid sugary drinks, and walk after meals.${activeNote}`,
+
       icon: 'medkit-outline',
       color: '#d97706',
     };
   }
   if (cond.includes('tuberculosis') || cond.includes('tb')) {
     return {
-      text: `Take all TB medications daily without skipping — stopping early causes drug resistance — and ventilate your room.${activeNote}`,
+      text: `Never skip TB meds — stopping early causes resistance. Keep your room ventilated.${activeNote}`,
+
       icon: 'lungs-outline' as keyof typeof Ionicons.glyphMap,
       color: '#dc2626',
     };
   }
   if (cond.includes('hiv') || cond.includes('aids')) {
     return {
-      text: `Take your ARV medication daily at the same time, attend all clinic appointments, and maintain a protein-rich diet.${activeNote}`,
+      text: `Take ARVs daily at the same time and keep all clinic appointments.${activeNote}`,
+
       icon: 'shield-checkmark-outline',
       color: '#7c3aed',
     };
   }
   if (cond.includes('sickle cell') || cond.includes('scd')) {
     return {
-      text: `Stay hydrated, avoid cold temperatures, rest during crises, and keep your pain relief and hydroxyurea accessible.${activeNote}`,
+      text: `Stay hydrated, avoid the cold, and keep your pain relief within reach.${activeNote}`,
+
       icon: 'pulse',
       color: '#dc2626',
     };
   }
   if (cond.includes('peptic') || cond.includes('ulcer') || cond.includes('gastritis')) {
     return {
-      text: `Eat small frequent meals, avoid NSAIDs, spicy foods, alcohol, and coffee, and take your antacids as prescribed.${activeNote}`,
+      text: `Eat small meals often, avoid NSAIDs and spicy foods, take antacids as prescribed.${activeNote}`,
+
       icon: 'nutrition-outline',
       color: '#d97706',
     };
   }
   if (cond.includes('uti') || cond.includes('urinary')) {
     return {
-      text: `Drink 2–3 litres of water daily, urinate frequently, and complete your full antibiotic course to prevent recurrence.${activeNote}`,
+      text: `Drink 2–3L of water daily and finish your full antibiotic course.${activeNote}`,
+
       icon: 'water-outline',
       color: '#0891b2',
     };
   }
   if (cond.includes('respiratory') || cond.includes('pneumonia') || cond.includes('bronchitis') || cond.includes('asthma')) {
     return {
-      text: `Avoid dust and smoke, use your inhaler as directed, rest well, and sleep with your head slightly elevated.${activeNote}`,
+      text: `Avoid smoke, use your inhaler as directed, and sleep with your head elevated.${activeNote}`,
+
       icon: 'medical-outline',
       color: '#0891b2',
     };
   }
   if (cond.includes('dengue')) {
     return {
-      text: `Rest, drink plenty of fluids, use paracetamol for fever (avoid ibuprofen), and report any bleeding or severe vomiting immediately.${activeNote}`,
+      text: `Rest, drink fluids, use paracetamol only — report any bleeding immediately.${activeNote}`,
+
       icon: 'bug-outline' as keyof typeof Ionicons.glyphMap,
       color: '#d97706',
     };
   }
   if (cond.includes('anaemia') || cond.includes('anemia')) {
     return {
-      text: `Eat iron-rich foods (beans, liver, leafy greens) and take iron supplements with vitamin C for better absorption.${activeNote}`,
+      text: `Eat iron-rich foods (beans, liver, greens) and take iron with vitamin C.${activeNote}`,
+
       icon: 'nutrition-outline',
       color: '#d97706',
     };
@@ -242,28 +255,28 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   // ── Urgency / trend-based tips (fallback when no specific condition matched) ──
   if (latest.urgency === 'HIGH' && isActive) {
     return {
-      text: `Rest, stay hydrated, and follow your physician's instructions for ${condition} — avoid self-medicating and report new symptoms immediately.`,
+      text: `Rest, stay hydrated, and follow your physician's plan for ${condition}.`,
       icon: 'warning',
       color: '#dc2626',
     };
   }
   if (latestRank < prevRank && latest.status === 'Completed') {
     return {
-      text: `Great progress recovering from ${condition} — maintain your medication schedule, eat nutritiously, and get at least 7–8 hours of sleep.`,
+      text: `Great progress on ${condition} — stay consistent with meds and get 7–8 hrs of sleep.`,
       icon: 'trending-up',
       color: '#16a34a',
     };
   }
   if (latestRank > prevRank) {
     return {
-      text: `Your ${condition} symptoms appear to be escalating — increase fluid intake, rest, and consult your physician if fever or pain worsens.`,
+      text: `${condition} may be worsening — rest, increase fluids, and consult your physician.`,
       icon: 'pulse',
       color: '#d97706',
     };
   }
   if (latest.urgency === 'MEDIUM') {
     return {
-      text: `Monitor your ${condition} symptoms twice daily, stay hydrated, eat light, and update LifeGate if anything changes.`,
+      text: `Monitor ${condition} daily, stay hydrated, and see a doctor if symptoms worsen.`,
       icon: 'eye-outline',
       color: '#d97706',
     };
@@ -271,13 +284,13 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   const allCompleted = entries.slice(0, 3).every((e) => e.status === 'Completed');
   if (allCompleted) {
     return {
-      text: 'You are on a great health streak — exercise regularly, eat a balanced diet, and keep your annual checkups to stay ahead of any issues.',
+      text: 'Great health streak! Keep exercising, eating well, and schedule your annual checkup.',
       icon: 'checkmark-circle',
       color: '#16a34a',
     };
   }
   return {
-    text: `Stay consistent with your treatment for ${condition} and check in with LifeGate regularly so any changes are caught early.`,
+    text: `Stay consistent with your ${condition} treatment and attend regular checkups.`,
     icon: 'sparkles-outline',
     color: '#0891b2',
   };
@@ -472,36 +485,33 @@ function QuickActions() {
           marginBottom: 10,
         }}
       >
-        Quick Actions
+        Test Simulation
       </Text>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
+      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'stretch', paddingHorizontal: 20 }}>
         <Pressable
           onPress={() => router.push('/(tab)/eyetest' as never)}
           style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
         >
           <LinearGradient
-            colors={['#0AADA2', '#0d7c74']}
+            colors={['#0AADA2', '#0369a1']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 16, padding: 14, alignItems: 'center', gap: 8 }}
+            style={{ flex: 1, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
             <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
                 backgroundColor: 'rgba(255,255,255,0.2)',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="eye-outline" size={20} color="#fff" />
+              <Ionicons name="eye-outline" size={22} color="#fff" />
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
               Vision Test
-            </Text>
-            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
-              AI-guided vision check
             </Text>
           </LinearGradient>
         </Pressable>
@@ -511,32 +521,105 @@ function QuickActions() {
           style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
         >
           <LinearGradient
-            colors={['#0f766e', '#134e4a']}
+            colors={['#0284c7', '#075985']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 16, padding: 14, alignItems: 'center', gap: 8 }}
+            style={{ flex: 1, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
             <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
                 backgroundColor: 'rgba(255,255,255,0.2)',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="ear-outline" size={20} color="#fff" />
+              <Ionicons name="ear-outline" size={22} color="#fff" />
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
               Hearing Test
-            </Text>
-            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', textAlign: 'center' }}>
-              AI-guided hearing check
             </Text>
           </LinearGradient>
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+const PROMOTIONS = [
+  { title: 'Check-ins', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
+  { title: 'Survey', icon: 'clipboard-outline' as const, color: '#7c3aed', bg: '#ede9fe' },
+  { title: 'Offers', icon: 'pricetag-outline' as const, color: '#d97706', bg: '#fef3c7' },
+  { title: 'Explore', icon: 'compass-outline' as const, color: '#059669', bg: '#d1fae5' },
+  { title: 'Referrals', icon: 'people-outline' as const, color: '#dc2626', bg: '#fee2e2' },
+];
+
+function PromotionsSection() {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: '700',
+          color: '#6b7280',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+          marginBottom: 10,
+          marginHorizontal: 16,
+        }}
+      >
+        Promotion
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+      >
+        {PROMOTIONS.map((item) => (
+          <Pressable
+            key={item.title}
+            onPress={() => {
+              if (item.title === 'Check-ins') router.push('/(tab)/health/checkins' as never);
+              if (item.title === 'Survey') router.push('/(tab)/health/survey' as never);
+              if (item.title === 'Offers') router.push('/(tab)/health/offers' as never);
+              if (item.title === 'Explore') router.push('/(tab)/health/explore' as never);
+              if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
+            }}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.8 : 1,
+              alignItems: 'center',
+              backgroundColor: item.bg,
+              borderRadius: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+              width: 100,
+              gap: 8,
+            })}
+          >
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: '#fff',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: item.color,
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <Ionicons name={item.icon} size={22} color={item.color} />
+            </View>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#374151', textAlign: 'center' }}>
+              {item.title}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -665,6 +748,15 @@ export default function HealthDashboardScreen() {
   const isLoading = timelineLoading && patientTimeline.length === 0;
   const status = useMemo(() => deriveStatus(patientTimeline), [patientTimeline]);
   const insight = useMemo(() => deriveInsight(patientTimeline), [patientTimeline]);
+
+  // Schedule (or reschedule) the daily 8 AM health insight notification
+  // whenever the insight text changes. Skips if timeline is still loading.
+  useEffect(() => {
+    if (!timelineLoading && patientTimeline.length >= 0) {
+      scheduleHealthInsightNotification(insight.text);
+    }
+  }, [insight.text, timelineLoading]);
+
   const latest = patientTimeline[0] ?? null;
   const totalActive = useMemo(
     () => patientTimeline.filter((e) => e.status !== 'Completed').length,
@@ -776,11 +868,12 @@ export default function HealthDashboardScreen() {
               lastReportedCase={latest ? (latest.condition || latest.title) : undefined}
               lastReportedDate={latest ? formatRelativeDate(latest.createdAt) : undefined}
               activeCases={totalActive}
+              insightText={insight.text}
             />
           </View>
 
-          <AIInsightCard insight={insight} />
           <QuickActions />
+          <PromotionsSection />
 
           {/* Recent Cases */}
           <View

@@ -6,12 +6,18 @@ import { ProfessionalService } from '../services/professional-service';
 
 // Configure how notifications look while the app is in the foreground
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: false, // We use the in-app banner instead
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    // Physician case push notifications use an in-app banner, so suppress the
+    // OS banner for those. All other notifications (e.g. daily health insight)
+    // should show the OS banner normally.
+    const isCaseNotif = notification.request.content.data?.type === 'case';
+    return {
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: !isCaseNotif,
+      shouldShowList: true,
+    };
+  },
 });
 
 /**
@@ -51,6 +57,81 @@ export async function registerPhysicianPushToken(): Promise<void> {
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
   await ProfessionalService.registerPushToken(tokenData.data);
+}
+
+const INSIGHT_NOTIF_ID_KEY = 'health_insight_notification_id';
+
+/**
+ * Schedules (or reschedules) a daily 8 AM notification containing the
+ * patient's personalised health insight text.
+ *
+ * Called from the patient health screen whenever the derived insight changes.
+ * Silently no-ops if notification permission has not been granted.
+ */
+export async function scheduleHealthInsightNotification(insightText: string): Promise<void> {
+  // expo-notifications does not support local scheduling on web
+  if (Platform.OS === 'web') return;
+
+  try {
+    // Request permission if not yet granted (e.g. first-time patient users)
+    let { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      ({ status } = await Notifications.requestPermissionsAsync());
+    }
+    if (status !== 'granted') return;
+
+    // Ensure the Android notification channel exists
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('health-insights', {
+        name: 'Daily Health Insights',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        description: 'Your personalised daily health insight at 8 AM',
+      });
+    }
+
+    // Cancel the previously scheduled insight notification (if any)
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const prevId = await AsyncStorage.getItem(INSIGHT_NOTIF_ID_KEY);
+    if (prevId) {
+      await Notifications.cancelScheduledNotificationAsync(prevId).catch(() => {});
+    }
+
+    const notifContent: Notifications.NotificationContentInput = {
+      title: '🌿 Your Daily Health Insight',
+      body: insightText,
+      sound: true,
+      data: { type: 'health_insight' },
+      ...(Platform.OS === 'android' && { channelId: 'health-insights' }),
+    };
+
+    // DEV ONLY: fire a preview notification 5 seconds after the health screen
+    // loads so the schedule can be verified without waiting until 8 AM.
+    if (__DEV__) {
+      await Notifications.scheduleNotificationAsync({
+        content: { ...notifContent, title: '[Preview] ' + notifContent.title },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 5,
+          repeats: false,
+        },
+      });
+    }
+
+    // Schedule a new daily notification at 08:00
+    const id = await Notifications.scheduleNotificationAsync({
+      content: notifContent,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 8,
+        minute: 0,
+      },
+    });
+
+    await AsyncStorage.setItem(INSIGHT_NOTIF_ID_KEY, id);
+  } catch (e) {
+    // Non-fatal — never interrupt the UI for a notification scheduling failure
+    console.warn('[HealthInsight] Failed to schedule daily notification:', e);
+  }
 }
 
 /**

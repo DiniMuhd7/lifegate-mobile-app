@@ -16,6 +16,7 @@ import {
   Pressable,
   StatusBar,
   Animated,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,11 +41,14 @@ const TEAL   = '#0AADA2';
 const TEAL_D = '#0f766e';
 
 /** Randomised inter-trial interval to prevent rhythmic anticipation */
-const ITI_MIN_MS = 800;
-const ITI_MAX_MS = 1_600;
+const ITI_MIN_MS = 400;
+const ITI_MAX_MS = 800;
 function randomITI(): number {
   return Math.round(ITI_MIN_MS + Math.random() * (ITI_MAX_MS - ITI_MIN_MS));
 }
+
+/** Maximum time (ms) the user has to respond before auto-advancing. */
+const RESPONSE_TIMEOUT_MS = 3_000;
 
 const HF_FREQ_COLORS: Record<HFFrequency, string> = {
   9000:  '#f59e0b',
@@ -131,6 +135,7 @@ export default function HFTest() {
 
   const soundRef   = useRef<Audio.Sound | null>(null);
   const trialStart = useRef(0);
+  const blobUrlRef = useRef<string | null>(null);
 
   const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing' | 'waiting' | 'responded' | 'done'>('intro');
   const [countdown, setCountdown] = useState(3);
@@ -208,11 +213,26 @@ export default function HFTest() {
 
       // Route both channels with equal amplitude (no lateralisation for HF)
       const wavBytes = generateStereoToneWAV(freq, 1_500, amplitude, 'both');
-      const wavFile  = new FSFile(FSPaths.cache, `hf_${freq}_${s.currentDbHL}.wav`);
-      wavFile.write(wavBytes);
+
+      // Revoke any previous web blob URL to free memory
+      if (Platform.OS === 'web' && blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+
+      let audioUri: string;
+      if (Platform.OS === 'web') {
+        const blob = new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' });
+        audioUri = URL.createObjectURL(blob);
+        blobUrlRef.current = audioUri;
+      } else {
+        const wavFile  = new FSFile(FSPaths.cache, `hf_${freq}_${s.currentDbHL}.wav`);
+        wavFile.write(wavBytes);
+        audioUri = wavFile.uri;
+      }
 
       const { sound } = await Audio.Sound.createAsync(
-        { uri: wavFile.uri },
+        { uri: audioUri },
         { shouldPlay: true, volume: 1.0 },
       );
       soundRef.current = sound;
@@ -220,8 +240,12 @@ export default function HFTest() {
 
       sound.setOnPlaybackStatusUpdate((st) => {
         if (st.isLoaded && st.didJustFinish) {
+          if (Platform.OS === 'web' && blobUrlRef.current) {
+            URL.revokeObjectURL(blobUrlRef.current);
+            blobUrlRef.current = null;
+          }
           setPhase('waiting');
-          // 4-second response window; default to "not heard" on timeout
+          // Response window; default to "not heard" on timeout
           setTimeout(() => {
             setPhase((prev) => {
               if (prev === 'waiting') {
@@ -230,12 +254,22 @@ export default function HFTest() {
               }
               return prev;
             });
-          }, 4_000);
+          }, RESPONSE_TIMEOUT_MS);
         }
       });
     } catch (e) {
       console.warn('HF tone error:', e);
       setPhase('waiting');
+      // Auto-timeout in error path so the test is never stuck waiting
+      setTimeout(() => {
+        setPhase((prev) => {
+          if (prev === 'waiting') {
+            handleResponse(false);
+            return 'responded';
+          }
+          return prev;
+        });
+      }, RESPONSE_TIMEOUT_MS);
     }
   }, []);
 
