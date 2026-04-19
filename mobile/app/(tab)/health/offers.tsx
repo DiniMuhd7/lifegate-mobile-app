@@ -291,12 +291,9 @@ export default function OffersScreen() {
 
   const handleStart = useCallback(
     (offer: Offer) => {
-      // Mark pending and open the external link
       startOffer(offer.id);
-      // In production, use a real deep link or App Store URL per offer.
-      // Fallback: open a web search for the sponsor name.
-      Linking.openURL(`https://www.google.com/search?q=${encodeURIComponent(offer.sponsor)}`).catch(() => {
-        Alert.alert('Could not open link', 'Please search for the app or service manually.');
+      Linking.openURL(offer.actionUrl).catch(() => {
+        Alert.alert('Could not open link', 'Please visit the sponsor website manually.');
       });
     },
     [startOffer],

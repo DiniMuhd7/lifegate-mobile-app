@@ -6,7 +6,6 @@ import {
   Pressable,
   ActivityIndicator,
   Modal,
-  Image,
   TextInput,
   Platform,
   StyleSheet,
@@ -16,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import WebView from 'react-native-webview';
+import { WebView } from 'react-native-webview';
 import {
   useExploreStore,
   ExploreVideo,
@@ -47,14 +46,6 @@ const CAT_META: Record<VideoCategory, { icon: keyof typeof Ionicons.glyphMap; co
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Extract 11-char YouTube video ID from watch / embed / shorts URLs. */
-function getYouTubeId(url: string): string | null {
-  const m = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/,
-  );
-  return m ? m[1] : null;
-}
-
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -84,84 +75,122 @@ function VideoCard({
   rewarded: boolean;
   onWatch: () => void;
 }) {
-  const [thumbReady, setThumbReady] = useState(false);
-  const [thumbFailed, setThumbFailed] = useState(false);
   const meta = CAT_META[video.category];
-  const youtubeId = getYouTubeId(video.youtubeUrl);
-  const thumbUri = youtubeId
-    ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
-    : null;
+  const requiredWatch = Math.ceil(video.durationSeconds / 2);
+  const watchLabel = requiredWatch >= 60
+    ? `Watch ${Math.ceil(requiredWatch / 60)}m to unlock`
+    : `Watch ${requiredWatch}s to unlock`;
 
   return (
     <Pressable
       onPress={rewarded ? undefined : onWatch}
       style={({ pressed }) => ({
-        opacity: pressed ? 0.92 : 1,
-        backgroundColor: '#fff',
-        borderRadius: 18,
+        opacity: pressed ? 0.93 : 1,
+        borderRadius: 20,
         overflow: 'hidden',
+        backgroundColor: rewarded ? '#0c1a12' : '#1e2535',
         borderWidth: 1,
-        borderColor: rewarded ? '#bbf7d0' : '#e5e7eb',
-        shadowColor: video.thumbnailColor,
-        shadowOpacity: rewarded ? 0.03 : 0.1,
-        shadowRadius: 10,
-        elevation: rewarded ? 1 : 3,
+        borderColor: rewarded ? '#166534' : 'rgba(255,255,255,0.08)',
+        shadowColor: '#000',
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: rewarded ? 1 : 4,
       })}
     >
       {/* Thumbnail */}
-      <View style={{ height: 130, position: 'relative' }}>
-        {thumbUri && !thumbFailed ? (
-          <>
-            <Image
-              source={{ uri: thumbUri }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-              onLoad={() => setThumbReady(true)}
-              onError={() => setThumbFailed(true)}
-            />
-            {!thumbReady && (
-              <View
-                style={[
-                  StyleSheet.absoluteFill,
-                  { backgroundColor: video.thumbnailColor, alignItems: 'center', justifyContent: 'center' },
-                ]}
-              >
-                <ActivityIndicator size="small" color="rgba(255,255,255,0.7)" />
-              </View>
-            )}
-          </>
-        ) : (
-          <LinearGradient
-            colors={[video.thumbnailColor, darken(video.thumbnailColor)]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}
-          >
+      <View style={{ height: 152, position: 'relative', overflow: 'hidden' }}>
+        <LinearGradient
+          colors={[video.thumbnailColor + 'dd', darken(darken(video.thumbnailColor))]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ width: '100%', height: '100%' }}
+        >
+          {/* Large icon watermark */}
+          <View style={[
+            StyleSheet.absoluteFill,
+            { alignItems: 'flex-end', justifyContent: 'flex-end', padding: 12, opacity: 0.2 }
+          ]}>
             <Ionicons
               name={video.thumbnailIcon as keyof typeof Ionicons.glyphMap}
-              size={36}
-              color="rgba(255,255,255,0.6)"
+              size={72}
+              color="#fff"
             />
-          </LinearGradient>
-        )}
+          </View>
+        </LinearGradient>
 
-        {/* Play / check overlay */}
+        {/* Dark overlay */}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: rewarded ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.22)' }]} />
+
+        {/* Category badge — top left */}
         <View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: rewarded ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.18)',
-            },
-          ]}
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            borderRadius: 20,
+            paddingHorizontal: 9,
+            paddingVertical: 4,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.12)',
+          }}
         >
+          <Ionicons name={meta.icon} size={11} color={meta.color} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{video.category}</Text>
+        </View>
+
+        {/* Duration — top right */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            borderRadius: 20,
+            paddingHorizontal: 9,
+            paddingVertical: 4,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.12)',
+          }}
+        >
+          <Text style={{ fontSize: 11, fontWeight: '600', color: '#fff' }}>{formatDuration(video.durationSeconds)}</Text>
+        </View>
+
+        {/* Earned badge — bottom left */}
+        {rewarded && (
           <View
             style={{
-              width: 50,
-              height: 50,
-              borderRadius: 25,
-              backgroundColor: rewarded ? 'rgba(22,163,74,0.92)' : 'rgba(255,0,0,0.88)',
+              position: 'absolute',
+              bottom: 10,
+              left: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              backgroundColor: 'rgba(22,163,74,0.92)',
+              borderRadius: 20,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+            }}
+          >
+            <Ionicons name="checkmark-circle" size={12} color="#fff" />
+            <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>Earned</Text>
+          </View>
+        )}
+
+        {/* Play button — centered */}
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+          <View
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: 27,
+              backgroundColor: rewarded ? 'rgba(22,163,74,0.9)' : 'rgba(255,255,255,0.18)',
+              borderWidth: 2,
+              borderColor: rewarded ? '#4ade80' : 'rgba(255,255,255,0.55)',
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -174,93 +203,52 @@ function VideoCard({
             />
           </View>
         </View>
-
-        {/* Earned badge */}
-        {rewarded ? (
-          <View
-            style={{
-              position: 'absolute',
-              top: 8,
-              left: 10,
-              backgroundColor: 'rgba(22,163,74,0.9)',
-              borderRadius: 8,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <Ionicons name="checkmark" size={11} color="#fff" />
-            <Text style={{ fontSize: 11, color: '#fff', fontWeight: '700' }}>Earned</Text>
-          </View>
-        ) : (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 8,
-              right: 10,
-              backgroundColor: 'rgba(0,0,0,0.65)',
-              borderRadius: 6,
-              paddingHorizontal: 7,
-              paddingVertical: 3,
-            }}
-          >
-            <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>
-              {formatDuration(video.durationSeconds)}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Info */}
-      <View style={{ padding: 14, gap: 8 }}>
+      <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14, gap: 6 }}>
         <Text
           style={{
             fontSize: 14,
             fontWeight: '800',
-            color: rewarded ? '#6b7280' : '#111827',
+            color: rewarded ? '#6b7280' : '#f1f5f9',
             lineHeight: 20,
           }}
+          numberOfLines={2}
         >
           {video.title}
         </Text>
-        <Text style={{ fontSize: 12, color: '#9ca3af', lineHeight: 17 }} numberOfLines={2}>
-          {video.description}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: meta.bg,
-                borderRadius: 8,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <Ionicons name={meta.icon} size={11} color={meta.color} />
-              <Text style={{ fontSize: 11, fontWeight: '600', color: meta.color }}>{video.category}</Text>
-            </View>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: '#fef3c7',
-                borderRadius: 8,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <Ionicons name="logo-bitcoin" size={11} color="#d97706" />
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#d97706' }}>+{video.coins} LC</Text>
-            </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '500' }}>
+            {video.instructor}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="logo-bitcoin" size={12} color={rewarded ? '#6b7280' : '#fbbf24'} />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: rewarded ? '#6b7280' : '#fbbf24' }}>
+              +{video.coins} LC
+            </Text>
           </View>
-          <Text style={{ fontSize: 11, color: '#9ca3af', fontWeight: '500' }}>{video.instructor}</Text>
         </View>
+
+        {!rewarded && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              marginTop: 2,
+              borderTopWidth: 1,
+              borderTopColor: 'rgba(255,255,255,0.06)',
+              paddingTop: 8,
+            }}
+          >
+            <Ionicons name="time-outline" size={12} color="rgba(255,255,255,0.3)" />
+            <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: '600' }}>
+              {watchLabel}
+            </Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );
@@ -280,48 +268,77 @@ function VideoPlayerModal({
   const { width: screenWidth } = useWindowDimensions();
   const videoHeight = Math.round((screenWidth * 9) / 16);
 
-  const [webViewReady, setWebViewReady] = useState(false);
+  const videoRef = useRef<WebView>(null);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [embedError, setEmbedError] = useState<number | null>(null);
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(15);
+  const requiredSeconds = Math.ceil(video.durationSeconds / 2);
+  const [secondsLeft, setSecondsLeft] = useState(requiredSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const remainingRef = useRef(requiredSeconds);
 
-  const youtubeId = getYouTubeId(video.youtubeUrl);
-
-  const playerHtml = youtubeId
-    ? `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;background:#000}
-    html,body{width:100%;height:100%;overflow:hidden}
-    iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
-  </style>
-</head>
-<body>
-  <iframe
-    src="https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&playsinline=1&modestbranding=1&showinfo=0&controls=1"
-    allow="autoplay; encrypted-media; fullscreen"
-    allowfullscreen frameborder="0"
-  ></iframe>
-</body>
-</html>`
-    : null;
+  // HTML page using the YouTube IFrame API — works in both WebView (native) and srcdoc iframe (web).
+  // Sends ready/state/error events via postMessage so we can handle them in React.
+  const playerHtml = `<!DOCTYPE html>
+<html><head>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <style>*{margin:0;padding:0;box-sizing:border-box;background:#000}html,body{width:100%;height:100%;overflow:hidden}#player{width:100%;height:100%}</style>
+</head><body>
+  <div id="player"></div>
+  <script>
+    function send(obj){var m=JSON.stringify(obj);try{window.ReactNativeWebView.postMessage(m)}catch(e){}try{window.parent.postMessage(m,'*')}catch(e){}}
+    var tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';document.head.appendChild(tag);
+    function onYouTubeIframeAPIReady(){
+      new YT.Player('player',{
+        videoId:'${video.youtubeId}',
+        playerVars:{autoplay:1,playsinline:1,rel:0,modestbranding:1,origin:'https://www.youtube.com'},
+        events:{
+          onReady:function(e){e.target.playVideo();send({type:'ready'})},
+          onError:function(e){send({type:'error',code:e.data})},
+          onStateChange:function(e){send({type:'state',state:e.data})}
+        }
+      });
+    }
+  <\/script>
+</body></html>`;
 
   const startTimer = useCallback(() => {
     if (intervalRef.current) return;
-    let remaining = 15;
     intervalRef.current = setInterval(() => {
-      remaining -= 1;
-      setSecondsLeft(remaining);
-      if (remaining <= 0) {
+      remainingRef.current -= 1;
+      setSecondsLeft(remainingRef.current);
+      if (remainingRef.current <= 0) {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
         setCanClaim(true);
       }
     }, 1000);
   }, []);
+
+  const pauseTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // Mark ready and start timer when player iframe/webview has loaded
+  const handleMessage = useCallback((data: string) => {
+    try {
+      const msg = JSON.parse(data) as { type: string; code?: number; state?: number };
+      if (msg.type === 'ready') {
+        setPlayerReady(true);
+      } else if (msg.type === 'error') {
+        setEmbedError(msg.code ?? -1);
+      } else if (msg.type === 'state') {
+        // YT.PlayerState: 1=playing, 2=paused, 0=ended, 3=buffering
+        if (msg.state === 1 || msg.state === 3) setPlayerReady(true);
+        if (msg.state === 1) startTimer();
+        else if (msg.state === 2) pauseTimer();
+      }
+    } catch {}
+  }, [startTimer, pauseTimer]);
 
   useEffect(
     () => () => {
@@ -330,21 +347,31 @@ function VideoPlayerModal({
     [],
   );
 
+  // Fallback: start timer as soon as the player reports ready (WebView onLoad).
+  // This ensures countdown runs even if the IFrame API postMessage bridge is silent.
+  useEffect(() => {
+    if (playerReady) startTimer();
+  }, [playerReady, startTimer]);
+
+  // On web the YT IFrame API posts to window.parent — listen here.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const listener = (e: MessageEvent) => {
+      if (typeof e.data === 'string') handleMessage(e.data);
+    };
+    window.addEventListener('message', listener);
+    return () => window.removeEventListener('message', listener);
+  }, [handleMessage]);
+
   const handleClaim = async () => {
     setClaiming(true);
     await onClaim();
     setClaiming(false);
   };
 
-  const isWeb = Platform.OS === 'web';
-
-  // Circular progress: 0–15s countdown
   const circleSize = 44;
   const strokeWidth = 3;
-  const radius = (circleSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = canClaim ? 1 : (15 - secondsLeft) / 15;
-  const strokeDashoffset = circumference * (1 - progress);
+  const progress = canClaim ? 1 : (requiredSeconds - secondsLeft) / requiredSeconds;
 
   return (
     <Modal
@@ -357,49 +384,84 @@ function VideoPlayerModal({
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         {/* ── Video area ── */}
         <View style={{ width: screenWidth, height: videoHeight, backgroundColor: '#000' }}>
-          {isWeb || !playerHtml ? (
-            <LinearGradient
-              colors={[video.thumbnailColor, darken(video.thumbnailColor)]}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Ionicons
-                name={video.thumbnailIcon as keyof typeof Ionicons.glyphMap}
-                size={48}
-                color="#fff"
-              />
-            </LinearGradient>
+          {embedError !== null ? (
+            /* Error fallback — shown when YouTube blocks the embed (e.g. error 153) */
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 }}>
+              <Ionicons name="logo-youtube" size={48} color="#ff0000" />
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', textAlign: 'center' }}>
+                This video can't be embedded
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, textAlign: 'center' }}>
+                The video owner has disabled in-app playback.{`\n`}Watch it directly on YouTube.
+              </Text>
+              <Pressable
+                onPress={() => {
+                  const url = `https://www.youtube.com/watch?v=${video.youtubeId}`;
+                  if (Platform.OS === 'web') {
+                    // @ts-ignore
+                    window.open(url, '_blank');
+                  } else {
+                    import('expo-linking').then(({ default: Linking }) => Linking.openURL(url));
+                  }
+                }}
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.7 : 1,
+                  backgroundColor: '#ff0000',
+                  borderRadius: 24,
+                  paddingHorizontal: 28,
+                  paddingVertical: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                })}
+              >
+                <Ionicons name="logo-youtube" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Watch on YouTube</Text>
+              </Pressable>
+            </View>
+          ) : Platform.OS === 'web' ? (
+            // @ts-ignore
+            React.createElement('iframe', {
+              srcDoc: playerHtml,
+              style: { width: screenWidth, height: videoHeight, border: 'none', display: 'block' },
+              allow: 'autoplay; fullscreen; picture-in-picture',
+              allowFullScreen: true,
+              sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
+              onLoad: () => setPlayerReady(true),
+            })
           ) : (
             <WebView
-              source={{ html: playerHtml, baseUrl: '' }}
-              style={{ flex: 1 }}
+              ref={videoRef}
+              source={{ html: playerHtml, baseUrl: 'https://www.youtube.com' }}
+              style={{ width: screenWidth, height: videoHeight, backgroundColor: '#000' }}
               javaScriptEnabled
               allowsInlineMediaPlayback
-              allowsFullscreenVideo
               mediaPlaybackRequiresUserAction={false}
+              allowsFullscreenVideo
+              onLoad={() => setPlayerReady(true)}
+              onMessage={(e) => handleMessage(e.nativeEvent.data)}
               onShouldStartLoadWithRequest={(req) => {
                 const url = req.url;
                 if (
-                  url === 'about:blank' ||
-                  url.startsWith('https://www.youtube.com/embed') ||
-                  url.startsWith('data:')
-                ) return true;
-                return false;
-              }}
-              onLoad={() => {
-                setWebViewReady(true);
-                startTimer();
+                  url.startsWith('vnd.youtube') ||
+                  url.startsWith('youtube://') ||
+                  url.startsWith('intent://') ||
+                  url.startsWith('market://')
+                ) return false;
+                return true;
               }}
             />
           )}
 
-          {/* Loading spinner */}
-          {!isWeb && !webViewReady && playerHtml && (
-            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+          {/* Loading spinner — only while waiting for player to signal ready */}
+          {!playerReady && embedError === null && (
+            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }]}>
               <ActivityIndicator size="large" color="#ff0000" />
+              <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 12, fontSize: 13 }}>Loading video…</Text>
             </View>
           )}
 
-          {/* Top bar — overlaid on video, like WhatsApp */}
+          {/* Top bar overlaid on video — WhatsApp style */}
           <View
             style={{
               position: 'absolute',
@@ -411,168 +473,122 @@ function VideoPlayerModal({
               paddingHorizontal: 12,
               paddingTop: 48,
               paddingBottom: 14,
-              background: 'transparent',
             }}
+            pointerEvents="box-none"
           >
             <LinearGradient
               colors={['rgba(0,0,0,0.75)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
-              style={[StyleSheet.absoluteFill]}
+              style={StyleSheet.absoluteFill}
               pointerEvents="none"
             />
             <Pressable
               onPress={onClose}
               hitSlop={12}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginRight: 10 })}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginRight: 10, zIndex: 10 })}
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}
-                numberOfLines={1}
-              >
+            <View style={{ flex: 1 }} pointerEvents="none">
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }} numberOfLines={1}>
                 {video.title}
               </Text>
-              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>
                 {video.instructor}
               </Text>
             </View>
+            {/* YouTube has its own fullscreen button — no PiP overlay needed */}
           </View>
         </View>
 
-        {/* ── Bottom info panel — fixed, like WhatsApp ── */}
-        <View style={{ flex: 1, backgroundColor: '#111827', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}>
-          {/* Title row */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 16 }}>
-            {/* Countdown ring / check */}
-            <View style={{ width: circleSize, height: circleSize, alignItems: 'center', justifyContent: 'center' }}>
-              {canClaim ? (
-                <View
-                  style={{
-                    width: circleSize,
-                    height: circleSize,
-                    borderRadius: circleSize / 2,
-                    backgroundColor: '#16a34a',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Ionicons name="checkmark" size={22} color="#fff" />
-                </View>
-              ) : (
-                <>
-                  {/* SVG-like ring via View border trick */}
-                  <View
-                    style={{
-                      width: circleSize,
-                      height: circleSize,
-                      borderRadius: circleSize / 2,
-                      borderWidth: strokeWidth,
-                      borderColor: '#374151',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  />
-                  <View
-                    style={{
-                      position: 'absolute',
-                      width: circleSize,
-                      height: circleSize,
-                      borderRadius: circleSize / 2,
-                      borderWidth: strokeWidth,
-                      borderColor: webViewReady ? '#059669' : '#374151',
-                      borderTopColor: webViewReady ? '#4ade80' : '#374151',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transform: [{ rotate: `${progress * 360}deg` }],
-                    }}
-                  />
-                  <Text
-                    style={{
-                      position: 'absolute',
-                      fontSize: 13,
-                      fontWeight: '800',
-                      color: webViewReady ? '#fff' : 'rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    {webViewReady ? secondsLeft : '–'}
-                  </Text>
-                </>
-              )}
-            </View>
-
+        {/* ── Bottom info panel ── */}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: '#0f172a',
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: 32,
+          }}
+        >
+          {/* Title + coins */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4 }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff', lineHeight: 22 }}>
-                {video.title}
-              </Text>
-              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#f1f5f9', lineHeight: 22 }}>{video.title}</Text>
+              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>
                 {video.instructor} · {formatDuration(video.durationSeconds)}
               </Text>
             </View>
-
-            {/* Coins badge */}
             <View
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 4,
-                backgroundColor: 'rgba(251,191,36,0.12)',
-                borderRadius: 10,
-                paddingHorizontal: 10,
-                paddingVertical: 5,
+                gap: 5,
+                backgroundColor: 'rgba(251,191,36,0.1)',
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
                 borderWidth: 1,
-                borderColor: 'rgba(251,191,36,0.25)',
+                borderColor: 'rgba(251,191,36,0.2)',
               }}
             >
-              <Ionicons name="logo-bitcoin" size={14} color="#fbbf24" />
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fbbf24' }}>+{video.coins}</Text>
+              <Ionicons name="logo-bitcoin" size={15} color="#fbbf24" />
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fbbf24' }}>+{video.coins}</Text>
             </View>
           </View>
 
-          <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 19, marginBottom: 24 }}>
+          {/* Watch progress bar */}
+          <View style={{ marginTop: 16, marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {canClaim ? 'Ready to claim' : playerReady ? 'Watching…' : 'Loading…'}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.35)' }}>
+                {canClaim ? '✓ Done' : playerReady
+                  ? (secondsLeft > 60 ? `${Math.ceil(secondsLeft / 60)}m left` : `${secondsLeft}s left`)
+                  : ''}
+              </Text>
+            </View>
+            {/* Track */}
+            <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+              <View
+                style={{
+                  height: '100%',
+                  width: `${Math.round(progress * 100)}%`,
+                  backgroundColor: canClaim ? '#4ade80' : playerReady ? '#059669' : '#374151',
+                  borderRadius: 2,
+                }}
+              />
+            </View>
+          </View>
+
+          <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', lineHeight: 19, marginTop: 12, marginBottom: 20 }}>
             {video.description}
           </Text>
 
-          {/* Status hint */}
-          <Text
-            style={{
-              fontSize: 12,
-              fontWeight: '600',
-              color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.3)',
-              textAlign: 'center',
-              marginBottom: 14,
-            }}
-          >
-            {canClaim
-              ? '✓ Ready to claim your reward'
-              : isWeb
-                ? 'Watch the video then claim your reward'
-                : webViewReady
-                  ? `Unlocks in ${secondsLeft}s…`
-                  : 'Loading video…'}
-          </Text>
-
-          {/* Claim pill — WhatsApp-style centered rounded CTA */}
+          {/* Claim pill */}
           <Pressable
-            onPress={(isWeb || canClaim) && !claiming ? handleClaim : undefined}
+            onPress={canClaim && !claiming ? handleClaim : undefined}
             style={({ pressed }) => ({
-              alignSelf: 'center',
-              opacity: (!isWeb && !canClaim) || claiming ? 0.4 : pressed ? 0.8 : 1,
+              alignSelf: 'stretch',
+              opacity: !canClaim || claiming ? 0.45 : pressed ? 0.8 : 1,
             })}
           >
             <LinearGradient
-              colors={(isWeb || canClaim) ? ['#16a34a', '#15803d'] : ['#1f2937', '#1f2937']}
+              colors={canClaim ? ['#16a34a', '#15803d'] : ['#1e2535', '#1e2535']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 10,
-                paddingVertical: 14,
+                paddingVertical: 16,
                 paddingHorizontal: 32,
-                borderRadius: 50,
+                borderRadius: 16,
+                borderWidth: canClaim ? 0 : 1,
+                borderColor: 'rgba(255,255,255,0.08)',
               }}
             >
               {claiming ? (
@@ -580,18 +596,18 @@ function VideoPlayerModal({
               ) : (
                 <>
                   <Ionicons
-                    name={(isWeb || canClaim) ? 'logo-bitcoin' : 'time-outline'}
+                    name={canClaim ? 'logo-bitcoin' : 'lock-closed-outline'}
                     size={20}
-                    color={(isWeb || canClaim) ? '#fbbf24' : 'rgba(255,255,255,0.4)'}
+                    color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'}
                   />
                   <Text
                     style={{
                       fontSize: 16,
                       fontWeight: '800',
-                      color: (isWeb || canClaim) ? '#fff' : 'rgba(255,255,255,0.35)',
+                      color: canClaim ? '#fff' : 'rgba(255,255,255,0.3)',
                     }}
                   >
-                    {(isWeb || canClaim) ? `Claim +${video.coins} Lifecoins` : `Watch to unlock`}
+                    {canClaim ? `Claim +${video.coins} Lifecoins` : `Keep watching to unlock`}
                   </Text>
                 </>
               )}
@@ -602,6 +618,7 @@ function VideoPlayerModal({
     </Modal>
   );
 }
+
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -620,35 +637,34 @@ export default function ExploreScreen() {
     if (!initialized) initialize();
   }, [initialized, initialize]);
 
-  // Check availability via YouTube oEmbed (returns 404 for removed/private videos)
+  // Probe each YouTube video via the oEmbed endpoint — no API key needed, CORS-safe.
+  // Videos that return a non-200 or throw are removed from the list.
   useEffect(() => {
-    if (!initialized || Platform.OS === 'web') return;
-    (async () => {
-      try {
-        const checks = await Promise.allSettled(
-          SEED_VIDEOS.map(async (v) => {
-            const ytId = getYouTubeId(v.youtubeUrl);
-            if (!ytId) return null;
-            const res = await fetch(
-              `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`,
-              { method: 'HEAD' },
-            );
-            return res.ok ? v.id : null;
-          }),
-        );
-        const ids = new Set<string>(
-          checks
-            .map((r) => (r.status === 'fulfilled' ? r.value : null))
-            .filter((id): id is string => id !== null),
-        );
-        // Only apply filter if at least half resolved (guards against network failure)
-        if (ids.size >= Math.ceil(SEED_VIDEOS.length / 2)) {
-          setAvailableIds(ids);
-        }
-      } catch {
-        // Network error — show all videos
-      }
-    })();
+    if (!initialized) return;
+
+    let cancelled = false;
+
+    async function checkAvailability() {
+      const results = await Promise.allSettled(
+        SEED_VIDEOS.map(async (v) => {
+          const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${v.youtubeId}&format=json`;
+          const res = await fetch(url, { method: 'GET' });
+          if (!res.ok) throw new Error(`${res.status}`);
+          return v.id;
+        }),
+      );
+
+      if (cancelled) return;
+
+      const ids = new Set<string>();
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') ids.add(SEED_VIDEOS[i].id);
+      });
+      setAvailableIds(ids);
+    }
+
+    checkAvailability();
+    return () => { cancelled = true; };
   }, [initialized]);
 
   // Daily-shuffled video order — recalculated once per mount (changes each day)
@@ -880,20 +896,26 @@ export default function ExploreScreen() {
 
       {/* Video list */}
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, gap: 12, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
-        {filteredVideos.length === 0 && (
+        {availableIds === null ? (
+          /* Checking availability */
+          <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
+            <ActivityIndicator size="large" color="#059669" />
+            <Text style={{ fontSize: 13, color: '#6b7280' }}>Checking video availability…</Text>
+          </View>
+        ) : filteredVideos.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
             <Ionicons name="videocam-off-outline" size={36} color="#374151" />
             <Text style={{ fontSize: 14, color: '#6b7280' }}>
               {searchText.trim()
                 ? `No results for "${searchText}"`
-                : 'No videos in this category'}
+                : 'No videos available in this category'}
             </Text>
           </View>
-        )}
-        {filteredVideos.map((video) => (
+        ) : null}
+        {availableIds !== null && filteredVideos.map((video) => (
           <VideoCard
             key={video.id}
             video={video}

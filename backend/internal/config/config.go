@@ -42,6 +42,10 @@ type Config struct {
 	FlutterwavePublicKey   string
 	FlutterwaveRedirectURL string
 
+	BITLabAPIToen string
+	BITLabSecretKey string
+	BITLabServer2ServerKey string
+
 	// HealthDataKey is used to derive the AES-256 key for encrypting
 	// sensitive health fields in the users table. Falls back to JWT_SECRET
 	// when not explicitly set — override in production with a dedicated secret.
@@ -94,6 +98,10 @@ func Load() *Config {
 		FlutterwaveSecretKey:   getEnv("FLW_SECRET_KEY", ""),
 		FlutterwavePublicKey:   getEnv("FLW_PUBLIC_KEY", ""),
 		FlutterwaveRedirectURL: getEnv("FLW_REDIRECT_URL", ""),
+
+		BITLabAPIToken: getEnv("BITLAB_API_TOKEN", ""),
+		BITLabSecretKey: getEnv("BITLAB_SECRET_KEY", ""),
+		BITLabServer2ServerKey: getEnv("BITLAB_SERVER2SERVER_KEY", ""),
 
 		HealthDataKey: getEnv("HEALTH_DATA_KEY", getEnv("JWT_SECRET", "changeme-secret")),
 

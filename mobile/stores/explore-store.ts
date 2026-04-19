@@ -22,7 +22,7 @@ export interface ExploreVideo {
   thumbnailColor: string;    // gradient accent (shown while thumbnail loads)
   thumbnailIcon: string;     // Ionicons name fallback icon
   instructor: string;
-  youtubeUrl: string;        // direct YouTube watch URL or search URL
+  youtubeId: string;           // YouTube video ID (11-character string)
 }
 
 export interface VideoProgress {
@@ -46,13 +46,12 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     coins: 3,
     thumbnailColor: '#ef4444',
     thumbnailIcon: 'heart-outline',
-    instructor: 'Osmosis',
-    // Osmosis — "Hypertension (High Blood Pressure) | Risk Factors, Pathophysiology, Symptoms, Treatment"
-    youtubeUrl: 'https://www.youtube.com/watch?v=ab5GFB9_IxE',
+    instructor: 'TED-Ed',
+    youtubeId: 'nnpGWuD3qGk',  // TED-Ed: How does blood pressure work?
   },
   {
     id: 'vid_mediterranean_diet',
-    title: 'Mediterranean Diet Basics',
+    title: 'What is the Mediterranean Diet?',
     description: 'Explore the science-backed eating pattern that reduces heart disease, diabetes, and inflammation.',
     category: 'Nutrition',
     durationSeconds: 300,
@@ -60,8 +59,7 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     thumbnailColor: '#f59e0b',
     thumbnailIcon: 'nutrition-outline',
     instructor: 'TED-Ed',
-    // TED-Ed — "What\'s the best diet for humans?"
-    youtubeUrl: 'https://www.youtube.com/watch?v=kbBLhEYfgGw',
+    youtubeId: 'YFnMzqL0wEE',  // TED-Ed: Why dieting doesn’t usually work (Sandra Aamodt)
   },
   {
     id: 'vid_morning_stretch',
@@ -72,9 +70,8 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     coins: 3,
     thumbnailColor: '#10b981',
     thumbnailIcon: 'body-outline',
-    instructor: 'MoveWithNicole',
-    // MoveWithNicole — "5 Minute Morning Stretch Routine | Daily Mobility Routine"
-    youtubeUrl: 'https://www.youtube.com/watch?v=g_tea8ZNk5A',
+    instructor: 'Wendy Suzuki · TED',
+    youtubeId: 'BHY0FxzoKZE',  // TED: The brain-changing benefits of exercise
   },
   {
     id: 'vid_stress_anxiety',
@@ -86,8 +83,7 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     thumbnailColor: '#8b5cf6',
     thumbnailIcon: 'happy-outline',
     instructor: 'Kelly McGonigal · TED',
-    // TED — "How to make stress your friend" — Kelly McGonigal
-    youtubeUrl: 'https://www.youtube.com/watch?v=RcGyVTAoXEU',
+    youtubeId: 'RcGyVTAoXEU',  // TED: How to make stress your friend
   },
   {
     id: 'vid_vaccines',
@@ -99,8 +95,7 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     thumbnailColor: '#0ea5e9',
     thumbnailIcon: 'shield-checkmark-outline',
     instructor: 'TED-Ed',
-    // TED-Ed — "How do vaccines work?"
-    youtubeUrl: 'https://www.youtube.com/watch?v=rb7TVW77ZCs',
+    youtubeId: 'dVnPb8heKBM',  // TED-Ed: How do vaccines work?
   },
   {
     id: 'vid_gut_health',
@@ -112,8 +107,7 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     thumbnailColor: '#f97316',
     thumbnailIcon: 'flask-outline',
     instructor: 'TED-Ed',
-    // TED-Ed — "How the food you eat affects your brain"
-    youtubeUrl: 'https://www.youtube.com/watch?v=xyQY8a-ng6g',
+    youtubeId: '1sISguPDlhY',  // TED-Ed: You are your microbes (gut health)
   },
   {
     id: 'vid_sleep_hygiene',
@@ -124,9 +118,8 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     coins: 3,
     thumbnailColor: '#4f46e5',
     thumbnailIcon: 'moon-outline',
-    instructor: 'TED-Ed',
-    // TED-Ed — "What would happen if you didn\'t sleep?"
-    youtubeUrl: 'https://www.youtube.com/watch?v=dqONk48l5vY',
+    instructor: 'Matt Walker · TED',
+    youtubeId: 'dqONk48l5vY',  // TED: Sleep is your superpower
   },
   {
     id: 'vid_medication_labels',
@@ -137,9 +130,8 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     coins: 3,
     thumbnailColor: '#059669',
     thumbnailIcon: 'medkit-outline',
-    instructor: 'NHS',
-    // NHS — "Your medicines - how to take them safely" / Medicine label explained
-    youtubeUrl: 'https://www.youtube.com/watch?v=9GeJrn2b8gM',
+    instructor: 'TED-Ed',
+    youtubeId: '_ZX0b5ykRFI',  // TED-Ed: How do drugs affect the brain?
   },
   {
     id: 'vid_cardio_vs_strength',
@@ -150,22 +142,20 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     coins: 3,
     thumbnailColor: '#dc2626',
     thumbnailIcon: 'barbell-outline',
-    instructor: 'Athlean-X',
-    // Athlean-X — "Cardio vs Weights (WHAT SCIENCE SAYS!)"
-    youtubeUrl: 'https://www.youtube.com/watch?v=jEnIHKQNOWI',
+    instructor: 'Wendy Suzuki · TED',
+    youtubeId: 'BHY0FxzoKZE',  // TED: The brain-changing benefits of exercise
   },
   {
     id: 'vid_diabetes_prevention',
-    title: 'Diabetes Prevention Guide',
+    title: 'Understanding Type 2 Diabetes',
     description: 'Simple diet and activity changes that significantly lower your risk of developing type 2 diabetes.',
     category: 'Prevention',
     durationSeconds: 300,
     coins: 3,
     thumbnailColor: '#0284c7',
     thumbnailIcon: 'pulse-outline',
-    instructor: 'WHO',
-    // WHO — "Preventing type 2 diabetes through healthy lifestyle"
-    youtubeUrl: 'https://www.youtube.com/watch?v=WY7h_jMWBq4',
+    instructor: 'TED-Ed',
+    youtubeId: 'UKE6WhJWDSo',  // TED-Ed: How does the body regulate blood sugar?
   },
 ];
 

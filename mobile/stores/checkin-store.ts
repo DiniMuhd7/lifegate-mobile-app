@@ -15,12 +15,12 @@ export interface HourlySlot {
 }
 
 const SLOT_SCHEDULE: Omit<HourlySlot, 'claimedDate'>[] = [
-  { id: 1, label: 'Morning Boost',   unlockHour: 6,  coins: 2 },
-  { id: 2, label: 'Mid-Morning',     unlockHour: 9,  coins: 2 },
+  { id: 1, label: 'Morning Boost',   unlockHour: 6,  coins: 3 },
+  { id: 2, label: 'Mid-Morning',     unlockHour: 9,  coins: 3 },
   { id: 3, label: 'Noon Reward',     unlockHour: 12, coins: 3 },
-  { id: 4, label: 'Afternoon',       unlockHour: 15, coins: 2 },
+  { id: 4, label: 'Afternoon',       unlockHour: 15, coins: 3 },
   { id: 5, label: 'Evening',         unlockHour: 18, coins: 3 },
-  { id: 6, label: 'Night Bonus',     unlockHour: 21, coins: 5 },
+  { id: 6, label: 'Night Bonus',     unlockHour: 21, coins: 4 },
 ];
 
 function todayStr(): string {
