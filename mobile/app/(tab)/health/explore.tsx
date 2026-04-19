@@ -10,7 +10,6 @@ import {
   TextInput,
   Platform,
   StyleSheet,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -284,8 +283,29 @@ function VideoPlayerModal({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const youtubeId = getYouTubeId(video.youtubeUrl);
-  const embedUrl = youtubeId
-    ? `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&playsinline=1&modestbranding=1`
+
+  // Serve the player as a local HTML document so Android/iOS never fire the
+  // YouTube app intent (source={{ html }} has no origin URL to deep-link from).
+  const playerHtml = youtubeId
+    ? `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;background:#000}
+    html,body{width:100%;height:100%;overflow:hidden}
+    iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+  </style>
+</head>
+<body>
+  <iframe
+    src="https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&playsinline=1&modestbranding=1&showinfo=0&controls=1"
+    allow="autoplay; encrypted-media; fullscreen"
+    allowfullscreen
+    frameborder="0"
+  ></iframe>
+</body>
+</html>`
     : null;
 
   const startTimer = useCallback(() => {
@@ -381,40 +401,51 @@ function VideoPlayerModal({
 
         {/* 16:9 player */}
         <View style={{ width: '100%', height: 210, backgroundColor: '#000' }}>
-          {isWeb || !embedUrl ? (
-            /* Web / no-ID fallback: show thumbnail + open in browser */
-            <Pressable
-              onPress={() => embedUrl ? Linking.openURL(video.youtubeUrl) : undefined}
-              style={{ flex: 1 }}
+          {isWeb || !playerHtml ? (
+            /* Web / no-ID fallback: gradient placeholder */
+            <LinearGradient
+              colors={[video.thumbnailColor, darken(video.thumbnailColor)]}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 }}
             >
-              <LinearGradient
-                colors={[video.thumbnailColor, darken(video.thumbnailColor)]}
-                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 }}
-              >
-                <Ionicons
-                  name={video.thumbnailIcon as keyof typeof Ionicons.glyphMap}
-                  size={40}
-                  color="#fff"
-                />
-                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                  Open in YouTube
-                </Text>
-              </LinearGradient>
-            </Pressable>
+              <Ionicons
+                name={video.thumbnailIcon as keyof typeof Ionicons.glyphMap}
+                size={40}
+                color="#fff"
+              />
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                Preview not available on web
+              </Text>
+            </LinearGradient>
           ) : (
             <WebView
-              source={{ uri: embedUrl }}
+              // Local HTML source — prevents YouTube deep-link app intent
+              source={{ html: playerHtml, baseUrl: '' }}
               style={{ flex: 1 }}
               javaScriptEnabled
               allowsInlineMediaPlayback
+              allowsFullscreenVideo
               mediaPlaybackRequiresUserAction={false}
+              // Block any navigation that tries to leave the WebView (YouTube app, etc.)
+              onShouldStartLoadWithRequest={(req) => {
+                const url = req.url;
+                // Allow initial blank + youtube iframe + data URLs only
+                if (
+                  url === 'about:blank' ||
+                  url.startsWith('https://www.youtube.com/embed') ||
+                  url.startsWith('data:')
+                ) {
+                  return true;
+                }
+                // Any other navigation (vnd.youtube://, etc.) — block it
+                return false;
+              }}
               onLoad={() => {
                 setWebViewReady(true);
                 startTimer();
               }}
             />
           )}
-          {!isWeb && !webViewReady && embedUrl && (
+          {!isWeb && !webViewReady && playerHtml && (
             <View
               style={[
                 StyleSheet.absoluteFill,
