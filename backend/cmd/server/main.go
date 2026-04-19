@@ -44,6 +44,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/payments"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/explore"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
@@ -172,6 +173,10 @@ func main() {
 	referralSvc := referral.NewService(database)
 	referralSvc.SetCreditGranter(paymentsSvc)
 	referralHandler := referral.NewHandler(referralSvc)
+
+	exploreRepo := explore.NewRepository(database)
+	exploreSvc := explore.NewService(exploreRepo)
+	exploreHandler := explore.NewHandler(exploreSvc)
 
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)
@@ -347,6 +352,13 @@ func main() {
 	api.GET("/payments/transactions", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetTransactions)
 	api.GET("/credits/balance", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditBalance)
 	api.GET("/referral/stats", middleware.Auth(cfg.JWTSecret), referralHandler.GetStats)
+
+	// Explore — health education videos
+	exploreGroup := api.Group("/explore", middleware.Auth(cfg.JWTSecret))
+	{
+		exploreGroup.GET("/videos", exploreHandler.ListVideos)
+		exploreGroup.POST("/claim", exploreHandler.ClaimReward)
+	}
 
 	// Patient push-token registration (Expo push token stored per-user for
 	// completion notifications).

@@ -6,7 +6,6 @@ import {
   Pressable,
   ActivityIndicator,
   Modal,
-  TextInput,
   Platform,
   StyleSheet,
   useWindowDimensions,
@@ -623,13 +622,11 @@ function VideoPlayerModal({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ExploreScreen() {
-  const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining } =
+  const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap } =
     useExploreStore();
 
-  const [selectedCategory, setSelectedCategory] = useState<VideoCategory | 'All'>('All');
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
-  const [searchText, setSearchText] = useState('');
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [availableIds, setAvailableIds] = useState<Set<string> | null>(null);
 
@@ -638,7 +635,7 @@ export default function ExploreScreen() {
   }, [initialized, initialize]);
 
   // Probe each YouTube video via the oEmbed endpoint — no API key needed, CORS-safe.
-  // Videos that return a non-200 or throw are removed from the list.
+  // Run against the live videos from the store (updates when store refreshes).
   useEffect(() => {
     if (!initialized) return;
 
@@ -646,7 +643,7 @@ export default function ExploreScreen() {
 
     async function checkAvailability() {
       const results = await Promise.allSettled(
-        SEED_VIDEOS.map(async (v) => {
+        videos.map(async (v) => {
           const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${v.youtubeId}&format=json`;
           const res = await fetch(url, { method: 'GET' });
           if (!res.ok) throw new Error(`${res.status}`);
@@ -658,17 +655,17 @@ export default function ExploreScreen() {
 
       const ids = new Set<string>();
       results.forEach((r, i) => {
-        if (r.status === 'fulfilled') ids.add(SEED_VIDEOS[i].id);
+        if (r.status === 'fulfilled') ids.add(videos[i].id);
       });
       setAvailableIds(ids);
     }
 
     checkAvailability();
     return () => { cancelled = true; };
-  }, [initialized]);
+  }, [initialized, videos]);
 
-  // Daily-shuffled video order — recalculated once per mount (changes each day)
-  const shuffledVideos = useMemo(() => getDailyShuffledVideos(), []);
+  // Daily-shuffled video order — recalculated when the catalogue changes
+  const shuffledVideos = useMemo(() => getDailyShuffledVideos(videos), [videos]);
 
   const showToast = useCallback((message: string, coins: number) => {
     setToast({ message, coins });
@@ -692,30 +689,20 @@ export default function ExploreScreen() {
     if (!activeVideo) return;
     const result = await claimReward(activeVideo.id);
     if (result.capReached) {
-      showToast(`Daily limit reached — ${DAILY_VIDEO_CAP} videos max`, 0);
+      showToast(`Daily limit reached — ${dailyCap} videos max`, 0);
     } else if (result.alreadyDone) {
       showToast('Already claimed today', 0);
     } else {
       showToast(`+${result.coinsEarned} Lifecoins earned!`, result.coinsEarned);
+      // Sync server state (updated rewards) in the background
+      refreshVideos();
     }
     setActiveVideo(null);
-  }, [activeVideo, claimReward, showToast]);
+  }, [activeVideo, claimReward, showToast, dailyCap, refreshVideos]);
 
-  // Filtered, availability-checked, search-matched, sorted video list
+  // Availability-checked, sorted video list
   const filteredVideos = shuffledVideos
-    .filter((v) => {
-      if (availableIds && !availableIds.has(v.id)) return false;
-      if (selectedCategory !== 'All' && v.category !== selectedCategory) return false;
-      if (searchText.trim()) {
-        const q = searchText.toLowerCase();
-        return (
-          v.title.toLowerCase().includes(q) ||
-          v.description.toLowerCase().includes(q) ||
-          v.instructor.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    })
+    .filter((v) => !availableIds || availableIds.has(v.id))
     .sort((a, b) => {
       // Sort order: fresh → session-viewed → rewarded
       const aR = isRewarded(a.id);
@@ -724,10 +711,15 @@ export default function ExploreScreen() {
       const aV = viewedIds.has(a.id);
       const bV = viewedIds.has(b.id);
       if (aV !== bV) return aV ? 1 : -1;
-      return 0; // preserve daily shuffle order otherwise
+      return 0;
     });
 
   const dailyRemaining = getDailyRemaining();
+  // Accurate counts based on what's actually available
+  const todayClaimedCount = videos.filter((v) => isRewarded(v.id)).length;
+  const availableUnclaimed = availableIds
+    ? Array.from(availableIds).filter((id) => !isRewarded(id)).length
+    : null;
 
   if (!initialized) {
     return (
@@ -789,12 +781,17 @@ export default function ExploreScreen() {
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {[
             {
-              label: 'Today',
-              value: DAILY_VIDEO_CAP - dailyRemaining,
+              label: 'Watched Today',
+              value: todayClaimedCount,
               icon: 'play-circle-outline' as const,
               color: '#6ee7b7',
             },
-            { label: 'Daily Left', value: dailyRemaining, icon: 'time-outline' as const, color: '#93c5fd' },
+            {
+              label: 'Left to Watch',
+              value: availableUnclaimed ?? '…',
+              icon: 'time-outline' as const,
+              color: '#93c5fd',
+            },
             {
               label: 'Earned',
               value: `${totalEarned} LC`,
@@ -823,76 +820,7 @@ export default function ExploreScreen() {
         </View>
       </LinearGradient>
 
-      {/* Search bar */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 2 }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: 'rgba(255,255,255,0.07)',
-            borderRadius: 14,
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-            gap: 10,
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.1)',
-          }}
-        >
-          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.4)" />
-          <TextInput
-            placeholder="Search videos, topics, instructors…"
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            value={searchText}
-            onChangeText={setSearchText}
-            style={{ flex: 1, fontSize: 14, color: '#fff', padding: 0 }}
-            returnKeyType="search"
-          />
-          {searchText.length > 0 && (
-            <Pressable onPress={() => setSearchText('')} hitSlop={10}>
-              <Ionicons name="close-circle" size={16} color="rgba(255,255,255,0.4)" />
-            </Pressable>
-          )}
-        </View>
-      </View>
 
-      {/* Category tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-      >
-        {CATEGORIES.map((cat) => {
-          const active = selectedCategory === cat;
-          const meta = cat === 'All' ? null : CAT_META[cat as VideoCategory];
-          return (
-            <Pressable
-              key={cat}
-              onPress={() => setSelectedCategory(cat)}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.8 : 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 20,
-                backgroundColor: active ? '#059669' : 'rgba(255,255,255,0.07)',
-                borderWidth: 1,
-                borderColor: active ? '#059669' : 'rgba(255,255,255,0.12)',
-              })}
-            >
-              {meta ? (
-                <Ionicons name={meta.icon} size={13} color={active ? '#fff' : meta.color} />
-              ) : (
-                <Ionicons name="grid-outline" size={13} color={active ? '#fff' : '#9ca3af'} />
-              )}
-              <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : '#9ca3af' }}>
-                {cat}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
 
       {/* Video list */}
       <ScrollView
@@ -908,11 +836,7 @@ export default function ExploreScreen() {
         ) : filteredVideos.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
             <Ionicons name="videocam-off-outline" size={36} color="#374151" />
-            <Text style={{ fontSize: 14, color: '#6b7280' }}>
-              {searchText.trim()
-                ? `No results for "${searchText}"`
-                : 'No videos available in this category'}
-            </Text>
+            <Text style={{ fontSize: 14, color: '#6b7280' }}>No videos available right now</Text>
           </View>
         ) : null}
         {availableIds !== null && filteredVideos.map((video) => (
