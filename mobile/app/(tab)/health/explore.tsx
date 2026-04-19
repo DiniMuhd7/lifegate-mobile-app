@@ -10,6 +10,7 @@ import {
   TextInput,
   Platform,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -276,6 +277,9 @@ function VideoPlayerModal({
   onClose: () => void;
   onClaim: () => Promise<void>;
 }) {
+  const { width: screenWidth } = useWindowDimensions();
+  const videoHeight = Math.round((screenWidth * 9) / 16);
+
   const [webViewReady, setWebViewReady] = useState(false);
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
@@ -284,8 +288,6 @@ function VideoPlayerModal({
 
   const youtubeId = getYouTubeId(video.youtubeUrl);
 
-  // Serve the player as a local HTML document so Android/iOS never fire the
-  // YouTube app intent (source={{ html }} has no origin URL to deep-link from).
   const playerHtml = youtubeId
     ? `<!DOCTYPE html>
 <html>
@@ -301,15 +303,14 @@ function VideoPlayerModal({
   <iframe
     src="https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&playsinline=1&modestbranding=1&showinfo=0&controls=1"
     allow="autoplay; encrypted-media; fullscreen"
-    allowfullscreen
-    frameborder="0"
+    allowfullscreen frameborder="0"
   ></iframe>
 </body>
 </html>`
     : null;
 
   const startTimer = useCallback(() => {
-    if (intervalRef.current) return; // already running
+    if (intervalRef.current) return;
     let remaining = 15;
     intervalRef.current = setInterval(() => {
       remaining -= 1;
@@ -335,108 +336,53 @@ function VideoPlayerModal({
     setClaiming(false);
   };
 
-  // On web, react-native-webview is not supported — fall back to external link
   const isWeb = Platform.OS === 'web';
+
+  // Circular progress: 0–15s countdown
+  const circleSize = 44;
+  const strokeWidth = 3;
+  const radius = (circleSize - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = canClaim ? 1 : (15 - secondsLeft) / 15;
+  const strokeDashoffset = circumference * (1 - progress);
 
   return (
     <Modal
       visible
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0f0f0f' }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: 12,
-          }}
-        >
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.6 : 1,
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <Ionicons name="close" size={20} color="#fff" />
-          </Pressable>
-          <Text
-            style={{
-              flex: 1,
-              fontSize: 14,
-              fontWeight: '700',
-              color: '#fff',
-              textAlign: 'center',
-              marginHorizontal: 12,
-            }}
-            numberOfLines={1}
-          >
-            {video.title}
-          </Text>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              backgroundColor: 'rgba(255,255,255,0.12)',
-              borderRadius: 10,
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-            }}
-          >
-            <Ionicons name="logo-bitcoin" size={13} color="#fbbf24" />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#fbbf24' }}>+{video.coins} LC</Text>
-          </View>
-        </View>
-
-        {/* 16:9 player */}
-        <View style={{ width: '100%', height: 210, backgroundColor: '#000' }}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        {/* ── Video area ── */}
+        <View style={{ width: screenWidth, height: videoHeight, backgroundColor: '#000' }}>
           {isWeb || !playerHtml ? (
-            /* Web / no-ID fallback: gradient placeholder */
             <LinearGradient
               colors={[video.thumbnailColor, darken(video.thumbnailColor)]}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 }}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             >
               <Ionicons
                 name={video.thumbnailIcon as keyof typeof Ionicons.glyphMap}
-                size={40}
+                size={48}
                 color="#fff"
               />
-              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
-                Preview not available on web
-              </Text>
             </LinearGradient>
           ) : (
             <WebView
-              // Local HTML source — prevents YouTube deep-link app intent
               source={{ html: playerHtml, baseUrl: '' }}
               style={{ flex: 1 }}
               javaScriptEnabled
               allowsInlineMediaPlayback
               allowsFullscreenVideo
               mediaPlaybackRequiresUserAction={false}
-              // Block any navigation that tries to leave the WebView (YouTube app, etc.)
               onShouldStartLoadWithRequest={(req) => {
                 const url = req.url;
-                // Allow initial blank + youtube iframe + data URLs only
                 if (
                   url === 'about:blank' ||
                   url.startsWith('https://www.youtube.com/embed') ||
                   url.startsWith('data:')
-                ) {
-                  return true;
-                }
-                // Any other navigation (vnd.youtube://, etc.) — block it
+                ) return true;
                 return false;
               }}
               onLoad={() => {
@@ -445,132 +391,214 @@ function VideoPlayerModal({
               }}
             />
           )}
+
+          {/* Loading spinner */}
           {!isWeb && !webViewReady && playerHtml && (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
-              ]}
-            >
+            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
               <ActivityIndicator size="large" color="#ff0000" />
-              <Text style={{ color: 'rgba(255,255,255,0.45)', marginTop: 12, fontSize: 13 }}>
-                Loading…
-              </Text>
             </View>
           )}
-        </View>
 
-        {/* Details + reward */}
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 32 }}
-        >
-          <View style={{ gap: 4 }}>
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>{video.title}</Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-              {video.instructor} · {formatDuration(video.durationSeconds)}
-            </Text>
-            <Text
-              style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', lineHeight: 20, marginTop: 4 }}
-            >
-              {video.description}
-            </Text>
-          </View>
-
-          {/* Reward status */}
+          {/* Top bar — overlaid on video, like WhatsApp */}
           <View
             style={{
-              backgroundColor: canClaim ? '#052e16' : 'rgba(255,255,255,0.06)',
-              borderRadius: 14,
-              padding: 14,
-              borderWidth: 1,
-              borderColor: canClaim ? '#16a34a' : 'rgba(255,255,255,0.1)',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 12,
+              paddingHorizontal: 12,
+              paddingTop: 48,
+              paddingBottom: 14,
+              background: 'transparent',
             }}
           >
-            <View
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
-                backgroundColor: canClaim ? '#14532d' : 'rgba(255,255,255,0.08)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.75)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={[StyleSheet.absoluteFill]}
+              pointerEvents="none"
+            />
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginRight: 10 })}
             >
-              <Ionicons
-                name="logo-bitcoin"
-                size={20}
-                color={canClaim ? '#4ade80' : 'rgba(255,255,255,0.3)'}
-              />
-            </View>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </Pressable>
             <View style={{ flex: 1 }}>
               <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '800',
-                  color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.45)',
-                }}
+                style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}
+                numberOfLines={1}
               >
-                +{video.coins} Lifecoins
+                {video.title}
               </Text>
-              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
-                {canClaim
-                  ? 'Reward ready — tap below to claim!'
-                  : isWeb
-                    ? 'Watch the video then claim your reward'
-                    : webViewReady
-                      ? `Watch ${secondsLeft}s more to unlock…`
-                      : 'Start watching to unlock your reward'}
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
+                {video.instructor}
               </Text>
             </View>
           </View>
+        </View>
 
-          {/* Claim / countdown CTA */}
+        {/* ── Bottom info panel — fixed, like WhatsApp ── */}
+        <View style={{ flex: 1, backgroundColor: '#111827', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}>
+          {/* Title row */}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 16 }}>
+            {/* Countdown ring / check */}
+            <View style={{ width: circleSize, height: circleSize, alignItems: 'center', justifyContent: 'center' }}>
+              {canClaim ? (
+                <View
+                  style={{
+                    width: circleSize,
+                    height: circleSize,
+                    borderRadius: circleSize / 2,
+                    backgroundColor: '#16a34a',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="checkmark" size={22} color="#fff" />
+                </View>
+              ) : (
+                <>
+                  {/* SVG-like ring via View border trick */}
+                  <View
+                    style={{
+                      width: circleSize,
+                      height: circleSize,
+                      borderRadius: circleSize / 2,
+                      borderWidth: strokeWidth,
+                      borderColor: '#374151',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: circleSize,
+                      height: circleSize,
+                      borderRadius: circleSize / 2,
+                      borderWidth: strokeWidth,
+                      borderColor: webViewReady ? '#059669' : '#374151',
+                      borderTopColor: webViewReady ? '#4ade80' : '#374151',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transform: [{ rotate: `${progress * 360}deg` }],
+                    }}
+                  />
+                  <Text
+                    style={{
+                      position: 'absolute',
+                      fontSize: 13,
+                      fontWeight: '800',
+                      color: webViewReady ? '#fff' : 'rgba(255,255,255,0.3)',
+                    }}
+                  >
+                    {webViewReady ? secondsLeft : '–'}
+                  </Text>
+                </>
+              )}
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff', lineHeight: 22 }}>
+                {video.title}
+              </Text>
+              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                {video.instructor} · {formatDuration(video.durationSeconds)}
+              </Text>
+            </View>
+
+            {/* Coins badge */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: 'rgba(251,191,36,0.12)',
+                borderRadius: 10,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderWidth: 1,
+                borderColor: 'rgba(251,191,36,0.25)',
+              }}
+            >
+              <Ionicons name="logo-bitcoin" size={14} color="#fbbf24" />
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fbbf24' }}>+{video.coins}</Text>
+            </View>
+          </View>
+
+          <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', lineHeight: 19, marginBottom: 24 }}>
+            {video.description}
+          </Text>
+
+          {/* Status hint */}
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: '600',
+              color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.3)',
+              textAlign: 'center',
+              marginBottom: 14,
+            }}
+          >
+            {canClaim
+              ? '✓ Ready to claim your reward'
+              : isWeb
+                ? 'Watch the video then claim your reward'
+                : webViewReady
+                  ? `Unlocks in ${secondsLeft}s…`
+                  : 'Loading video…'}
+          </Text>
+
+          {/* Claim pill — WhatsApp-style centered rounded CTA */}
           <Pressable
             onPress={(isWeb || canClaim) && !claiming ? handleClaim : undefined}
             style={({ pressed }) => ({
-              opacity: (!isWeb && !canClaim) || claiming ? 0.45 : pressed ? 0.85 : 1,
-              borderRadius: 14,
-              overflow: 'hidden',
+              alignSelf: 'center',
+              opacity: (!isWeb && !canClaim) || claiming ? 0.4 : pressed ? 0.8 : 1,
             })}
           >
             <LinearGradient
-              colors={(isWeb || canClaim) ? ['#16a34a', '#14532d'] : ['#374151', '#1f2937']}
+              colors={(isWeb || canClaim) ? ['#16a34a', '#15803d'] : ['#1f2937', '#1f2937']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
-                borderRadius: 14,
-                paddingVertical: 14,
-                alignItems: 'center',
                 flexDirection: 'row',
-                justifyContent: 'center',
+                alignItems: 'center',
                 gap: 10,
+                paddingVertical: 14,
+                paddingHorizontal: 32,
+                borderRadius: 50,
               }}
             >
               {claiming ? (
                 <ActivityIndicator size="small" color="#fff" />
-              ) : isWeb || canClaim ? (
-                <>
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#4ade80" />
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>
-                    Claim +{video.coins} Lifecoins
-                  </Text>
-                </>
               ) : (
                 <>
-                  <Ionicons name="time-outline" size={18} color="rgba(255,255,255,0.4)" />
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.4)' }}>
-                    {webViewReady ? `Unlocks in ${secondsLeft}s` : 'Loading video…'}
+                  <Ionicons
+                    name={(isWeb || canClaim) ? 'logo-bitcoin' : 'time-outline'}
+                    size={20}
+                    color={(isWeb || canClaim) ? '#fbbf24' : 'rgba(255,255,255,0.4)'}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: '800',
+                      color: (isWeb || canClaim) ? '#fff' : 'rgba(255,255,255,0.35)',
+                    }}
+                  >
+                    {(isWeb || canClaim) ? `Claim +${video.coins} Lifecoins` : `Watch to unlock`}
                   </Text>
                 </>
               )}
             </LinearGradient>
           </Pressable>
-        </ScrollView>
-      </SafeAreaView>
+        </View>
+      </View>
     </Modal>
   );
 }
