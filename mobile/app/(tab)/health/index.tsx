@@ -550,8 +550,6 @@ function QuickActions() {
 
 const PROMOTIONS = [
   { title: 'Check-ins', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
-  { title: 'Survey', icon: 'clipboard-outline' as const, color: '#7c3aed', bg: '#ede9fe' },
-  { title: 'Offers', icon: 'pricetag-outline' as const, color: '#d97706', bg: '#fef3c7' },
   { title: 'Explore', icon: 'compass-outline' as const, color: '#059669', bg: '#d1fae5' },
   { title: 'Referrals', icon: 'people-outline' as const, color: '#dc2626', bg: '#fee2e2' },
 ];
@@ -582,8 +580,6 @@ function PromotionsSection() {
             key={item.title}
             onPress={() => {
               if (item.title === 'Check-ins') router.push('/(tab)/health/checkins' as never);
-              if (item.title === 'Survey') router.push('/(tab)/health/survey' as never);
-              if (item.title === 'Offers') router.push('/(tab)/health/offers' as never);
               if (item.title === 'Explore') router.push('/(tab)/health/explore' as never);
               if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
             }}
