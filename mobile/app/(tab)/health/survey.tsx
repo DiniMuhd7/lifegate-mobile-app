@@ -11,7 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useSurveyStore, Survey, SurveyQuestion } from 'stores/survey-store';
+import WebView from 'react-native-webview';
+import { useSurveyStore, Survey } from 'stores/survey-store';
 
 // ── Provider badge colour map ─────────────────────────────────────────────────
 
@@ -304,9 +305,9 @@ function adjustColor(hex: string): string {
   }
 }
 
-// ── Survey Flow ───────────────────────────────────────────────────────────────
+// ── Survey WebView ───────────────────────────────────────────────────────────
 
-function SurveyFlow({
+function SurveyWebView({
   survey,
   onComplete,
   onCancel,
@@ -316,56 +317,34 @@ function SurveyFlow({
   onCancel: () => void;
 }) {
   const completeSurvey = useSurveyStore((s) => s.completeSurvey);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string | string[] | number>>({});
+  const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const question = survey.questions[currentIndex];
-  const isLast = currentIndex === survey.questions.length - 1;
-  const progress = (currentIndex + 1) / survey.questions.length;
-
-  const answer = answers[question.id];
-  const hasAnswer =
-    question.type === 'scale'
-      ? answer !== undefined
-      : question.type === 'multi'
-        ? Array.isArray(answer) && (answer as string[]).length > 0
-        : !!answer;
-
-  const toggleMulti = (opt: string) => {
-    const current = (answers[question.id] as string[]) ?? [];
-    const next = current.includes(opt)
-      ? current.filter((x) => x !== opt)
-      : [...current, opt];
-    setAnswers((a) => ({ ...a, [question.id]: next }));
-  };
-
-  const handleNext = async () => {
-    if (isLast) {
-      setSubmitting(true);
-      const result = await completeSurvey(survey.id);
-      setSubmitting(false);
-      onComplete(result.coinsEarned);
-    } else {
-      setCurrentIndex((i) => i + 1);
-    }
+  const handleClaim = async () => {
+    setSubmitting(true);
+    const result = await completeSurvey(survey.id);
+    setSubmitting(false);
+    onComplete(result.coinsEarned);
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Header */}
       <LinearGradient
         colors={['#7c3aed', '#4c1d95']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24 }}
+        style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Pressable onPress={onCancel} hitSlop={10}>
             <Ionicons name="close" size={24} color="rgba(255,255,255,0.85)" />
           </Pressable>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.75)' }}>
-            {currentIndex + 1} / {survey.questions.length}
+          <Text
+            style={{ fontSize: 15, fontWeight: '700', color: '#fff', flex: 1, textAlign: 'center', marginHorizontal: 12 }}
+            numberOfLines={1}
+          >
+            {survey.title}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
             <Ionicons name="logo-bitcoin" size={13} color="#fbbf24" />
@@ -373,162 +352,63 @@ function SurveyFlow({
           </View>
         </View>
 
-        <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>{survey.title}</Text>
-
-        {/* Progress bar */}
-        <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2 }}>
-          <View style={{ height: 4, width: `${progress * 100}%`, backgroundColor: '#a78bfa', borderRadius: 2 }} />
-        </View>
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-        <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827', lineHeight: 26, marginBottom: 24 }}>
-          {question.text}
-        </Text>
+      {/* Info strip shown once WebView is loaded */}
+      {loaded && (
+        <View style={{ backgroundColor: '#ede9fe', paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <Ionicons name="information-circle-outline" size={16} color="#7c3aed" />
+          <Text style={{ flex: 1, fontSize: 12, color: '#4c1d95', fontWeight: '600' }}>
+            Complete the survey, then tap "Claim" below to earn your Lifecoins.
+          </Text>
+        </View>
+      )}
 
-        {/* Single choice */}
-        {question.type === 'single' && question.options?.map((opt) => (
-          <Pressable
-            key={opt}
-            onPress={() => setAnswers((a) => ({ ...a, [question.id]: opt }))}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 12,
-              backgroundColor: answers[question.id] === opt ? '#ede9fe' : '#fff',
-              borderRadius: 14,
-              padding: 14,
-              marginBottom: 10,
-              borderWidth: 1.5,
-              borderColor: answers[question.id] === opt ? '#7c3aed' : '#e5e7eb',
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                borderWidth: 2,
-                borderColor: answers[question.id] === opt ? '#7c3aed' : '#d1d5db',
-                backgroundColor: answers[question.id] === opt ? '#7c3aed' : 'transparent',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {answers[question.id] === opt && <Ionicons name="checkmark" size={13} color="#fff" />}
-            </View>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: answers[question.id] === opt ? '#4c1d95' : '#374151', flex: 1 }}>
-              {opt}
-            </Text>
-          </Pressable>
-        ))}
-
-        {/* Multi select */}
-        {question.type === 'multi' && question.options?.map((opt) => {
-          const selected = ((answers[question.id] as string[]) ?? []).includes(opt);
-          return (
-            <Pressable
-              key={opt}
-              onPress={() => toggleMulti(opt)}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                backgroundColor: selected ? '#ede9fe' : '#fff',
-                borderRadius: 14,
-                padding: 14,
-                marginBottom: 10,
-                borderWidth: 1.5,
-                borderColor: selected ? '#7c3aed' : '#e5e7eb',
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <View
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 5,
-                  borderWidth: 2,
-                  borderColor: selected ? '#7c3aed' : '#d1d5db',
-                  backgroundColor: selected ? '#7c3aed' : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {selected && <Ionicons name="checkmark" size={13} color="#fff" />}
-              </View>
-              <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? '#4c1d95' : '#374151', flex: 1 }}>
-                {opt}
-              </Text>
-            </Pressable>
-          );
-        })}
-
-        {/* Scale */}
-        {question.type === 'scale' && (() => {
-          const min = question.min ?? 1;
-          const max = question.max ?? 5;
-          const steps = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-          const selected = answers[question.id] as number | undefined;
-          return (
-            <View style={{ gap: 12 }}>
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {steps.map((val) => (
-                  <Pressable
-                    key={val}
-                    onPress={() => setAnswers((a) => ({ ...a, [question.id]: val }))}
-                    style={({ pressed }) => ({
-                      width: 52,
-                      height: 52,
-                      borderRadius: 14,
-                      borderWidth: 2,
-                      borderColor: selected === val ? '#7c3aed' : '#e5e7eb',
-                      backgroundColor: selected === val ? '#7c3aed' : '#fff',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.85 : 1,
-                    })}
-                  >
-                    <Text style={{ fontSize: 18, fontWeight: '800', color: selected === val ? '#fff' : '#374151' }}>{val}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 11, color: '#9ca3af' }}>Low</Text>
-                <Text style={{ fontSize: 11, color: '#9ca3af' }}>High</Text>
-              </View>
-            </View>
-          );
-        })()}
-      </ScrollView>
-
-      {/* Next / Submit */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 8 }}>
-        <Pressable
-          onPress={handleNext}
-          disabled={!hasAnswer || submitting}
-          style={({ pressed }) => ({ opacity: !hasAnswer || submitting ? 0.5 : pressed ? 0.85 : 1, borderRadius: 14, overflow: 'hidden' })}
-        >
-          <LinearGradient
-            colors={['#7c3aed', '#4c1d95']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{ borderRadius: 14, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <>
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>
-                  {isLast ? 'Submit & Earn' : 'Next'}
-                </Text>
-                <Ionicons name={isLast ? 'checkmark-circle-outline' : 'arrow-forward'} size={18} color="#fff" />
-              </>
-            )}
-          </LinearGradient>
-        </Pressable>
+      {/* Real survey loaded in WebView */}
+      <View style={{ flex: 1 }}>
+        {!loaded && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', zIndex: 10 }}>
+            <ActivityIndicator size="large" color="#7c3aed" />
+            <Text style={{ marginTop: 12, fontSize: 13, color: '#6b7280' }}>Loading survey…</Text>
+          </View>
+        )}
+        <WebView
+          source={{ uri: survey.surveyUrl }}
+          style={{ flex: 1 }}
+          onLoadEnd={() => setLoaded(true)}
+          javaScriptEnabled
+          domStorageEnabled
+        />
       </View>
+
+      {/* Claim bar — appears once the survey has loaded */}
+      {loaded && (
+        <View style={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
+          <Pressable
+            onPress={handleClaim}
+            disabled={submitting}
+            style={({ pressed }) => ({ opacity: submitting ? 0.6 : pressed ? 0.85 : 1, borderRadius: 14, overflow: 'hidden' })}
+          >
+            <LinearGradient
+              colors={['#7c3aed', '#4c1d95']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ borderRadius: 14, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
+                    Done — Claim +{survey.coins} Lifecoins
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -616,10 +496,10 @@ export default function SurveyScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['top']}>
-      {/* Survey flow modal */}
+      {/* Survey WebView modal */}
       <Modal visible={!!activeSurvey} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setActiveSurvey(null)}>
         {activeSurvey && (
-          <SurveyFlow
+          <SurveyWebView
             survey={activeSurvey}
             onComplete={handleComplete}
             onCancel={() => setActiveSurvey(null)}
