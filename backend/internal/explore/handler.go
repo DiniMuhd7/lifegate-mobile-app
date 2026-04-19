@@ -38,7 +38,7 @@ func (h *Handler) ListVideos(c *gin.Context) {
 	uid, _ := userID.(string)
 
 	rewardedIDs, err := h.svc.GetDailyRewardedIDs(uid)
-	if err != nil {
+	if err != nil || rewardedIDs == nil {
 		rewardedIDs = []string{}
 	}
 

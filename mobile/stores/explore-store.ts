@@ -244,7 +244,14 @@ async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: str
         dailyCap: number;
       };
     }>('/explore/videos');
-    if (res.data.success) return res.data.data;
+    if (res.data.success) {
+      const d = res.data.data;
+      return {
+        videos: d.videos ?? SEED_VIDEOS,
+        rewardedIds: d.rewardedIds ?? [],
+        dailyCap: d.dailyCap ?? DAILY_VIDEO_CAP,
+      };
+    }
     return null;
   } catch {
     return null;
