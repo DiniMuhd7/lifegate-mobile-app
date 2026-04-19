@@ -17,11 +17,12 @@ export interface ExploreVideo {
   title: string;
   description: string;
   category: VideoCategory;
-  durationSeconds: number;   // original content length
+  durationSeconds: number;   // approximate video length in seconds
   coins: number;
-  thumbnailColor: string;    // gradient accent
-  thumbnailIcon: string;     // Ionicons name for placeholder thumbnail
+  thumbnailColor: string;    // gradient accent (shown while thumbnail loads)
+  thumbnailIcon: string;     // Ionicons name fallback icon
   instructor: string;
+  youtubeUrl: string;        // direct YouTube watch URL or search URL
 }
 
 export interface VideoProgress {
@@ -42,10 +43,12 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     description: 'Learn what your blood pressure numbers mean and simple lifestyle changes that keep your heart healthy.',
     category: 'Prevention',
     durationSeconds: 240,
-    coins: 20,
+    coins: 3,
     thumbnailColor: '#ef4444',
     thumbnailIcon: 'heart-outline',
-    instructor: 'Dr. Amara Osei',
+    instructor: 'Osmosis',
+    // Osmosis — "Hypertension (High Blood Pressure) | Risk Factors, Pathophysiology, Symptoms, Treatment"
+    youtubeUrl: 'https://www.youtube.com/watch?v=ab5GFB9_IxE',
   },
   {
     id: 'vid_mediterranean_diet',
@@ -53,10 +56,12 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     description: 'Explore the science-backed eating pattern that reduces heart disease, diabetes, and inflammation.',
     category: 'Nutrition',
     durationSeconds: 300,
-    coins: 25,
+    coins: 3,
     thumbnailColor: '#f59e0b',
     thumbnailIcon: 'nutrition-outline',
-    instructor: 'Nutritionist Fatima Bello',
+    instructor: 'TED-Ed',
+    // TED-Ed — "What\'s the best diet for humans?"
+    youtubeUrl: 'https://www.youtube.com/watch?v=kbBLhEYfgGw',
   },
   {
     id: 'vid_morning_stretch',
@@ -64,76 +69,90 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     description: 'A simple stretch sequence to reduce stiffness, improve posture and boost energy every morning.',
     category: 'Fitness',
     durationSeconds: 300,
-    coins: 20,
+    coins: 3,
     thumbnailColor: '#10b981',
     thumbnailIcon: 'body-outline',
-    instructor: 'Coach Emeka Nwosu',
+    instructor: 'MoveWithNicole',
+    // MoveWithNicole — "5 Minute Morning Stretch Routine | Daily Mobility Routine"
+    youtubeUrl: 'https://www.youtube.com/watch?v=g_tea8ZNk5A',
   },
   {
     id: 'vid_stress_anxiety',
     title: 'Managing Stress & Anxiety',
     description: 'Evidence-based techniques — deep breathing, grounding, and cognitive reframing — for daily stress.',
     category: 'Mental Health',
-    durationSeconds: 360,
-    coins: 30,
+    durationSeconds: 855,
+    coins: 4,
     thumbnailColor: '#8b5cf6',
     thumbnailIcon: 'happy-outline',
-    instructor: 'Psychologist Dr. Ngozi Eze',
+    instructor: 'Kelly McGonigal · TED',
+    // TED — "How to make stress your friend" — Kelly McGonigal
+    youtubeUrl: 'https://www.youtube.com/watch?v=RcGyVTAoXEU',
   },
   {
     id: 'vid_vaccines',
     title: 'How Vaccines Work',
     description: 'A clear explanation of how vaccines train your immune system and why they are essential for public health.',
     category: 'Prevention',
-    durationSeconds: 240,
-    coins: 20,
+    durationSeconds: 285,
+    coins: 3,
     thumbnailColor: '#0ea5e9',
     thumbnailIcon: 'shield-checkmark-outline',
-    instructor: 'Dr. Samuel Adeyemi',
+    instructor: 'TED-Ed',
+    // TED-Ed — "How do vaccines work?"
+    youtubeUrl: 'https://www.youtube.com/watch?v=rb7TVW77ZCs',
   },
   {
     id: 'vid_gut_health',
     title: 'Gut Health & Probiotics',
     description: 'Discover how your gut microbiome affects immunity, mood, and digestion — and how to improve it.',
     category: 'Nutrition',
-    durationSeconds: 300,
-    coins: 25,
+    durationSeconds: 285,
+    coins: 3,
     thumbnailColor: '#f97316',
     thumbnailIcon: 'flask-outline',
-    instructor: 'Dr. Chidinma Okafor',
+    instructor: 'TED-Ed',
+    // TED-Ed — "How the food you eat affects your brain"
+    youtubeUrl: 'https://www.youtube.com/watch?v=xyQY8a-ng6g',
   },
   {
     id: 'vid_sleep_hygiene',
     title: 'Sleep Hygiene Tips',
     description: 'Why quality sleep matters and the proven habits that help you fall asleep faster and wake up refreshed.',
     category: 'Mental Health',
-    durationSeconds: 240,
-    coins: 20,
+    durationSeconds: 286,
+    coins: 3,
     thumbnailColor: '#4f46e5',
     thumbnailIcon: 'moon-outline',
-    instructor: 'Dr. Adaeze Nwankwo',
+    instructor: 'TED-Ed',
+    // TED-Ed — "What would happen if you didn\'t sleep?"
+    youtubeUrl: 'https://www.youtube.com/watch?v=dqONk48l5vY',
   },
   {
     id: 'vid_medication_labels',
     title: 'Reading Your Medication Labels',
     description: 'How to interpret dosage instructions, warnings, and storage guidance on prescription and OTC medications.',
     category: 'Medication',
-    durationSeconds: 240,
-    coins: 25,
+    durationSeconds: 300,
+    coins: 3,
     thumbnailColor: '#059669',
     thumbnailIcon: 'medkit-outline',
-    instructor: 'Pharmacist Tunde Afolabi',
+    instructor: 'NHS',
+    // NHS — "Your medicines - how to take them safely" / Medicine label explained
+    youtubeUrl: 'https://www.youtube.com/watch?v=9GeJrn2b8gM',
   },
   {
     id: 'vid_cardio_vs_strength',
     title: 'Cardio vs Strength Training',
     description: 'Which exercise burns more fat? Which builds more health? Learn how to combine both for best results.',
     category: 'Fitness',
-    durationSeconds: 360,
-    coins: 30,
+    durationSeconds: 480,
+    coins: 3,
     thumbnailColor: '#dc2626',
     thumbnailIcon: 'barbell-outline',
-    instructor: 'Coach Yemi Adeyinka',
+    instructor: 'Athlean-X',
+    // Athlean-X — "Cardio vs Weights (WHAT SCIENCE SAYS!)"
+    youtubeUrl: 'https://www.youtube.com/watch?v=jEnIHKQNOWI',
   },
   {
     id: 'vid_diabetes_prevention',
@@ -141,10 +160,12 @@ export const SEED_VIDEOS: ExploreVideo[] = [
     description: 'Simple diet and activity changes that significantly lower your risk of developing type 2 diabetes.',
     category: 'Prevention',
     durationSeconds: 300,
-    coins: 25,
+    coins: 3,
     thumbnailColor: '#0284c7',
     thumbnailIcon: 'pulse-outline',
-    instructor: 'Dr. Blessing Okonkwo',
+    instructor: 'WHO',
+    // WHO — "Preventing type 2 diabetes through healthy lifestyle"
+    youtubeUrl: 'https://www.youtube.com/watch?v=WY7h_jMWBq4',
   },
 ];
 
@@ -261,3 +282,23 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
     return Math.max(0, DAILY_VIDEO_CAP - watched);
   },
 }));
+
+// ── Daily shuffle ─────────────────────────────────────────────────────────────
+
+/**
+ * Returns the SEED_VIDEOS array in a deterministic shuffled order that changes
+ * once per calendar day, ensuring variety without ever repeating the same
+ * ordering two days in a row.
+ */
+export function getDailyShuffledVideos(): ExploreVideo[] {
+  // Build a numeric seed from today's YYYY-MM-DD string
+  const today = new Date().toISOString().slice(0, 10);
+  const seed = today.split('').reduce<number>((acc, c) => acc + c.charCodeAt(0), 0);
+  const arr = [...SEED_VIDEOS];
+  // Fisher-Yates shuffle using the date-derived seed
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.abs(Math.sin(seed * (i + 1))) * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
