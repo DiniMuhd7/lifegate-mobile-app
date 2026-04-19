@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS explore_videos (
 
 CREATE TABLE IF NOT EXISTS explore_video_rewards (
     id           BIGSERIAL   PRIMARY KEY,
-    user_id      TEXT        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     video_id     TEXT        NOT NULL REFERENCES explore_videos(id) ON DELETE CASCADE,
     rewarded_on  DATE        NOT NULL DEFAULT CURRENT_DATE,
     coins_earned INTEGER     NOT NULL DEFAULT 0,
