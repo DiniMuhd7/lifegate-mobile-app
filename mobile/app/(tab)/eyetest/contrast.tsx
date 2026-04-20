@@ -80,6 +80,13 @@ export default function ContrastTest() {
     startContrastTest();
   }, []);
 
+  // Auto-navigate when all spatial frequencies are done
+  useEffect(() => {
+    if (testStatus?.contrast === 'done') {
+      router.replace(nextScreen(testStatus) as never);
+    }
+  }, [testStatus?.contrast]);
+
   // Reset answered state and start the minimum-view timer on each new stimulus.
   useEffect(() => {
     setAnswered(false);
