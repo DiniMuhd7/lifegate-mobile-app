@@ -14,6 +14,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Platform,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +43,7 @@ import { PTA_FREQUENCIES, HF_FREQUENCIES } from 'types/hearing-types';
 
 const SCREEN_W = Dimensions.get('window').width;
 const TEAL = '#0AADA2';
+const TEAL_D = '#0f766e';
 
 const CHART_MARGIN_LEFT = 40; // space for dBHL labels
 const CHART_MARGIN_BOTTOM = 28; // space for frequency labels
@@ -1220,10 +1222,10 @@ function EDISHearingPanel({ edis }: { edis: SensorInterpretResponse }) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827' }}>
-            EDIS Clinical Interpretation
+            LifeGate Interpretation
           </Text>
           <Text style={{ fontSize: 11, color: '#9ca3af' }}>
-            {edis.providerName ? `Powered by ${edis.providerName}` : 'AI-backed probabilistic analysis'}
+            Powered by DSHub
           </Text>
         </View>
         <View style={{ backgroundColor: urgBg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -1431,7 +1433,7 @@ export default function HearingResults() {
     router.replace('/(tab)/chatScreen' as never);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (Platform.OS === 'web') {
       openHearingPDF({
         session,
@@ -1441,25 +1443,36 @@ export default function HearingResults() {
         userAge,
         edisResult,
       });
+    } else {
+      const lines = [
+        `LifeGate Hearing Results — ${new Date().toDateString()}`,
+        '',
+        rightWHO ? `Right Ear: Grade ${rightWHO.grade} — ${rightWHO.label} (PTA ${rightWHO.pureTonaAverage.toFixed(0)} dBHL)` : 'Right Ear: Not tested',
+        leftWHO  ? `Left Ear:  Grade ${leftWHO.grade} — ${leftWHO.label} (PTA ${leftWHO.pureTonaAverage.toFixed(0)} dBHL)` : 'Left Ear:  Not tested',
+        '',
+        'Screening only — not a clinical diagnosis.',
+      ];
+      try {
+        await Share.share({ message: lines.join('\n') });
+      } catch { /* dismissed */ }
     }
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <StatusBar barStyle="light-content" backgroundColor="#111827" />
+    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
         {/* Header */}
-        <View style={{ backgroundColor: '#111827', paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: '#fff' }}>Hearing Results</Text>
-            <Text style={{ fontSize: 12, color: '#6b7280' }}>Pure Tone Audiometry — {new Date().toLocaleDateString()}</Text>
-          </View>
-          <View style={{ backgroundColor: `${overallColor}22`, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: overallColor }}>
-              {WHO_GRADE_LABEL[worstGrade]}
-            </Text>
-          </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, gap: 12 }}>
+          <Pressable onPress={handleExport} hitSlop={10}
+            style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#e5e7eb' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' })}>
+            <Ionicons name={Platform.OS === 'web' ? 'document-outline' : 'share-outline'} size={20} color="#374151" />
+          </Pressable>
+          <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' }}>
+            Hearing Results
+          </Text>
+          <View style={{ width: 38 }} />
         </View>
 
         <ScrollView
@@ -1469,46 +1482,36 @@ export default function HearingResults() {
         >
           {/* Summary hero */}
           <LinearGradient
-            colors={[`${overallColor}20`, `${overallColor}08`]}
+            colors={[TEAL, TEAL_D]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1.5, borderColor: `${overallColor}30` }}
+            style={{ borderRadius: 22, padding: 24, alignItems: 'center', marginBottom: 20 }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 }}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.8 }}>
-                  HEARING ASSESSMENT
-                </Text>
-                <Text style={{ fontSize: 22, fontWeight: '900', color: '#111827' }}>
-                  {WHO_GRADE_LABEL[worstGrade]}
-                </Text>
-              </View>
-              <View style={{ backgroundColor: overallColor, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 }}>
-                <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>Grade {worstGrade}</Text>
-              </View>
+            <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+              <Ionicons name="ear-outline" size={44} color="#fff" />
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 }}>
-                <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2.5, borderColor: RIGHT_COLOR, marginBottom: 2 }} />
-                <Text style={{ fontSize: 17, fontWeight: '900', color: RIGHT_COLOR }}>
-                  {rightWHO ? `${rightWHO.pureTonaAverage.toFixed(0)}` : '—'}
+            {user?.name ? (
+              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 2 }}>{user.name}</Text>
+            ) : null}
+            <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff' }}>
+              {WHO_GRADE_LABEL[worstGrade]}
+            </Text>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 6, textAlign: 'center' }}>
+              Pure Tone Audiometry · {new Date().toLocaleDateString()}
+            </Text>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, marginTop: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: '#fff' }}>Grade {worstGrade}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600' }}>
+                  ○ Right: {rightWHO ? `${rightWHO.pureTonaAverage.toFixed(0)} dBHL` : '—'}
                 </Text>
-                <Text style={{ fontSize: 9, color: '#6b7280' }}>Right dBHL</Text>
               </View>
-              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 }}>
-                <View style={{ width: 14, height: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                  <View style={{ position: 'absolute', width: 12, height: 2.5, backgroundColor: LEFT_COLOR, transform: [{ rotate: '45deg' }] }} />
-                  <View style={{ position: 'absolute', width: 12, height: 2.5, backgroundColor: LEFT_COLOR, transform: [{ rotate: '-45deg' }] }} />
-                </View>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: leftWHO ? LEFT_COLOR : '#9ca3af' }}>
-                  {leftWHO ? `${leftWHO.pureTonaAverage.toFixed(0)}` : '—'}
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 20, paddingHorizontal: 11, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600' }}>
+                  × Left: {leftWHO ? `${leftWHO.pureTonaAverage.toFixed(0)} dBHL` : '—'}
                 </Text>
-                <Text style={{ fontSize: 9, color: '#6b7280' }}>{leftWHO ? 'Left dBHL' : 'Left — N/A'}</Text>
-              </View>
-              <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 12, padding: 10, alignItems: 'center', gap: 3 }}>
-                <Ionicons name="checkmark-circle-outline" size={18} color="#16a34a" style={{ marginBottom: 2 }} />
-                <Text style={{ fontSize: 14, fontWeight: '900', color: '#111827' }}>PTA</Text>
-                <Text style={{ fontSize: 9, color: '#6b7280' }}>Complete</Text>
               </View>
             </View>
           </LinearGradient>
@@ -1549,7 +1552,7 @@ export default function HearingResults() {
           {edisLoading ? (
             <View style={{ backgroundColor: '#fff', borderRadius: 20, borderWidth: 1.5, borderColor: '#e5e7eb', padding: 24, marginBottom: 16, alignItems: 'center', gap: 10 }}>
               <ActivityIndicator size="small" color={TEAL} />
-              <Text style={{ fontSize: 13, color: '#9ca3af' }}>Generating EDIS clinical interpretation…</Text>
+              <Text style={{ fontSize: 13, color: '#9ca3af' }}>Generating LifeGate interpretation…</Text>
             </View>
           ) : edisResult?.success ? (
             <EDISHearingPanel edis={edisResult} />
@@ -1562,46 +1565,51 @@ export default function HearingResults() {
           )}
 
           {/* Disclaimer */}
-          <View style={{ backgroundColor: '#fffbeb', borderRadius: 14, padding: 14, marginTop: 4, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-            <Ionicons name="warning-outline" size={18} color="#d97706" />
-            <Text style={{ flex: 1, fontSize: 11, color: '#92400e', lineHeight: 18 }}>
+          <View style={{ backgroundColor: '#f3f4f6', borderRadius: 12, padding: 12, marginTop: 4, marginBottom: 4 }}>
+            <Text style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', lineHeight: 17 }}>
               This is a screening test and not a clinical diagnosis. Results may be affected by device limitations, ambient noise, and headphone type. Please consult an audiologist for confirmed hearing evaluation.
             </Text>
           </View>
 
           {/* Actions */}
-          {Platform.OS === 'web' && (
+          <View style={{ gap: 10, marginTop: 16 }}>
             <Pressable
               onPress={handleExport}
               style={({ pressed }) => ({
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                gap: 8, marginTop: 20, paddingVertical: 14, borderRadius: 14,
-                backgroundColor: pressed ? '#0f766e' : TEAL,
+                paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db',
+                backgroundColor: pressed ? '#f3f4f6' : '#fff',
+                alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
               })}
             >
-              <Ionicons name="document-outline" size={18} color="#fff" />
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>Export Results</Text>
+              <Ionicons name={Platform.OS === 'web' ? 'document-outline' : 'share-social-outline'} size={18} color="#374151" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>
+                {Platform.OS === 'web' ? 'Export Results' : 'Share Results'}
+              </Text>
             </Pressable>
-          )}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
             <Pressable
               onPress={handleRetake}
               style={({ pressed }) => ({
-                flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center',
+                paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db',
                 backgroundColor: pressed ? '#f3f4f6' : '#fff',
-                borderWidth: 1.5, borderColor: '#e5e7eb',
+                alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8,
               })}
             >
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151' }}>Retake Test</Text>
+              <Ionicons name="refresh-outline" size={18} color="#374151" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>Retake Test</Text>
             </Pressable>
             <Pressable
               onPress={handleDone}
-              style={({ pressed }) => ({
-                flex: 1.4, paddingVertical: 14, borderRadius: 14, alignItems: 'center',
-                backgroundColor: pressed ? '#0f766e' : TEAL,
-              })}
+              style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
             >
-              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>Done</Text>
+              <LinearGradient
+                colors={[TEAL, TEAL_D]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ paddingVertical: 14, borderRadius: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Done</Text>
+              </LinearGradient>
             </Pressable>
           </View>
         </ScrollView>

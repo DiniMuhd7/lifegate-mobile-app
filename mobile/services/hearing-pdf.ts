@@ -435,8 +435,8 @@ function edisSection(edis: SensorInterpretResponse): string {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="width:36px;height:36px;border-radius:10px;background:#f0fdfc;display:flex;align-items:center;justify-content:center;font-size:18px;">☁</div>
       <div style="flex:1;">
-        <div style="font-size:14px;font-weight:800;color:#111827;">EDIS Clinical Interpretation</div>
-        <div style="font-size:11px;color:#9ca3af;">${edis.providerName ? `Powered by ${esc(edis.providerName)}` : 'AI-backed probabilistic analysis'}</div>
+        <div style="font-size:14px;font-weight:800;color:#111827;">LifeGate Interpretation</div>
+        <div style="font-size:11px;color:#9ca3af;">Powered by DSHub</div>
       </div>
       <span style="background:${gc}20;color:${gc};border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;text-transform:uppercase;">${esc(urg)}</span>
     </div>

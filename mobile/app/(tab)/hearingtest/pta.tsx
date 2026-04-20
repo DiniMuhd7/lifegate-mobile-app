@@ -228,6 +228,8 @@ export default function PTATest() {
   const trialStart    = useRef<number>(0);
   const blobUrlRef    = useRef<string | null>(null);
   const timeExpiredRef = useRef(false);
+  const earStartRef           = useRef(Date.now()); // tracks per-ear elapsed time
+  const earSwitchTriggeredRef = useRef(false);     // prevents double ear-switch trigger
 
   const [tonePhase, setTonePhase] = useState<'countdown' | 'playing' | 'waiting' | 'responded'>('countdown');
   const [countdown, setCountdown] = useState(2);
@@ -258,8 +260,17 @@ export default function PTATest() {
       setElapsed(secs);
       if (secs * 1_000 >= TEST_DURATION_MS && !timeExpiredRef.current) {
         timeExpiredRef.current = true;
-      }
-    }, 1_000);
+      }      // Per-ear 2.5-minute limit: auto-trigger ear switch at halfway mark
+      const earElapsedMs = Date.now() - earStartRef.current;
+      const currentEar = useHearingStore.getState().activeEar;
+      if (
+        earElapsedMs >= TEST_DURATION_MS / 2 &&
+        currentEar === 'right' &&
+        !earSwitchTriggeredRef.current
+      ) {
+        earSwitchTriggeredRef.current = true;
+        setShowEarSwitch(true);
+      }    }, 1_000);
     return () => clearInterval(t);
   }, []);
 
@@ -525,6 +536,7 @@ export default function PTATest() {
     setShowEarSwitch(false);
     finaliseEar();
     startEarTest('left');
+    earStartRef.current = Date.now(); // reset per-ear timer for left ear
     setTonePhase('countdown');
     setCountdown(2);
   };
@@ -534,13 +546,8 @@ export default function PTATest() {
   const currentDbHL = currentStaircase.currentDbHL;
   const earFreqProgress = ((freqIndex + (tonePhase === 'responded' ? 0.9 : 0)) / PTA_FREQUENCIES.length);
 
-  // Overall progress across both ears (0–1)
-  const AVG_TRIALS_PER_FREQ = 5; // ~5 trials to converge with 2 reversals
-  const TOTAL_FREQS         = PTA_FREQUENCIES.length * 2; // 12
-  const earOffset           = activeEar === 'right' ? 0 : PTA_FREQUENCIES.length;
-  const completedFreqUnits  = earOffset + freqIndex;
-  const currentFreqFraction = Math.min(currentStaircase.trials.length / AVG_TRIALS_PER_FREQ, 0.95);
-  const overallProgress     = Math.min((completedFreqUnits + currentFreqFraction) / TOTAL_FREQS, 1);
+  // Overall progress based on real elapsed time vs 5-minute session timer
+  const overallProgress = Math.min(elapsed / (TEST_DURATION_MS / 1_000), 1);
 
   // 5-minute countdown display
   const timeLeftSecs = Math.max(0, TEST_DURATION_MS / 1_000 - elapsed);
