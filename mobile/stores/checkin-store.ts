@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'checkin_store_v1';
 
 // ── Slot schedule ────────────────────────────────────────────────────────────
-// Each slot unlocks at a specific hour (24-hr). Resets daily at midnight.
+// Each slot unlocks at a specific hour (24-hr). All reward 3 Lifecoins.
 
 export interface HourlySlot {
   id: number;
@@ -15,19 +15,199 @@ export interface HourlySlot {
 }
 
 const SLOT_SCHEDULE: Omit<HourlySlot, 'claimedDate'>[] = [
-  { id: 1, label: 'Morning Boost',   unlockHour: 6,  coins: 3 },
-  { id: 2, label: 'Mid-Morning',     unlockHour: 9,  coins: 3 },
-  { id: 3, label: 'Noon Reward',     unlockHour: 12, coins: 3 },
-  { id: 4, label: 'Afternoon',       unlockHour: 15, coins: 3 },
-  { id: 5, label: 'Evening',         unlockHour: 18, coins: 3 },
-  { id: 6, label: 'Night Bonus',     unlockHour: 21, coins: 4 },
+  { id: 1, label: 'Morning Boost',  unlockHour: 6,  coins: 3 },
+  { id: 2, label: 'Mid-Morning',    unlockHour: 9,  coins: 3 },
+  { id: 3, label: 'Noon',           unlockHour: 12, coins: 3 },
+  { id: 4, label: 'Afternoon',      unlockHour: 15, coins: 3 },
+  { id: 5, label: 'Evening',        unlockHour: 18, coins: 3 },
+  { id: 6, label: 'Night Boost',    unlockHour: 21, coins: 3 },
 ];
+
+// ── Health Check-in Question Types ───────────────────────────────────────────
+
+export type QuestionType = 'scale' | 'choice' | 'yesno';
+
+export interface CheckinQuestion {
+  id: string;
+  text: string;
+  type: QuestionType;
+  options?: string[];             // for 'choice'
+  scaleMin?: number;              // for 'scale'
+  scaleMax?: number;              // for 'scale'
+  scaleLabels?: [string, string]; // [low, high]
+}
+
+export interface CheckinAnswer {
+  questionId: string;
+  value: string | number;
+}
+
+// ── Condition → Symptom phrase mapping ───────────────────────────────────────
+
+const CONDITION_SYMPTOM_MAP: [string, string][] = [
+  ['malaria',           'fever and chills'],
+  ['hypertension',      'headaches or dizziness'],
+  ['high blood pressure', 'headaches or dizziness'],
+  ['diabetes',          'blood sugar levels and energy'],
+  ['pneumonia',         'breathing and chest discomfort'],
+  ['typhoid',           'abdominal pain and fever'],
+  ['gastroenteritis',   'nausea and stomach discomfort'],
+  ['anemia',            'fatigue and weakness'],
+  ['sickle cell',       'pain episodes and fatigue'],
+  ['asthma',            'breathing and wheezing'],
+  ['respiratory',       'congestion and sore throat'],
+  ['flu',               'fever, body aches and congestion'],
+  ['influenza',         'fever, body aches and congestion'],
+  ['covid',             'respiratory symptoms and fatigue'],
+  ['urinary',           'pain or discomfort during urination'],
+  ['arthritis',         'joint pain and stiffness'],
+  ['migraine',          'headache and light sensitivity'],
+  ['ulcer',             'stomach pain and discomfort'],
+  ['hepatitis',         'abdominal discomfort and fatigue'],
+  ['tuberculosis',      'cough and breathing'],
+  ['tb',                'cough and breathing'],
+];
+
+function getConditionSymptom(condition: string): string {
+  const lower = condition.toLowerCase();
+  for (const [key, symptom] of CONDITION_SYMPTOM_MAP) {
+    if (lower.includes(key)) return symptom;
+  }
+  return 'your main symptoms';
+}
+
+// ── Per-slot question sets ────────────────────────────────────────────────────
+
+export function getSlotQuestions(
+  slotId: number,
+  condition: string | null,
+  hasPrescription: boolean,
+): CheckinQuestion[] {
+  const symptom = condition ? getConditionSymptom(condition) : 'your symptoms';
+
+  const symptomQ: CheckinQuestion = {
+    id: 'symptom',
+    text: `How is ${symptom} compared to earlier?`,
+    type: 'choice',
+    options: ['Much better', 'Slightly better', 'About the same', 'Slightly worse'],
+  };
+
+  const medQ: CheckinQuestion = {
+    id: 'medication',
+    text: 'Have you taken your prescribed medication?',
+    type: 'yesno',
+  };
+
+  switch (slotId) {
+    case 1: { // Morning Boost
+      const qs: CheckinQuestion[] = [
+        {
+          id: 'morning_feeling',
+          text: 'How are you feeling this morning?',
+          type: 'scale',
+          scaleMin: 1, scaleMax: 5,
+          scaleLabels: ['Very unwell', 'Feeling great'],
+        },
+        symptomQ,
+      ];
+      if (hasPrescription) qs.push({ ...medQ, text: 'Have you taken your morning medication?' });
+      return qs;
+    }
+    case 2: { // Mid-Morning
+      return [
+        {
+          id: 'energy',
+          text: 'What is your energy level right now?',
+          type: 'scale',
+          scaleMin: 1, scaleMax: 5,
+          scaleLabels: ['Very low', 'Very high'],
+        },
+        symptomQ,
+        {
+          id: 'hydration',
+          text: 'Have you eaten or had enough water?',
+          type: 'yesno',
+        },
+      ];
+    }
+    case 3: { // Noon
+      return [
+        {
+          id: 'noon_health',
+          text: 'How would you rate your health at midday?',
+          type: 'scale',
+          scaleMin: 1, scaleMax: 5,
+          scaleLabels: ['Very unwell', 'Feeling well'],
+        },
+        symptomQ,
+        {
+          id: 'new_symptoms',
+          text: 'Any new or worsening symptoms since this morning?',
+          type: 'yesno',
+        },
+      ];
+    }
+    case 4: { // Afternoon
+      return [
+        {
+          id: 'fatigue',
+          text: 'How fatigued are you this afternoon?',
+          type: 'scale',
+          scaleMin: 1, scaleMax: 5,
+          scaleLabels: ['No fatigue', 'Extremely tired'],
+        },
+        symptomQ,
+        {
+          id: 'activity',
+          text: 'Physical activity level today?',
+          type: 'choice',
+          options: ['Resting', 'Light walking', 'Moderate activity', 'Very active'],
+        },
+      ];
+    }
+    case 5: { // Evening
+      const qs: CheckinQuestion[] = [
+        {
+          id: 'day_health',
+          text: 'How has your health been today overall?',
+          type: 'scale',
+          scaleMin: 1, scaleMax: 5,
+          scaleLabels: ['Very bad', 'Very good'],
+        },
+        symptomQ,
+      ];
+      if (hasPrescription) qs.push({ ...medQ, text: 'Did you take your evening medication?' });
+      return qs;
+    }
+    case 6: { // Night Boost
+      const qs: CheckinQuestion[] = [
+        {
+          id: 'night_progress',
+          text: 'Overall symptom progress compared to this morning?',
+          type: 'choice',
+          options: ['Much improved', 'Slightly improved', 'No change', 'Worsened'],
+        },
+        {
+          id: 'pain',
+          text: 'Pain or discomfort level tonight?',
+          type: 'scale',
+          scaleMin: 1, scaleMax: 5,
+          scaleLabels: ['No pain', 'Severe pain'],
+        },
+      ];
+      if (hasPrescription) qs.push({ ...medQ, text: 'Did you take all your medications today?' });
+      return qs;
+    }
+    default:
+      return [symptomQ];
+  }
+}
+
+// ── Persisted state shape ────────────────────────────────────────────────────
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
-
-// ── Persisted state shape ────────────────────────────────────────────────────
 
 interface PersistedCheckinData {
   lifecoins: number;
@@ -41,7 +221,6 @@ interface PersistedCheckinData {
 interface CheckinState extends PersistedCheckinData {
   initialized: boolean;
   initialize: () => Promise<void>;
-  dailyCheckin: () => Promise<{ alreadyDone: boolean; coinsEarned: number }>;
   claimSlot: (id: number) => Promise<{ success: boolean; coinsEarned: number }>;
 }
 
@@ -79,31 +258,8 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     }
   },
 
-  dailyCheckin: async () => {
-    const { lifecoins, streak, lastDailyCheckinDate } = get();
-    const today = todayStr();
-    if (lastDailyCheckinDate === today) {
-      return { alreadyDone: true, coinsEarned: 0 };
-    }
-
-    // Check streak continuity
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const newStreak = lastDailyCheckinDate === yesterday ? streak + 1 : 1;
-    const coinsEarned = 1 + Math.floor(newStreak / 7); // bonus coin every 7 days
-
-    const next: PersistedCheckinData = {
-      lifecoins: lifecoins + coinsEarned,
-      streak: newStreak,
-      lastDailyCheckinDate: today,
-      slots: get().slots,
-    };
-    set(next);
-    await persist(next);
-    return { alreadyDone: false, coinsEarned };
-  },
-
   claimSlot: async (id: number) => {
-    const { slots, lifecoins } = get();
+    const { slots, lifecoins, streak, lastDailyCheckinDate } = get();
     const today = todayStr();
     const now = new Date();
     const slot = slots.find((s) => s.id === id);
@@ -111,13 +267,22 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     if (slot.claimedDate === today) return { success: false, coinsEarned: 0 };
     if (now.getHours() < slot.unlockHour) return { success: false, coinsEarned: 0 };
 
+    // Maintain streak — advance on first claim of the day
+    let newStreak = streak;
+    let newLastDate = lastDailyCheckinDate;
+    if (lastDailyCheckinDate !== today) {
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      newStreak = lastDailyCheckinDate === yesterday ? streak + 1 : 1;
+      newLastDate = today;
+    }
+
     const updatedSlots = slots.map((s) =>
       s.id === id ? { ...s, claimedDate: today } : s
     );
     const next: PersistedCheckinData = {
       lifecoins: lifecoins + slot.coins,
-      streak: get().streak,
-      lastDailyCheckinDate: get().lastDailyCheckinDate,
+      streak: newStreak,
+      lastDailyCheckinDate: newLastDate,
       slots: updatedSlots,
     };
     set(next);
