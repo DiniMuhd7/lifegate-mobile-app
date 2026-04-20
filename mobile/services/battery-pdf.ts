@@ -562,7 +562,7 @@ function buildHTML(opts: BatteryPDFOptions): string {
 </head>
 <body>
 
-  <!-- Print button -->
+  <!-- Print button (fallback if auto-print is dismissed) -->
   <button class="print-btn" onclick="window.print()">🖨 Save as PDF / Print</button>
 
   <!-- Patient info -->
@@ -617,6 +617,7 @@ function buildHTML(opts: BatteryPDFOptions): string {
   </div>
 
 </body>
+<script>window.onload = function() { setTimeout(function() { window.print(); }, 400); };</script>
 </html>`;
 }
 
@@ -629,10 +630,11 @@ function buildHTML(opts: BatteryPDFOptions): string {
  */
 export function openBatteryPDF(opts: BatteryPDFOptions): void {
   const html = buildHTML(opts);
-  const win = window.open('', '_blank');
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  // Revoke the object URL after the tab has had time to load it
   if (win) {
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 }
