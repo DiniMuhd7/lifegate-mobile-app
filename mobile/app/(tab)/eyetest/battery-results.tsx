@@ -2,7 +2,7 @@
  * Battery Results — Aggregated report for all completed sub-tests
  */
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StatusBar, Share, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, StatusBar, Share, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +24,7 @@ import {
 } from 'services/clinical-standards-engine';
 import { generateAIInterpretation } from 'services/vision-ai-engine';
 import type { AIInterpretation } from 'services/vision-ai-engine';
+import { openBatteryPDF } from 'services/battery-pdf';
 import type {
   SingleTestResult, AcuityResult, ColorResult,
   AstigmatismResult, ContrastResult, NearVisionResult,
@@ -1050,6 +1051,18 @@ export default function BatteryResults() {
   }, []);
 
   const handleShare = async () => {
+    if (Platform.OS === 'web') {
+      openBatteryPDF({
+        results,
+        behavioralReport,
+        user: user ? { name: user.name, dob: user.dob } : null,
+        userAge,
+        viewingDistanceCm,
+        duration,
+        edisResult,
+      });
+      return;
+    }
     try {
       await Share.share({ message: buildShareText(results, viewingDistanceCm) });
     } catch { /* dismissed */ }
@@ -1152,8 +1165,8 @@ export default function BatteryResults() {
           <View style={{ gap: 10 }}>
             <Pressable onPress={handleShare}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
-              <Ionicons name="share-social-outline" size={18} color="#374151" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>Share Results</Text>
+              <Ionicons name={Platform.OS === 'web' ? 'document-outline' : 'share-social-outline'} size={18} color="#374151" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>{Platform.OS === 'web' ? 'Export PDF' : 'Share Results'}</Text>
             </Pressable>
             <Pressable onPress={handleRetake}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
