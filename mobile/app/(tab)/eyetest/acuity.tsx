@@ -284,9 +284,10 @@ function PhaseTransitionModal({
 
 // ── ChoiceButton ──────────────────────────────────────────────────────────────
 function ChoiceButton({
-  letter, isCorrect, wasChosen, revealRight, dimmed, phaseColor, onPress, disabled,
+  letter, index, isCorrect, wasChosen, revealRight, dimmed, phaseColor, onPress, disabled,
 }: {
   letter: string;
+  index: number;
   isCorrect: boolean;
   wasChosen: boolean;
   revealRight: boolean;
@@ -298,75 +299,143 @@ function ChoiceButton({
   const pressAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(pressAnim, { toValue: 0.90, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+    Animated.spring(pressAnim, { toValue: 0.92, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
   };
   const handlePressOut = () => {
-    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 8 }).start();
+    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, speed: 22, bounciness: 10 }).start();
   };
 
-  let bg        = 'rgba(14,22,46,0.95)';
-  let border    = 'rgba(255,255,255,0.08)';
-  let textColor = '#e2e8f0';
+  // ── State-driven visual tokens ──────────────────────────────────────────────
+  let bg         = 'rgba(255,255,255,0.07)';   // visible frosted-glass card
+  let border     = 'rgba(255,255,255,0.18)';    // clear card outline
+  let textColor  = '#ffffff';
+  let labelColor = `${phaseColor}99`;
   let glow: object = {};
+  let statusIcon: React.ReactNode = null;
 
   if (wasChosen && isCorrect) {
-    bg = 'rgba(74,222,128,0.14)'; border = '#4ade80'; textColor = '#4ade80';
-    glow = { shadowColor: '#4ade80', shadowOpacity: 0.5, shadowRadius: 18, elevation: 8 };
+    bg = 'rgba(74,222,128,0.18)';
+    border = '#4ade80';
+    textColor = '#4ade80';
+    labelColor = '#4ade8099';
+    glow = { shadowColor: '#4ade80', shadowOpacity: 0.55, shadowRadius: 20, elevation: 10 };
+    statusIcon = (
+      <View style={{
+        position: 'absolute', top: 10, right: 10,
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: '#4ade80', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Ionicons name="checkmark" size={13} color="#000" />
+      </View>
+    );
   } else if (wasChosen && !isCorrect) {
-    bg = 'rgba(248,113,113,0.14)'; border = '#f87171'; textColor = '#f87171';
-    glow = { shadowColor: '#f87171', shadowOpacity: 0.5, shadowRadius: 18, elevation: 8 };
+    bg = 'rgba(248,113,113,0.18)';
+    border = '#f87171';
+    textColor = '#f87171';
+    labelColor = '#f8717199';
+    glow = { shadowColor: '#f87171', shadowOpacity: 0.55, shadowRadius: 20, elevation: 10 };
+    statusIcon = (
+      <View style={{
+        position: 'absolute', top: 10, right: 10,
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: '#f87171', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Ionicons name="close" size={13} color="#fff" />
+      </View>
+    );
   } else if (revealRight) {
-    bg = 'rgba(74,222,128,0.08)'; border = `${phaseColor}55`; textColor = '#4ade80';
+    bg = 'rgba(74,222,128,0.10)';
+    border = '#4ade8066';
+    textColor = '#4ade80';
+    labelColor = '#4ade8066';
+    statusIcon = (
+      <View style={{
+        position: 'absolute', top: 10, right: 10,
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: 'rgba(74,222,128,0.2)', alignItems: 'center', justifyContent: 'center',
+        borderWidth: 1.5, borderColor: '#4ade8055',
+      }}>
+        <Ionicons name="checkmark" size={12} color="#4ade80" />
+      </View>
+    );
   }
 
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      disabled={disabled}
-      style={[
-        {
-          flex: 1, height: 90, borderRadius: 22,
-          backgroundColor: bg, borderWidth: 1.5, borderColor: border,
-          alignItems: 'center', justifyContent: 'center',
-          opacity: dimmed ? 0.32 : 1,
-        },
-        glow,
-      ]}
-    >
-      <Animated.View style={{ transform: [{ scale: pressAnim }], alignItems: 'center' }}>
-        {/* Status icon (top-right corner) */}
-        {wasChosen && isCorrect && (
-          <View style={{ position: 'absolute', top: -28, right: -24 }}>
-            <Ionicons name="checkmark-circle" size={18} color="#4ade80" />
-          </View>
-        )}
-        {wasChosen && !isCorrect && (
-          <View style={{ position: 'absolute', top: -28, right: -24 }}>
-            <Ionicons name="close-circle" size={18} color="#f87171" />
-          </View>
-        )}
+    <Animated.View style={[{ transform: [{ scale: pressAnim }], flex: 1 }, glow]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        style={{
+          height: 96,
+          borderRadius: 20,
+          backgroundColor: bg,
+          borderWidth: 1.5,
+          borderColor: border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: dimmed ? 0.22 : 1,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Top-edge highlight strip */}
+        <View style={{
+          position: 'absolute', top: 0, left: 12, right: 12, height: 1,
+          backgroundColor: dimmed ? 'transparent'
+            : wasChosen && isCorrect ? 'rgba(74,222,128,0.5)'
+            : wasChosen && !isCorrect ? 'rgba(248,113,113,0.5)'
+            : 'rgba(255,255,255,0.15)',
+          borderRadius: 2,
+        }} />
 
+        {/* Index label — top left */}
         <Text style={{
-          fontSize: 34, fontWeight: '900', color: textColor,
-          fontFamily: 'Courier New', letterSpacing: 2,
+          position: 'absolute', top: 9, left: 12,
+          fontSize: 9, fontWeight: '700',
+          color: labelColor,
+          letterSpacing: 0.5,
+        }}>
+          {String.fromCharCode(65 + index)}
+        </Text>
+
+        {/* Status icon — top right */}
+        {statusIcon}
+
+        {/* Main letter */}
+        <Text style={{
+          fontSize: 40,
+          fontWeight: '900',
+          color: textColor,
+          fontFamily: 'Courier New',
+          letterSpacing: 3,
+          textShadowColor: wasChosen && isCorrect ? 'rgba(74,222,128,0.4)'
+            : wasChosen && !isCorrect ? 'rgba(248,113,113,0.4)'
+            : 'rgba(255,255,255,0.12)',
+          textShadowOffset: { width: 0, height: 2 },
+          textShadowRadius: 8,
         }}>
           {letter}
         </Text>
 
-        {wasChosen && !isCorrect && (
-          <Text style={{ fontSize: 8, color: '#f87171', marginTop: 1, fontWeight: '800', letterSpacing: 1.5 }}>
-            WRONG
+        {/* Status label — below letter */}
+        {(wasChosen || revealRight) && (
+          <Text style={{
+            marginTop: 3,
+            fontSize: 8,
+            fontWeight: '800',
+            letterSpacing: 1.8,
+            color: wasChosen && isCorrect ? '#4ade80'
+              : wasChosen && !isCorrect ? '#f87171'
+              : '#4ade8099',
+          }}>
+            {wasChosen && isCorrect ? 'CORRECT ✓'
+              : wasChosen && !isCorrect ? 'WRONG ✗'
+              : 'ANSWER'}
           </Text>
         )}
-        {revealRight && (
-          <Text style={{ fontSize: 8, color: '#4ade80', marginTop: 1, fontWeight: '800', letterSpacing: 1.5 }}>
-            CORRECT
-          </Text>
-        )}
-      </Animated.View>
-    </Pressable>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -749,46 +818,55 @@ export default function AcuityTest() {
           )}
         </View>
 
-        {/* ── Choice buttons — 3 + 2 grid ──────────────────────────────── */}
-        <View style={{ paddingHorizontal: 14, paddingBottom: 12, gap: 9 }}>
-          {[choices.slice(0, 3), choices.slice(3)].map((row, rowIdx) => (
-            <View
-              key={rowIdx}
-              style={{
-                flexDirection: 'row',
-                gap: 9,
-                justifyContent: row.length < 3 ? 'center' : 'space-between',
-              }}
-            >
-              {row.map((c) => {
-                const isCorrect   = c === target;
-                const wasChosen   = c === answered;
-                const revealRight = !!answered && isCorrect && !wasChosen;
-                const dimmed      = !!answered && !wasChosen && !revealRight;
+        {/* ── Choice buttons — 2 rows: top 3 equal · bottom 2 equal ──── */}
+        <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>
+          {/* Row 1 — A B C */}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {choices.slice(0, 3).map((c, idx) => {
+              const isCorrect   = c === target;
+              const wasChosen   = c === answered;
+              const revealRight = !!answered && isCorrect && !wasChosen;
+              const dimmed      = !!answered && !wasChosen && !revealRight;
+              return (
+                <ChoiceButton
+                  key={c}
+                  letter={c}
+                  index={idx}
+                  isCorrect={isCorrect}
+                  wasChosen={wasChosen}
+                  revealRight={revealRight}
+                  dimmed={dimmed}
+                  phaseColor={phaseConf.color}
+                  onPress={() => handleAnswer(c)}
+                  disabled={!!answered}
+                />
+              );
+            })}
+          </View>
 
-                return (
-                  <View
-                    key={c}
-                    style={{
-                      flex: row.length < 3 ? 0 : 1,
-                      width: row.length < 3 ? 108 : undefined,
-                    }}
-                  >
-                    <ChoiceButton
-                      letter={c}
-                      isCorrect={isCorrect}
-                      wasChosen={wasChosen}
-                      revealRight={revealRight}
-                      dimmed={dimmed}
-                      phaseColor={phaseConf.color}
-                      onPress={() => handleAnswer(c)}
-                      disabled={!!answered}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          ))}
+          {/* Row 2 — D E (wider, centred) */}
+          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: '8%' }}>
+            {choices.slice(3).map((c, idx) => {
+              const isCorrect   = c === target;
+              const wasChosen   = c === answered;
+              const revealRight = !!answered && isCorrect && !wasChosen;
+              const dimmed      = !!answered && !wasChosen && !revealRight;
+              return (
+                <ChoiceButton
+                  key={c}
+                  letter={c}
+                  index={3 + idx}
+                  isCorrect={isCorrect}
+                  wasChosen={wasChosen}
+                  revealRight={revealRight}
+                  dimmed={dimmed}
+                  phaseColor={phaseConf.color}
+                  onPress={() => handleAnswer(c)}
+                  disabled={!!answered}
+                />
+              );
+            })}
+          </View>
         </View>
 
         <PatientBottomTabBar />
