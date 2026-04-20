@@ -8,10 +8,10 @@
  * • ~33% of trials are motion trials: letter oscillates horizontally
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StatusBar, Animated, Easing, Modal } from 'react-native';
+import { View, Text, Pressable, StatusBar, Animated, Easing, Modal, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import {
   LOGMAR_LEVELS,
@@ -28,6 +28,37 @@ const NUM_CHOICES  = 5;
 const TEST_SECONDS = 300;
 const SESSION_SECS = 100; // 3 × 100 s = 5 min
 const MOTION_PROB  = 0.33;
+
+// ── Motion styles ────────────────────────────────────────────────────────────
+/** Visual animation applied to the optotype during motion trials */
+type MotionStyle =
+  | 'slide-h'    // horizontal oscillation ±54 px
+  | 'slide-v'    // vertical oscillation ±36 px
+  | 'diagonal'   // diagonal ↗↙ ±44 × ±28 px
+  | 'rotate'     // gentle clockwise / counter-clockwise ±12°
+  | 'pulse'      // scale breathe 1 → 1.28 → 0.80 → 1
+  | 'shake'      // rapid lateral jitter
+  | 'orbit'      // circular (diamond) orbit ±36 px
+  | 'pendulum';  // wide pendulum swing ±20°
+
+const MOTION_STYLES: MotionStyle[] = [
+  'slide-h', 'slide-v', 'diagonal', 'rotate', 'pulse', 'shake', 'orbit', 'pendulum',
+];
+
+function randomMotionStyle(): MotionStyle {
+  return MOTION_STYLES[Math.floor(Math.random() * MOTION_STYLES.length)];
+}
+
+const MOTION_STYLE_LABEL: Record<MotionStyle, string> = {
+  'slide-h':  '↔ Slide',
+  'slide-v':  '↕ Drift',
+  'diagonal': '↗ Diagonal',
+  'rotate':   '↻ Rotate',
+  'pulse':    '◉ Pulse',
+  'shake':    '≋ Shake',
+  'orbit':    '○ Orbit',
+  'pendulum': '⌛ Swing',
+};
 
 type EyePhase       = 'left' | 'right' | 'both';
 type ClarityLevel   = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -572,10 +603,13 @@ export default function AcuityTest() {
   } = useVisionStore();
 
   // Animations
-  const fadeAnim   = useRef(new Animated.Value(1)).current;
-  const scaleAnim  = useRef(new Animated.Value(1)).current;
-  const motionAnim = useRef(new Animated.Value(0)).current;
-  const motionLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const fadeAnim        = useRef(new Animated.Value(1)).current;
+  const scaleAnim       = useRef(new Animated.Value(1)).current;
+  const motionAnim      = useRef(new Animated.Value(0)).current;  // translateX
+  const motionYAnim     = useRef(new Animated.Value(0)).current;  // translateY
+  const motionRotAnim   = useRef(new Animated.Value(0)).current;  // −1..+1 → degrees
+  const motionScaleAnim = useRef(new Animated.Value(1)).current;  // pulse scale
+  const motionLoop      = useRef<Animated.CompositeAnimation | null>(null);
 
   // Timer
   const [timeLeft, setTimeLeft] = useState(TEST_SECONDS);
@@ -590,6 +624,7 @@ export default function AcuityTest() {
 
   // Trial
   const [trialType,         setTrialType]        = useState<TrialType>('static');
+  const [motionStyle,       setMotionStyle]       = useState<MotionStyle>('slide-h');
   const [presentationMode,  setPresentationMode] = useState<PresentationMode>('normal');
   const [{ target, choices }, setStimulus] = useState(() => {
     const t = randomOptotype();
@@ -600,6 +635,29 @@ export default function AcuityTest() {
   const [lastReactionMs, setLastReactionMs] = useState<number | null>(null);
   const [streak,         setStreak]         = useState(0);
   const trialStart = useRef(Date.now());
+
+  // Exit confirmation
+  const navigation = useNavigation();
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const exitConfirmedRef = useRef(false);
+
+  // Block hardware back / gesture navigation while test is active
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (e: { preventDefault: () => void }) => {
+      if (exitConfirmedRef.current) return;
+      e.preventDefault();
+      setShowExitConfirm(true);
+    });
+    return unsub;
+  }, [navigation]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowExitConfirm(true);
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
 
   // Init
   useEffect(() => {
@@ -664,38 +722,131 @@ export default function AcuityTest() {
     motionLoop.current?.stop();
     motionLoop.current = null;
     motionAnim.setValue(0);
-  }, [motionAnim]);
+    motionYAnim.setValue(0);
+    motionRotAnim.setValue(0);
+    motionScaleAnim.setValue(1);
+  }, [motionAnim, motionYAnim, motionRotAnim, motionScaleAnim]);
 
-  const startMotion = useCallback(() => {
+  const startMotion = useCallback((style: MotionStyle) => {
+    // Reset all motion values before starting the chosen style.
     motionAnim.setValue(0);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(motionAnim, {
-          toValue: 54, duration: 680,
-          easing: Easing.inOut(Easing.ease), useNativeDriver: true,
-        }),
-        Animated.timing(motionAnim, {
-          toValue: -54, duration: 680,
-          easing: Easing.inOut(Easing.ease), useNativeDriver: true,
-        }),
-        Animated.timing(motionAnim, {
-          toValue: 0, duration: 400,
-          easing: Easing.inOut(Easing.ease), useNativeDriver: true,
-        }),
-      ]),
-    );
+    motionYAnim.setValue(0);
+    motionRotAnim.setValue(0);
+    motionScaleAnim.setValue(1);
+
+    let loop: Animated.CompositeAnimation;
+
+    switch (style) {
+      // ── Vertical drift ──────────────────────────────────────────────────
+      case 'slide-v':
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(motionYAnim, { toValue:  36, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionYAnim, { toValue: -36, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionYAnim, { toValue:   0, duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]));
+        break;
+
+      // ── Diagonal ↗↙ ─────────────────────────────────────────────────────
+      case 'diagonal':
+        loop = Animated.loop(Animated.sequence([
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue:  44, duration: 780, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue: -28, duration: 780, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue: -44, duration: 780, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue:  28, duration: 780, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue: 0, duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue: 0, duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+        ]));
+        break;
+
+      // ── Gentle rotation ±12° ────────────────────────────────────────────
+      case 'rotate':
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(motionRotAnim, { toValue:  0.6, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionRotAnim, { toValue: -0.6, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionRotAnim, { toValue:  0,   duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]));
+        break;
+
+      // ── Scale pulse ─────────────────────────────────────────────────────
+      case 'pulse':
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(motionScaleAnim, { toValue: 1.28, duration: 580, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionScaleAnim, { toValue: 0.80, duration: 580, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionScaleAnim, { toValue: 1,    duration: 420, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]));
+        break;
+
+      // ── Rapid lateral shake ─────────────────────────────────────────────
+      case 'shake':
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(motionAnim, { toValue:  11, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue: -11, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue:   8, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue:  -8, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue:   4, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue:   0, duration: 55, easing: Easing.linear, useNativeDriver: true }),
+          Animated.delay(360),
+        ]));
+        break;
+
+      // ── Diamond orbit ───────────────────────────────────────────────────
+      case 'orbit':
+        motionAnim.setValue(36); // start at 3 o'clock
+        loop = Animated.loop(Animated.sequence([
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue:  0,  duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue:  36, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue: -36, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue:  0,  duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue:  0,  duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue: -36, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(motionAnim,  { toValue:  36, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(motionYAnim, { toValue:  0,  duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+        ]));
+        break;
+
+      // ── Wide pendulum swing ±20° ────────────────────────────────────────
+      case 'pendulum':
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(motionRotAnim, { toValue:  1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+          Animated.timing(motionRotAnim, { toValue: -1, duration: 900, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        ]));
+        break;
+
+      // ── Horizontal slide (default) ──────────────────────────────────────
+      default:
+        loop = Animated.loop(Animated.sequence([
+          Animated.timing(motionAnim, { toValue:  54, duration: 680, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue: -54, duration: 680, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(motionAnim, { toValue:   0, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]));
+    }
+
     loop.start();
     motionLoop.current = loop;
-  }, [motionAnim]);
+  }, [motionAnim, motionYAnim, motionRotAnim, motionScaleAnim]);
 
   // Animate letter in
-  const animateIn = useCallback((isMotion: boolean) => {
+  const animateIn = useCallback((isMotion: boolean, style: MotionStyle = 'slide-h') => {
     scaleAnim.setValue(1.55);
     fadeAnim.setValue(0);
     Animated.parallel([
       Animated.timing(fadeAnim,  { toValue: 1, duration: 240, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 7, tension: 100, useNativeDriver: true }),
-    ]).start(() => { if (isMotion) startMotion(); });
+    ]).start(() => { if (isMotion) startMotion(style); });
   }, [fadeAnim, scaleAnim, startMotion]);
 
   useEffect(() => { animateIn(false); }, []);
@@ -718,12 +869,14 @@ export default function AcuityTest() {
       const newT         = randomOptotype();
       const newD         = randomOptotypes(NUM_CHOICES - 1);
       const nextIsMotion = Math.random() < MOTION_PROB;
+      const nextMStyle   = nextIsMotion ? randomMotionStyle() : 'slide-h';
       setStimulus({ target: newT, choices: [...newD, newT].sort(() => Math.random() - 0.5) });
       setTrialType(nextIsMotion ? 'motion' : 'static');
+      setMotionStyle(nextMStyle);
       setPresentationMode(randomMode());
       setAnswered(null);
       trialStart.current = Date.now();
-      animateIn(nextIsMotion);
+      animateIn(nextIsMotion, nextMStyle);
     });
   }, [answered, target, currentLogMAR, letterPx, animateIn, fadeAnim, recordAcuityTrial, stopMotion]);
 
@@ -751,6 +904,15 @@ export default function AcuityTest() {
     trialStart.current = Date.now();
   }, [pendingPhase, trialsCount, recordEyeSwitch]);
 
+  const handleExitConfirm = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    stopMotion();
+    markTestSkipped('acuity');
+    exitConfirmedRef.current = true;
+    setShowExitConfirm(false);
+    router.replace(nextScreen({ ...testStatus, acuity: 'skipped' }) as never);
+  }, [stopMotion, markTestSkipped, testStatus]);
+
   const clarityColor = CLARITY_COLOR[clarityLevel];
 
   // Time-based segment fills (independent of eyePhase state)
@@ -770,12 +932,7 @@ export default function AcuityTest() {
           gap: 10,
         }}>
           <Pressable
-            onPress={() => {
-              if (timerRef.current) clearInterval(timerRef.current);
-              stopMotion();
-              markTestSkipped('acuity');
-              router.replace(nextScreen({ ...testStatus, acuity: 'skipped' }) as never);
-            }}
+            onPress={() => setShowExitConfirm(true)}
             hitSlop={10}
             style={({ pressed }) => ({
               width: 36, height: 36, borderRadius: 18,
@@ -801,10 +958,12 @@ export default function AcuityTest() {
                 </Text>
               </View>
 
-              {/* Motion badge */}
+              {/* Motion badge — shows current style name */}
               {trialType === 'motion' && (
                 <View style={{ backgroundColor: 'rgba(251,191,36,0.14)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#fbbf24' }}>🎯 MOTION</Text>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#fbbf24' }}>
+                    {MOTION_STYLE_LABEL[motionStyle]}
+                  </Text>
                 </View>
               )}
             </View>
@@ -881,16 +1040,22 @@ export default function AcuityTest() {
             borderWidth: 1.5, borderColor: `${phaseConf.color}1e`,
           }} />
 
-          {/* Letter — scale + motion + rich presentation mode */}
-          <Animated.View style={{
-            transform: [{ scale: scaleAnim }, { translateX: motionAnim }],
-            opacity: fadeAnim,
-          }}>
-            <OptotypeLetter
-              letter={target}
-              baseSize={Math.max(28, Math.min(letterPx, 180))}
-              mode={presentationMode}
-            />
+          {/* Letter — entry animation (outer) + motion style (inner) */}
+          <Animated.View style={{ transform: [{ scale: scaleAnim }], opacity: fadeAnim }}>
+            <Animated.View style={{
+              transform: [
+                { translateX: motionAnim },
+                { translateY: motionYAnim },
+                { rotate: motionRotAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-20deg', '20deg'] }) },
+                { scale: motionScaleAnim },
+              ],
+            }}>
+              <OptotypeLetter
+                letter={target}
+                baseSize={Math.max(28, Math.min(letterPx, 180))}
+                mode={presentationMode}
+              />
+            </Animated.View>
           </Animated.View>
 
           {/* Mode label — shown briefly below letter */}
@@ -1013,6 +1178,71 @@ export default function AcuityTest() {
           onConfirm={handlePhaseConfirm}
           onSkip={handlePhaseSkip}
         />
+
+        {/* ── Exit Confirmation Modal ───────────────────────────────────── */}
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showExitConfirm}
+          onRequestClose={() => setShowExitConfirm(false)}
+        >
+          <View style={{
+            flex: 1, backgroundColor: 'rgba(0,0,0,0.88)',
+            alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22,
+          }}>
+            <View style={{
+              backgroundColor: '#0d1527', borderRadius: 28, width: '100%',
+              overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+            }}>
+              {/* Header */}
+              <View style={{
+                paddingTop: 28, paddingBottom: 20, paddingHorizontal: 24,
+                alignItems: 'center', gap: 12,
+                borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+              }}>
+                <View style={{
+                  width: 68, height: 68, borderRadius: 34,
+                  backgroundColor: 'rgba(239,68,68,0.12)',
+                  borderWidth: 2, borderColor: 'rgba(239,68,68,0.25)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 32 }}>👁️</Text>
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', textAlign: 'center' }}>
+                  End Acuity Test?
+                </Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 20 }}>
+                  Your progress will be lost and this test{'\n'}will be marked as skipped.
+                </Text>
+              </View>
+
+              {/* Buttons */}
+              <View style={{ padding: 20, gap: 10 }}>
+                <Pressable
+                  onPress={() => setShowExitConfirm(false)}
+                  style={({ pressed }) => ({
+                    backgroundColor: pressed ? `${phaseConf.color}cc` : phaseConf.color,
+                    borderRadius: 16, paddingVertical: 15, alignItems: 'center',
+                    shadowColor: phaseConf.color, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
+                  })}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Continue Test</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleExitConfirm}
+                  style={({ pressed }) => ({
+                    backgroundColor: pressed ? 'rgba(239,68,68,0.18)' : 'rgba(239,68,68,0.1)',
+                    borderRadius: 16, paddingVertical: 15, alignItems: 'center',
+                    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
+                  })}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#f87171' }}>End Test</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
       </SafeAreaView>
     </View>
