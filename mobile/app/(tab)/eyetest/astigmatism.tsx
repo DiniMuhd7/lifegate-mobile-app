@@ -6,7 +6,7 @@
  * Repeated selection of a non-neutral axis → astigmatism detected.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StatusBar, Dimensions } from 'react-native';
+import { View, Text, Pressable, StatusBar, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -16,7 +16,6 @@ import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
-const DIAL_SIZE = Math.min(Dimensions.get('window').width - 64, 300);
 const TOTAL_ROUNDS = 3;
 
 function nextScreen(testStatus: Record<string, string>) {
@@ -27,10 +26,10 @@ function nextScreen(testStatus: Record<string, string>) {
 
 // ─── Clock dial SVG alternative (pure RN Views) ──────────────────────────────
 
-function ClockDial({ selected, onSelect }: { selected: number | null; onSelect: (axis: number) => void }) {
-  const cx = DIAL_SIZE / 2;
-  const cy = DIAL_SIZE / 2;
-  const r  = DIAL_SIZE * 0.44;
+function ClockDial({ selected, onSelect, dialSize }: { selected: number | null; onSelect: (axis: number) => void; dialSize: number }) {
+  const cx = dialSize / 2;
+  const cy = dialSize / 2;
+  const r  = dialSize * 0.44;
 
   const lines = ASTIGMATISM_AXES.map((deg) => {
     const rad = (deg * Math.PI) / 180;
@@ -50,9 +49,9 @@ function ClockDial({ selected, onSelect }: { selected: number | null; onSelect: 
   });
 
   return (
-    <View style={{ width: DIAL_SIZE, height: DIAL_SIZE, alignSelf: 'center', position: 'relative' }}>
+    <View style={{ width: dialSize, height: dialSize, alignSelf: 'center', position: 'relative' }}>
       {/* Background circle */}
-      <View style={{ position: 'absolute', left: 0, top: 0, width: DIAL_SIZE, height: DIAL_SIZE, borderRadius: DIAL_SIZE / 2, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fafafa' }} />
+      <View style={{ position: 'absolute', left: 0, top: 0, width: dialSize, height: dialSize, borderRadius: dialSize / 2, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#fafafa' }} />
 
       {/* Lines as thin Views rotated */}
       {lines.map(({ deg, isSelected }) => (
@@ -115,6 +114,9 @@ export default function AstigmatismTest() {
     markTestSkipped,
   } = useVisionStore();
 
+  const { width } = useWindowDimensions();
+  const dialSize = Math.min(width - 64, 300);
+
   const [selected, setSelected] = useState<number | null>(null);
   const trialStart = useRef(Date.now());
 
@@ -171,7 +173,7 @@ export default function AstigmatismTest() {
             </Text>
           </View>
 
-          <ClockDial selected={selected} onSelect={setSelected} />
+          <ClockDial selected={selected} onSelect={setSelected} dialSize={dialSize} />
 
           {selected !== null && (
             <View style={{ backgroundColor: '#f5f3ff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 }}>

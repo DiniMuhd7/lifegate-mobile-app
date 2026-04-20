@@ -109,7 +109,7 @@ export default function NearVisionTest() {
         </View>
 
         {!distanceConfirmed ? (
-          <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 24 }}>
+          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 24 }}>
             <LinearGradient
               colors={['#f0fdfa', '#ecfeff']}
               start={{ x: 0, y: 0 }}
@@ -150,9 +150,9 @@ export default function NearVisionTest() {
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>I am at 40 cm</Text>
               </Pressable>
             </LinearGradient>
-          </View>
+          </ScrollView>
         ) : (
-          <ScrollView contentContainerStyle={{ flex: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 20 }}>
+          <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 20 }}>
             <Text style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af', marginBottom: 24, lineHeight: 18 }}>
               Keep your phone at approximately <Text style={{ fontWeight: '700', color: '#374151' }}>40 cm</Text>.
               Can you read ALL the text below clearly without squinting?

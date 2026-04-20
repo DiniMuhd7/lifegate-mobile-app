@@ -6,7 +6,7 @@
  * Staircase per frequency → outputs a CS curve.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StatusBar, Dimensions } from 'react-native';
+import { View, Text, Pressable, StatusBar, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +17,6 @@ import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
-const GRATING_SIZE = Math.min(Dimensions.get('window').width - 48, 280);
 const SF_COLORS = ['#0AADA2','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#16a34a'];
 
 function nextScreen(testStatus: Record<string, string>) {
@@ -27,7 +26,7 @@ function nextScreen(testStatus: Record<string, string>) {
 
 // ─── Sine grating renderer (pure View columns) ───────────────────────────────
 
-function SineGrating({ spatialFreq, contrastPercent }: { spatialFreq: number; contrastPercent: number }) {
+function SineGrating({ spatialFreq, contrastPercent, gratingSize }: { spatialFreq: number; contrastPercent: number; gratingSize: number }) {
   const numCols = Math.max(4, Math.min(Math.round(spatialFreq * 12), 80));
   const cols = useMemo(() => {
     const result = [];
@@ -44,7 +43,7 @@ function SineGrating({ spatialFreq, contrastPercent }: { spatialFreq: number; co
   }, [numCols, contrastPercent]);
 
   return (
-    <View style={{ width: GRATING_SIZE, height: GRATING_SIZE, flexDirection: 'row', alignSelf: 'center', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' }}>
+    <View style={{ width: gratingSize, height: gratingSize, flexDirection: 'row', alignSelf: 'center', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' }}>
       {cols.map((color, i) => (
         <View key={i} style={{ flex: 1, backgroundColor: color }} />
       ))}
@@ -64,6 +63,9 @@ export default function ContrastTest() {
     advanceContrastSf,
     markTestSkipped,
   } = useVisionStore();
+
+  const { width } = useWindowDimensions();
+  const gratingSize = Math.min(width - 48, 280);
 
   const [answered, setAnswered] = useState(false);
   // Minimum stimulus viewing time before response buttons become active.
@@ -119,7 +121,16 @@ export default function ContrastTest() {
   }, [answered, buttonsReady, sf, contrastPct, sfDone]);
 
   const totalSf = CS_SPATIAL_FREQS.length;
-  const progress = (contrastSfIndex + (sfDone ? 1 : 0)) / totalSf;
+  const REVERSALS_NEEDED = 6;
+  // Overall completion: each SF contributes (reversals / 6) of its 1/totalSf share
+  const overallProgress = contrastStaircases.reduce((sum, s, i) => {
+    const sfWeight = 1 / totalSf;
+    const sfProgress = Math.min(s.reversals.length / REVERSALS_NEEDED, 1);
+    return sum + sfWeight * sfProgress;
+  }, 0);
+  // Within-current-SF convergence progress
+  const sfReversalProgress = Math.min((staircase?.reversals.length ?? 0) / REVERSALS_NEEDED, 1);
+  const sfColor = SF_COLORS[contrastSfIndex % SF_COLORS.length];
 
   return (
     <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
@@ -137,10 +148,37 @@ export default function ContrastTest() {
               Frequency {contrastSfIndex + 1}/{totalSf} · {sf} cpd · {contrastPct}% contrast
             </Text>
           </View>
+          {/* Overall % badge */}
+          <View style={{ backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#374151' }}>
+              {Math.round(overallProgress * 100)}%
+            </Text>
+          </View>
         </View>
 
-        <View style={{ height: 3, backgroundColor: '#e5e7eb' }}>
-          <View style={{ height: 3, width: `${progress * 100}%`, backgroundColor: SF_COLORS[contrastSfIndex % SF_COLORS.length], borderRadius: 2 }} />
+        {/* ── Overall progress bar ── */}
+        <View style={{ height: 4, backgroundColor: '#e5e7eb' }}>
+          <View style={{ height: 4, width: `${overallProgress * 100}%`, backgroundColor: sfColor, borderRadius: 2 }} />
+        </View>
+
+        {/* ── Within-SF convergence bar ── */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 2 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '600' }}>
+              Frequency {contrastSfIndex + 1} convergence
+            </Text>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: sfColor }}>
+              {staircase?.reversals.length ?? 0}/{REVERSALS_NEEDED} reversals
+            </Text>
+          </View>
+          <View style={{ height: 6, backgroundColor: '#f3f4f6', borderRadius: 3 }}>
+            <View style={{
+              height: 6,
+              width: `${sfReversalProgress * 100}%`,
+              backgroundColor: sfDone ? '#a7f3d0' : sfColor,
+              borderRadius: 3,
+            }} />
+          </View>
         </View>
 
         <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 20, paddingHorizontal: 24 }}>
@@ -165,7 +203,7 @@ export default function ContrastTest() {
               <Text style={{ fontSize: 11, color: '#9ca3af' }}>{contrastPct}% contrast</Text>
             </View>
 
-            <SineGrating spatialFreq={sf} contrastPercent={contrastPct} />
+            <SineGrating spatialFreq={sf} contrastPercent={contrastPct} gratingSize={gratingSize} />
 
             {/* SF dot progress row */}
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>

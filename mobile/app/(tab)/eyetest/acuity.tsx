@@ -687,6 +687,7 @@ export default function AcuityTest() {
         if (next <= 0) {
           clearInterval(timerRef.current!);
           finaliseAcuity();
+          exitConfirmedRef.current = true;
           router.replace(nextScreen(testStatus) as never);
           return 0;
         }

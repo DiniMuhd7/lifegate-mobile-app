@@ -5,7 +5,7 @@
  * The "figure" dots spell out a digit. The user types/selects the digit.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StatusBar, TextInput, Dimensions, Platform } from 'react-native';
+import { View, Text, Pressable, StatusBar, TextInput, Platform, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,8 +17,6 @@ import type { ColorPlate } from 'types/vision-types';
 
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
-const PLATE_SIZE = Math.min(Dimensions.get('window').width - 48, 320);
-const DOT_RADIUS_RANGE = [PLATE_SIZE * 0.018, PLATE_SIZE * 0.038];
 
 // ─── Plate renderer (deterministic pseudo-random dots) ───────────────────────
 
@@ -34,7 +32,7 @@ function seededRand(seed: number) {
 interface Dot { x: number; y: number; r: number; color: string; }
 interface FigureRect { x1: number; y1: number; x2: number; y2: number; }
 
-function buildPlateDots(plate: ColorPlate): Dot[] {
+function buildPlateDots(plate: ColorPlate, plateSize: number, dotRadiusRange: [number, number]): Dot[] {
   const scheme = getPlateScheme(plate.id);
   const rand = seededRand(plate.id * 7919);
   const figureStr = plate.correctAnswer || plate.deficientAnswer;
@@ -56,10 +54,10 @@ function buildPlateDots(plate: ColorPlate): Dot[] {
   const numChars = Math.max(chars.length, 1);
 
   // Figure region: digits occupy ~44% of plate width, centred
-  const cellW = (PLATE_SIZE * 0.44) / (numChars * 3);
-  const cellH = (PLATE_SIZE * 0.46) / 5;
-  const offsetX = (PLATE_SIZE - numChars * 3 * cellW) / 2;
-  const offsetY = (PLATE_SIZE - 5 * cellH) / 2;
+  const cellW = (plateSize * 0.44) / (numChars * 3);
+  const cellH = (plateSize * 0.46) / 5;
+  const offsetX = (plateSize - numChars * 3 * cellW) / 2;
+  const offsetY = (plateSize - 5 * cellH) / 2;
 
   const figureRects: FigureRect[] = [];
   chars.forEach((ch, ci) => {
@@ -80,18 +78,18 @@ function buildPlateDots(plate: ColorPlate): Dot[] {
     return figureRects.some((r) => x >= r.x1 && x < r.x2 && y >= r.y1 && y < r.y2);
   }
 
-  const cx = PLATE_SIZE / 2;
-  const cy = PLATE_SIZE / 2;
-  const radius = PLATE_SIZE * 0.47;
+  const cx = plateSize / 2;
+  const cy = plateSize / 2;
+  const radius = plateSize * 0.47;
   const dots: Dot[] = [];
   let attempts = 0;
 
   while (dots.length < 520 && attempts < 4000) {
     attempts++;
-    const x = rand() * PLATE_SIZE;
-    const y = rand() * PLATE_SIZE;
+    const x = rand() * plateSize;
+    const y = rand() * plateSize;
     if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius) continue;
-    const r = DOT_RADIUS_RANGE[0] + rand() * (DOT_RADIUS_RANGE[1] - DOT_RADIUS_RANGE[0]);
+    const r = dotRadiusRange[0] + rand() * (dotRadiusRange[1] - dotRadiusRange[0]);
     const figure = isInFigure(x, y);
     const palette = figure ? scheme.figure : scheme.background;
     dots.push({ x, y, r, color: palette[Math.floor(rand() * palette.length)] });
@@ -101,10 +99,13 @@ function buildPlateDots(plate: ColorPlate): Dot[] {
 
 // ─── SVG-free plate using absolute-positioned Views ─────────────────────────
 
-function PseudoPlate({ plate }: { plate: ColorPlate }) {
-  const dots = useMemo(() => buildPlateDots(plate), [plate.id]);
+function PseudoPlate({ plate, plateSize }: { plate: ColorPlate; plateSize: number }) {
+  const dots = useMemo(
+    () => buildPlateDots(plate, plateSize, [plateSize * 0.018, plateSize * 0.038]),
+    [plate.id, plateSize],
+  );
   return (
-    <View style={{ width: PLATE_SIZE, height: PLATE_SIZE, borderRadius: PLATE_SIZE / 2, backgroundColor: '#e8e8e8', overflow: 'hidden', alignSelf: 'center' }}>
+    <View style={{ width: plateSize, height: plateSize, borderRadius: plateSize / 2, backgroundColor: '#e8e8e8', overflow: 'hidden', alignSelf: 'center' }}>
       {dots.map((d, i) => (
         <View
           key={i}
@@ -146,6 +147,9 @@ export default function ColorVisionTest() {
     finaliseColor,
     markTestSkipped,
   } = useVisionStore();
+
+  const { width } = useWindowDimensions();
+  const plateSize = Math.min(width - 48, 320);
 
   const [inputVal, setInputVal] = useState('');
   const trialStart = useRef(Date.now());
@@ -206,7 +210,7 @@ export default function ColorVisionTest() {
                 {' '}if you see nothing.
               </Text>
             </View>
-            <PseudoPlate plate={plate} />
+            <PseudoPlate plate={plate} plateSize={plateSize} />
             <Pressable
               onPress={() => handleSubmit('12')}
               style={({ pressed }) => ({
@@ -255,7 +259,7 @@ export default function ColorVisionTest() {
               <Text style={{ fontWeight: '700', color: '#374151' }}>?</Text>
               {' '}if you cannot see any.
             </Text>
-            <PseudoPlate plate={plate} />
+            <PseudoPlate plate={plate} plateSize={plateSize} />
           </View>
 
           {/* Digit pad — 3×3 grid + I-see-nothing */}
@@ -267,7 +271,7 @@ export default function ColorVisionTest() {
                     key={d}
                     onPress={() => handleSubmit(d)}
                     style={({ pressed }) => ({
-                      flex: 1, height: 60, borderRadius: 14,
+                      flex: 1, paddingVertical: 16, borderRadius: 14,
                       backgroundColor: pressed ? '#f0fdfc' : '#f9fafb',
                       borderWidth: 1.5, borderColor: '#e5e7eb',
                       alignItems: 'center', justifyContent: 'center',
@@ -282,7 +286,7 @@ export default function ColorVisionTest() {
             <Pressable
               onPress={() => handleSubmit('')}
               style={({ pressed }) => ({
-                height: 54, borderRadius: 14, marginTop: 2,
+                paddingVertical: 14, borderRadius: 14, marginTop: 2,
                 backgroundColor: pressed ? '#fef2f2' : '#fff7f7',
                 borderWidth: 2, borderColor: '#fca5a5',
                 alignItems: 'center', justifyContent: 'center',
