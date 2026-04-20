@@ -43,6 +43,10 @@ import { estimateThreshold } from 'services/pta-engine';
 import type { PTAFrequency, TestEar } from 'types/hearing-types';
 import { PTA_FREQUENCIES } from 'types/hearing-types';
 
+// ─── Test duration ───────────────────────────────────────────────────────────
+/** Total PTA session time limit (both ears). Auto-finalises when reached. */
+const TEST_DURATION_MS = 5 * 60 * 1_000; // 5 minutes
+
 // ─── Inter-trial gap jitter ───────────────────────────────────────────────────
 // Randomise the gap between response and next tone presentation to eliminate
 // rhythmic anticipation (a known source of false positives in automated PTA).
@@ -219,10 +223,11 @@ export default function PTATest() {
     finaliseEar,
   } = useHearingStore();
 
-  const soundRef   = useRef<Audio.Sound | null>(null);
-  const recordRef  = useRef<Audio.Recording | null>(null);
-  const trialStart = useRef<number>(0);
-  const blobUrlRef = useRef<string | null>(null);
+  const soundRef      = useRef<Audio.Sound | null>(null);
+  const recordRef     = useRef<Audio.Recording | null>(null);
+  const trialStart    = useRef<number>(0);
+  const blobUrlRef    = useRef<string | null>(null);
+  const timeExpiredRef = useRef(false);
 
   const [tonePhase, setTonePhase] = useState<'countdown' | 'playing' | 'waiting' | 'responded'>('countdown');
   const [countdown, setCountdown] = useState(2);
@@ -246,12 +251,15 @@ export default function PTATest() {
     }
   }, []);
 
-  // ── Elapsed time counter ─────────────────────────────────────────────────────
+  // ── Elapsed time counter + 5-minute expiry ──────────────────────────────────
   useEffect(() => {
-    const t = setInterval(
-      () => setElapsed(Math.floor((Date.now() - testStartRef.current) / 1000)),
-      1000,
-    );
+    const t = setInterval(() => {
+      const secs = Math.floor((Date.now() - testStartRef.current) / 1000);
+      setElapsed(secs);
+      if (secs * 1_000 >= TEST_DURATION_MS && !timeExpiredRef.current) {
+        timeExpiredRef.current = true;
+      }
+    }, 1_000);
     return () => clearInterval(t);
   }, []);
 
@@ -430,6 +438,13 @@ export default function PTATest() {
 
     // Randomised inter-trial interval to prevent rhythmic anticipation
     setTimeout(() => {
+      // ── 5-minute time-up: finalise whatever we have and go to results ─────
+      if (timeExpiredRef.current) {
+        finaliseEar();
+        router.replace('/(tab)/hearingtest/results' as never);
+        return;
+      }
+
       const updated = useHearingStore.getState().staircases[currentFreq];
       if (updated.done) {
         // This frequency is complete
@@ -521,15 +536,18 @@ export default function PTATest() {
 
   // Overall progress across both ears (0–1)
   const AVG_TRIALS_PER_FREQ = 5; // ~5 trials to converge with 2 reversals
-  const AVG_SECS_PER_TRIAL  = 4.5;
   const TOTAL_FREQS         = PTA_FREQUENCIES.length * 2; // 12
   const earOffset           = activeEar === 'right' ? 0 : PTA_FREQUENCIES.length;
   const completedFreqUnits  = earOffset + freqIndex;
   const currentFreqFraction = Math.min(currentStaircase.trials.length / AVG_TRIALS_PER_FREQ, 0.95);
   const overallProgress     = Math.min((completedFreqUnits + currentFreqFraction) / TOTAL_FREQS, 1);
-  const freqsRemaining      = TOTAL_FREQS - completedFreqUnits - currentFreqFraction;
-  const secsRemaining       = Math.max(0, Math.round(freqsRemaining * AVG_TRIALS_PER_FREQ * AVG_SECS_PER_TRIAL));
-  const minsRemaining       = Math.max(1, Math.ceil(secsRemaining / 60));
+
+  // 5-minute countdown display
+  const timeLeftSecs = Math.max(0, TEST_DURATION_MS / 1_000 - elapsed);
+  const countdownMins = Math.floor(timeLeftSecs / 60);
+  const countdownSecs = timeLeftSecs % 60;
+  const countdownStr  = `${countdownMins}:${String(countdownSecs).padStart(2, '0')}`;
+  const countdownUrgent = timeLeftSecs <= 60;
 
   const completedThresholds = PTA_FREQUENCIES
     .slice(0, freqIndex)
@@ -610,9 +628,21 @@ export default function PTATest() {
                 />
               ))}
             </View>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#6b7280' }}>
-              {Math.round(overallProgress * 100)}% · ~{minsRemaining} min left
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#6b7280' }}>
+                {Math.round(overallProgress * 100)}%
+              </Text>
+              <View style={{
+                backgroundColor: countdownUrgent ? '#7f1d1d' : '#1f2937',
+                borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+                flexDirection: 'row', alignItems: 'center', gap: 4,
+              }}>
+                <Ionicons name="timer-outline" size={11} color={countdownUrgent ? '#fca5a5' : '#6b7280'} />
+                <Text style={{ fontSize: 12, fontWeight: '800', color: countdownUrgent ? '#fca5a5' : '#6b7280', fontVariant: ['tabular-nums'] }}>
+                  {countdownStr}
+                </Text>
+              </View>
+            </View>
           </View>
           {/* Combined fill bar */}
           <View style={{ height: 3, backgroundColor: '#1f2937', borderRadius: 2 }}>

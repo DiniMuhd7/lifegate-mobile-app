@@ -4,7 +4,7 @@
  * Displays a full audiogram (right + left ear), WHO classification badges,
  * PTA3 averages, audiogram shape labels, and clinical recommendations.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   StatusBar,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +33,8 @@ import { generateAIHearingInterpretation } from 'services/hearing-ai-engine';
 import type { AIHearingInterpretation } from 'services/hearing-ai-engine';
 import { interpretHearing } from 'services/sensor-interpretation-service';
 import type { SensorInterpretResponse } from 'services/sensor-interpretation-service';
+import { openHearingPDF } from 'services/hearing-pdf';
+import { useAuthStore } from 'stores/auth-store';
 import type { PTAFrequency, TestEar, WHOGrade, SINResult, HFResult, BehavioralReport } from 'types/hearing-types';
 import { PTA_FREQUENCIES, HF_FREQUENCIES } from 'types/hearing-types';
 
@@ -1363,6 +1366,18 @@ function EDISHearingPanel({ edis }: { edis: SensorInterpretResponse }) {
 export default function HearingResults() {
   const { session, staircases, sinResult, hfResult } = useHearingStore();
   const resetAll = useHearingStore((s) => s.resetAll);
+  const user = useAuthStore((s) => s.user);
+
+  // Computed patient age
+  const userAge = useMemo(() => {
+    if (!user?.dob) return undefined;
+    const dob = new Date(user.dob);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+    return age;
+  }, [user]);
 
   // EDIS interpretation state
   const [edisResult, setEdisResult] = useState<SensorInterpretResponse | null>(null);
@@ -1414,6 +1429,19 @@ export default function HearingResults() {
 
   const handleDone = () => {
     router.replace('/(tab)/chatScreen' as never);
+  };
+
+  const handleExport = () => {
+    if (Platform.OS === 'web') {
+      openHearingPDF({
+        session,
+        sinResult,
+        hfResult,
+        user: user ? { name: user.name, dob: user.dob } : null,
+        userAge,
+        edisResult,
+      });
+    }
   };
 
   return (
@@ -1542,7 +1570,20 @@ export default function HearingResults() {
           </View>
 
           {/* Actions */}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+          {Platform.OS === 'web' && (
+            <Pressable
+              onPress={handleExport}
+              style={({ pressed }) => ({
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                gap: 8, marginTop: 20, paddingVertical: 14, borderRadius: 14,
+                backgroundColor: pressed ? '#0f766e' : TEAL,
+              })}
+            >
+              <Ionicons name="document-outline" size={18} color="#fff" />
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>Export Results</Text>
+            </Pressable>
+          )}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
             <Pressable
               onPress={handleRetake}
               style={({ pressed }) => ({
