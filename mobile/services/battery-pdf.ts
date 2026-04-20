@@ -3,6 +3,7 @@
  * Generates an HTML document that closely mirrors the battery-results UI,
  * then uses expo-print to render it as a PDF.
  */
+import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import type {
@@ -451,6 +452,18 @@ export async function exportBatteryResultsPDF(opts: {
     opts.durationSeconds,
     opts.userAge,
   );
+
+  if (Platform.OS === 'web') {
+    // On web, expo-print captures the current page (including app UI).
+    // Instead, open our custom HTML in a new tab so the user can print/save it.
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+    }
+    return;
+  }
 
   const { uri } = await Print.printToFileAsync({ html, base64: false });
   const canShare = await Sharing.isAvailableAsync();
