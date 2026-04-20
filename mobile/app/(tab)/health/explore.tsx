@@ -721,13 +721,13 @@ export default function ExploreScreen() {
   }, [activeVideo, claimReward, showToast, dailyCap, refreshVideos]);
 
   // Availability-checked, sorted video list.
-  // Duration filter: 5–30 min (300–1800 s) — matches what the backend refresher fetches.
+  // Duration filter: 5–20 min (300–1200 s) — matches YouTube 'medium' band.
   // Sort: fresh first → session-viewed → already rewarded.
   const filteredVideos = shuffledVideos
     .filter(
       (v) =>
         v.durationSeconds >= 300 &&
-        v.durationSeconds <= 1800 &&
+        v.durationSeconds <= 1200 &&
         (!availableIds || availableIds.has(v.id)) &&
         (activeCategory === 'All' || v.category === activeCategory),
     )
