@@ -72,6 +72,8 @@ interface VisionState {
   // ── Acuity staircase runtime ───────────────────────────────────────────────
   acuityStaircase: AcuityStaircase | null;
   acuityTrials: AcuityTrial[];
+  /** Thresholds from each completed staircase run (accumulated over 5-min session) */
+  acuityCompletedThresholds: number[];
 
   // ── Color vision runtime ───────────────────────────────────────────────────
   colorPlateIndex: number;
@@ -162,6 +164,7 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   session: null,
   acuityStaircase: null,
   acuityTrials: [],
+  acuityCompletedThresholds: [],
   colorPlateIndex: 0,
   colorTrials: [],
   astigmatismTrials: [],
@@ -278,10 +281,19 @@ export const useVisionStore = create<VisionState>((set, get) => ({
 
   // ── Acuity actions ─────────────────────────────────────────────────────────
 
-  startAcuityTest: () => set({ acuityStaircase: initAcuityStaircase(), acuityTrials: [] }),
+  startAcuityTest: () => set({ acuityStaircase: initAcuityStaircase(), acuityTrials: [], acuityCompletedThresholds: [] }),
 
-  // Restart staircase only — preserves acuityTrials for finaliseAcuity
-  restartAcuityStaircase: () => set({ acuityStaircase: initAcuityStaircase() }),
+  // Save the current staircase's threshold, then restart for continuous testing
+  restartAcuityStaircase: () => {
+    const { acuityStaircase, acuityCompletedThresholds } = get();
+    const savedThreshold = acuityStaircase ? estimateAcuityThreshold(acuityStaircase) : null;
+    set({
+      acuityStaircase: initAcuityStaircase(),
+      acuityCompletedThresholds: savedThreshold !== null
+        ? [...acuityCompletedThresholds, savedThreshold]
+        : acuityCompletedThresholds,
+    });
+  },
 
   recordAcuityTrial: (trial) => {
     const { acuityStaircase, acuityTrials } = get();
@@ -291,9 +303,12 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   },
 
   finaliseAcuity: () => {
-    const { acuityStaircase, acuityTrials } = get();
+    const { acuityStaircase, acuityTrials, acuityCompletedThresholds } = get();
     if (!acuityStaircase) return;
-    const logMAR = estimateAcuityThreshold(acuityStaircase);
+    // Take the BEST (lowest logMAR = sharpest vision) across all staircase runs
+    const currentThreshold = estimateAcuityThreshold(acuityStaircase);
+    const allThresholds = [...acuityCompletedThresholds, currentThreshold];
+    const logMAR = Math.min(...allThresholds);
     const notation = lookupAcuity(logMAR);
     get().recordTestResult({
       testId: 'acuity',
