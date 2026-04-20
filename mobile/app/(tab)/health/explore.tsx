@@ -635,6 +635,7 @@ export default function ExploreScreen() {
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [availableIds, setAvailableIds] = useState<Set<string> | null>(null);
+  const [activeCategory, setActiveCategory] = useState<VideoCategory | 'All'>('All');
 
   useEffect(() => {
     if (!initialized) initialize();
@@ -721,8 +722,14 @@ export default function ExploreScreen() {
 
   // Availability-checked, sorted, capped video list
   // Filter out unavailable videos (once checked), sort fresh-first, then cap at dailyCap (10).
-  const filteredVideos = shuffledVideos
-    .filter((v) => v.durationSeconds >= 300 && v.durationSeconds <= 1200 && (!availableIds || availableIds.has(v.id)))
+  const baseFiltered = shuffledVideos
+    .filter(
+      (v) =>
+        v.durationSeconds >= 300 &&
+        v.durationSeconds <= 1200 &&
+        (!availableIds || availableIds.has(v.id)) &&
+        (activeCategory === 'All' || v.category === activeCategory),
+    )
     .sort((a, b) => {
       // Sort order: fresh → session-viewed → rewarded
       const aR = isRewarded(a.id);
@@ -732,8 +739,9 @@ export default function ExploreScreen() {
       const bV = viewedIds.has(b.id);
       if (aV !== bV) return aV ? 1 : -1;
       return 0;
-    })
-    .slice(0, dailyCap);
+    });
+  // Apply daily cap only in the 'All' view; category views show everything available
+  const filteredVideos = activeCategory === 'All' ? baseFiltered.slice(0, dailyCap) : baseFiltered;
 
   const dailyRemaining = getDailyRemaining();
   // Accurate counts based on what's actually available
@@ -841,13 +849,74 @@ export default function ExploreScreen() {
         </View>
       </LinearGradient>
 
-
+      {/* Category pills */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
+        style={{ flexGrow: 0 }}
+      >
+        {CATEGORIES.map((cat) => {
+          const isActive = activeCategory === cat;
+          const meta = cat !== 'All' ? CAT_META[cat as VideoCategory] : null;
+          return (
+            <Pressable
+              key={cat}
+              onPress={() => setActiveCategory(cat)}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.75 : 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 20,
+                backgroundColor: isActive
+                  ? (meta ? meta.color : '#059669')
+                  : 'rgba(255,255,255,0.07)',
+                borderWidth: 1,
+                borderColor: isActive ? 'transparent' : 'rgba(255,255,255,0.12)',
+              })}
+            >
+              <Ionicons
+                name={meta ? meta.icon : 'grid-outline'}
+                size={14}
+                color={isActive ? '#fff' : (meta ? meta.color : '#6ee7b7')}
+              />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
+                }}
+              >
+                {cat}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {/* Video list */}
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, gap: 12, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Section header for category view */}
+        {activeCategory !== 'All' && availableIds !== null && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 2 }}>
+            <Ionicons
+              name={CAT_META[activeCategory as VideoCategory].icon}
+              size={16}
+              color={CAT_META[activeCategory as VideoCategory].color}
+            />
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>{activeCategory}</Text>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
+              · {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        )}
+
         {availableIds === null ? (
           /* Checking availability */
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
@@ -857,7 +926,11 @@ export default function ExploreScreen() {
         ) : filteredVideos.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
             <Ionicons name="videocam-off-outline" size={36} color="#374151" />
-            <Text style={{ fontSize: 14, color: '#6b7280' }}>No videos available right now</Text>
+            <Text style={{ fontSize: 14, color: '#6b7280' }}>
+              {activeCategory === 'All'
+                ? 'No videos available right now'
+                : `No ${activeCategory} videos available`}
+            </Text>
           </View>
         ) : null}
         {availableIds !== null && filteredVideos.map((video) => (

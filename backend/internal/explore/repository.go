@@ -36,15 +36,30 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// ListActiveVideos returns all active videos ordered by sort_order.
-func (r *Repository) ListActiveVideos() ([]Video, error) {
-	rows, err := r.db.Query(`
-		SELECT id, title, description, category, duration_seconds, coins,
-		       thumbnail_color, thumbnail_icon, instructor, youtube_id
-		FROM   explore_videos
-		WHERE  is_active = TRUE
-		ORDER  BY sort_order ASC, created_at ASC
-	`)
+// ListActiveVideos returns active videos ordered by sort_order.
+// Passing a non-empty category restricts results to that category only.
+func (r *Repository) ListActiveVideos(category string) ([]Video, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if category != "" {
+		rows, err = r.db.Query(`
+			SELECT id, title, description, category, duration_seconds, coins,
+			       thumbnail_color, thumbnail_icon, instructor, youtube_id
+			FROM   explore_videos
+			WHERE  is_active = TRUE AND category = $1
+			ORDER  BY sort_order ASC, created_at ASC
+		`, category)
+	} else {
+		rows, err = r.db.Query(`
+			SELECT id, title, description, category, duration_seconds, coins,
+			       thumbnail_color, thumbnail_icon, instructor, youtube_id
+			FROM   explore_videos
+			WHERE  is_active = TRUE
+			ORDER  BY sort_order ASC, created_at ASC
+		`)
+	}
 	if err != nil {
 		return nil, err
 	}

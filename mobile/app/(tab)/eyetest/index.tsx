@@ -381,6 +381,177 @@ function LightingStep() {
   );
 }
 
+// ─── Step 3: Viewing distance — real-world diagram ───────────────────────────
+
+interface DistanceReference {
+  headline: string;
+  body: string;
+  iconName: React.ComponentProps<typeof Ionicons>['name'];
+  cautionColor?: string;
+}
+
+function getDistanceReference(cm: number): DistanceReference {
+  if (cm <= 24) {
+    return {
+      headline: 'Very close — shorter than a pencil',
+      body: 'This is closer than most people can focus comfortably. Consider moving the phone further away.',
+      iconName: 'alert-circle-outline',
+      cautionColor: '#f97316',
+    };
+  }
+  if (cm <= 33) {
+    return {
+      headline: '≈ length of a standard 30 cm ruler',
+      body: 'Picture a school ruler placed flat between your phone screen and your eyes — that is how far away to hold it.',
+      iconName: 'remove-outline',
+    };
+  }
+  if (cm <= 45) {
+    return {
+      headline: '≈ your forearm (elbow to wrist)',
+      body: 'Rest your elbow on a table and extend your arm toward the screen — your wrist should be roughly where the screen is.',
+      iconName: 'body-outline',
+    };
+  }
+  if (cm <= 58) {
+    return {
+      headline: '≈ elbow to fingertips (forearm + hand)',
+      body: 'Fully extend your arm from elbow to open palm. That gap between your fingertips and your face is your target distance.',
+      iconName: 'hand-right-outline',
+    };
+  }
+  if (cm <= 72) {
+    return {
+      headline: '≈ about two-thirds of an arm\'s length',
+      body: 'Hold the phone with your arm roughly two-thirds extended — elbow slightly bent.',
+      iconName: 'resize-outline',
+    };
+  }
+  return {
+    headline: '≈ a full outstretched arm',
+    body: 'This is unusually far for a phone. Hold it at a complete arm\'s stretch away from your face.',
+    iconName: 'warning-outline',
+    cautionColor: '#f97316',
+  };
+}
+
+function DistanceDiagram({ cm }: { cm: number }) {
+  const screenW = Dimensions.get('window').width;
+  // Available width: card has 18px padding × 2, outer margins ~20px × 2
+  const containerW = screenW - 40 - 36;
+  const ICON_D = 40; // icon circle diameter
+  const GAP = 10;    // space between icon and line
+  const maxLineW = containerW - ICON_D * 2 - GAP * 4;
+  const fraction = (cm - MIN_DISTANCE_CM) / (MAX_DISTANCE_CM - MIN_DISTANCE_CM);
+  const lineW = Math.round(24 + fraction * (maxLineW - 24));
+
+  const ref = getDistanceReference(cm);
+  const accentColor = ref.cautionColor ?? TEAL;
+
+  // Tick mark count along the ruler line — one per ~10 cm, max 8
+  const tickCount = Math.min(8, Math.floor(cm / 10));
+
+  return (
+    <View style={{ marginTop: 20 }}>
+      {/* Section label */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+        <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
+        <Text style={{ fontSize: 10, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+          What this looks like
+        </Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
+      </View>
+
+      {/* Top-view schematic diagram */}
+      <View style={{
+        backgroundColor: '#f8fafc',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+        padding: 16,
+        alignItems: 'center',
+        marginBottom: 12,
+        overflow: 'hidden',
+      }}>
+        {/* Label */}
+        <Text style={{ fontSize: 10, color: '#94a3b8', marginBottom: 12, letterSpacing: 0.5 }}>
+          TOP VIEW (not to scale)
+        </Text>
+
+        {/* Icon row: eye — ruler line — phone */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+
+          {/* Eye / face icon */}
+          <View style={{
+            width: ICON_D, height: ICON_D, borderRadius: ICON_D / 2,
+            backgroundColor: '#ecfdf5', borderWidth: 1.5, borderColor: '#6ee7b7',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Ionicons name="eye-outline" size={20} color="#059669" />
+          </View>
+
+          {/* Gap + animated ruler line */}
+          <View style={{ width: GAP }} />
+          <View style={{ width: lineW, alignItems: 'center' }}>
+            {/* Ruler ticks above the line */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 4, marginBottom: 2 }}>
+              {Array.from({ length: tickCount + 1 }).map((_, i) => (
+                <View key={i} style={{ width: 1, height: i === 0 || i === tickCount ? 8 : 5, backgroundColor: '#94a3b8' }} />
+              ))}
+            </View>
+            {/* Main line */}
+            <View style={{ width: '100%', height: 2, backgroundColor: accentColor, borderRadius: 1 }} />
+            {/* cm label below */}
+            <Text style={{ fontSize: 13, fontWeight: '800', color: accentColor, marginTop: 4 }}>
+              {cm} cm
+            </Text>
+          </View>
+          <View style={{ width: GAP }} />
+
+          {/* Phone icon */}
+          <View style={{
+            width: ICON_D, height: ICON_D, borderRadius: 10,
+            backgroundColor: '#eff6ff', borderWidth: 1.5, borderColor: '#93c5fd',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Ionicons name="phone-portrait-outline" size={20} color="#2563eb" />
+          </View>
+        </View>
+
+        {/* Legend labels */}
+        <View style={{ flexDirection: 'row', width: '100%', justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ fontSize: 9, color: '#94a3b8', marginLeft: 2 }}>Your eyes</Text>
+          <Text style={{ fontSize: 9, color: '#94a3b8', marginRight: 2 }}>Your phone</Text>
+        </View>
+      </View>
+
+      {/* Real-world reference card */}
+      <View style={{
+        flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+        backgroundColor: ref.cautionColor ? '#fff7ed' : '#f0fdf4',
+        borderRadius: 14, padding: 14,
+        borderWidth: 1, borderColor: ref.cautionColor ? '#fed7aa' : '#bbf7d0',
+      }}>
+        <View style={{
+          width: 36, height: 36, borderRadius: 18,
+          backgroundColor: ref.cautionColor ? '#ffedd5' : '#dcfce7',
+          alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Ionicons name={ref.iconName} size={18} color={accentColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '800', color: '#1e293b', marginBottom: 3, lineHeight: 18 }}>
+            {ref.headline}
+          </Text>
+          <Text style={{ fontSize: 12, color: '#475569', lineHeight: 17 }}>
+            {ref.body}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ─── Step 3: Viewing distance ─────────────────────────────────────────────────
 
 function DistanceStep() {
@@ -539,6 +710,9 @@ function DistanceStep() {
           </Pressable>
         ))}
       </View>
+
+      {/* Real-world distance diagram */}
+      <DistanceDiagram cm={viewingDistanceCm} />
     </Card>
   );
 }

@@ -111,7 +111,7 @@ function AudiogramChart({
     <View style={{ marginLeft: CHART_MARGIN_LEFT, marginBottom: CHART_MARGIN_BOTTOM }}>
       <View style={{ width: CHART_W, height: CHART_H, position: 'relative' }}>
 
-        {/* Normal hearing zone (≤25 dBHL) — green shaded */}
+        {/* Normal hearing zone (≤25 dBHL) — subtle dark-green tint */}
         <View
           style={{
             position: 'absolute',
@@ -119,7 +119,7 @@ function AudiogramChart({
             right: 0,
             top: 0,
             height: yFor(25),
-            backgroundColor: '#f0fdf4',
+            backgroundColor: 'rgba(5,46,22,0.28)',
           }}
         />
 
@@ -132,7 +132,7 @@ function AudiogramChart({
                 left: 0, right: 0,
                 top: yFor(db),
                 height: db === 25 ? 2 : 1,
-                backgroundColor: db === 25 ? '#86efac' : db === 0 ? '#d1d5db' : '#f3f4f6',
+                backgroundColor: db === 25 ? '#166534' : db === 0 ? '#1f2937' : '#161d2a',
               }}
             />
             {/* dBHL label */}
@@ -143,7 +143,7 @@ function AudiogramChart({
                 top: yFor(db) - 8,
                 width: CHART_MARGIN_LEFT - 4,
                 fontSize: 9,
-                color: db === 25 ? '#16a34a' : '#9ca3af',
+                color: db === 25 ? '#4ade80' : '#374151',
                 textAlign: 'right',
               }}
             >
@@ -162,7 +162,7 @@ function AudiogramChart({
               top: 0,
               bottom: 0,
               width: 1,
-              backgroundColor: '#f3f4f6',
+              backgroundColor: '#161d2a',
             }}
           />
         ))}
@@ -185,7 +185,7 @@ function AudiogramChart({
                 backgroundColor: RIGHT_COLOR,
                 transform: [{ rotate: `${angle}deg` }],
                 transformOrigin: '0 1px',
-                opacity: 0.7,
+                opacity: 0.85,
               } as any}
             />
           );
@@ -209,7 +209,7 @@ function AudiogramChart({
                 backgroundColor: LEFT_COLOR,
                 transform: [{ rotate: `${angle}deg` }],
                 transformOrigin: '0 1px',
-                opacity: 0.7,
+                opacity: 0.85,
               } as any}
             />
           );
@@ -227,7 +227,7 @@ function AudiogramChart({
               borderRadius: 10,
               borderWidth: 2.5,
               borderColor: RIGHT_COLOR,
-              backgroundColor: '#fff',
+              backgroundColor: '#0d1117',
             }}
           />
         ))}
@@ -258,7 +258,7 @@ function AudiogramChart({
               left: xFor(f) - 14,
               top: CHART_H + 4,
               fontSize: 9,
-              color: '#6b7280',
+              color: '#4b5563',
               width: 28,
               textAlign: 'center',
             }}
@@ -269,20 +269,20 @@ function AudiogramChart({
       </View>
 
       {/* Legend */}
-      <View style={{ flexDirection: 'row', gap: 20, marginTop: CHART_MARGIN_BOTTOM + 4, justifyContent: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 16, height: 16, borderRadius: 8, borderWidth: 2.5, borderColor: RIGHT_COLOR, backgroundColor: '#fff' }} />
+      <View style={{ flexDirection: 'row', gap: 16, marginTop: CHART_MARGIN_BOTTOM + 4, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2.5, borderColor: RIGHT_COLOR, backgroundColor: '#0d1117' }} />
           <Text style={{ fontSize: 11, color: '#6b7280' }}>Right (○)</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 16, height: 16, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ position: 'absolute', width: 14, height: 2.5, backgroundColor: LEFT_COLOR, transform: [{ rotate: '45deg' }] }} />
-            <View style={{ position: 'absolute', width: 14, height: 2.5, backgroundColor: LEFT_COLOR, transform: [{ rotate: '-45deg' }] }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <View style={{ width: 14, height: 14, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ position: 'absolute', width: 12, height: 2, backgroundColor: LEFT_COLOR, transform: [{ rotate: '45deg' }] }} />
+            <View style={{ position: 'absolute', width: 12, height: 2, backgroundColor: LEFT_COLOR, transform: [{ rotate: '-45deg' }] }} />
           </View>
           <Text style={{ fontSize: 11, color: '#6b7280' }}>Left (×)</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 16, height: 10, backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#86efac' }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <View style={{ width: 14, height: 8, backgroundColor: 'rgba(5,46,22,0.5)', borderWidth: 1, borderColor: '#166534' }} />
           <Text style={{ fontSize: 11, color: '#6b7280' }}>Normal zone</Text>
         </View>
       </View>
@@ -309,8 +309,8 @@ function EarCard({
 
   if (!who) {
     return (
-      <View style={{ backgroundColor: '#f9fafb', borderRadius: 16, padding: 16, opacity: 0.5, marginBottom: 12 }}>
-        <Text style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center' }}>{label} — not tested</Text>
+      <View style={{ backgroundColor: '#0d1117', borderRadius: 16, padding: 16, opacity: 0.5, marginBottom: 12, borderWidth: 1, borderColor: '#1f2937' }}>
+        <Text style={{ fontSize: 13, color: '#4b5563', textAlign: 'center' }}>{label} — not tested</Text>
       </View>
     );
   }
@@ -318,68 +318,79 @@ function EarCard({
   const badgeColor = WHO_BADGE_COLOR[who.grade];
 
   return (
-    <View style={{ backgroundColor: '#ffffff', borderRadius: 16, padding: 16, borderWidth: 1.5, borderColor: '#f3f4f6', marginBottom: 12, gap: 10 }}>
+    <View style={{ backgroundColor: '#0d1117', borderRadius: 16, padding: 16, borderWidth: 1.5, borderColor: '#1f2937', marginBottom: 12, gap: 10 }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 14, fontWeight: '900', color }}>{symbol}</Text>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${color}22`, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: `${color}44` }}>
+          <Text style={{ fontSize: 16, fontWeight: '900', color }}>{symbol}</Text>
         </View>
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: '800', color: '#111827' }}>{label}</Text>
-        <View style={{ backgroundColor: `${badgeColor}20`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: badgeColor }}>Grade {who.grade}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: '#f9fafb' }}>{label}</Text>
+          <Text style={{ fontSize: 11, color: '#4b5563', marginTop: 1 }}>WHO Grading</Text>
+        </View>
+        <View style={{ backgroundColor: `${badgeColor}22`, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: `${badgeColor}44` }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: badgeColor }}>Grade {who.grade}</Text>
         </View>
       </View>
 
       {/* WHO classification */}
-      <View style={{ backgroundColor: `${badgeColor}10`, borderRadius: 10, padding: 10 }}>
+      <View style={{ backgroundColor: `${badgeColor}18`, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: `${badgeColor}30` }}>
         <Text style={{ fontSize: 14, fontWeight: '800', color: badgeColor }}>{who.label}</Text>
-        <Text style={{ fontSize: 12, color: '#374151', marginTop: 2 }}>{who.description}</Text>
+        <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 3, lineHeight: 18 }}>{who.description}</Text>
       </View>
 
       {/* PTA3 + shape */}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <View style={{ flex: 1, backgroundColor: '#f9fafb', borderRadius: 10, padding: 10, alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: '#111827' }}>{who.pureTonaAverage.toFixed(0)}</Text>
-          <Text style={{ fontSize: 10, color: '#6b7280' }}>PTA3 dBHL</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flex: 1, backgroundColor: '#111827', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#1f2937' }}>
+          <Text style={{ fontSize: 22, fontWeight: '900', color: '#f9fafb', letterSpacing: -0.5 }}>{who.pureTonaAverage.toFixed(0)}</Text>
+          <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>PTA3 dBHL</Text>
         </View>
         {shape && (
-          <View style={{ flex: 1.5, backgroundColor: '#f9fafb', borderRadius: 10, padding: 10, alignItems: 'center', flexDirection: 'row', gap: 6, justifyContent: 'center' }}>
-            <Text style={{ fontSize: 18 }}>{AUDIOGRAM_SHAPE_ICON[shape]}</Text>
+          <View style={{ flex: 1.5, backgroundColor: '#111827', borderRadius: 12, padding: 12, alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'center', borderWidth: 1, borderColor: '#1f2937' }}>
+            <Text style={{ fontSize: 22 }}>{AUDIOGRAM_SHAPE_ICON[shape]}</Text>
             <View>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>{AUDIOGRAM_SHAPE_LABELS[shape]}</Text>
-              <Text style={{ fontSize: 10, color: '#6b7280' }}>Shape</Text>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#f9fafb' }}>{AUDIOGRAM_SHAPE_LABELS[shape]}</Text>
+              <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>Shape</Text>
             </View>
           </View>
         )}
       </View>
 
-      {/* Threshold table */}
+      {/* Threshold chips */}
       <View style={{ gap: 4 }}>
-        <Text style={{ fontSize: 11, fontWeight: '700', color: '#6b7280', marginBottom: 2 }}>Threshold by frequency</Text>
+        <Text style={{ fontSize: 10, fontWeight: '700', color: '#4b5563', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 2 }}>Threshold by frequency</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {thresholds.map((t) => (
-            <View
-              key={t.frequency}
-              style={{
-                backgroundColor: t.dbHL <= 25 ? '#f0fdf4' : t.dbHL <= 40 ? '#fefce8' : '#fff7ed',
-                borderRadius: 8,
-                paddingHorizontal: 8, paddingVertical: 4,
-                alignItems: 'center',
-                minWidth: 54,
-              }}
-            >
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#374151' }}>{t.dbHL} dBHL</Text>
-              <Text style={{ fontSize: 9, color: '#9ca3af' }}>{chipFreqLabel(t.frequency)}</Text>
-            </View>
-          ))}
+          {thresholds.map((t) => {
+            const chipBg    = t.dbHL <= 25 ? '#052e16' : t.dbHL <= 40 ? '#1c1000' : '#1c0400';
+            const chipBorder = t.dbHL <= 25 ? '#166534' : t.dbHL <= 40 ? '#713f12' : '#7f1d1d';
+            const chipText  = t.dbHL <= 25 ? '#4ade80' : t.dbHL <= 40 ? '#fbbf24' : '#f87171';
+            return (
+              <View
+                key={t.frequency}
+                style={{
+                  backgroundColor: chipBg,
+                  borderRadius: 8,
+                  paddingHorizontal: 8, paddingVertical: 5,
+                  alignItems: 'center',
+                  minWidth: 54,
+                  borderWidth: 1,
+                  borderColor: chipBorder,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: chipText }}>{t.dbHL}</Text>
+                <Text style={{ fontSize: 8, color: '#4b5563', marginTop: 1 }}>dBHL</Text>
+                <Text style={{ fontSize: 9, color: '#374151', marginTop: 1 }}>{chipFreqLabel(t.frequency)}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 
       {/* Recommendation */}
       {who.recommendation && (
-        <View style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: 10, flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-          <Ionicons name="information-circle-outline" size={16} color="#3b82f6" style={{ marginTop: 1 }} />
-          <Text style={{ flex: 1, fontSize: 12, color: '#1e40af', lineHeight: 18 }}>{who.recommendation}</Text>
+        <View style={{ backgroundColor: '#0c1a2e', borderRadius: 10, padding: 10, flexDirection: 'row', gap: 8, alignItems: 'flex-start', borderWidth: 1, borderColor: '#1e3a5f' }}>
+          <Ionicons name="information-circle-outline" size={16} color="#60a5fa" style={{ marginTop: 1 }} />
+          <Text style={{ flex: 1, fontSize: 12, color: '#93c5fd', lineHeight: 18 }}>{who.recommendation}</Text>
         </View>
       )}
     </View>

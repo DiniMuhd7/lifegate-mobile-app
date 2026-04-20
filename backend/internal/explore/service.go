@@ -11,9 +11,9 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// ListVideos returns all active videos.
-func (s *Service) ListVideos() ([]Video, error) {
-	return s.repo.ListActiveVideos()
+// ListVideos returns active videos. Pass an empty string to return all categories.
+func (s *Service) ListVideos(category string) ([]Video, error) {
+	return s.repo.ListActiveVideos(category)
 }
 
 // GetDailyRewardedIDs returns the video IDs the user has already claimed today.

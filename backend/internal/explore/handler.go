@@ -16,16 +16,19 @@ func NewHandler(svc *Service) *Handler {
 }
 
 // ListVideos returns the active video catalogue.
+// An optional ?category= query parameter filters results to a single category.
 //
 // @Summary      List explore videos
 // @Tags         explore
 // @Produce      json
 // @Security     BearerAuth
+// @Param        category  query  string  false  "Filter by category"
 // @Success      200  {object}  object{success=bool,data=object{videos=array,total=integer,dailyCap=integer}}
 // @Failure      500  {object}  object{success=bool,message=string}
 // @Router       /explore/videos [get]
 func (h *Handler) ListVideos(c *gin.Context) {
-	videos, err := h.svc.ListVideos()
+	category := c.Query("category")
+	videos, err := h.svc.ListVideos(category)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch videos"})
 		return
