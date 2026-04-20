@@ -463,6 +463,7 @@ export default function PTATest() {
         if (nextIdx >= PTA_FREQUENCIES.length) {
           // All frequencies for this ear done
           if (activeEar === 'right') {
+            earSwitchTriggeredRef.current = true; // prevent timer from double-triggering
             setShowEarSwitch(true);
           } else {
             finaliseEar();
@@ -546,8 +547,15 @@ export default function PTATest() {
   const currentDbHL = currentStaircase.currentDbHL;
   const earFreqProgress = ((freqIndex + (tonePhase === 'responded' ? 0.9 : 0)) / PTA_FREQUENCIES.length);
 
-  // Overall progress based on real elapsed time vs 5-minute session timer
-  const overallProgress = Math.min(elapsed / (TEST_DURATION_MS / 1_000), 1);
+  // Overall progress: frequency-based so it stays consistent with the audiogram dots.
+  // Right ear contributes 0–50 %; left ear contributes 50–100 %.
+  // The MM:SS countdown separately communicates wall-clock time.
+  const AVG_TRIALS_PER_FREQ = 5;
+  const TOTAL_FREQS         = PTA_FREQUENCIES.length * 2; // 12
+  const earOffset           = activeEar === 'right' ? 0 : PTA_FREQUENCIES.length;
+  const completedFreqUnits  = earOffset + freqIndex;
+  const currentFreqFraction = Math.min(currentStaircase.trials.length / AVG_TRIALS_PER_FREQ, 0.95);
+  const overallProgress     = Math.min((completedFreqUnits + currentFreqFraction) / TOTAL_FREQS, 1);
 
   // 5-minute countdown display
   const timeLeftSecs = Math.max(0, TEST_DURATION_MS / 1_000 - elapsed);

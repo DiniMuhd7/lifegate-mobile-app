@@ -1491,8 +1491,21 @@ export default function HearingResults() {
               <Ionicons name="ear-outline" size={44} color="#fff" />
             </View>
             {user?.name ? (
-              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 2 }}>{user.name}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 2 }}>{user.name}</Text>
             ) : null}
+            {/* Age + Gender chips */}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              {userAge !== undefined ? (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }}>
+                  <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600' }}>Age {userAge}</Text>
+                </View>
+              ) : null}
+              {user?.gender ? (
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }}>
+                  <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600', textTransform: 'capitalize' }}>{user.gender}</Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={{ fontSize: 21, fontWeight: '900', color: '#fff' }}>
               {WHO_GRADE_LABEL[worstGrade]}
             </Text>
