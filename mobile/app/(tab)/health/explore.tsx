@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import {
   useExploreStore,
@@ -33,14 +33,20 @@ const CATEGORIES: Array<VideoCategory | 'All'> = [
   'Fitness',
   'Mental Health',
   'Medication',
+  'Maternal Health',
+  'Public Health',
+  'Primary Care',
 ];
 
 const CAT_META: Record<VideoCategory, { icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  Prevention:      { icon: 'shield-checkmark-outline', color: '#0284c7', bg: '#eff6ff' },
-  Nutrition:       { icon: 'nutrition-outline',         color: '#b45309', bg: '#fef3c7' },
-  Fitness:         { icon: 'barbell-outline',            color: '#15803d', bg: '#f0fdf4' },
-  'Mental Health': { icon: 'happy-outline',              color: '#7c3aed', bg: '#fdf4ff' },
-  Medication:      { icon: 'medkit-outline',             color: '#059669', bg: '#ecfdf5' },
+  Prevention:        { icon: 'shield-checkmark-outline', color: '#0284c7', bg: '#eff6ff' },
+  Nutrition:         { icon: 'nutrition-outline',         color: '#b45309', bg: '#fef3c7' },
+  Fitness:           { icon: 'barbell-outline',            color: '#15803d', bg: '#f0fdf4' },
+  'Mental Health':   { icon: 'happy-outline',              color: '#7c3aed', bg: '#fdf4ff' },
+  Medication:        { icon: 'medkit-outline',             color: '#059669', bg: '#ecfdf5' },
+  'Maternal Health': { icon: 'rose-outline',               color: '#db2777', bg: '#fdf2f8' },
+  'Public Health':   { icon: 'earth-outline',              color: '#0891b2', bg: '#ecfeff' },
+  'Primary Care':    { icon: 'home-outline',               color: '#16a34a', bg: '#f0fdf4' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -622,7 +628,7 @@ function VideoPlayerModal({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ExploreScreen() {
-  const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap } =
+  const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap, lastVideoRefreshDate } =
     useExploreStore();
 
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
@@ -633,6 +639,19 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized, initialize]);
+
+  // Re-fetch videos whenever the screen gains focus on a new calendar day so
+  // that users always see the freshest YouTube content without needing to
+  // restart the app.
+  useFocusEffect(
+    useCallback(() => {
+      if (!initialized) return;
+      const today = new Date().toISOString().slice(0, 10);
+      if (lastVideoRefreshDate !== today) {
+        refreshVideos();
+      }
+    }, [initialized, lastVideoRefreshDate, refreshVideos]),
+  );
 
   // Probe each YouTube video via the oEmbed endpoint — no API key needed, CORS-safe.
   // Run against the live videos from the store (updates when store refreshes).

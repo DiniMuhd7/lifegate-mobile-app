@@ -144,3 +144,51 @@ func (r *Repository) ClaimReward(userID, videoID string, dailyCap int) (int, boo
 
 	return coins, false, false, nil
 }
+
+// UpsertVideo inserts a new video or updates it if the youtube_id already
+// exists. This is called by the daily refresher.
+func (r *Repository) UpsertVideo(v Video, sortOrder int) error {
+	_, err := r.db.Exec(`
+		INSERT INTO explore_videos
+			(id, title, description, category, duration_seconds, coins,
+			 thumbnail_color, thumbnail_icon, instructor, youtube_id,
+			 is_active, sort_order)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE,$11)
+		ON CONFLICT (id) DO UPDATE SET
+			title            = EXCLUDED.title,
+			description      = EXCLUDED.description,
+			duration_seconds = EXCLUDED.duration_seconds,
+			coins            = EXCLUDED.coins,
+			thumbnail_color  = EXCLUDED.thumbnail_color,
+			thumbnail_icon   = EXCLUDED.thumbnail_icon,
+			instructor       = EXCLUDED.instructor,
+			youtube_id       = EXCLUDED.youtube_id,
+			is_active        = TRUE,
+			sort_order       = EXCLUDED.sort_order,
+			updated_at       = NOW()
+	`,
+		v.ID, v.Title, v.Description, v.Category,
+		v.DurationSeconds, v.Coins,
+		v.ThumbnailColor, v.ThumbnailIcon,
+		v.Instructor, v.YoutubeID,
+		sortOrder,
+	)
+	return err
+}
+
+// DeactivateOldVideos marks all videos in a category that were NOT refreshed
+// today as inactive. Videos are identified by the "yt_" prefix added by the
+// refresher (so hand-seeded entries are never deactivated).
+func (r *Repository) DeactivateOldVideos(category, today string) error {
+	// The refresher IDs are of the form "yt_<cat>_<youtubeId>".
+	// We deactivate rows in this category that haven't been updated today.
+	_, err := r.db.Exec(`
+		UPDATE explore_videos
+		SET    is_active  = FALSE,
+		       updated_at = NOW()
+		WHERE  category = $1
+		  AND  id LIKE 'yt_%'
+		  AND  DATE(updated_at) < $2::date
+	`, category, today)
+	return err
+}

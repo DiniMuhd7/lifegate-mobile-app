@@ -178,6 +178,11 @@ func main() {
 	exploreSvc := explore.NewService(exploreRepo)
 	exploreHandler := explore.NewHandler(exploreSvc)
 
+	// Daily YouTube catalogue refresh — searches each health category every
+	// 24 hours and upserts fresh videos into the explore_videos table.
+	exploreRefresher := explore.NewRefresher(exploreRepo, cfg.YouTubeAPIKey, 3)
+	go exploreRefresher.Start(context.Background())
+
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)
 	authSvc.SetReferralProcessor(referralSvc)

@@ -337,6 +337,39 @@ export default function PatientProfileScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* ── Simulation Tests shortcut ── */}
+            <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-[#E7F0F0]">
+              <View className="flex-row items-center gap-2 mb-3">
+                <Ionicons name="flask-outline" size={18} color="#0EA5A4" />
+                <Text className="text-lg font-black text-gray-900">Simulation Tests</Text>
+              </View>
+              <Text className="text-sm text-gray-600 leading-5 mb-3">
+                Quick self-check tools to screen your vision and hearing. Results are not a medical diagnosis.
+              </Text>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => router.push('/(tab)/eyetest')}
+                  className="flex-1 rounded-xl border border-[#CDE9E8] bg-[#F1FAFA] p-3 items-center active:opacity-75"
+                >
+                  <View className="h-9 w-9 rounded-full bg-[#E0F3F3] items-center justify-center mb-2">
+                    <Ionicons name="eye-outline" size={20} color="#0EA5A4" />
+                  </View>
+                  <Text className="text-sm font-bold text-gray-800">Eye Test</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5 text-center">Acuity · Contrast · Color</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tab)/hearingtest')}
+                  className="flex-1 rounded-xl border border-[#CDE9E8] bg-[#F1FAFA] p-3 items-center active:opacity-75"
+                >
+                  <View className="h-9 w-9 rounded-full bg-[#E0F3F3] items-center justify-center mb-2">
+                    <Ionicons name="ear-outline" size={20} color="#0EA5A4" />
+                  </View>
+                  <Text className="text-sm font-bold text-gray-800">Hearing Test</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5 text-center">PTA · HF · SIN</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View className="bg-white rounded-2xl p-4 shadow-sm border border-[#E7F0F0]">
               <View className="flex-row items-center justify-between mb-2">
                 <View className="flex-row items-center gap-2">

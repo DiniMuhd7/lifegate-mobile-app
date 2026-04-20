@@ -472,82 +472,6 @@ function AIInsightCard({
   );
 }
 
-function QuickActions() {
-  return (
-    <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: '700',
-          color: '#6b7280',
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-          marginBottom: 10,
-        }}
-      >
-        Simulation
-      </Text>
-      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'stretch', paddingHorizontal: 20 }}>
-        <Pressable
-          onPress={() => router.push('/(tab)/eyetest' as never)}
-          style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
-        >
-          <LinearGradient
-            colors={['#0AADA2', '#0369a1']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ flex: 1, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="eye-outline" size={22} color="#fff" />
-            </View>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
-              Vision Test
-            </Text>
-          </LinearGradient>
-        </Pressable>
-
-        <Pressable
-          onPress={() => router.push('/(tab)/hearingtest' as never)}
-          style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.82 : 1 })}
-        >
-          <LinearGradient
-            colors={['#0284c7', '#075985']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ flex: 1, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="ear-outline" size={22} color="#fff" />
-            </View>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff', textAlign: 'center' }}>
-              Hearing Test
-            </Text>
-          </LinearGradient>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 const PROMOTIONS = [
   { title: 'Check-ins', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
   { title: 'Explore', icon: 'compass-outline' as const, color: '#059669', bg: '#d1fae5' },
@@ -868,7 +792,6 @@ export default function HealthDashboardScreen() {
             />
           </View>
 
-          <QuickActions />
           <PromotionsSection />
 
           {/* Recent Cases */}

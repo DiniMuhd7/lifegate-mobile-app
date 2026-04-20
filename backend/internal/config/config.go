@@ -36,6 +36,8 @@ type Config struct {
 	EmailFrom    string
 	SupportEmail string
 
+	YouTubeAPIKey string
+
 	UploadDir string
 
 	FlutterwaveSecretKey   string
@@ -88,6 +90,8 @@ func Load() *Config {
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
 		EmailFrom:    getEnv("EMAIL_FROM", "noreply@dshub.com.ng"),
 		SupportEmail: getEnv("SUPPORT_EMAIL", "contact@dshub.com.ng"),
+
+		YouTubeAPIKey: getEnv("YOUTUBE_DATA_API_KEY", ""),
 
 		UploadDir: getEnv("UPLOAD_DIR", "./uploads"),
 
