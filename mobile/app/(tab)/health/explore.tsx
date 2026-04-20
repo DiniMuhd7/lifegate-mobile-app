@@ -719,7 +719,8 @@ export default function ExploreScreen() {
     setActiveVideo(null);
   }, [activeVideo, claimReward, showToast, dailyCap, refreshVideos]);
 
-  // Availability-checked, sorted video list
+  // Availability-checked, sorted, capped video list
+  // Filter out unavailable videos (once checked), sort fresh-first, then cap at dailyCap (10).
   const filteredVideos = shuffledVideos
     .filter((v) => !availableIds || availableIds.has(v.id))
     .sort((a, b) => {
@@ -731,7 +732,8 @@ export default function ExploreScreen() {
       const bV = viewedIds.has(b.id);
       if (aV !== bV) return aV ? 1 : -1;
       return 0;
-    });
+    })
+    .slice(0, dailyCap);
 
   const dailyRemaining = getDailyRemaining();
   // Accurate counts based on what's actually available
