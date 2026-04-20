@@ -110,6 +110,7 @@ interface VisionState {
 
   // Acuity
   startAcuityTest: () => void;
+  restartAcuityStaircase: () => void;
   recordAcuityTrial: (trial: AcuityTrial) => void;
   finaliseAcuity: () => void;
 
@@ -278,6 +279,9 @@ export const useVisionStore = create<VisionState>((set, get) => ({
   // ── Acuity actions ─────────────────────────────────────────────────────────
 
   startAcuityTest: () => set({ acuityStaircase: initAcuityStaircase(), acuityTrials: [] }),
+
+  // Restart staircase only — preserves acuityTrials for finaliseAcuity
+  restartAcuityStaircase: () => set({ acuityStaircase: initAcuityStaircase() }),
 
   recordAcuityTrial: (trial) => {
     const { acuityStaircase, acuityTrials } = get();
