@@ -236,6 +236,7 @@ export default function PTATest() {
   const [responseCountdown, setResponseCountdown] = useState(RESPONSE_TIMEOUT_MS / 1000);
   const [showEarSwitch, setShowEarSwitch] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [earElapsed, setEarElapsed] = useState(0); // seconds since current ear started
   // Start at 1 — circle is visible from the first countdown (3 → 2 → 1).
   // Previously 0 made the countdown invisible until playback started.
   const fadeAnim  = useRef(new Animated.Value(1)).current;
@@ -253,24 +254,21 @@ export default function PTATest() {
     }
   }, []);
 
-  // ── Elapsed time counter + 5-minute expiry ──────────────────────────────────
+  // ── Elapsed time counter + per-ear 5-minute expiry ───────────────────────────────────
+  // Each ear independently gets up to TEST_DURATION_MS (5 min). timeExpiredRef
+  // is reset when the ear switches so the left ear never inherits the right
+  // ear's elapsed time.
   useEffect(() => {
     const t = setInterval(() => {
       const secs = Math.floor((Date.now() - testStartRef.current) / 1000);
       setElapsed(secs);
-      if (secs * 1_000 >= TEST_DURATION_MS && !timeExpiredRef.current) {
+      const earSecs = Math.floor((Date.now() - earStartRef.current) / 1000);
+      setEarElapsed(earSecs);
+      // Expire when the CURRENT ear has used its full 5-minute budget.
+      if (earSecs * 1_000 >= TEST_DURATION_MS && !timeExpiredRef.current) {
         timeExpiredRef.current = true;
-      }      // Per-ear 2.5-minute limit: auto-trigger ear switch at halfway mark
-      const earElapsedMs = Date.now() - earStartRef.current;
-      const currentEar = useHearingStore.getState().activeEar;
-      if (
-        earElapsedMs >= TEST_DURATION_MS / 2 &&
-        currentEar === 'right' &&
-        !earSwitchTriggeredRef.current
-      ) {
-        earSwitchTriggeredRef.current = true;
-        setShowEarSwitch(true);
-      }    }, 1_000);
+      }
+    }, 1_000);
     return () => clearInterval(t);
   }, []);
 
@@ -537,7 +535,9 @@ export default function PTATest() {
     setShowEarSwitch(false);
     finaliseEar();
     startEarTest('left');
-    earStartRef.current = Date.now(); // reset per-ear timer for left ear
+    earStartRef.current = Date.now();       // reset per-ear clock for left ear
+    timeExpiredRef.current = false;         // left ear gets its own fresh 5 minutes
+    setEarElapsed(0);
     setTonePhase('countdown');
     setCountdown(2);
   };
@@ -557,8 +557,8 @@ export default function PTATest() {
   const currentFreqFraction = Math.min(currentStaircase.trials.length / AVG_TRIALS_PER_FREQ, 0.95);
   const overallProgress     = Math.min((completedFreqUnits + currentFreqFraction) / TOTAL_FREQS, 1);
 
-  // 5-minute countdown display
-  const timeLeftSecs = Math.max(0, TEST_DURATION_MS / 1_000 - elapsed);
+  // 5-minute per-ear countdown display
+  const timeLeftSecs = Math.max(0, TEST_DURATION_MS / 1_000 - earElapsed);
   const countdownMins = Math.floor(timeLeftSecs / 60);
   const countdownSecs = timeLeftSecs % 60;
   const countdownStr  = `${countdownMins}:${String(countdownSecs).padStart(2, '0')}`;
