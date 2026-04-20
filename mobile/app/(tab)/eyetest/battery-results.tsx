@@ -1177,21 +1177,14 @@ export default function BatteryResults() {
 
           {/* Actions */}
           <View style={{ gap: 10 }}>
-            {/* Export PDF */}
             <Pressable onPress={handleExportPDF} disabled={pdfLoading}
-              style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: TEAL, backgroundColor: pressed ? '#f0fdfc' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
-              {pdfLoading
-                ? <ActivityIndicator size="small" color={TEAL} />
-                : <Ionicons name="document-text-outline" size={18} color={TEAL} />}
-              <Text style={{ fontSize: 15, fontWeight: '700', color: TEAL }}>
-                {pdfLoading ? 'Generating PDF…' : 'Export PDF Report'}
-              </Text>
-            </Pressable>
-
-            <Pressable onPress={handleShare}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
-              <Ionicons name="share-social-outline" size={18} color="#374151" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>Share Results</Text>
+              {pdfLoading
+                ? <ActivityIndicator size="small" color="#374151" />
+                : <Ionicons name="share-social-outline" size={18} color="#374151" />}
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>
+                {pdfLoading ? 'Generating PDF…' : 'Share Results'}
+              </Text>
             </Pressable>
             <Pressable onPress={handleRetake}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
