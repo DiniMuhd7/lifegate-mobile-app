@@ -229,7 +229,7 @@ function VideoCard({
             {video.instructor}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="logo-bitcoin" size={12} color={rewarded ? '#6b7280' : '#fbbf24'} />
+            <Ionicons name="heart" size={12} color={rewarded ? '#6b7280' : '#fbbf24'} />
             <Text style={{ fontSize: 12, fontWeight: '800', color: rewarded ? '#6b7280' : '#fbbf24' }}>
               +{video.coins} LC
             </Text>
@@ -538,7 +538,7 @@ function VideoPlayerModal({
                 borderColor: 'rgba(251,191,36,0.2)',
               }}
             >
-              <Ionicons name="logo-bitcoin" size={15} color="#fbbf24" />
+              <Ionicons name="heart" size={15} color="#fbbf24" />
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#fbbf24' }}>+{video.coins}</Text>
             </View>
           </View>
@@ -601,7 +601,7 @@ function VideoPlayerModal({
               ) : (
                 <>
                   <Ionicons
-                    name={canClaim ? 'logo-bitcoin' : 'lock-closed-outline'}
+                    name={canClaim ? 'heart' : 'lock-closed-outline'}
                     size={20}
                     color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'}
                   />
@@ -800,7 +800,7 @@ export default function ExploreScreen() {
               gap: 6,
             }}
           >
-            <Ionicons name="logo-bitcoin" size={16} color="#fbbf24" />
+            <Ionicons name="heart" size={16} color="#fbbf24" />
             <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>{lifecoins}</Text>
           </View>
         </View>
@@ -823,7 +823,7 @@ export default function ExploreScreen() {
             {
               label: 'Earned',
               value: `${totalEarned} LC`,
-              icon: 'logo-bitcoin' as const,
+              icon: 'heart' as const,
               color: '#fbbf24',
             },
           ].map((s) => (
@@ -999,7 +999,7 @@ export default function ExploreScreen() {
             elevation: 10,
           }}
         >
-          <Ionicons name="logo-bitcoin" size={22} color="#4ade80" />
+          <Ionicons name="heart" size={22} color="#4ade80" />
           <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff', flex: 1 }}>
             {toast.message}
           </Text>

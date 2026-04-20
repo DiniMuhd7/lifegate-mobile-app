@@ -229,7 +229,7 @@ export default function CheckinsScreen() {
                 Lifecoins
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Ionicons name="logo-bitcoin" size={18} color="#fbbf24" />
+                <Ionicons name="heart" size={18} color="#fbbf24" />
                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#fbbf24' }}>{lifecoins}</Text>
               </View>
             </View>
@@ -288,7 +288,7 @@ export default function CheckinsScreen() {
                 Today
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="logo-bitcoin" size={14} color="#fbbf24" />
+                <Ionicons name="heart" size={14} color="#fbbf24" />
                 <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff' }}>+{todayEarned}</Text>
               </View>
             </View>
@@ -418,7 +418,7 @@ export default function CheckinsScreen() {
                   }}
                 >
                   <Ionicons
-                    name="logo-bitcoin"
+                    name="heart"
                     size={12}
                     color={
                       status === 'claimed'

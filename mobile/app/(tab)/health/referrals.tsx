@@ -105,7 +105,7 @@ function TierCard({
           paddingVertical: 2,
         }}
       >
-        <Ionicons name="logo-bitcoin" size={10} color={reached ? color : '#9ca3af'} />
+        <Ionicons name="heart" size={10} color={reached ? color : '#9ca3af'} />
         <Text style={{ fontSize: 11, fontWeight: '800', color: reached ? color : '#9ca3af' }}>
           +{bonus} bonus
         </Text>
@@ -161,7 +161,7 @@ function ReferralRow({ item, index }: { item: ReferralItem; index: number }) {
           paddingVertical: 4,
         }}
       >
-        <Ionicons name="logo-bitcoin" size={11} color={item.bonusGranted ? '#16a34a' : '#d97706'} />
+        <Ionicons name="heart" size={11} color={item.bonusGranted ? '#16a34a' : '#d97706'} />
         <Text style={{ fontSize: 12, fontWeight: '700', color: item.bonusGranted ? '#15803d' : '#b45309' }}>
           {item.bonusGranted ? `+${COINS_PER_REFERRAL} earned` : 'Pending'}
         </Text>
@@ -264,7 +264,7 @@ export default function ReferralsScreen() {
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {[
             { label: 'Referrals', value: totalReferrals, icon: 'people-outline' as const, color: '#fca5a5' },
-            { label: 'Lifecoins', value: totalLifecoins, icon: 'logo-bitcoin' as const, color: '#fbbf24' },
+            { label: 'Lifecoins', value: totalLifecoins, icon: 'heart' as const, color: '#fbbf24' },
             { label: 'Next Tier', value: nextTier ? `${toNextTier} more` : '🏆 Max', icon: 'ribbon-outline' as const, color: '#a5b4fc' },
           ].map((s) => (
             <View
@@ -418,7 +418,7 @@ export default function ReferralsScreen() {
             { icon: 'share-outline' as const,             color: '#dc2626', text: 'Share your code with a friend' },
             { icon: 'person-add-outline' as const,        color: '#0284c7', text: 'They sign up using your referral code' },
             { icon: 'chatbubbles-outline' as const,       color: '#7c3aed', text: 'They complete their first consultation' },
-            { icon: 'logo-bitcoin' as const,              color: '#d97706', text: `You earn ${COINS_PER_REFERRAL} Lifecoins — instantly` },
+            { icon: 'heart' as const,                    color: '#d97706', text: `You earn ${COINS_PER_REFERRAL} Lifecoins — instantly` },
           ].map((step, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <View
