@@ -29,9 +29,56 @@ const TEST_SECONDS = 300;
 const SESSION_SECS = 100; // 3 × 100 s = 5 min
 const MOTION_PROB  = 0.33;
 
-type EyePhase    = 'left' | 'right' | 'both';
-type ClarityLevel = 1 | 2 | 3 | 4 | 5;
-type TrialType    = 'static' | 'motion';
+type EyePhase       = 'left' | 'right' | 'both';
+type ClarityLevel   = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type TrialType      = 'static' | 'motion';
+
+/** How the optotype is visually rendered, independent of logMAR difficulty */
+type PresentationMode =
+  | 'very-clear'     // crisp, high-contrast, medium-large
+  | 'clear'          // standard clear presentation
+  | 'normal'         // default rendering
+  | 'dim'            // low opacity ~0.45, no blur (simulate contrast loss)
+  | 'ghost'          // very low opacity ~0.28 (extreme contrast loss)
+  | 'slightly-blurry'// 1 ghost layer offset
+  | 'blurry'         // 2-3 ghost layers
+  | 'very-blurry'    // 4-6 ghost layers + reduced opacity
+  | 'tiny'           // force 55% size
+  | 'small'          // 72% size
+  | 'big'            // 130% size
+  | 'huge';          // 165% size
+
+const ALL_MODES: PresentationMode[] = [
+  'very-clear', 'clear', 'normal', 'dim', 'ghost',
+  'slightly-blurry', 'blurry', 'very-blurry',
+  'tiny', 'small', 'big', 'huge',
+];
+
+function randomMode(): PresentationMode {
+  return ALL_MODES[Math.floor(Math.random() * ALL_MODES.length)];
+}
+
+const MODE_LABEL: Record<PresentationMode, string> = {
+  'very-clear':     'Very Clear',
+  'clear':          'Clear',
+  'normal':         'Normal',
+  'dim':            'Dim',
+  'ghost':          'Ghost',
+  'slightly-blurry':'Slightly Blurry',
+  'blurry':         'Blurry',
+  'very-blurry':    'Very Blurry',
+  'tiny':           'Tiny',
+  'small':          'Small',
+  'big':            'Big',
+  'huge':           'Huge',
+};
+
+const MODE_ICON: Record<PresentationMode, string> = {
+  'very-clear': '✦', 'clear': '◉', 'normal': '●',
+  'dim': '◌', 'ghost': '○',
+  'slightly-blurry': '⬡', 'blurry': '⬢', 'very-blurry': '✦',
+  'tiny': '·', 'small': '•', 'big': '◈', 'huge': '◆',
+};
 
 interface PhaseConf {
   label: string;
@@ -47,21 +94,26 @@ const PHASE: Record<EyePhase, PhaseConf> = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function clarityFromLogMAR(logMAR: number): ClarityLevel {
-  if (logMAR <= 0.0) return 1;
-  if (logMAR <= 0.2) return 2;
-  if (logMAR <= 0.4) return 3;
-  if (logMAR <= 0.7) return 4;
-  return 5;
-}
+
 
 const CLARITY_LABEL: Record<ClarityLevel, string> = {
-  1: 'Crystal Clear', 2: 'Clear', 3: 'Slightly Blurred', 4: 'Blurred', 5: 'Very Blurred',
+  1: 'Crystal Clear', 2: 'Clear', 3: 'Normal', 4: 'Slightly Blurred',
+  5: 'Blurred', 6: 'Very Blurred', 7: 'Extreme Blur',
 };
 
 const CLARITY_COLOR: Record<ClarityLevel, string> = {
-  1: '#4ade80', 2: TEAL, 3: '#fbbf24', 4: '#f97316', 5: '#ef4444',
+  1: '#4ade80', 2: TEAL, 3: '#94a3b8', 4: '#fbbf24', 5: '#f97316', 6: '#ef4444', 7: '#dc2626',
 };
+
+function clarityFromLogMAR(logMAR: number): ClarityLevel {
+  if (logMAR <= -0.1) return 1;
+  if (logMAR <=  0.0) return 2;
+  if (logMAR <=  0.2) return 3;
+  if (logMAR <=  0.4) return 4;
+  if (logMAR <=  0.7) return 5;
+  if (logMAR <=  1.0) return 6;
+  return 7;
+}
 
 function nextScreen(ts: Record<string, string>) {
   if (ts.color === 'active')       return '/(tab)/eyetest/color';
@@ -71,21 +123,76 @@ function nextScreen(ts: Record<string, string>) {
   return '/(tab)/eyetest/battery-results';
 }
 
-// ── BlurryLetter ──────────────────────────────────────────────────────────────
-function BlurryLetter({
-  letter, fontSize, clarityLevel,
+// ── OptotypeLetter — rich multi-mode display ─────────────────────────────────
+function OptotypeLetter({
+  letter,
+  baseSize,
+  mode,
 }: {
-  letter: string; fontSize: number; clarityLevel: ClarityLevel;
+  letter: string;
+  baseSize: number; // px from logMAR calibration
+  mode: PresentationMode;
 }) {
-  type L = { dx: number; dy: number; opacity: number };
-  const layers: L[] = [];
-  if (clarityLevel >= 3) layers.push({ dx: 2,  dy: 2,  opacity: 0.18 });
-  if (clarityLevel >= 4) layers.push({ dx: -2, dy: 1, opacity: 0.14 }, { dx: 3, dy: -1, opacity: 0.11 });
-  if (clarityLevel >= 5) layers.push({ dx: -3, dy: -2, opacity: 0.09 }, { dx: 4, dy: 3, opacity: 0.08 }, { dx: -1, dy: 4, opacity: 0.07 });
+  type L = { dx: number; dy: number; opacity: number; scale?: number };
 
-  const sz = Math.max(28, Math.min(fontSize, 180));
-  const mainOpacity = clarityLevel === 5 ? 0.60 : clarityLevel === 4 ? 0.74 : clarityLevel === 3 ? 0.86 : 1;
-  const base = { fontSize: sz, fontWeight: '900' as const, fontFamily: 'Courier New', color: '#ffffff' };
+  // ── Size multiplier per mode ────────────────────────────────────────────────
+  const sizeMap: Record<PresentationMode, number> = {
+    'very-clear': 1.10, 'clear': 1.00, 'normal': 1.00,
+    'dim': 0.95, 'ghost': 0.92,
+    'slightly-blurry': 1.00, 'blurry': 1.05, 'very-blurry': 1.08,
+    'tiny': 0.45, 'small': 0.68, 'big': 1.35, 'huge': 1.70,
+  };
+  const sz = Math.max(22, Math.min(baseSize * sizeMap[mode], 200));
+
+  // ── Blur ghost layers ───────────────────────────────────────────────────────
+  const layers: L[] = [];
+  if (mode === 'slightly-blurry') {
+    layers.push({ dx: 2, dy: 2, opacity: 0.20 }, { dx: -2, dy: -1, opacity: 0.14 });
+  } else if (mode === 'blurry') {
+    layers.push(
+      { dx: 3,  dy: 3,  opacity: 0.22 },
+      { dx: -3, dy: 2,  opacity: 0.16 },
+      { dx: 5,  dy: -2, opacity: 0.12 },
+      { dx: -1, dy: -4, opacity: 0.09 },
+    );
+  } else if (mode === 'very-blurry') {
+    layers.push(
+      { dx: 5,  dy: 4,  opacity: 0.24 },
+      { dx: -4, dy: 3,  opacity: 0.20 },
+      { dx: 7,  dy: -3, opacity: 0.16 },
+      { dx: -2, dy: -5, opacity: 0.13 },
+      { dx: 8,  dy: 6,  opacity: 0.10 },
+      { dx: -6, dy: -2, opacity: 0.08 },
+    );
+  }
+
+  // ── Main letter opacity ─────────────────────────────────────────────────────
+  const opacityMap: Record<PresentationMode, number> = {
+    'very-clear': 1.00, 'clear': 1.00, 'normal': 1.00,
+    'dim': 0.42, 'ghost': 0.22,
+    'slightly-blurry': 0.88, 'blurry': 0.70, 'very-blurry': 0.52,
+    'tiny': 1.00, 'small': 1.00, 'big': 1.00, 'huge': 1.00,
+  };
+  const mainOpacity = opacityMap[mode];
+
+  // ── Font weight — very-clear gets extra weight ──────────────────────────────
+  const weight: '900' | '800' | '400' =
+    mode === 'very-clear' ? '900'
+    : mode === 'ghost' || mode === 'dim' ? '400'
+    : '900';
+
+  // ── Colour tint ─────────────────────────────────────────────────────────────
+  const letterColor =
+    mode === 'very-clear' ? '#ffffff'
+    : mode === 'huge'     ? '#e2e8f0'
+    : '#ffffff';
+
+  const base = {
+    fontSize: sz,
+    fontWeight: weight,
+    fontFamily: 'Courier New',
+    color: letterColor,
+  };
 
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -97,11 +204,25 @@ function BlurryLetter({
             opacity: l.opacity,
             transform: [{ translateX: l.dx }, { translateY: l.dy }],
           }]}
+          selectable={false}
         >
           {letter}
         </Text>
       ))}
-      <Text style={[base, { opacity: mainOpacity }]}>{letter}</Text>
+      <Text
+        style={[base, {
+          opacity: mainOpacity,
+          textShadowColor:
+            mode === 'very-clear' ? 'rgba(255,255,255,0.6)'
+            : mode === 'clear'    ? 'rgba(255,255,255,0.25)'
+            : 'transparent',
+          textShadowOffset: { width: 0, height: 0 },
+          textShadowRadius: mode === 'very-clear' ? 14 : 6,
+        }]}
+        selectable={false}
+      >
+        {letter}
+      </Text>
     </View>
   );
 }
@@ -306,10 +427,10 @@ function ChoiceButton({
   };
 
   // ── State-driven visual tokens ──────────────────────────────────────────────
-  let bg         = 'rgba(255,255,255,0.07)';   // visible frosted-glass card
-  let border     = 'rgba(255,255,255,0.18)';    // clear card outline
+  let bg         = 'rgba(255,255,255,0.11)';   // frosted-glass card — high contrast
+  let border     = 'rgba(255,255,255,0.30)';    // clearly visible outline
   let textColor  = '#ffffff';
-  let labelColor = `${phaseColor}99`;
+  let labelColor = `${phaseColor}bb`;
   let glow: object = {};
   let statusIcon: React.ReactNode = null;
 
@@ -403,18 +524,21 @@ function ChoiceButton({
         {statusIcon}
 
         {/* Main letter */}
-        <Text style={{
-          fontSize: 40,
-          fontWeight: '900',
-          color: textColor,
-          fontFamily: 'Courier New',
-          letterSpacing: 3,
-          textShadowColor: wasChosen && isCorrect ? 'rgba(74,222,128,0.4)'
-            : wasChosen && !isCorrect ? 'rgba(248,113,113,0.4)'
-            : 'rgba(255,255,255,0.12)',
-          textShadowOffset: { width: 0, height: 2 },
-          textShadowRadius: 8,
-        }}>
+        <Text
+          selectable={false}
+          style={{
+            fontSize: 42,
+            fontWeight: '900',
+            color: textColor,
+            fontFamily: 'Courier New',
+            letterSpacing: 3,
+            textShadowColor: wasChosen && isCorrect ? 'rgba(74,222,128,0.55)'
+              : wasChosen && !isCorrect ? 'rgba(248,113,113,0.55)'
+              : 'rgba(255,255,255,0.30)',
+            textShadowOffset: { width: 0, height: 0 },
+            textShadowRadius: wasChosen ? 12 : 6,
+          }}
+        >
           {letter}
         </Text>
 
@@ -465,7 +589,8 @@ export default function AcuityTest() {
   const phase3Done = useRef(false);
 
   // Trial
-  const [trialType, setTrialType] = useState<TrialType>('static');
+  const [trialType,         setTrialType]        = useState<TrialType>('static');
+  const [presentationMode,  setPresentationMode] = useState<PresentationMode>('normal');
   const [{ target, choices }, setStimulus] = useState(() => {
     const t = randomOptotype();
     const d = randomOptotypes(NUM_CHOICES - 1);
@@ -595,6 +720,7 @@ export default function AcuityTest() {
       const nextIsMotion = Math.random() < MOTION_PROB;
       setStimulus({ target: newT, choices: [...newD, newT].sort(() => Math.random() - 0.5) });
       setTrialType(nextIsMotion ? 'motion' : 'static');
+      setPresentationMode(randomMode());
       setAnswered(null);
       trialStart.current = Date.now();
       animateIn(nextIsMotion);
@@ -755,17 +881,35 @@ export default function AcuityTest() {
             borderWidth: 1.5, borderColor: `${phaseConf.color}1e`,
           }} />
 
-          {/* Letter — scale + motion */}
+          {/* Letter — scale + motion + rich presentation mode */}
           <Animated.View style={{
             transform: [{ scale: scaleAnim }, { translateX: motionAnim }],
             opacity: fadeAnim,
           }}>
-            <BlurryLetter
+            <OptotypeLetter
               letter={target}
-              fontSize={Math.max(28, Math.min(letterPx, 180))}
-              clarityLevel={clarityLevel}
+              baseSize={Math.max(28, Math.min(letterPx, 180))}
+              mode={presentationMode}
             />
           </Animated.View>
+
+          {/* Mode label — shown briefly below letter */}
+          <View style={{
+            position: 'absolute', bottom: 22,
+            flexDirection: 'row', alignItems: 'center', gap: 4,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+          }}>
+            <Text style={{ fontSize: 9, color: clarityColor, opacity: 0.7 }}>
+              {MODE_ICON[presentationMode]}
+            </Text>
+            <Text style={{
+              fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.35)',
+              letterSpacing: 1.2, textTransform: 'uppercase',
+            }}>
+              {MODE_LABEL[presentationMode]}
+            </Text>
+          </View>
 
           {/* Answer feedback */}
           {answered !== null && (
