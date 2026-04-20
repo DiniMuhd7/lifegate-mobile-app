@@ -199,8 +199,8 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 	var out []Video
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)
-		// Skip videos shorter than 5 min or longer than 15 min — not useful.
-		if dur < 300 || dur > 900 {
+		// Skip videos shorter than 5 min or longer than 20 min — not useful.
+		if dur < 300 || dur > 1200 {
 			continue
 		}
 
@@ -212,11 +212,11 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 		// Strip newlines from description.
 		desc = strings.ReplaceAll(desc, "\n", " ")
 
-		coins := 3
-		if dur >= 600 {
+		coins := 4
+		if dur >= 900 {
+			coins = 6
+		} else if dur >= 600 {
 			coins = 5
-		} else if dur >= 300 {
-			coins = 4
 		}
 
 		out = append(out, Video{

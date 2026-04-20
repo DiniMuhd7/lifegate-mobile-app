@@ -722,7 +722,7 @@ export default function ExploreScreen() {
   // Availability-checked, sorted, capped video list
   // Filter out unavailable videos (once checked), sort fresh-first, then cap at dailyCap (10).
   const filteredVideos = shuffledVideos
-    .filter((v) => v.durationSeconds >= 300 && (!availableIds || availableIds.has(v.id)))
+    .filter((v) => v.durationSeconds >= 300 && v.durationSeconds <= 1200 && (!availableIds || availableIds.has(v.id)))
     .sort((a, b) => {
       // Sort order: fresh → session-viewed → rewarded
       const aR = isRewarded(a.id);
