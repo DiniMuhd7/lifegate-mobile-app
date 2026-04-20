@@ -911,17 +911,7 @@ export default function AcuityTest() {
             </Text>
           </View>
 
-          {/* Answer feedback */}
-          {answered !== null && (
-            <View style={{ position: 'absolute', bottom: 14, alignItems: 'center' }}>
-              <Text style={{
-                fontSize: 14, fontWeight: '800',
-                color: answered === target ? '#4ade80' : '#f87171',
-              }}>
-                {answered === target ? '✓ Correct' : `✗  Correct: "${target}"`}
-              </Text>
-            </View>
-          )}
+
         </View>
 
         {/* ── Trial history dots ────────────────────────────────────────── */}
@@ -962,56 +952,48 @@ export default function AcuityTest() {
           )}
         </View>
 
-        {/* ── Choice buttons — 2 rows: top 3 equal · bottom 2 equal ──── */}
-        <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>
-          {/* Row 1 — A B C */}
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            {choices.slice(0, 3).map((c, idx) => {
-              const isCorrect   = c === target;
-              const wasChosen   = c === answered;
-              const revealRight = !!answered && isCorrect && !wasChosen;
-              const dimmed      = !!answered && !wasChosen && !revealRight;
-              return (
+        {/* ── Choice buttons — hidden while waiting for next trial ──── */}
+        {answered === null ? (
+          <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 10 }}>
+            {/* Row 1 — A B C */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {choices.slice(0, 3).map((c, idx) => (
                 <ChoiceButton
                   key={c}
                   letter={c}
                   index={idx}
-                  isCorrect={isCorrect}
-                  wasChosen={wasChosen}
-                  revealRight={revealRight}
-                  dimmed={dimmed}
+                  isCorrect={c === target}
+                  wasChosen={false}
+                  revealRight={false}
+                  dimmed={false}
                   phaseColor={phaseConf.color}
                   onPress={() => handleAnswer(c)}
-                  disabled={!!answered}
+                  disabled={false}
                 />
-              );
-            })}
-          </View>
+              ))}
+            </View>
 
-          {/* Row 2 — D E (wider, centred) */}
-          <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: '8%' }}>
-            {choices.slice(3).map((c, idx) => {
-              const isCorrect   = c === target;
-              const wasChosen   = c === answered;
-              const revealRight = !!answered && isCorrect && !wasChosen;
-              const dimmed      = !!answered && !wasChosen && !revealRight;
-              return (
+            {/* Row 2 — D E (wider, centred) */}
+            <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: '8%' }}>
+              {choices.slice(3).map((c, idx) => (
                 <ChoiceButton
                   key={c}
                   letter={c}
                   index={3 + idx}
-                  isCorrect={isCorrect}
-                  wasChosen={wasChosen}
-                  revealRight={revealRight}
-                  dimmed={dimmed}
+                  isCorrect={c === target}
+                  wasChosen={false}
+                  revealRight={false}
+                  dimmed={false}
                   phaseColor={phaseConf.color}
                   onPress={() => handleAnswer(c)}
-                  disabled={!!answered}
+                  disabled={false}
                 />
-              );
-            })}
+              ))}
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={{ height: 202, paddingHorizontal: 14, paddingBottom: 14 }} />
+        )}
 
         <PatientBottomTabBar />
 
