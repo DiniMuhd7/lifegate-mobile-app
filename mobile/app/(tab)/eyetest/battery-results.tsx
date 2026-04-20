@@ -1166,7 +1166,7 @@ export default function BatteryResults() {
             <Pressable onPress={handleShare}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
               <Ionicons name={Platform.OS === 'web' ? 'document-outline' : 'share-social-outline'} size={18} color="#374151" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>{Platform.OS === 'web' ? 'Export PDF' : 'Share Results'}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#374151' }}>{Platform.OS === 'web' ? 'Export Results' : 'Share Results'}</Text>
             </Pressable>
             <Pressable onPress={handleRetake}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
