@@ -34,7 +34,7 @@ export interface HearingPDFOptions {
   sinResult: SINResult | null;
   hfResult: HFResult | null;
   /** Logged-in user for the patient header */
-  user: { name?: string; dob?: string } | null;
+  user: { name?: string; dob?: string; gender?: string } | null;
   /** Pre-computed age, or undefined */
   userAge?: number;
   /** EDIS result if available */
@@ -214,11 +214,15 @@ function thresholdTable(right: FrequencyThreshold[], left: FrequencyThreshold[])
 // ─── Ear summary card ─────────────────────────────────────────────────────────
 
 function earCard(ear: EarResult | null, label: string, color: string): string {
+  const symbol = label === 'Right Ear' ? '○' : '×';
+
   if (!ear) {
     return `
-    <div class="card" style="border-color:#e5e7eb;opacity:0.5;">
-      <div class="card-title" style="color:${color};">${esc(label)}</div>
-      <p style="font-size:12px;color:#9ca3af;">Not tested.</p>
+    <div class="card" style="opacity:0.5;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;border-radius:16px;background:${color}20;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:${color};">${symbol}</div>
+        <span style="font-size:13px;color:#9ca3af;">${esc(label)} — not tested</span>
+      </div>
     </div>`;
   }
 
@@ -232,29 +236,56 @@ function earCard(ear: EarResult | null, label: string, color: string): string {
     cookie_bite: 'Cookie-bite (Mid-Freq)', irregular: 'Irregular',
   };
 
+  // Threshold chips
+  const thresholdChips = ear.thresholds.map((t) => {
+    const chipBg = t.dbHL <= 25 ? '#f0fdf4' : t.dbHL <= 40 ? '#fefce8' : '#fff7ed';
+    const chipFg = t.dbHL <= 25 ? '#16a34a' : t.dbHL <= 40 ? '#d97706' : '#ea580c';
+    const fl = t.frequency >= 1000 ? `${t.frequency / 1000}k` : `${t.frequency}`;
+    return `<div style="background:${chipBg};border-radius:8px;padding:5px 8px;text-align:center;min-width:54px;display:inline-block;margin:3px;">
+      <div style="font-size:11px;font-weight:700;color:${chipFg};">${t.dbHL} dBHL</div>
+      <div style="font-size:9px;color:#9ca3af;">${fl} Hz</div>
+    </div>`;
+  }).join('');
+
   return `
-  <div class="card" style="background:${gbg};border-color:${gc}40;">
+  <div class="card" style="border-color:#f3f4f6;">
+    <!-- Header -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <div style="font-size:20px;font-weight:900;color:${color};">${label === 'Right Ear' ? '○' : '×'}</div>
-      <div style="flex:1;">
-        <div style="font-size:14px;font-weight:800;color:#111827;">${esc(label)}</div>
-        <div style="font-size:11px;color:#9ca3af;">Audiometry result</div>
+      <div style="width:32px;height:32px;border-radius:16px;background:${color}20;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:${color};">${symbol}</div>
+      <div style="flex:1;font-size:15px;font-weight:800;color:#111827;">${esc(label)}</div>
+      <span style="background:${gc}20;color:${gc};border-radius:10px;padding:4px 10px;font-size:12px;font-weight:700;">Grade ${who.grade}</span>
+    </div>
+
+    <!-- WHO classification block -->
+    <div style="background:${gbg};border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="font-size:14px;font-weight:800;color:${gc};">${esc(WHO_GRADE_LABELS[who.grade])}</div>
+      <div style="font-size:12px;color:#374151;margin-top:2px;">${esc(who.description ?? '')}</div>
+    </div>
+
+    <!-- PTA3 + Shape row -->
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;background:#f9fafb;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:20px;font-weight:900;color:#111827;">${who.pureTonaAverage.toFixed(0)}</div>
+        <div style="font-size:10px;color:#6b7280;">PTA3 dBHL</div>
       </div>
-      <span style="background:${gc};color:#fff;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:900;">Grade ${who.grade}</span>
+      <div style="flex:1.5;background:#f9fafb;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:13px;font-weight:700;color:#111827;">${esc(shapeLabels[shape] ?? shape)}</div>
+        <div style="font-size:10px;color:#6b7280;">Audiogram Shape</div>
+      </div>
     </div>
-    <div class="row-item">
-      <span class="row-label">WHO Classification</span>
-      <span class="row-value" style="color:${gc};">${esc(WHO_GRADE_LABELS[who.grade])}</span>
+
+    <!-- Threshold chips -->
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Threshold by Frequency</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0;">${thresholdChips}</div>
     </div>
-    <div class="row-item">
-      <span class="row-label">PTA3 Average</span>
-      <span class="row-value" style="color:${gc};">${who.pureTonaAverage} dBHL</span>
-    </div>
-    <div class="row-item">
-      <span class="row-label">Audiogram Shape</span>
-      <span class="row-value">${esc(shapeLabels[shape] ?? shape)}</span>
-    </div>
-    <div style="margin-top:8px;padding:8px 10px;background:#fff8;border-radius:8px;font-size:12px;color:#374151;line-height:1.5;">${esc(who.recommendation)}</div>
+
+    <!-- Recommendation -->
+    ${who.recommendation ? `
+    <div style="background:#eff6ff;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:flex-start;">
+      <span style="font-size:14px;flex-shrink:0;">ℹ️</span>
+      <span style="font-size:12px;color:#1e40af;line-height:1.6;">${esc(who.recommendation)}</span>
+    </div>` : ''}
   </div>`;
 }
 
@@ -264,21 +295,50 @@ function sinSection(sin: SINResult): string {
   const gradeColors: Record<string, string> = {
     normal: '#16a34a', mild: '#d97706', moderate: '#ea580c', severe: '#dc2626',
   };
+  const gradeIcons: Record<string, string> = {
+    normal: '✅', mild: '⚠️', moderate: '🔶', severe: '🔴',
+  };
   const gc = gradeColors[sin.grade] ?? '#374151';
+  const gi = gradeIcons[sin.grade] ?? 'ℹ️';
+
   return `
-  <div class="card">
-    <div class="card-title">Speech-in-Noise Test (QuickSIN-inspired)</div>
-    <div class="row-item">
-      <span class="row-label">SNR50</span>
-      <span class="row-value">${sin.snr50 >= 0 ? '+' : ''}${sin.snr50} dBSNR</span>
+  <div class="card" style="border-color:#f3f4f6;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <span style="font-size:22px;">${gi}</span>
+      <div style="flex:1;">
+        <div style="font-size:15px;font-weight:800;color:#111827;">Speech-in-Noise</div>
+        <div style="font-size:11px;color:#6b7280;">QuickSIN-inspired protocol</div>
+      </div>
+      <span style="background:${gc}20;color:${gc};border-radius:10px;padding:4px 10px;font-size:12px;font-weight:700;">${sin.grade.toUpperCase()}</span>
     </div>
-    <div class="row-item">
-      <span class="row-label">SNR Loss</span>
-      <span class="row-value" style="color:${gc};">${sin.snrLoss.toFixed(1)} dB</span>
+
+    <!-- Grade block -->
+    <div style="background:${gc}10;border-radius:10px;padding:10px;margin-bottom:12px;">
+      <div style="font-size:14px;font-weight:800;color:${gc};">${esc(sin.label)}</div>
+      <div style="font-size:12px;color:#374151;margin-top:2px;">${esc(sin.recommendation)}</div>
     </div>
-    <div style="margin-top:8px;">${pill(sin.label, gc + '20', gc)}</div>
-    <div style="margin-top:8px;font-size:12px;color:#374151;line-height:1.5;">${esc(sin.recommendation)}</div>
-    <div style="margin-top:8px;font-size:11px;color:#9ca3af;font-style:italic;">Note: Tone-in-noise protocol — not equivalent to sentence-based QuickSIN. Results are indicative only.</div>
+
+    <!-- Metrics -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;">
+      <div style="flex:1;background:#f9fafb;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:18px;font-weight:900;color:#111827;">${sin.snr50.toFixed(1)}</div>
+        <div style="font-size:10px;color:#6b7280;">SNR₅₀ (dBSNR)</div>
+      </div>
+      <div style="flex:1;background:#f9fafb;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:18px;font-weight:900;color:${sin.snrLoss > 7 ? '#ea580c' : '#111827'};">${sin.snrLoss.toFixed(1)}</div>
+        <div style="font-size:10px;color:#6b7280;">SNR Loss (dB)</div>
+      </div>
+      <div style="flex:1;background:#f9fafb;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:18px;font-weight:900;color:#111827;">${sin.trials.length}</div>
+        <div style="font-size:10px;color:#6b7280;">Levels tested</div>
+      </div>
+    </div>
+
+    <!-- Note -->
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px;font-size:11px;color:#92400e;line-height:1.6;">
+      <strong>Note:</strong> This test uses tones in noise. Clinical QuickSIN uses sentence lists, which also measures phoneme discrimination. A tone-based result may underestimate real-world speech-in-noise difficulty. A formal audiologist assessment is recommended if any noise-related difficulty is experienced.
+    </div>
   </div>`;
 }
 
@@ -293,30 +353,48 @@ function hfSection(hf: HFResult): string {
     normal: 'Normal HF Hearing', mild_hf_loss: 'Mild HF Loss',
     early_nihl: 'NIHL Pattern (Early)', significant_hf_loss: 'Significant HF Loss',
   };
+  const patIcons: Record<string, string> = {
+    normal: '✅', mild_hf_loss: '⚠️', early_nihl: '🔴', significant_hf_loss: '🔴',
+  };
   const gc = patColors[hf.pattern] ?? '#374151';
 
-  const barRows = hf.thresholds.map((t) => {
+  // Vertical bar chart — matches HFResultCard UI
+  const BAR_MAX_H = 60;
+  const DBHL_MAX  = 80;
+  const barCols = hf.thresholds.map((t) => {
+    const barH = Math.max(6, (t.dbHL / DBHL_MAX) * BAR_MAX_H);
     const bc = t.dbHL <= 25 ? '#16a34a' : t.dbHL <= 40 ? '#d97706' : '#dc2626';
+    const fl = t.frequency >= 1000 ? `${t.frequency / 1000}k` : `${t.frequency}`;
     return `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-      <span style="width:52px;font-size:11px;color:#374151;font-weight:600;">${t.frequency / 1000} kHz</span>
-      <div style="flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;">
-        <div style="width:${Math.min(100, (t.dbHL / 80) * 100)}%;height:8px;background:${bc};border-radius:4px;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:50px;">
+      <span style="font-size:10px;font-weight:700;color:${bc};">${t.dbHL} dB</span>
+      <div style="display:flex;align-items:flex-end;height:${BAR_MAX_H}px;">
+        <div style="width:36px;height:${barH}px;background:${bc};border-radius:4px;opacity:0.85;"></div>
       </div>
-      <span style="width:52px;font-size:11px;font-weight:700;color:${bc};text-align:right;">${t.dbHL} dBHL</span>
+      <span style="font-size:9px;color:#9ca3af;">${fl} Hz</span>
     </div>`;
   }).join('');
 
   return `
-  <div class="card">
-    <div class="card-title">High-Frequency Audiometry (9–12 kHz)</div>
-    <div class="row-item">
-      <span class="row-label">HF Average</span>
-      <span class="row-value" style="color:${gc};">${hf.hfAverage} dBHL</span>
+  <div class="card" style="border-color:#f3f4f6;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <span style="font-size:22px;">${patIcons[hf.pattern] ?? 'ℹ️'}</span>
+      <div style="flex:1;">
+        <div style="font-size:15px;font-weight:800;color:#111827;">High-Frequency Test</div>
+        <div style="font-size:11px;color:#6b7280;">9 – 12 kHz extended range</div>
+      </div>
+      ${hf.nihlRiskFlag ? `<span style="background:#fee2e2;border-radius:10px;padding:4px 8px;font-size:11px;font-weight:700;color:#dc2626;">⚠️ NIHL</span>` : ''}
     </div>
-    <div style="margin-top:8px;">${pill(patLabels[hf.pattern] ?? hf.pattern, gc + '20', gc)}</div>
-    ${hf.nihlRiskFlag ? `<div style="margin-top:8px;padding:6px 10px;background:#fee2e2;border-radius:8px;font-size:11px;color:#dc2626;font-weight:700;">⚠ NIHL Risk Pattern Detected at Extended HF Range</div>` : ''}
-    <div style="margin-top:12px;">${barRows}</div>
+
+    <!-- Pattern block -->
+    <div style="background:${gc}10;border-radius:10px;padding:10px;margin-bottom:14px;">
+      <div style="font-size:14px;font-weight:800;color:${gc};">${patLabels[hf.pattern] ?? hf.pattern}</div>
+      <div style="font-size:12px;color:#374151;margin-top:2px;">HF Average: ${hf.hfAverage} dBHL</div>
+    </div>
+
+    <!-- Vertical bar chart -->
+    <div style="display:flex;justify-content:space-around;align-items:flex-end;padding:4px 0;">${barCols}</div>
   </div>`;
 }
 
@@ -326,21 +404,71 @@ function reliabilitySection(report: BehavioralReport, ear: string): string {
   const gradeColors: Record<string, string> = {
     excellent: '#16a34a', good: '#65a30d', fair: '#d97706', poor: '#dc2626',
   };
+  const gradeLabels: Record<string, string> = {
+    excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor',
+  };
   const gc = gradeColors[report.reliabilityGrade] ?? '#374151';
+  const gl = gradeLabels[report.reliabilityGrade] ?? report.reliabilityGrade;
 
-  const flagRows = report.flags.slice(0, 4).map((f) => `
-  <div style="padding:6px 8px;background:${f.severity === 'warning' ? '#fffbeb' : '#f9fafb'};border-radius:7px;margin-bottom:4px;">
-    <span style="font-size:11px;color:#374151;">${esc(f.description)}</span>
-  </div>`).join('');
+  // Key metric chips
+  const metrics = [
+    { label: 'Avg RT (ms)', value: report.globalMeanReactionMs > 0 ? `${report.globalMeanReactionMs}` : '—', warn: false },
+    { label: 'RT Variability', value: report.globalReactionCV > 0 ? report.globalReactionCV.toFixed(2) : '—', warn: report.globalReactionCV > 0.5 },
+    { label: 'Fast Responses', value: `${Math.round(report.spuriousFastRate * 100)}%`, warn: report.spuriousFastRate > 0.1 },
+    { label: 'Missed Tones', value: `${Math.round(report.suprathresholdMissRate * 100)}%`, warn: report.suprathresholdMissRate > 0.1 },
+  ];
+  const metricChips = metrics.map((m) => `
+    <div style="flex:1;background:#f9fafb;border-radius:10px;padding:8px;text-align:center;min-width:70px;">
+      <div style="font-size:14px;font-weight:900;color:${m.warn ? '#d97706' : '#111827'};">${m.value}</div>
+      <div style="font-size:9px;color:#6b7280;margin-top:2px;">${m.label}</div>
+    </div>`).join('');
+
+  // Convergence chips
+  const convChips = report.frequencyMetrics.map((fm) => {
+    const cc = fm.confidence === 'high' ? '#16a34a' : fm.confidence === 'medium' ? '#d97706' : '#dc2626';
+    const fl = fm.frequency >= 1000 ? `${fm.frequency / 1000}k` : `${fm.frequency}`;
+    return `<div style="background:${cc}12;border:1px solid ${cc}30;border-radius:8px;padding:5px 8px;text-align:center;min-width:52px;display:inline-block;margin:3px;">
+      <div style="font-size:11px;font-weight:800;color:${cc};">${fl}</div>
+      <div style="font-size:9px;color:${cc};margin-top:1px;">${fm.ascendingReversalCount}/3 rev</div>
+    </div>`;
+  }).join('');
+
+  // Flag rows
+  const flagRows = report.flags.slice(0, 5).map((f) => `
+    <div style="padding:8px 10px;background:${f.severity === 'warning' ? '#fffbeb' : '#f9fafb'};border-radius:9px;margin-bottom:5px;font-size:12px;color:${f.severity === 'warning' ? '#92400e' : '#374151'};line-height:1.5;">
+      ${f.severity === 'warning' ? '⚠️ ' : ''}${esc(f.description)}
+    </div>`).join('');
 
   return `
-  <div class="card" style="background:#f9fafb;">
-    <div class="card-title">${esc(ear)} — Response Reliability</div>
-    <div class="row-item">
-      <span class="row-label">Reliability Score</span>
-      <span class="row-value" style="color:${gc};">${report.reliabilityScore}/100 · ${report.reliabilityGrade.charAt(0).toUpperCase() + report.reliabilityGrade.slice(1)}</span>
+  <div class="card" style="border-color:#f3f4f6;">
+    <!-- Header row with score ring -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+      <div style="width:48px;height:48px;border-radius:24px;border:3px solid ${gc};background:${gc}12;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="font-size:14px;font-weight:900;color:${gc};">${report.reliabilityScore}</span>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:800;color:#111827;">${esc(ear)} — Reliability</div>
+        <span style="display:inline-block;background:${gc}20;color:${gc};border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;margin-top:3px;">${gl}</span>
+      </div>
     </div>
-    ${report.flags.length > 0 ? `<div style="margin-top:8px;">${flagRows}</div>` : ''}
+
+    <!-- Key metrics -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">${metricChips}</div>
+
+    <!-- Convergence chips -->
+    ${report.frequencyMetrics.length > 0 ? `
+    <div style="margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Convergence by Frequency</div>
+      <div>${convChips}</div>
+    </div>` : ''}
+
+    <!-- Flags -->
+    ${report.flags.length > 0 ? `
+    <div>
+      <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Observations</div>
+      ${flagRows}
+    </div>` : `
+    <div style="background:#f0fdf4;border-radius:10px;padding:10px;font-size:12px;color:#166534;">✓ No reliability concerns detected.</div>`}
   </div>`;
 }
 
@@ -471,28 +599,12 @@ function buildHTML(opts: HearingPDFOptions): string {
   const rightWHO  = rightEar?.who ?? null;
   const leftWHO   = leftEar?.who  ?? null;
   const worstGrade = Math.max(rightWHO?.grade ?? 0, leftWHO?.grade ?? 0) as WHOGrade;
-  const gc = WHO_GRADE_COLOR[worstGrade];
-  const gbg = WHO_GRADE_BG[worstGrade];
 
   const testDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  // Patient header
-  let patientBlock = '';
-  if (user?.name || userAge) {
-    const name = user?.name ?? 'Patient';
-    const ageStr = userAge ? `${userAge} years old` : '';
-    const dobStr = user?.dob ? ` · DOB: ${new Date(user.dob).toLocaleDateString()}` : '';
-    patientBlock = `
-    <div style="background:#f0fdfc;border-radius:14px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;border:1.5px solid #99f6e4;">
-      <div style="width:48px;height:48px;border-radius:24px;background:${TEAL};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <span style="font-size:22px;color:#fff;">👤</span>
-      </div>
-      <div>
-        <div style="font-size:16px;font-weight:900;color:#111827;">${esc(name)}</div>
-        <div style="font-size:12px;color:#6b7280;">${esc(ageStr)}${esc(dobStr)}</div>
-      </div>
-    </div>`;
-  }
+  const heroName   = user?.name ?? '';
+  const heroAge    = userAge ? `Age ${userAge}` : '';
+  const heroGender = user?.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -512,7 +624,8 @@ function buildHTML(opts: HearingPDFOptions): string {
     .hero {
       background: linear-gradient(135deg, ${TEAL} 0%, ${TEAL_DARK} 100%);
       color: #fff;
-      padding: 28px 32px 24px;
+      padding: 28px 32px 28px;
+      text-align: center;
       margin-bottom: 0;
     }
     .content { max-width: 700px; margin: 0 auto; padding: 20px 24px; }
@@ -584,36 +697,44 @@ function buildHTML(opts: HearingPDFOptions): string {
 </head>
 <body>
 
-  <!-- Hero banner -->
+  <!-- Hero — mirrors LinearGradient in results.tsx -->
   <div class="hero">
     <div style="max-width:700px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:700;opacity:0.75;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Hearing Assessment Report</div>
-      <div style="font-size:26px;font-weight:900;margin-bottom:2px;">Pure Tone Audiometry</div>
-      <div style="font-size:13px;opacity:0.80;">${esc(testDate)}</div>
-      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
-        <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 16px;text-align:center;">
-          <div style="font-size:11px;opacity:0.75;">Overall</div>
-          <div style="font-size:18px;font-weight:900;">${esc(WHO_GRADE_LABELS[worstGrade])}</div>
-          <div style="font-size:11px;opacity:0.75;">Grade ${worstGrade}</div>
-        </div>
-        ${rightWHO ? `
-        <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 16px;text-align:center;">
-          <div style="font-size:11px;opacity:0.75;">Right PTA3</div>
-          <div style="font-size:18px;font-weight:900;">${rightWHO.pureTonaAverage} dBHL</div>
-          <div style="font-size:11px;opacity:0.75;">Grade ${rightWHO.grade}</div>
-        </div>` : ''}
-        ${leftWHO ? `
-        <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 16px;text-align:center;">
-          <div style="font-size:11px;opacity:0.75;">Left PTA3</div>
-          <div style="font-size:18px;font-weight:900;">${leftWHO.pureTonaAverage} dBHL</div>
-          <div style="font-size:11px;opacity:0.75;">Grade ${leftWHO.grade}</div>
-        </div>` : ''}
+      <!-- Ear icon circle -->
+      <div style="width:68px;height:68px;border-radius:34px;background:rgba(255,255,255,0.20);margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:42px;line-height:1;">👂</div>
+
+      <!-- Patient name -->
+      ${heroName ? `<div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:6px;">${esc(heroName)}</div>` : ''}
+
+      <!-- Age + Gender chips -->
+      ${(heroAge || heroGender) ? `
+      <div style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;">
+        ${heroAge    ? `<span style="background:rgba(255,255,255,0.18);border-radius:12px;padding:3px 10px;font-size:12px;color:#fff;font-weight:600;">${esc(heroAge)}</span>`    : ''}
+        ${heroGender ? `<span style="background:rgba(255,255,255,0.18);border-radius:12px;padding:3px 10px;font-size:12px;color:#fff;font-weight:600;">${esc(heroGender)}</span>` : ''}
+      </div>` : ''}
+
+      <!-- WHO grade label -->
+      <div style="font-size:21px;font-weight:900;color:#fff;">${esc(WHO_GRADE_LABELS[worstGrade])}</div>
+
+      <!-- Subtitle -->
+      <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:6px;">Pure Tone Audiometry · ${esc(testDate)}</div>
+
+      <!-- Grade badge -->
+      <div style="display:inline-block;background:rgba(255,255,255,0.22);border-radius:20px;padding:5px 12px;margin-top:10px;font-size:13px;font-weight:900;color:#fff;">Grade ${worstGrade}</div>
+
+      <!-- PTA pills -->
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap;">
+        <span style="background:rgba(255,255,255,0.18);border-radius:20px;padding:4px 11px;font-size:12px;color:#fff;font-weight:600;">
+          ○ Right: ${rightWHO ? `${rightWHO.pureTonaAverage.toFixed(0)} dBHL` : '—'}
+        </span>
+        <span style="background:rgba(255,255,255,0.18);border-radius:20px;padding:4px 11px;font-size:12px;color:#fff;font-weight:600;">
+          × Left: ${leftWHO ? `${leftWHO.pureTonaAverage.toFixed(0)} dBHL` : '—'}
+        </span>
       </div>
     </div>
   </div>
 
   <div class="content">
-    ${patientBlock}
 
     <!-- Audiogram -->
     <div class="card">

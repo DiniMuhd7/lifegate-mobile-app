@@ -1439,7 +1439,7 @@ export default function HearingResults() {
         session,
         sinResult,
         hfResult,
-        user: user ? { name: user.name, dob: user.dob } : null,
+        user: user ? { name: user.name, dob: user.dob, gender: user.gender } : null,
         userAge,
         edisResult,
       });
