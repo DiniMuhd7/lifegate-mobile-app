@@ -2,7 +2,8 @@
  * Battery Results — Aggregated report for all completed sub-tests
  */
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StatusBar, Share, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, StatusBar, Share, ActivityIndicator, Alert } from 'react-native';
+import { exportBatteryResultsPDF } from 'services/battery-pdf';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1049,10 +1050,31 @@ export default function BatteryResults() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const handleShare = async () => {
     try {
       await Share.share({ message: buildShareText(results, viewingDistanceCm) });
     } catch { /* dismissed */ }
+  };
+
+  const handleExportPDF = async () => {
+    if (pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      await exportBatteryResultsPDF({
+        patientName: user?.name ?? 'Patient',
+        results,
+        behavioralReport,
+        viewingDistanceCm,
+        durationSeconds: duration,
+        userAge,
+      });
+    } catch (err) {
+      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   const handleRetake = () => {
@@ -1073,7 +1095,12 @@ export default function BatteryResults() {
           <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' }}>
             Battery Results
           </Text>
-          <View style={{ width: 38 }} />
+          <Pressable onPress={handleExportPDF} hitSlop={10} disabled={pdfLoading}
+            style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#dbeafe' : '#eff6ff', alignItems: 'center', justifyContent: 'center' })}>
+            {pdfLoading
+              ? <ActivityIndicator size="small" color={TEAL} />
+              : <Ionicons name="document-text-outline" size={20} color={TEAL} />}
+          </Pressable>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
@@ -1150,6 +1177,17 @@ export default function BatteryResults() {
 
           {/* Actions */}
           <View style={{ gap: 10 }}>
+            {/* Export PDF */}
+            <Pressable onPress={handleExportPDF} disabled={pdfLoading}
+              style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: TEAL, backgroundColor: pressed ? '#f0fdfc' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
+              {pdfLoading
+                ? <ActivityIndicator size="small" color={TEAL} />
+                : <Ionicons name="document-text-outline" size={18} color={TEAL} />}
+              <Text style={{ fontSize: 15, fontWeight: '700', color: TEAL }}>
+                {pdfLoading ? 'Generating PDF…' : 'Export PDF Report'}
+              </Text>
+            </Pressable>
+
             <Pressable onPress={handleShare}
               style={({ pressed }) => ({ paddingVertical: 14, borderRadius: 14, borderWidth: 1.5, borderColor: '#d1d5db', backgroundColor: pressed ? '#f3f4f6' : '#fff', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 })}>
               <Ionicons name="share-social-outline" size={18} color="#374151" />
