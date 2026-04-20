@@ -180,7 +180,9 @@ func main() {
 
 	// Daily YouTube catalogue refresh — searches each health category every
 	// 24 hours and upserts fresh videos into the explore_videos table.
-	exploreRefresher := explore.NewRefresher(exploreRepo, cfg.YouTubeAPIKey, 5)
+	// videosPerCat=10 fetches 10 candidates per duration band (medium + long)
+	// per category so we always land ≥10 videos in the 5–30 min range.
+	exploreRefresher := explore.NewRefresher(exploreRepo, cfg.YouTubeAPIKey, 10)
 	go exploreRefresher.Start(context.Background())
 
 	// Grant trial credits to every new patient that registers.

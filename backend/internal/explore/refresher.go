@@ -150,40 +150,52 @@ func (r *Refresher) run(ctx context.Context) {
 	log.Println("[explore/refresher] Daily refresh complete.")
 }
 
-// searchCategory queries YouTube for videos matching the given category query,
-// fetches their durations, and returns Video objects ready for the DB.
+// searchCategory queries YouTube for videos matching the given category query
+// across both medium (4–20 min) and long (>20 min) duration bands, fetches
+// exact durations via videos.list, and returns Video objects in the 5–30 min
+// range ready for the DB.
 func (r *Refresher) searchCategory(ctx context.Context, category, query string) ([]Video, error) {
-	// ── 1. Search ────────────────────────────────────────────────────────
-	searchURL := fmt.Sprintf(
-		"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&maxResults=%d&relevanceLanguage=en&key=%s",
-		url.QueryEscape(query),
-		r.videosPerCat,
-		r.apiKey,
-	)
-
 	type searchResp struct {
 		Items []ytSearchItem `json:"items"`
 	}
-	sr, err := ytGet[searchResp](ctx, searchURL)
-	if err != nil {
-		return nil, fmt.Errorf("search request: %w", err)
+
+	// ── 1. Search both duration bands to cover the full 5–30 min window ──
+	// YouTube API: medium = 4–20 min, long = >20 min.
+	// We search both and filter precisely in code after fetching durations.
+	allIDs := make([]string, 0, r.videosPerCat*2)
+	byID := make(map[string]ytSearchItem, r.videosPerCat*2)
+
+	for _, band := range []string{"medium", "long"} {
+		searchURL := fmt.Sprintf(
+			"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=%s&maxResults=%d&relevanceLanguage=en&safeSearch=strict&key=%s",
+			url.QueryEscape(query),
+			band,
+			r.videosPerCat,
+			r.apiKey,
+		)
+		sr, err := ytGet[searchResp](ctx, searchURL)
+		if err != nil {
+			return nil, fmt.Errorf("search (%s) request: %w", band, err)
+		}
+		for _, it := range sr.Items {
+			vid := it.ID.VideoID
+			if _, seen := byID[vid]; !seen {
+				allIDs = append(allIDs, vid)
+				byID[vid] = it
+			}
+		}
+		// Small courtesy delay between API calls.
+		time.Sleep(200 * time.Millisecond)
 	}
-	if len(sr.Items) == 0 {
+
+	if len(allIDs) == 0 {
 		return nil, nil
 	}
 
-	// Collect video IDs.
-	ids := make([]string, 0, len(sr.Items))
-	byID := make(map[string]ytSearchItem, len(sr.Items))
-	for _, it := range sr.Items {
-		ids = append(ids, it.ID.VideoID)
-		byID[it.ID.VideoID] = it
-	}
-
-	// ── 2. Fetch durations ───────────────────────────────────────────────
+	// ── 2. Fetch exact durations via videos.list ──────────────────────────
 	detailsURL := fmt.Sprintf(
 		"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=%s&key=%s",
-		url.QueryEscape(strings.Join(ids, ",")),
+		url.QueryEscape(strings.Join(allIDs, ",")),
 		r.apiKey,
 	)
 	type detailsResp struct {
@@ -194,13 +206,13 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 		return nil, fmt.Errorf("details request: %w", err)
 	}
 
-	// ── 3. Build Video list ──────────────────────────────────────────────
+	// ── 3. Build Video list — keep only 5–30 min videos ─────────────────
 	meta := categoryMeta[category]
 	var out []Video
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)
-		// Skip videos shorter than 5 min or longer than 20 min — not useful.
-		if dur < 300 || dur > 1200 {
+		// Keep only videos in the 5–30 min range (300–1800 s).
+		if dur < 300 || dur > 1800 {
 			continue
 		}
 
@@ -209,14 +221,16 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 		if len(desc) > 180 {
 			desc = desc[:177] + "…"
 		}
-		// Strip newlines from description.
 		desc = strings.ReplaceAll(desc, "\n", " ")
 
-		coins := 4
-		if dur >= 900 {
+		// Coin tiers: 5 min=3, 10 min=4, 15 min=5, 20 min+=6.
+		coins := 3
+		if dur >= 1200 {
 			coins = 6
-		} else if dur >= 600 {
+		} else if dur >= 900 {
 			coins = 5
+		} else if dur >= 600 {
+			coins = 4
 		}
 
 		out = append(out, Video{

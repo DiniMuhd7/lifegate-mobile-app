@@ -720,13 +720,14 @@ export default function ExploreScreen() {
     setActiveVideo(null);
   }, [activeVideo, claimReward, showToast, dailyCap, refreshVideos]);
 
-  // Availability-checked, sorted, capped video list
-  // Filter out unavailable videos (once checked), sort fresh-first, then cap at dailyCap (10).
-  const baseFiltered = shuffledVideos
+  // Availability-checked, sorted video list.
+  // Duration filter: 5–30 min (300–1800 s) — matches what the backend refresher fetches.
+  // Sort: fresh first → session-viewed → already rewarded.
+  const filteredVideos = shuffledVideos
     .filter(
       (v) =>
         v.durationSeconds >= 300 &&
-        v.durationSeconds <= 1200 &&
+        v.durationSeconds <= 1800 &&
         (!availableIds || availableIds.has(v.id)) &&
         (activeCategory === 'All' || v.category === activeCategory),
     )
@@ -740,8 +741,6 @@ export default function ExploreScreen() {
       if (aV !== bV) return aV ? 1 : -1;
       return 0;
     });
-  // Apply daily cap only in the 'All' view; category views show everything available
-  const filteredVideos = activeCategory === 'All' ? baseFiltered.slice(0, dailyCap) : baseFiltered;
 
   const dailyRemaining = getDailyRemaining();
   // Accurate counts based on what's actually available
@@ -850,11 +849,12 @@ export default function ExploreScreen() {
       </LinearGradient>
 
       {/* Category pills */}
+      <View style={{ height: 56, flexShrink: 0 }}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
-        style={{ flexGrow: 0 }}
+        style={{ flex: 1 }}
       >
         {CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat;
@@ -896,9 +896,11 @@ export default function ExploreScreen() {
           );
         })}
       </ScrollView>
+      </View>
 
       {/* Video list */}
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, gap: 12, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >

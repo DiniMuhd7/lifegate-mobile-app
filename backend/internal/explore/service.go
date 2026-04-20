@@ -1,6 +1,8 @@
 package explore
 
-const DailyVideoCap = 10
+// DailyVideoCap is the total number of videos a user can claim rewards for per day.
+// 10 videos × 8 categories = 80.
+const DailyVideoCap = 80
 
 // Service holds business logic for the explore feature.
 type Service struct {

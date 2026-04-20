@@ -37,7 +37,8 @@ export interface VideoProgress {
 // ── Daily cap ─────────────────────────────────────────────────────────────
 
 // Default cap — overridden by whatever the server returns.
-export const DAILY_VIDEO_CAP = 10;
+// 10 videos per category × 8 categories = 80.
+export const DAILY_VIDEO_CAP = 80;
 
 // ── Seed catalogue ────────────────────────────────────────────────────────
 
