@@ -44,8 +44,10 @@ import type { PTAFrequency, TestEar } from 'types/hearing-types';
 import { PTA_FREQUENCIES } from 'types/hearing-types';
 
 // ─── Test duration ───────────────────────────────────────────────────────────
-/** Total PTA session time limit (both ears). Auto-finalises when reached. */
-const TEST_DURATION_MS = 5 * 60 * 1_000; // 5 minutes
+/** Time budget per ear. Auto-finalises the ear and switches (or navigates) when reached. */
+const PER_EAR_DURATION_MS = 2.5 * 60 * 1_000; // 150 s per ear
+/** Per-frequency time slice — ensures all 6 frequencies are covered within the 2.5 min budget. */
+const PER_FREQ_BUDGET_MS  = Math.floor(PER_EAR_DURATION_MS / PTA_FREQUENCIES.length); // 25 000 ms
 
 // ─── Inter-trial gap jitter ───────────────────────────────────────────────────
 // Randomise the gap between response and next tone presentation to eliminate
@@ -227,9 +229,11 @@ export default function PTATest() {
   const recordRef     = useRef<Audio.Recording | null>(null);
   const trialStart    = useRef<number>(0);
   const blobUrlRef    = useRef<string | null>(null);
-  const timeExpiredRef = useRef(false);
+  const timeExpiredRef        = useRef(false);
   const earStartRef           = useRef(Date.now()); // tracks per-ear elapsed time
   const earSwitchTriggeredRef = useRef(false);     // prevents double ear-switch trigger
+  const freqStartRef          = useRef(Date.now()); // tracks per-frequency elapsed time
+  const freqBudgetExpiredRef  = useRef(false);     // true when per-freq 25 s slice is up
 
   const [tonePhase, setTonePhase] = useState<'countdown' | 'playing' | 'waiting' | 'responded'>('countdown');
   const [countdown, setCountdown] = useState(2);
@@ -247,6 +251,12 @@ export default function PTATest() {
   const currentFreq = PTA_FREQUENCIES[freqIndex];
   const currentStaircase = staircases[currentFreq];
 
+  // ── Reset per-frequency timer whenever frequency advances ─────────────────
+  useEffect(() => {
+    freqStartRef.current        = Date.now();
+    freqBudgetExpiredRef.current = false;
+  }, [freqIndex]);
+
   // Guard: must have a session
   useEffect(() => {
     if (!session) {
@@ -254,19 +264,25 @@ export default function PTATest() {
     }
   }, []);
 
-  // ── Elapsed time counter + per-ear 5-minute expiry ───────────────────────────────────
-  // Each ear independently gets up to TEST_DURATION_MS (5 min). timeExpiredRef
-  // is reset when the ear switches so the left ear never inherits the right
-  // ear's elapsed time.
+  // ── Elapsed time counter + per-ear 2.5-minute expiry ──────────────────────
+  // Each ear independently gets up to PER_EAR_DURATION_MS (2.5 min).
+  // timeExpiredRef is reset on ear-switch so the left ear gets a fresh budget.
+  // freqBudgetExpiredRef fires every PER_FREQ_BUDGET_MS (25 s) to force-advance
+  // through all 6 frequencies within the 2.5-minute window.
   useEffect(() => {
     const t = setInterval(() => {
       const secs = Math.floor((Date.now() - testStartRef.current) / 1000);
       setElapsed(secs);
       const earSecs = Math.floor((Date.now() - earStartRef.current) / 1000);
       setEarElapsed(earSecs);
-      // Expire when the CURRENT ear has used its full 5-minute budget.
-      if (earSecs * 1_000 >= TEST_DURATION_MS && !timeExpiredRef.current) {
+      // Full-ear budget expired
+      if (earSecs * 1_000 >= PER_EAR_DURATION_MS && !timeExpiredRef.current) {
         timeExpiredRef.current = true;
+      }
+      // Per-frequency slice expired — force-advance to next frequency
+      const freqElapsedMs = Date.now() - freqStartRef.current;
+      if (freqElapsedMs >= PER_FREQ_BUDGET_MS && !freqBudgetExpiredRef.current && !earSwitchTriggeredRef.current) {
+        freqBudgetExpiredRef.current = true;
       }
     }, 1_000);
     return () => clearInterval(t);
@@ -447,10 +463,36 @@ export default function PTATest() {
 
     // Randomised inter-trial interval to prevent rhythmic anticipation
     setTimeout(() => {
-      // ── 5-minute time-up: finalise whatever we have and go to results ─────
+      // ── 2.5-minute ear budget exhausted ───────────────────────────────────
       if (timeExpiredRef.current) {
-        finaliseEar();
-        router.replace('/(tab)/hearingtest/results' as never);
+        if (activeEar === 'right' && !earSwitchTriggeredRef.current) {
+          // Right ear timed out → switch ears (left ear still needs testing)
+          earSwitchTriggeredRef.current = true;
+          setShowEarSwitch(true);
+        } else {
+          finaliseEar();
+          router.replace('/(tab)/hearingtest/results' as never);
+        }
+        return;
+      }
+
+      // ── Per-frequency 25-second slice exhausted — force advance ───────────
+      if (freqBudgetExpiredRef.current && !earSwitchTriggeredRef.current) {
+        freqBudgetExpiredRef.current = false;
+        const nextIdx = useHearingStore.getState().freqIndex + 1;
+        if (nextIdx < PTA_FREQUENCIES.length) {
+          finaliseCurrentFreq();
+          setTonePhase('countdown');
+          setCountdown(1);
+        } else {
+          if (activeEar === 'right') {
+            earSwitchTriggeredRef.current = true;
+            setShowEarSwitch(true);
+          } else {
+            finaliseEar();
+            router.replace('/(tab)/hearingtest/results' as never);
+          }
+        }
         return;
       }
 
@@ -535,8 +577,10 @@ export default function PTATest() {
     setShowEarSwitch(false);
     finaliseEar();
     startEarTest('left');
-    earStartRef.current = Date.now();       // reset per-ear clock for left ear
-    timeExpiredRef.current = false;         // left ear gets its own fresh 5 minutes
+    earStartRef.current          = Date.now(); // reset per-ear clock for left ear
+    freqStartRef.current          = Date.now(); // reset per-freq clock
+    timeExpiredRef.current        = false;       // left ear gets its own fresh 2.5 minutes
+    freqBudgetExpiredRef.current  = false;
     setEarElapsed(0);
     setTonePhase('countdown');
     setCountdown(2);
@@ -545,20 +589,16 @@ export default function PTATest() {
   // ── Derived display values ─────────────────────────────────────────────────
 
   const currentDbHL = currentStaircase.currentDbHL;
-  const earFreqProgress = ((freqIndex + (tonePhase === 'responded' ? 0.9 : 0)) / PTA_FREQUENCIES.length);
+  // Time-based progress — keeps fill bar in sync with the per-ear countdown.
+  // Right ear occupies 0–50 %; left ear occupies 50–100 %.
+  const PER_EAR_SECS    = PER_EAR_DURATION_MS / 1_000; // 150
+  const earTimeFraction = Math.min(earElapsed / PER_EAR_SECS, 1.0);
+  const overallProgress = activeEar === 'right'
+    ? earTimeFraction * 0.5
+    : 0.5 + earTimeFraction * 0.5;
 
-  // Overall progress: frequency-based so it stays consistent with the audiogram dots.
-  // Right ear contributes 0–50 %; left ear contributes 50–100 %.
-  // The MM:SS countdown separately communicates wall-clock time.
-  const AVG_TRIALS_PER_FREQ = 5;
-  const TOTAL_FREQS         = PTA_FREQUENCIES.length * 2; // 12
-  const earOffset           = activeEar === 'right' ? 0 : PTA_FREQUENCIES.length;
-  const completedFreqUnits  = earOffset + freqIndex;
-  const currentFreqFraction = Math.min(currentStaircase.trials.length / AVG_TRIALS_PER_FREQ, 0.95);
-  const overallProgress     = Math.min((completedFreqUnits + currentFreqFraction) / TOTAL_FREQS, 1);
-
-  // 5-minute per-ear countdown display
-  const timeLeftSecs = Math.max(0, TEST_DURATION_MS / 1_000 - earElapsed);
+  // 2.5-minute per-ear countdown display
+  const timeLeftSecs = Math.max(0, PER_EAR_DURATION_MS / 1_000 - earElapsed);
   const countdownMins = Math.floor(timeLeftSecs / 60);
   const countdownSecs = timeLeftSecs % 60;
   const countdownStr  = `${countdownMins}:${String(countdownSecs).padStart(2, '0')}`;
