@@ -199,8 +199,8 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 	var out []Video
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)
-		// Skip videos shorter than 45 s or longer than 15 min — not useful.
-		if dur < 45 || dur > 900 {
+		// Skip videos shorter than 5 min or longer than 15 min — not useful.
+		if dur < 300 || dur > 900 {
 			continue
 		}
 
