@@ -80,20 +80,6 @@ const STARTER_CHIPS: {
     label: 'See a Physician',
     prompt: 'I would like to be connected to a licensed physician for a clinical consultation.',
   },
-  {
-    icon: 'leaf-outline',
-    color: '#16a34a',
-    bg: '#f0fdf4',
-    label: 'Nutrition & Diet',
-    prompt: 'I have questions about nutrition, healthy eating habits, and lifestyle improvements.',
-  },
-  {
-    icon: 'shield-checkmark-outline',
-    color: '#d97706',
-    bg: '#fffbeb',
-    label: 'Preventive Care',
-    prompt: 'What preventive health measures should I take based on my age and lifestyle?',
-  },
 ];
 
 const ChatScreen: React.FC = () => {
@@ -632,7 +618,7 @@ const ChatScreen: React.FC = () => {
                 lineHeight: 15,
               }}
             >
-              LifeGate AI provides health information and clinical diagnosis facilitated by MDCN-licensed physicians. All AI-generated outputs are reviewed by qualified medical professionals. This service does not replace emergency care — if life is at risk, call emergency services immediately.
+              LifeGate AI provides health information and clinical diagnosis. All AI outputs are reviewed and validated by licensed physicians. This service does not replace emergency care.
             </Text>
 
             <ChatInputBar

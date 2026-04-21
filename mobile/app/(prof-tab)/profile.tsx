@@ -18,7 +18,7 @@ import { ChangePasswordModal } from 'components/ChangePasswordModal';
 
 export default function PhysicianProfileScreen() {
   const { user, logout } = useAuthStore();
-  const { getProfile, loading } = useProfileStore();
+  const { getProfile, changePassword, loading } = useProfileStore();
 
   // Modal visibility states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -57,13 +57,15 @@ export default function PhysicianProfileScreen() {
   };
 
   const handleSaveEdit = (values: { firstName: string; lastName: string; phone: string }) => {
-    // For now, just show success (no backend logic as per requirements)
     setEditFormLoading(true);
-    setTimeout(() => {
-      Alert.alert('Success', 'Profile updated successfully');
-      setEditFormLoading(false);
-      setShowEditModal(false);
-    }, 500);
+    const fullName = [values.firstName.trim(), values.lastName.trim()].filter(Boolean).join(' ');
+    // Update the authenticated user in-store (no general profile-update endpoint yet)
+    useAuthStore.setState((s) => ({
+      user: s.user ? { ...s.user, name: fullName, phone: values.phone.trim() } : s.user,
+    }));
+    setEditFormLoading(false);
+    Alert.alert('Success', 'Profile updated successfully');
+    setShowEditModal(false);
   };
 
   const handleChangePassword = async (values: {
@@ -73,10 +75,17 @@ export default function PhysicianProfileScreen() {
   }) => {
     setPasswordFormLoading(true);
     try {
-      // For now, just simulate (no backend logic as per requirements)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      Alert.alert('Success', 'Password changed successfully');
-      setShowPasswordModal(false);
+      const success = await changePassword(
+        values.currentPassword,
+        values.newPassword,
+        values.confirmPassword,
+      );
+      if (success) {
+        Alert.alert('Success', 'Password changed successfully');
+        setShowPasswordModal(false);
+      } else {
+        Alert.alert('Error', 'Failed to change password. Please check your current password and try again.');
+      }
     } catch {
       Alert.alert('Error', 'Failed to change password. Please try again.');
     } finally {
@@ -111,7 +120,7 @@ export default function PhysicianProfileScreen() {
           <ProfileHeader
             name={user?.name || 'User'}
             specialization={user?.specialization || 'Not available'}
-            isVerified={true}
+            isVerified={user?.mdcn_verified ?? false}
           />
 
           {/* Personal Information Section */}

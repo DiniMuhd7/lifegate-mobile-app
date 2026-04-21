@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -31,20 +31,31 @@ export default function CaseQueueScreen() {
 
   const [activeTab, setActiveTab] = useState<Tab>('Pending');
   const [takingId, setTakingId] = useState<string | null>(null);
+  const listRef = useRef<FlatList<CaseQueueItem>>(null);
 
   useEffect(() => {
     fetchCaseQueue();
   }, [fetchCaseQueue]);
 
   // If launched from a notification with a caseId, switch to the tab that contains it
+  // and scroll the list to highlight the targeted case.
   useEffect(() => {
     if (!caseId) return;
     const isActive = activeCases.some((c) => c.id === caseId);
     const isCompleted = completedCases.some((c) => c.id === caseId);
-    if (isActive) setActiveTab('Active');
-    else if (isCompleted) setActiveTab('Completed');
-    else setActiveTab('Pending');
-  }, [caseId, activeCases, completedCases]);
+    const targetTab: Tab = isActive ? 'Active' : isCompleted ? 'Completed' : 'Pending';
+    setActiveTab(targetTab);
+
+    // Scroll to the item after the list has rendered
+    const targetList =
+      targetTab === 'Active' ? activeCases : targetTab === 'Completed' ? completedCases : pendingCases;
+    const idx = targetList.findIndex((c) => c.id === caseId);
+    if (idx >= 0) {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.3 });
+      });
+    }
+  }, [caseId, activeCases, completedCases, pendingCases]);
 
   const cases = activeTab === 'Pending' ? pendingCases : activeTab === 'Active' ? activeCases : completedCases;
 
@@ -139,6 +150,7 @@ export default function CaseQueueScreen() {
 
       {/* Case List */}
       <FlatList
+        ref={listRef}
         data={cases}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}

@@ -1,6 +1,5 @@
-import { View, Text, FlatList, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { Activity, ActivityType } from '../types/professional-types';
 
 interface ActivityListProps {
@@ -21,86 +20,6 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: keyof typ
 
 const getConfig = (caseType: string) =>
   STATUS_CONFIG[caseType] ?? STATUS_CONFIG['Pending'];
-
-// ─── Detail Modal ────────────────────────────────────────────────────────────
-const ActivityDetailModal = ({
-  activity,
-  onClose,
-}: {
-  activity: Activity | null;
-  onClose: () => void;
-}) => {
-  if (!activity) return null;
-  const cfg = getConfig(activity.caseType);
-
-  return (
-    <Modal visible={!!activity} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable onPress={() => {}} className="bg-white rounded-t-3xl p-6">
-          {/* Handle */}
-          <View className="w-12 h-1.5 rounded-full bg-gray-200 self-center mb-5" />
-
-          {/* Status badge */}
-          <View className="flex-row items-center mb-5">
-            <View
-              className="w-12 h-12 rounded-2xl items-center justify-center mr-4"
-              style={{ backgroundColor: cfg.bg }}
-            >
-              <Ionicons name={cfg.icon} size={24} color={cfg.color} />
-            </View>
-            <View>
-              <Text className="text-xs text-gray-400 font-medium">Case Status</Text>
-              <Text className="text-lg font-bold" style={{ color: cfg.color }}>
-                {cfg.label}
-              </Text>
-            </View>
-          </View>
-
-          {/* Detail rows */}
-          <View
-            className="bg-gray-50 rounded-2xl p-4 gap-3"
-          >
-            {activity.patientName ? (
-              <View className="flex-row items-center">
-                <Ionicons name="person-outline" size={16} color="#6B7280" />
-                <Text className="ml-3 text-xs text-gray-500 w-24">Patient Name</Text>
-                <Text className="flex-1 text-sm font-semibold text-gray-800">{activity.patientName}</Text>
-              </View>
-            ) : null}
-
-            <View className="flex-row items-center">
-              <Ionicons name="id-card-outline" size={16} color="#6B7280" />
-              <Text className="ml-3 text-xs text-gray-500 w-24">Patient ID</Text>
-              <Text className="flex-1 text-sm font-semibold text-gray-800">{activity.patientId}</Text>
-            </View>
-
-            {activity.condition ? (
-              <View className="flex-row items-start">
-                <Ionicons name="medical-outline" size={16} color="#6B7280" />
-                <Text className="ml-3 text-xs text-gray-500 w-24">Condition</Text>
-                <Text className="flex-1 text-sm font-semibold text-gray-800">{activity.condition}</Text>
-              </View>
-            ) : null}
-
-            <View className="flex-row items-center">
-              <Ionicons name="time-outline" size={16} color="#6B7280" />
-              <Text className="ml-3 text-xs text-gray-500 w-24">Updated</Text>
-              <Text className="flex-1 text-sm font-semibold text-gray-800">{activity.timeAgo}</Text>
-            </View>
-          </View>
-
-          <Pressable
-            onPress={onClose}
-            className="mt-5 py-3.5 rounded-2xl items-center"
-            style={{ backgroundColor: cfg.color }}
-          >
-            <Text className="text-white font-bold text-sm">Close</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-};
 
 // ─── Activity Row ─────────────────────────────────────────────────────────────
 const ActivityRow = ({ item, onPress }: { item: Activity; onPress: () => void }) => {
@@ -160,17 +79,11 @@ const ActivityRow = ({ item, onPress }: { item: Activity; onPress: () => void })
 // ─── Main export ─────────────────────────────────────────────────────────────
 export const ActivityList = ({ activities, onActivityPress }: ActivityListProps) => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('All');
-  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
 
   const filtered =
     activeFilter === 'All'
       ? activities
       : activities.filter((a) => a.caseType === activeFilter);
-
-  const handlePress = (activity: Activity) => {
-    setSelectedActivity(activity);
-    onActivityPress?.(activity);
-  };
 
   return (
     <View>
@@ -211,7 +124,7 @@ export const ActivityList = ({ activities, onActivityPress }: ActivityListProps)
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ActivityRow item={item} onPress={() => handlePress(item)} />
+            <ActivityRow item={item} onPress={() => onActivityPress?.(item)} />
           )}
           scrollEnabled={false}
           contentContainerStyle={{ paddingBottom: 8 }}
@@ -227,12 +140,6 @@ export const ActivityList = ({ activities, onActivityPress }: ActivityListProps)
           </Text>
         </View>
       )}
-
-      {/* Detail modal */}
-      <ActivityDetailModal
-        activity={selectedActivity}
-        onClose={() => setSelectedActivity(null)}
-      />
     </View>
   );
 };

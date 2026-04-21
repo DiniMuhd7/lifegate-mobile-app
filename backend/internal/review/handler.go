@@ -72,7 +72,7 @@ func (h *Handler) GetAnalysis(c *gin.Context) {
 		return
 	}
 
-	activities, _ := h.svc.GetRecentActivities(pid, 10)
+	activities, _ := h.svc.GetRecentActivities(pid, 50, 0)
 	if activities == nil {
 		activities = []ActivityRecord{}
 	}

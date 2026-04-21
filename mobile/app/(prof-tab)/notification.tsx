@@ -177,6 +177,7 @@ export default function NotificationScreen() {
     physicianAlertsError,
     fetchPhysicianAlerts,
     markPhysicianAlertRead,
+    markAllPhysicianAlertsRead,
   } = useHealthStore();
 
   const {
@@ -197,7 +198,7 @@ export default function NotificationScreen() {
   const handleHealthAlertPress = useCallback((alert: PreventiveAlert) => {
     markPhysicianAlertRead(alert.id);
     if (alert.diagnosisId) {
-      router.push({ pathname: '/(prof-tab)/caseQueue', params: { diagnosisId: alert.diagnosisId } });
+      router.push({ pathname: '/(prof-tab)/caseReview', params: { caseId: alert.diagnosisId } });
     }
   }, [markPhysicianAlertRead]);
 
@@ -278,7 +279,7 @@ export default function NotificationScreen() {
       {/* Mark all read */}
       {totalUnread > 0 && (
         <Pressable
-          onPress={markAllCasesRead}
+          onPress={() => { markAllCasesRead(); markAllPhysicianAlertsRead(); }}
           style={{ alignSelf: 'flex-end', paddingHorizontal: 16, paddingVertical: 8 }}
         >
           <Text style={{ fontSize: 12, color: '#0AADA2', fontWeight: '600' }}>Mark all read</Text>

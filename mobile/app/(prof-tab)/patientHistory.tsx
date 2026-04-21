@@ -58,8 +58,7 @@ function PatientCaseCard({ entry }: { entry: HealthTimelineEntry }) {
   const u = URGENCY[entry.urgency as keyof typeof URGENCY] ?? URGENCY.MEDIUM;
 
   const handlePress = () => {
-    // Navigate to the review detail if the route exists, else open physician reports
-    router.push(`/(prof-tab)/review` as never);
+    router.push({ pathname: '/(prof-tab)/caseReview', params: { caseId: entry.id } } as never);
   };
 
   return (

@@ -61,7 +61,7 @@ func (s *Service) GetAnalysis(physicianID string, startDate, endDate time.Time) 
 			SUM(CASE WHEN status='Completed' THEN 1 ELSE 0 END) AS completed,
 			SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) AS pending
 		 FROM diagnoses
-		 WHERE (physician_id = $1 OR physician_id IS NULL)
+		 WHERE physician_id = $1
 		   AND created_at >= $2 AND created_at <= $3
 		 GROUP BY DATE(created_at)
 		 ORDER BY date`, physicianID, startDate, endDate)
@@ -84,7 +84,7 @@ func (s *Service) GetAnalysis(physicianID string, startDate, endDate time.Time) 
 
 func (s *Service) GetDiagnoses(physicianID, status, search string, page, pageSize int, start, end time.Time) ([]DiagnosisRecord, int, error) {
 	offset := (page - 1) * pageSize
-	conditions := []string{"(d.physician_id = $1 OR d.physician_id IS NULL)"}
+	conditions := []string{"d.physician_id = $1"}
 	args := []interface{}{physicianID}
 	argIdx := 2
 
@@ -164,7 +164,7 @@ func (s *Service) GetDiagnosisDetail(physicianID, diagnosisID string) (*Diagnosi
 		       d.created_at::text AS created_at
 		FROM diagnoses d
 		LEFT JOIN users u ON u.id = d.user_id
-		WHERE d.id = $1 AND (d.physician_id = $2 OR d.physician_id IS NULL)`,
+		WHERE d.id = $1 AND d.physician_id = $2`,
 		diagnosisID, physicianID,
 	).Scan(&r.ID, &r.PatientID, &r.PatientName, &r.Title, &r.Description, &r.Condition, &r.Urgency, &r.Status, &r.CreatedAt)
 	if err == sql.ErrNoRows {
@@ -173,7 +173,7 @@ func (s *Service) GetDiagnosisDetail(physicianID, diagnosisID string) (*Diagnosi
 	return &r, err
 }
 
-func (s *Service) GetRecentActivities(physicianID string, limit int) ([]ActivityRecord, error) {
+func (s *Service) GetRecentActivities(physicianID string, limit, offset int) ([]ActivityRecord, error) {
 	rows, err := s.db.Query(`
 		SELECT d.id,
 		       COALESCE(u.patient_id, u.user_id, d.user_id::text),
@@ -183,10 +183,10 @@ func (s *Service) GetRecentActivities(physicianID string, limit int) ([]Activity
 		       d.updated_at
 		FROM diagnoses d
 		LEFT JOIN users u ON u.id = d.user_id
-		WHERE (d.physician_id = $1 OR d.physician_id IS NULL)
+		WHERE d.physician_id = $1
 		  AND d.status IN ('Completed', 'Pending', 'Active')
 		ORDER BY d.updated_at DESC
-		LIMIT $2`, physicianID, limit)
+		LIMIT $2 OFFSET $3`, physicianID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +206,7 @@ func (s *Service) GetRecentActivities(physicianID string, limit int) ([]Activity
 		case "Completed":
 			a.CaseType = "Verified"
 		case "Active":
-			a.CaseType = "Escalated"
+			a.CaseType = "Active"
 		default:
 			a.CaseType = "Pending"
 		}

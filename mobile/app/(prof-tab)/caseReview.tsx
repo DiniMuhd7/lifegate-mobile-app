@@ -84,9 +84,7 @@ export default function CaseReviewScreen() {
     currentPatient,
     isCaseLoading,
     loadCaseDetail,
-    loadPatientProfile,
     updateLocalAIOutput,
-    completeCase,
     clearCurrentCase,
     updateCaseStatus,
   } = useProfessionalStore();
@@ -110,13 +108,6 @@ export default function CaseReviewScreen() {
     loadCaseDetail(caseId);
     return () => clearCurrentCase();
   }, [caseId]);
-
-  // Load patient profile once case is loaded
-  useEffect(() => {
-    if (currentCase?.patientId) {
-      loadPatientProfile(currentCase.patientId);
-    }
-  }, [currentCase?.patientId]);
 
   // Sync edit state when case is loaded
   useEffect(() => {

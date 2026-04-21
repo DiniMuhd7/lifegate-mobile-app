@@ -2,8 +2,14 @@ import { create } from 'zustand';
 import { ReviewAnalysis } from '../types/professional-types';
 import { ReviewService } from '../services/review-service';
 
+type RangeMode = 'day' | '7d' | '30d';
+
 type ReviewStore = ReviewAnalysis & {
   refreshing: boolean;
+  /** Tracks whether the last load was a single-day or range request. */
+  rangeMode: RangeMode;
+  /** Start of the last fetched range (used by refreshAnalysis). */
+  rangeStart: Date | null;
   fetchReviewAnalysis: (date: Date) => Promise<void>;
   fetchDateRangeAnalysis: (startDate: Date, endDate: Date) => Promise<void>;
   refreshAnalysis: () => Promise<void>;
@@ -21,9 +27,11 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   loading: true,
   refreshing: false,
   error: null,
+  rangeMode: '7d',
+  rangeStart: null,
 
   fetchReviewAnalysis: async (date: Date) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, rangeMode: 'day', rangeStart: date });
     try {
       const analysis = await ReviewService.getReviewAnalysis(date);
       set({
@@ -46,7 +54,9 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   },
 
   fetchDateRangeAnalysis: async (startDate: Date, endDate: Date) => {
-    set({ loading: true, error: null });
+    const days = Math.round((endDate.getTime() - startDate.getTime()) / 86_400_000);
+    const mode: RangeMode = days <= 1 ? 'day' : days <= 7 ? '7d' : '30d';
+    set({ loading: true, error: null, rangeMode: mode, rangeStart: startDate });
     try {
       const analysis = await ReviewService.getDateRangeAnalysis(startDate, endDate);
       set({
@@ -69,10 +79,15 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   },
 
   refreshAnalysis: async () => {
-    const { date } = get();
+    const { date, rangeMode, rangeStart } = get();
     set({ refreshing: true, error: null });
     try {
-      const analysis = await ReviewService.getReviewAnalysis(date);
+      let analysis;
+      if (rangeMode === 'day' || !rangeStart) {
+        analysis = await ReviewService.getReviewAnalysis(date);
+      } else {
+        analysis = await ReviewService.getDateRangeAnalysis(rangeStart, date);
+      }
       set({
         date: analysis.date,
         totalReview: analysis.totalReview,

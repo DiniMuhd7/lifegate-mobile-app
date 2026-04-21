@@ -33,6 +33,7 @@ interface HealthState {
   markAlertRead: (id: string) => void;
   markPhysicianAlertRead: (id: string) => void;
   markAllAlertsRead: () => void;
+  markAllPhysicianAlertsRead: () => void;
   reset: () => void;
 }
 
@@ -143,6 +144,13 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     set((state) => ({
       patientAlerts: state.patientAlerts.map((a) => ({ ...a, isRead: true })),
       unreadAlertCount: 0,
+    }));
+  },
+
+  markAllPhysicianAlertsRead: () => {
+    set((state) => ({
+      physicianAlerts: state.physicianAlerts.map((a) => ({ ...a, isRead: true })),
+      unreadPhysicianAlertCount: 0,
     }));
   },
 

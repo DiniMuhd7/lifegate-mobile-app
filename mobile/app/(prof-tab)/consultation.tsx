@@ -31,7 +31,7 @@ export default function ConsultationScreen() {
   }, [fetchReports]);
 
   const handleReportPress = (reportId: string) => {
-    console.log('Report pressed:', reportId);
+    router.push({ pathname: '/(prof-tab)/caseReview', params: { caseId: reportId } });
   };
 
   return (

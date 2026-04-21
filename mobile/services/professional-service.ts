@@ -120,7 +120,8 @@ export const ProfessionalService = {
    */
   async getCaseQueue(): Promise<CaseQueue> {
     const response = await api.get<{ success: boolean; data: CaseQueue }>(
-      '/physician/cases'
+      '/physician/cases',
+      { timeout: 20_000 }
     );
     if (!response.data.success) throw new Error('Failed to fetch case queue');
     return response.data.data;
@@ -164,7 +165,8 @@ export const ProfessionalService = {
    */
   async getCaseDetail(caseId: string): Promise<CaseDetail> {
     const response = await api.get<{ success: boolean; data: CaseDetail }>(
-      `/physician/cases/${caseId}`
+      `/physician/cases/${caseId}`,
+      { timeout: 20_000 }
     );
     if (!response.data.success) throw new Error('Failed to fetch case detail');
     return response.data.data;
@@ -176,7 +178,8 @@ export const ProfessionalService = {
    */
   async getPatientProfile(patientId: string): Promise<PatientProfile> {
     const response = await api.get<{ success: boolean; data: PatientProfile }>(
-      `/physician/patients/${patientId}`
+      `/physician/patients/${patientId}`,
+      { timeout: 20_000 }
     );
     if (!response.data.success) throw new Error('Failed to fetch patient profile');
     return response.data.data;

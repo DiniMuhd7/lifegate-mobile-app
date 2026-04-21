@@ -88,15 +88,17 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   fetchReports: async () => {
     set({ loading: true, error: null });
     try {
-      const reports = await ProfessionalService.getProfessionalReports();
-      const stats = await ProfessionalService.getProfessionalStats();  
+      const [reports, stats] = await Promise.all([
+        ProfessionalService.getProfessionalReports(),
+        ProfessionalService.getProfessionalStats(),
+      ]);
       set({
         reports,
         filteredReports: reports,
         stats,
         loading: false,
       });
-      
+
       // Apply current filter
       get().setFilter(get().selectedFilter);
     } catch (error) {
@@ -220,10 +222,16 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   // ── Case review ──────────────────────────────────────────────────────────
 
   loadCaseDetail: async (caseId: string) => {
-    set({ isCaseLoading: true, currentCase: null });
+    set({ isCaseLoading: true, currentCase: null, currentPatient: null });
     try {
       const detail = await ProfessionalService.getCaseDetail(caseId);
       set({ currentCase: detail, isCaseLoading: false });
+      // Kick off patient profile fetch immediately — no need to wait for a React re-render cycle.
+      if (detail?.patientId) {
+        ProfessionalService.getPatientProfile(detail.patientId)
+          .then((profile) => set({ currentPatient: profile }))
+          .catch(() => {});
+      }
     } catch {
       set({ isCaseLoading: false });
     }

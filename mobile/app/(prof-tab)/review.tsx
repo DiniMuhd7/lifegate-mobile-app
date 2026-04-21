@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState, useCallback } from 'react';
 import { useAuthStore } from '../../stores/auth/auth-store';
 import { useReviewStore } from '../../stores/review-store';
+import { router } from 'expo-router';
 import {
   ConsultationSummary,
   ActivityChart,
@@ -21,6 +22,14 @@ import {
 
 const formatDateLabel = (date: Date): string =>
   date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+function formatRangeLabel(endDate: Date, mode: RangeMode): string {
+  if (mode === 'day') return formatDateLabel(endDate);
+  const days = mode === '7d' ? 7 : 30;
+  const start = new Date(endDate);
+  start.setDate(start.getDate() - days);
+  return `${formatDateLabel(start)} – ${formatDateLabel(endDate)}`;
+}
 
 const RANGE_LABELS = { day: 'Today', '7d': '7 Days', '30d': '30 Days' } as const;
 type RangeMode = keyof typeof RANGE_LABELS;
@@ -156,8 +165,8 @@ export default function ReviewScreen() {
 
             <View className="flex-row items-center gap-1.5">
               <Ionicons name="calendar-outline" size={13} color="rgba(255,255,255,0.7)" />
-              <Text className="text-white text-sm font-semibold">
-                {formatDateLabel(selectedDate)}
+              <Text className="text-white text-sm font-semibold" numberOfLines={1}>
+                {formatRangeLabel(selectedDate, rangeMode)}
               </Text>
             </View>
 
@@ -198,6 +207,22 @@ export default function ReviewScreen() {
           <ActivityIndicator size="large" color="#0AADA2" />
           <Text className="text-sm text-gray-400">Loading analysis…</Text>
         </View>
+      ) : totalReview === 0 && !error ? (
+        <View className="flex-1 items-center justify-center px-10">
+          <View className="w-20 h-20 rounded-3xl bg-teal-50 items-center justify-center mb-5">
+            <Ionicons name="documents-outline" size={40} color="#0AADA2" />
+          </View>
+          <Text className="text-lg font-bold text-gray-800 text-center">No cases yet</Text>
+          <Text className="text-sm text-gray-400 text-center mt-2 leading-5">
+            Cases assigned to you will appear here once patients are diagnosed.
+          </Text>
+          <Pressable
+            onPress={() => loadData(selectedDate, rangeMode)}
+            className="mt-6 px-6 py-3 rounded-xl bg-teal-500"
+          >
+            <Text className="text-white font-semibold text-sm">Refresh</Text>
+          </Pressable>
+        </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -223,8 +248,9 @@ export default function ReviewScreen() {
           <ActivityList
             activities={filteredActivities}
             onActivityPress={(activity) => {
-              // handled inside ActivityList via detail modal
-              void activity;
+              if (activity.id) {
+                router.push({ pathname: '/(prof-tab)/caseReview', params: { caseId: activity.id } } as never);
+              }
             }}
           />
 
