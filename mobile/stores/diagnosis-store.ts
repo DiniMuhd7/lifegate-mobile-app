@@ -11,7 +11,7 @@ interface DiagnosisState {
 
   fetchDiagnoses: () => Promise<void>;
   fetchDiagnosisDetail: (id: string) => Promise<void>;
-  updateDiagnosisStatus: (id: string, status: DiagnosisDetail['status']) => void;
+  updateDiagnosisStatus: (id: string, status: DiagnosisDetail['status'], decision?: string) => void;
   clearSelectedDiagnosis: () => void;
 }
 
@@ -54,12 +54,16 @@ export const useDiagnosisStore = create<DiagnosisState>((set, get) => ({
   },
 
   // Called by the WebSocket hook when a `diagnosis.update` event arrives.
-  updateDiagnosisStatus: (id: string, status: DiagnosisDetail['status']) => {
+  updateDiagnosisStatus: (id: string, status: DiagnosisDetail['status'], decision?: string) => {
     set((state) => ({
-      diagnoses: state.diagnoses.map((d) => (d.id === id ? { ...d, status } : d)),
+      diagnoses: state.diagnoses.map((d) =>
+        d.id === id
+          ? { ...d, status, ...(decision ? { physicianDecision: decision } : {}) }
+          : d
+      ),
       selectedDiagnosis:
         state.selectedDiagnosis?.id === id
-          ? { ...state.selectedDiagnosis, status }
+          ? { ...state.selectedDiagnosis, status, ...(decision ? { physicianDecision: decision } : {}) }
           : state.selectedDiagnosis,
     }));
   },

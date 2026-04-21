@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { getToken } from 'utils/tokenStorage';
@@ -76,12 +77,25 @@ export function useDiagnosisWebSocket() {
 
         if (eventName === 'diagnosis.update') {
           try {
-            const { diagnosisId, status } = JSON.parse(payload) as {
+            const { diagnosisId, status, decision } = JSON.parse(payload) as {
               diagnosisId: string;
               status: 'Pending' | 'Active' | 'Completed';
+              decision?: string;
             };
             if (diagnosisId && status) {
-              updateDiagnosisStatus(diagnosisId, status);
+              updateDiagnosisStatus(diagnosisId, status, decision);
+
+              // Show an in-app alert when the physician completes the review.
+              if (status === 'Completed' && decision) {
+                const approved = decision === 'Approved';
+                Alert.alert(
+                  approved ? '✅ Case Approved' : '📋 Case Reviewed',
+                  approved
+                    ? 'Good news! A physician has approved your AI diagnosis. Open the app to view your results and prescription.'
+                    : 'A physician has reviewed your health report and provided updated notes. Open the app for details.',
+                  [{ text: 'OK' }],
+                );
+              }
             }
           } catch {
             // Ignore malformed payloads
