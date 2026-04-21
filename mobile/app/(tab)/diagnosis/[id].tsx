@@ -286,6 +286,45 @@ export default function DiagnosisReportScreen() {
             );
           })()}
 
+          {/* ── Recommended Investigations ── */}
+          {d.investigations && d.investigations.length > 0 && (() => {
+            const isApproved = d.status === 'Completed' && d.physicianDecision === 'Approved';
+            const URGENCY_STYLE: Record<string, { color: string; bg: string }> = {
+              ROUTINE: { color: '#16a34a', bg: '#dcfce7' },
+              URGENT:  { color: '#d97706', bg: '#fef9c3' },
+              STAT:    { color: '#dc2626', bg: '#fee2e2' },
+            };
+            return (
+              <SectionCard title="Recommended Investigations">
+                {isApproved && (
+                  <View className="flex-row items-center gap-1.5 mb-3 px-2 py-1.5 bg-green-50 rounded-lg border border-green-200">
+                    <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                    <Text className="text-xs font-semibold text-green-700">Approved by physician</Text>
+                  </View>
+                )}
+                {d.investigations!.map((inv, idx) => {
+                  const style = URGENCY_STYLE[inv.urgency] ?? URGENCY_STYLE.ROUTINE;
+                  return (
+                    <View key={idx} className="mb-3 last:mb-0">
+                      <View className="flex-row items-center justify-between mb-0.5">
+                        <Text className="text-sm font-semibold text-gray-800 flex-1 mr-2">{inv.test}</Text>
+                        <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: style.bg }}>
+                          <Text className="text-xs font-bold" style={{ color: style.color }}>{inv.urgency}</Text>
+                        </View>
+                      </View>
+                      {inv.reason ? (
+                        <Text className="text-xs text-gray-500 leading-4">{inv.reason}</Text>
+                      ) : null}
+                      {idx < d.investigations!.length - 1 && (
+                        <View className="mt-2 border-b border-gray-100" />
+                      )}
+                    </View>
+                  );
+                })}
+              </SectionCard>
+            );
+          })()}
+
           {/* ── Follow-Up Plan ── */}
           {d.followUpDate && (
             <SectionCard title="Follow-Up Plan">

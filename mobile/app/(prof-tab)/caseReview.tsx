@@ -187,8 +187,7 @@ export default function CaseReviewScreen() {
         investigations,
       );
       setMode('view');
-      // Silently refresh to confirm server state is correct.
-      loadCaseDetail(caseId);
+      Alert.alert('Saved', 'Your changes have been saved successfully.');
     } catch (err: any) {
       Alert.alert('Error', extractErrorMessage(err));
     } finally {
