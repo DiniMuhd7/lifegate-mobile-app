@@ -166,22 +166,23 @@ type AIOutput struct {
 
 // CaseDetail is the rich case record returned for physician review.
 type CaseDetail struct {
-	ID                string     `json:"id"`
-	PatientID         string     `json:"patientId"`
-	PatientName       string     `json:"patientName"`
-	Title             string     `json:"title"`
-	Description       string     `json:"description"`
-	Condition         string     `json:"condition"`
-	Urgency           string     `json:"urgency"`
-	Status            string     `json:"status"`
-	PhysicianID       string     `json:"physicianId,omitempty"`
-	PhysicianNotes    string     `json:"physicianNotes,omitempty"`
-	PhysicianDecision string     `json:"physicianDecision,omitempty"`
-	RejectionReason   string     `json:"rejectionReason,omitempty"`
-	Escalated         bool       `json:"escalated"`
-	AIResponse        *AIOutput  `json:"aiResponse,omitempty"`
-	CreatedAt         time.Time  `json:"createdAt"`
-	UpdatedAt         time.Time  `json:"updatedAt"`
+	ID                string             `json:"id"`
+	PatientID         string             `json:"patientId"`
+	PatientName       string             `json:"patientName"`
+	Title             string             `json:"title"`
+	Description       string             `json:"description"`
+	Condition         string             `json:"condition"`
+	Urgency           string             `json:"urgency"`
+	Status            string             `json:"status"`
+	PhysicianID       string             `json:"physicianId,omitempty"`
+	PhysicianNotes    string             `json:"physicianNotes,omitempty"`
+	PhysicianDecision string             `json:"physicianDecision,omitempty"`
+	RejectionReason   string             `json:"rejectionReason,omitempty"`
+	Escalated         bool               `json:"escalated"`
+	AIResponse        *AIOutput          `json:"aiResponse,omitempty"`
+	PhysicianOutput   *PhysicianAIOutput `json:"physicianOutput,omitempty"`
+	CreatedAt         time.Time          `json:"createdAt"`
+	UpdatedAt         time.Time          `json:"updatedAt"`
 }
 
 // PatientProfile is the subset of user data included in the case-detail view.
@@ -436,7 +437,7 @@ func formatQueueDuration(d time.Duration) string {
 //   - Any unassigned Pending case (before taking it).
 func (r *Repository) GetCaseDetail(caseID, physicianID string) (*CaseDetail, error) {
 	var d CaseDetail
-	var aiJSON string
+	var aiJSON, physOutJSON string
 	err := r.db.QueryRow(`
 		SELECT d.id, d.user_id::text, COALESCE(u.name,''),
 		       COALESCE(d.title,''), COALESCE(d.description,''),
@@ -447,6 +448,7 @@ func (r *Repository) GetCaseDetail(caseID, physicianID string) (*CaseDetail, err
 		       COALESCE(d.rejection_reason,''),
 		       d.escalated,
 		       COALESCE(d.ai_response::text,'{}'),
+		       COALESCE(d.physician_ai_output::text,'null'),
 		       d.created_at, d.updated_at
 		FROM diagnoses d
 		LEFT JOIN users u ON u.id = d.user_id
@@ -466,6 +468,7 @@ func (r *Repository) GetCaseDetail(caseID, physicianID string) (*CaseDetail, err
 		&d.RejectionReason,
 		&d.Escalated,
 		&aiJSON,
+		&physOutJSON,
 		&d.CreatedAt, &d.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -479,6 +482,13 @@ func (r *Repository) GetCaseDetail(caseID, physicianID string) (*CaseDetail, err
 	if jerr := json.Unmarshal([]byte(aiJSON), &aiOut); jerr == nil &&
 		(aiOut.Text != "" || aiOut.Diagnosis != nil) {
 		d.AIResponse = &aiOut
+	}
+	// Parse physician_ai_output JSONB (physician-edited recommendations).
+	if physOutJSON != "null" && physOutJSON != "" {
+		var physOut PhysicianAIOutput
+		if jerr := json.Unmarshal([]byte(physOutJSON), &physOut); jerr == nil {
+			d.PhysicianOutput = &physOut
+		}
 	}
 	return &d, nil
 }
@@ -722,13 +732,28 @@ func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
 // ── AI Output ─────────────────────────────────────────────────────────────────
 
 // UpdateAIOutput lets a physician correct the AI-generated diagnostic fields
-// inline.  Both the top-level columns and the ai_response JSONB are kept in
-// sync.  The case must be in Active status and owned by physicianID.
-func (r *Repository) UpdateAIOutput(caseID, physicianID, condition, urgency string, confidence int) error {
+// inline and save their own clinical recommendations (notes, medication,
+// investigations) while the case is Active.
+func (r *Repository) UpdateAIOutput(
+	caseID, physicianID, condition, urgency string,
+	confidence int,
+	notes string,
+	physOut *PhysicianAIOutput,
+) error {
+	// Serialize physician recommendations if provided.
+	var physOutArg interface{}
+	if physOut != nil {
+		b, _ := json.Marshal(physOut)
+		physOutArg = string(b)
+	}
 	result, err := r.db.Exec(`
 		UPDATE diagnoses
-		SET condition  = $3,
-		    urgency    = $4,
+		SET condition           = $3,
+		    urgency             = $4,
+		    physician_notes     = CASE WHEN $6 <> '' THEN $6 ELSE physician_notes END,
+		    physician_ai_output = CASE WHEN $7::text IS NOT NULL
+		                               THEN $7::jsonb
+		                               ELSE physician_ai_output END,
 		    ai_response = jsonb_set(
 		      jsonb_set(
 		        jsonb_set(
@@ -741,7 +766,7 @@ func (r *Repository) UpdateAIOutput(caseID, physicianID, condition, urgency stri
 		    ),
 		    updated_at = NOW()
 		WHERE id = $1 AND physician_id = $2::uuid AND status = 'Active'`,
-		caseID, physicianID, condition, urgency, confidence,
+		caseID, physicianID, condition, urgency, confidence, notes, physOutArg,
 	)
 	if err != nil {
 		return err

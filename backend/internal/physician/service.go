@@ -70,9 +70,14 @@ func (s *Service) GetPatientProfile(patientID string) (*PatientProfile, error) {
 }
 
 // UpdateAIOutput lets a physician correct the AI-generated fields inline
-// while the case is in Active status.
-func (s *Service) UpdateAIOutput(caseID, physicianID, condition, urgency string, confidence int) error {
-	return s.repo.UpdateAIOutput(caseID, physicianID, condition, urgency, confidence)
+// and save clinical recommendations (notes, medication, investigations).
+func (s *Service) UpdateAIOutput(
+	caseID, physicianID, condition, urgency string,
+	confidence int,
+	notes string,
+	physOut *PhysicianAIOutput,
+) error {
+	return s.repo.UpdateAIOutput(caseID, physicianID, condition, urgency, confidence, notes, physOut)
 }
 
 // GetCaseQueue returns the three-bucket case queue for the physician dashboard.

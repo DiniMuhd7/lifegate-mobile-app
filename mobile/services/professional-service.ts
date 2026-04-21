@@ -197,18 +197,22 @@ export const ProfessionalService = {
   },
 
   /**
-   * Inline-edit AI-generated condition, urgency, and confidence score
+   * Inline-edit AI-generated condition, urgency, confidence score, and physician
+   * clinical recommendations (notes, medication, investigations).
    * PATCH /physician/cases/:id/ai
    */
   async updateAIOutput(
     caseId: string,
     condition: string,
     urgency: string,
-    confidence: number
+    confidence: number,
+    notes: string,
+    prescription?: { medicine: string; dosage: string; frequency: string; duration: string; instructions: string },
+    investigations?: Array<{ test: string; reason: string; urgency: string }>,
   ): Promise<void> {
     const response = await api.patch<{ success: boolean; message: string }>(
       `/physician/cases/${caseId}/ai`,
-      { condition, urgency, confidence }
+      { condition, urgency, confidence, notes, prescription, investigations },
     );
     if (!response.data.success)
       throw new Error(response.data.message || 'Failed to update AI output');

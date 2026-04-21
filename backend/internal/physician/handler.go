@@ -360,13 +360,14 @@ func (h *Handler) GetPayouts(c *gin.Context) {
 // UpdateAIOutput lets a physician edit the AI-generated diagnosis inline.
 //
 // @Summary      Update AI output
-// @Description  Allows the owning physician to correct the AI condition, urgency, and confidence score.
+// @Description  Allows the owning physician to correct the AI condition, urgency, confidence score,
+// @Description  add clinical notes, recommend medication, and recommend tests/investigations.
 // @Tags         physician
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id    path      string  true  "Case (diagnosis) ID"
-// @Param        body  body      object{condition=string,urgency=string,confidence=integer}  true  "Updated AI output"
+// @Param        body  body      object  true  "Updated AI output"
 // @Success      200   {object}  object{success=bool,message=string}
 // @Failure      400   {object}  object{success=bool,message=string}
 // @Failure      409   {object}  object{success=bool,message=string}
@@ -377,9 +378,12 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 	pid, _ := physicianID.(string)
 
 	var req struct {
-		Condition  string `json:"condition"  binding:"required"`
-		Urgency    string `json:"urgency"    binding:"required"`
-		Confidence int    `json:"confidence"`
+		Condition      string              `json:"condition"   binding:"required"`
+		Urgency        string              `json:"urgency"     binding:"required"`
+		Confidence     int                 `json:"confidence"`
+		Notes          string              `json:"notes"`
+		Prescription   *PrescriptionOutput `json:"prescription"`
+		Investigations []ai.Investigation  `json:"investigations"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
@@ -390,7 +394,26 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.UpdateAIOutput(caseID, pid, req.Condition, req.Urgency, req.Confidence); err != nil {
+	// Build physician AI output if any recommendations were provided.
+	var physOut *PhysicianAIOutput
+	if req.Prescription != nil && req.Prescription.Medicine != "" || len(req.Investigations) > 0 {
+		var prescOut *ai.Prescription
+		if req.Prescription != nil && req.Prescription.Medicine != "" {
+			prescOut = &ai.Prescription{
+				Medicine:     strings.TrimSpace(req.Prescription.Medicine),
+				Dosage:       strings.TrimSpace(req.Prescription.Dosage),
+				Frequency:    strings.TrimSpace(req.Prescription.Frequency),
+				Duration:     strings.TrimSpace(req.Prescription.Duration),
+				Instructions: strings.TrimSpace(req.Prescription.Instructions),
+			}
+		}
+		physOut = &PhysicianAIOutput{
+			Prescription:   prescOut,
+			Investigations: req.Investigations,
+		}
+	}
+
+	if err := h.svc.UpdateAIOutput(caseID, pid, req.Condition, req.Urgency, req.Confidence, req.Notes, physOut); err != nil {
 		if errors.Is(err, ErrCaseNotActive) {
 			c.JSON(http.StatusConflict, gin.H{
 				"success": false,

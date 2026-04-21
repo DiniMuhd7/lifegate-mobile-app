@@ -9,6 +9,8 @@ import {
   EarningsSummary,
   EarningRecord,
   Payout,
+  PrescriptionInfo,
+  InvestigationInfo,
 } from '../types/professional-types';
 import { ProfessionalService } from '../services/professional-service';
 
@@ -38,7 +40,14 @@ type ProfessionalStore = ProfessionalDashboard & {
   // Case review actions
   loadCaseDetail: (caseId: string) => Promise<void>;
   loadPatientProfile: (patientId: string) => Promise<void>;
-  updateLocalAIOutput: (condition: string, urgency: CaseUrgency, confidence: number) => void;
+  updateLocalAIOutput: (
+    condition: string,
+    urgency: CaseUrgency,
+    confidence: number,
+    notes: string,
+    prescription?: PrescriptionInfo,
+    investigations?: InvestigationInfo[],
+  ) => void;
   clearCurrentCase: () => void;
 
   // Earnings
@@ -249,7 +258,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
     }
   },
 
-  updateLocalAIOutput: (condition: string, urgency: CaseUrgency, confidence: number) => {
+  updateLocalAIOutput: (condition, urgency, confidence, notes, prescription, investigations) => {
     set(state => {
       if (!state.currentCase) return {};
       return {
@@ -257,6 +266,10 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
           ...state.currentCase,
           condition,
           urgency,
+          physicianNotes: notes || state.currentCase.physicianNotes,
+          physicianOutput: (prescription || (investigations && investigations.length > 0))
+            ? { prescription, investigations }
+            : state.currentCase.physicianOutput,
           aiResponse: state.currentCase.aiResponse
             ? {
                 ...state.currentCase.aiResponse,

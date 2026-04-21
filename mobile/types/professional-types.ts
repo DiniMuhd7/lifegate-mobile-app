@@ -88,13 +88,25 @@ export interface PrescriptionInfo {
   instructions?: string;
 }
 
+export interface InvestigationInfo {
+  test: string;
+  reason: string;
+  urgency: 'ROUTINE' | 'URGENT' | 'STAT';
+}
+
 export interface AIOutput {
   text: string;
   diagnosis?: AICondition;
   prescription?: PrescriptionInfo;
+  investigations?: InvestigationInfo[];
 }
 
 export type PhysicianDecision = 'Approved' | 'Rejected';
+
+export interface PhysicianOutput {
+  prescription?: PrescriptionInfo;
+  investigations?: InvestigationInfo[];
+}
 
 export interface CaseDetail {
   id: string;
@@ -111,6 +123,7 @@ export interface CaseDetail {
   rejectionReason?: string;
   escalated: boolean;
   aiResponse?: AIOutput;
+  physicianOutput?: PhysicianOutput;
   createdAt: string;
   updatedAt: string;
 }

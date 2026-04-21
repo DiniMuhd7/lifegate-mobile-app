@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProfessionalStore } from '../../stores/professional-store';
 import { ProfessionalService } from '../../services/professional-service';
 import { ConfidenceBar } from '../../components/ConfidenceBar';
-import { CaseUrgency } from '../../types/professional-types';
+import { CaseUrgency, InvestigationInfo } from '../../types/professional-types';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -38,6 +38,18 @@ const URGENCY_BG: Record<CaseUrgency, string> = {
 };
 
 const URGENCY_OPTIONS: CaseUrgency[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+
+const INV_URGENCY_COLORS: Record<string, string> = {
+  ROUTINE: '#10b981',
+  URGENT: '#f59e0b',
+  STAT: '#ef4444',
+};
+
+const INV_URGENCY_BG: Record<string, string> = {
+  ROUTINE: '#d1fae5',
+  URGENT: '#fef3c7',
+  STAT: '#fee2e2',
+};
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -98,6 +110,13 @@ export default function CaseReviewScreen() {
   const [editCondition, setEditCondition] = useState('');
   const [editUrgency, setEditUrgency] = useState<CaseUrgency>('LOW');
   const [editConfidence, setEditConfidence] = useState(0);
+  const [editNotes, setEditNotes] = useState('');
+  const [editMedicine, setEditMedicine] = useState('');
+  const [editDosage, setEditDosage] = useState('');
+  const [editFrequency, setEditFrequency] = useState('');
+  const [editDuration, setEditDuration] = useState('');
+  const [editMedInstructions, setEditMedInstructions] = useState('');
+  const [editInvestigations, setEditInvestigations] = useState<InvestigationInfo[]>([]);
 
   // Approve / Reject state
   const [notes, setNotes] = useState('');
@@ -116,6 +135,18 @@ export default function CaseReviewScreen() {
     setEditCondition(currentCase.condition || currentCase.aiResponse?.diagnosis?.condition || '');
     setEditUrgency((currentCase.urgency as CaseUrgency) || 'LOW');
     setEditConfidence(currentCase.aiResponse?.diagnosis?.confidence ?? 0);
+    setEditNotes(currentCase.physicianNotes || '');
+    const rx = currentCase.physicianOutput?.prescription ?? currentCase.aiResponse?.prescription;
+    setEditMedicine(rx?.medicine || '');
+    setEditDosage(rx?.dosage || '');
+    setEditFrequency(rx?.frequency || '');
+    setEditDuration(rx?.duration || '');
+    setEditMedInstructions(rx?.instructions || '');
+    setEditInvestigations(
+      currentCase.physicianOutput?.investigations ??
+      currentCase.aiResponse?.investigations ??
+      []
+    );
   }, [currentCase]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -126,16 +157,55 @@ export default function CaseReviewScreen() {
       return;
     }
     setIsSubmitting(true);
+    const prescription = editMedicine.trim()
+      ? {
+          medicine: editMedicine.trim(),
+          dosage: editDosage.trim(),
+          frequency: editFrequency.trim(),
+          duration: editDuration.trim(),
+          instructions: editMedInstructions.trim(),
+        }
+      : undefined;
+    const investigations = editInvestigations.filter(i => i.test.trim());
     try {
-      await ProfessionalService.updateAIOutput(caseId, editCondition.trim(), editUrgency, editConfidence);
-      updateLocalAIOutput(editCondition.trim(), editUrgency, editConfidence);
+      await ProfessionalService.updateAIOutput(
+        caseId,
+        editCondition.trim(),
+        editUrgency,
+        editConfidence,
+        editNotes.trim(),
+        prescription,
+        investigations,
+      );
+      updateLocalAIOutput(
+        editCondition.trim(),
+        editUrgency,
+        editConfidence,
+        editNotes.trim(),
+        prescription,
+        investigations,
+      );
       setMode('view');
     } catch (err: any) {
       Alert.alert('Error', err?.message ?? 'Failed to save changes.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [caseId, editCondition, editUrgency, editConfidence, updateLocalAIOutput]);
+  }, [caseId, editCondition, editUrgency, editConfidence, editNotes, editMedicine, editDosage, editFrequency, editDuration, editMedInstructions, editInvestigations, updateLocalAIOutput]);
+
+  const addInvestigation = useCallback(() => {
+    setEditInvestigations(prev => [...prev, { test: '', reason: '', urgency: 'ROUTINE' }]);
+  }, []);
+
+  const removeInvestigation = useCallback((idx: number) => {
+    setEditInvestigations(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const updateInvestigation = useCallback((idx: number, field: keyof InvestigationInfo, value: string) => {
+    setEditInvestigations(prev =>
+      prev.map((inv, i) => (i === idx ? { ...inv, [field]: value } : inv))
+    );
+  }, []);
 
   const handleApprove = useCallback(async () => {
     if (!caseId) return;
@@ -392,8 +462,140 @@ export default function CaseReviewScreen() {
             )}
           </SectionCard>
 
-          {/* ── Prescription ────────────────────────────────────────── */}
-          {prescription && (
+          {/* ── Edit-mode: Clinical Notes ────────────────────────── */}
+          {mode === 'edit' && (
+            <SectionCard title="Clinical Notes">
+              <TextInput
+                className="border border-blue-300 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-blue-50"
+                value={editNotes}
+                onChangeText={setEditNotes}
+                placeholder="Enter clinical notes, observations, or recommendations…"
+                placeholderTextColor="#93c5fd"
+                multiline
+                numberOfLines={4}
+                style={{ minHeight: 88, textAlignVertical: 'top' }}
+              />
+            </SectionCard>
+          )}
+
+          {/* ── Edit-mode: Recommended Medication ───────────────────── */}
+          {mode === 'edit' && (
+            <SectionCard title="Recommended Medication">
+              <Text className="text-xs text-gray-400 mb-3">Leave blank if no medication is needed.</Text>
+              <Text className="text-xs text-gray-500 mb-1">Medicine / Drug name</Text>
+              <TextInput
+                className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-3 bg-blue-50"
+                value={editMedicine}
+                onChangeText={setEditMedicine}
+                placeholder="e.g. Amoxicillin 500mg"
+                placeholderTextColor="#93c5fd"
+              />
+              <View className="flex-row gap-2 mb-3">
+                <View className="flex-1">
+                  <Text className="text-xs text-gray-500 mb-1">Dosage</Text>
+                  <TextInput
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-blue-50"
+                    value={editDosage}
+                    onChangeText={setEditDosage}
+                    placeholder="e.g. 1 tablet"
+                    placeholderTextColor="#93c5fd"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs text-gray-500 mb-1">Frequency</Text>
+                  <TextInput
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-blue-50"
+                    value={editFrequency}
+                    onChangeText={setEditFrequency}
+                    placeholder="e.g. 3× daily"
+                    placeholderTextColor="#93c5fd"
+                  />
+                </View>
+              </View>
+              <Text className="text-xs text-gray-500 mb-1">Duration</Text>
+              <TextInput
+                className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-3 bg-blue-50"
+                value={editDuration}
+                onChangeText={setEditDuration}
+                placeholder="e.g. 7 days"
+                placeholderTextColor="#93c5fd"
+              />
+              <Text className="text-xs text-gray-500 mb-1">Instructions (optional)</Text>
+              <TextInput
+                className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-blue-50"
+                value={editMedInstructions}
+                onChangeText={setEditMedInstructions}
+                placeholder="e.g. Take after meals"
+                placeholderTextColor="#93c5fd"
+                multiline
+                numberOfLines={2}
+                style={{ minHeight: 56, textAlignVertical: 'top' }}
+              />
+            </SectionCard>
+          )}
+
+          {/* ── Edit-mode: Recommended Tests ────────────────────────── */}
+          {mode === 'edit' && (
+            <SectionCard title="Recommended Tests">
+              <Text className="text-xs text-gray-400 mb-3">Add any investigations or lab tests to recommend.</Text>
+              {editInvestigations.map((inv, idx) => (
+                <View key={idx} className="border border-blue-100 rounded-xl p-3 mb-3 bg-blue-50">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-xs font-semibold text-gray-600">Test {idx + 1}</Text>
+                    <TouchableOpacity onPress={() => removeInvestigation(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close-circle" size={18} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                  <Text className="text-xs text-gray-500 mb-1">Test / Investigation name</Text>
+                  <TextInput
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                    value={inv.test}
+                    onChangeText={v => updateInvestigation(idx, 'test', v)}
+                    placeholder="e.g. Complete Blood Count"
+                    placeholderTextColor="#93c5fd"
+                  />
+                  <Text className="text-xs text-gray-500 mb-1">Reason (optional)</Text>
+                  <TextInput
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                    value={inv.reason}
+                    onChangeText={v => updateInvestigation(idx, 'reason', v)}
+                    placeholder="e.g. To rule out infection"
+                    placeholderTextColor="#93c5fd"
+                  />
+                  <Text className="text-xs text-gray-500 mb-1.5">Priority</Text>
+                  <View className="flex-row gap-2">
+                    {(['ROUTINE', 'URGENT', 'STAT'] as const).map(u => (
+                      <TouchableOpacity
+                        key={u}
+                        onPress={() => updateInvestigation(idx, 'urgency', u)}
+                        className="flex-1 py-1.5 rounded-full items-center"
+                        style={{
+                          backgroundColor: inv.urgency === u ? INV_URGENCY_COLORS[u] : INV_URGENCY_BG[u],
+                        }}
+                      >
+                        <Text
+                          className="text-xs font-bold"
+                          style={{ color: inv.urgency === u ? '#fff' : INV_URGENCY_COLORS[u] }}
+                        >
+                          {u}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity
+                onPress={addInvestigation}
+                className="flex-row items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-blue-300"
+              >
+                <Ionicons name="add-circle-outline" size={16} color="#3b82f6" />
+                <Text className="text-blue-600 text-sm font-medium">Add Test</Text>
+              </TouchableOpacity>
+            </SectionCard>
+          )}
+
+          {/* ── Prescription (view mode only) ────────────────────────── */}
+          {mode !== 'edit' && prescription && (
             <SectionCard title="AI Prescription">
               <InfoRow label="Medicine" value={prescription.medicine} />
               <InfoRow label="Dosage" value={prescription.dosage} />
@@ -439,15 +641,57 @@ export default function CaseReviewScreen() {
                 <Text className="text-xs text-red-600 leading-5">{currentCase.rejectionReason}</Text>
               </View>
             ) : null}
-
-            {/* Physician notes (read-only on Completed cases) */}
-            {currentCase.physicianNotes ? (
-              <View className="mt-3 bg-green-50 rounded-xl p-3">
-                <Text className="text-xs font-semibold text-green-700 mb-1">Physician Notes</Text>
-                <Text className="text-xs text-green-700 leading-5">{currentCase.physicianNotes}</Text>
-              </View>
-            ) : null}
           </SectionCard>
+
+          {/* ── Physician Recommendations (view mode) ────────────────── */}
+          {mode !== 'edit' && (currentCase.physicianNotes || currentCase.physicianOutput) && (
+            <SectionCard title="Physician Recommendations">
+              {currentCase.physicianNotes ? (
+                <View className="bg-green-50 rounded-xl p-3 mb-3">
+                  <Text className="text-xs font-semibold text-green-700 mb-1">Clinical Notes</Text>
+                  <Text className="text-xs text-green-800 leading-5">{currentCase.physicianNotes}</Text>
+                </View>
+              ) : null}
+              {currentCase.physicianOutput?.prescription ? (
+                <View className="mb-3">
+                  <Text className="text-xs font-semibold text-gray-600 mb-2">Recommended Medication</Text>
+                  <InfoRow label="Medicine" value={currentCase.physicianOutput.prescription.medicine} />
+                  <InfoRow label="Dosage" value={currentCase.physicianOutput.prescription.dosage} />
+                  <InfoRow label="Frequency" value={currentCase.physicianOutput.prescription.frequency} />
+                  <InfoRow label="Duration" value={currentCase.physicianOutput.prescription.duration} />
+                  {currentCase.physicianOutput.prescription.instructions ? (
+                    <InfoRow label="Instructions" value={currentCase.physicianOutput.prescription.instructions} />
+                  ) : null}
+                </View>
+              ) : null}
+              {currentCase.physicianOutput?.investigations && currentCase.physicianOutput.investigations.length > 0 ? (
+                <View>
+                  <Text className="text-xs font-semibold text-gray-600 mb-2">Recommended Tests</Text>
+                  {currentCase.physicianOutput.investigations.map((inv, idx) => (
+                    <View key={idx} className="flex-row items-start justify-between mb-2 p-2.5 bg-gray-50 rounded-xl">
+                      <View className="flex-1 mr-2">
+                        <Text className="text-xs font-semibold text-gray-800">{inv.test}</Text>
+                        {inv.reason ? (
+                          <Text className="text-xs text-gray-500 mt-0.5">{inv.reason}</Text>
+                        ) : null}
+                      </View>
+                      <View
+                        className="px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: INV_URGENCY_BG[inv.urgency] ?? '#f3f4f6' }}
+                      >
+                        <Text
+                          className="text-xs font-bold"
+                          style={{ color: INV_URGENCY_COLORS[inv.urgency] ?? '#374151' }}
+                        >
+                          {inv.urgency}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </SectionCard>
+          )}
 
           {/* ── Patient History ──────────────────────────────────────── */}
           {currentPatient && (
