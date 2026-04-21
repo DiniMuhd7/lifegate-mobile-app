@@ -176,6 +176,10 @@ func main() {
 	// and patients receive completion notifications from physician reviews.
 	physicianSvc.SetPushNotifier(pushSvc)
 
+	// Wire physician push broadcasts into the AI service so escalated cases
+	// trigger Expo push notifications even when physicians are in the background.
+	genaiSvc.SetPhysicianPushBroadcaster(pushSvc)
+
 	reviewSvc := review.NewService(database)
 	reviewHandler := review.NewHandler(reviewSvc)
 

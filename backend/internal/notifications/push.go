@@ -93,6 +93,27 @@ func (s *Service) BroadcastToAll(ctx context.Context, physicianIDs []string, tit
 	}
 }
 
+// BroadcastToAllPhysicians sends a push notification to every physician that
+// currently has a push token registered in Redis.  It uses a non-blocking SCAN
+// so it is safe regardless of fleet size.  Delivery failures are logged only.
+func (s *Service) BroadcastToAllPhysicians(ctx context.Context, title, body string, data map[string]string) {
+	keys, err := s.redis.ScanKeys(ctx, tokenKeyPrefix+"*")
+	if err != nil || len(keys) == 0 {
+		return
+	}
+	msgs := make([]pushMessage, 0, len(keys))
+	for _, key := range keys {
+		token, _ := s.redis.Get(ctx, key)
+		if token == "" {
+			continue
+		}
+		msgs = append(msgs, pushMessage{To: token, Title: title, Body: body, Data: data})
+	}
+	if len(msgs) > 0 {
+		s.send(ctx, msgs)
+	}
+}
+
 // ─── Internal ────────────────────────────────────────────────────────────────
 
 type pushMessage struct {

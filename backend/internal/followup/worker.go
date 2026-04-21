@@ -196,6 +196,18 @@ func (s *Service) escalateNonResponders(ctx context.Context) {
 		})
 		_ = s.nats.Publish(NATSFollowUpEscalated, evt)
 
+		// Push notification to all physicians so they are alerted even when
+		// the app is in the background.
+		go s.push.BroadcastToAllPhysicians(ctx,
+			"New Escalated Case 🏥",
+			condition+" — patient did not respond to follow-up. Review required.",
+			map[string]string{
+				"type":        "physician.case.new",
+				"caseId":      id,
+				"urgency":     urgency,
+			},
+		)
+
 		log.Printf("[follow-up] auto-escalated case=%s user=%s condition=%q (no response within grace period)", id, userID, condition)
 	}
 }

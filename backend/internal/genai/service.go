@@ -123,12 +123,20 @@ type Service struct {
 	nats     *natsclient.Client
 	sessions *sessions.Service
 	notifier PhysicianNotifier
+	physPush PhysicianPushBroadcaster
 }
 
 // PhysicianNotifier is satisfied by the WebSocket hub. It is used to push
 // real-time case events to all connected physician sessions.
 type PhysicianNotifier interface {
 	Broadcast(event string, data []byte)
+}
+
+// PhysicianPushBroadcaster delivers Expo push notifications to every physician
+// that currently has a push token registered.  notifications.Service satisfies
+// this interface.
+type PhysicianPushBroadcaster interface {
+	BroadcastToAllPhysicians(ctx context.Context, title, body string, data map[string]string)
 }
 
 // NewService creates a genai Service backed by an EDIS engine.
@@ -140,6 +148,12 @@ func NewService(engine *edis.Engine, db *sql.DB, nats *natsclient.Client, sessio
 // are broadcast to all connected physicians in real time.
 func (s *Service) SetPhysicianNotifier(n PhysicianNotifier) {
 	s.notifier = n
+}
+
+// SetPhysicianPushBroadcaster wires up the push notification service so that
+// escalated cases trigger a push to all physicians with a registered token.
+func (s *Service) SetPhysicianPushBroadcaster(b PhysicianPushBroadcaster) {
+	s.physPush = b
 }
 
 // ─── Request / Response types ─────────────────────────────────────────────────
@@ -451,6 +465,16 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message string, r
 			"isNew":     isNewCase,
 		})
 		s.notifier.Broadcast(event, casePayload)
+	}
+
+	// Push notification to all physicians with a registered Expo token so they
+	// are alerted even when the app is in the background.
+	if s.physPush != nil && resp.Escalated {
+		go s.physPush.BroadcastToAllPhysicians(ctx,
+			"New Escalated Case 🏥",
+			"A patient case requires physician review.",
+			map[string]string{"type": "physician.case.new", "caseId": id},
+		)
 	}
 
 	return cr, nil

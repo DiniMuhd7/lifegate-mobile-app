@@ -142,5 +142,29 @@ func (c *Client) InvalidatePrefix(ctx context.Context, prefix string) {
 	}
 }
 
+// ScanKeys returns all keys matching the given glob pattern.
+// It uses the non-blocking SCAN command so it is safe on large key spaces.
+func (c *Client) ScanKeys(ctx context.Context, pattern string) ([]string, error) {
+	if c.rdb == nil {
+		return nil, nil
+	}
+	var (
+		cursor uint64
+		keys   []string
+	)
+	for {
+		batch, next, err := c.rdb.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return keys, err
+		}
+		keys = append(keys, batch...)
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	return keys, nil
+}
+
 func marshalJSON(v interface{}) ([]byte, error)   { return json.Marshal(v) }
 func unmarshalJSON(b []byte, v interface{}) error { return json.Unmarshal(b, v) }
