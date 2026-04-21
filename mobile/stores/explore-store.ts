@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from 'services/api';
 
-const STORAGE_KEY = 'explore_store_v3';
+const STORAGE_KEY = 'explore_store_v4';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,138 @@ export interface VideoProgress {
 // Default cap — overridden by whatever the server returns.
 // 10 videos per category × 8 categories = 80.
 export const DAILY_VIDEO_CAP = 80;
+
+// ── YouTube Data API ──────────────────────────────────────────────────────
+
+const YT_API_KEY = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY ?? '';
+const YT_RESULTS_PER_CAT = 10; // videos fetched per category per day
+
+/** Search queries for each health category — mirrors backend/internal/explore/refresher.go */
+const CATEGORY_QUERIES: Record<VideoCategory, string> = {
+  Nutrition:         'healthy nutrition diet tips science education',
+  'Mental Health':   'mental health stress anxiety wellness education',
+  Fitness:           'exercise workout fitness health benefits',
+  Prevention:        'disease prevention health screening checkup',
+  Medication:        'medication safety how medicines work pharmacy',
+  'Maternal Health': 'maternal health pregnancy antenatal care mother',
+  'Public Health':   'public health community disease prevention epidemiology',
+  'Primary Care':    'primary care family doctor general practitioner checkup',
+};
+
+/** Display metadata per category */
+const CATEGORY_META: Record<VideoCategory, { color: string; icon: string }> = {
+  Nutrition:         { color: '#f59e0b', icon: 'nutrition-outline' },
+  'Mental Health':   { color: '#8b5cf6', icon: 'happy-outline' },
+  Fitness:           { color: '#10b981', icon: 'barbell-outline' },
+  Prevention:        { color: '#0284c7', icon: 'shield-checkmark-outline' },
+  Medication:        { color: '#059669', icon: 'medkit-outline' },
+  'Maternal Health': { color: '#db2777', icon: 'rose-outline' },
+  'Public Health':   { color: '#0891b2', icon: 'earth-outline' },
+  'Primary Care':    { color: '#16a34a', icon: 'home-outline' },
+};
+
+/** Parse ISO 8601 durations like PT4M13S → seconds */
+function parseISO8601Duration(iso: string): number {
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (parseInt(m[1] ?? '0') * 3600) +
+         (parseInt(m[2] ?? '0') * 60) +
+          parseInt(m[3] ?? '0');
+}
+
+/** Derive coin reward from duration: 5 min = 3, 10 min = 4, 15 min+ = 5 */
+function coinsForDuration(seconds: number): number {
+  if (seconds >= 900) return 5;
+  if (seconds >= 600) return 4;
+  return 3;
+}
+
+/**
+ * Fetch a fresh daily catalogue straight from the YouTube Data API.
+ * Searches each health category for medium-length videos (5–20 min),
+ * resolves exact durations via videos.list, and returns ExploreVideo[]
+ * ready for the store. Returns null if the API key is absent or any call fails.
+ */
+async function fetchFromYouTube(): Promise<ExploreVideo[] | null> {
+  if (!YT_API_KEY) return null;
+
+  const categories = Object.keys(CATEGORY_QUERIES) as VideoCategory[];
+  const all: ExploreVideo[] = [];
+
+  for (const category of categories) {
+    try {
+      const query = encodeURIComponent(CATEGORY_QUERIES[category]);
+      const searchUrl =
+        `https://www.googleapis.com/youtube/v3/search` +
+        `?part=snippet&q=${query}&type=video&videoDuration=medium` +
+        `&maxResults=${YT_RESULTS_PER_CAT}&relevanceLanguage=en` +
+        `&safeSearch=strict&key=${YT_API_KEY}`;
+
+      const searchRes = await fetch(searchUrl);
+      if (!searchRes.ok) continue;
+      const searchData = await searchRes.json() as {
+        items?: Array<{
+          id: { videoId: string };
+          snippet: { title: string; description: string; channelTitle: string };
+        }>;
+      };
+
+      const items = searchData.items ?? [];
+      if (items.length === 0) continue;
+
+      const ids = items.map((it) => it.id.videoId).join(',');
+      const detailsUrl =
+        `https://www.googleapis.com/youtube/v3/videos` +
+        `?part=contentDetails&id=${encodeURIComponent(ids)}&key=${YT_API_KEY}`;
+
+      const detailsRes = await fetch(detailsUrl);
+      if (!detailsRes.ok) continue;
+      const detailsData = await detailsRes.json() as {
+        items?: Array<{ id: string; contentDetails: { duration: string } }>;
+      };
+
+      const durationMap = new Map<string, number>();
+      for (const d of detailsData.items ?? []) {
+        durationMap.set(d.id, parseISO8601Duration(d.contentDetails.duration));
+      }
+
+      const meta = CATEGORY_META[category];
+      const snippetMap = new Map(items.map((it) => [it.id.videoId, it.snippet]));
+
+      for (const it of items) {
+        const vid = it.id.videoId;
+        const dur = durationMap.get(vid) ?? 0;
+        // Keep only 5–20 min videos (300–1200 s)
+        if (dur < 300 || dur > 1200) continue;
+
+        let desc = it.snippet.description ?? '';
+        if (desc.length > 180) desc = desc.slice(0, 177) + '\u2026';
+        desc = desc.replace(/\n/g, ' ');
+
+        all.push({
+          id: `yt_${category.toLowerCase().replace(/\s+/g, '_')}_${vid}`,
+          title: it.snippet.title,
+          description: desc || `${category} educational video.`,
+          category,
+          durationSeconds: dur,
+          coins: coinsForDuration(dur),
+          thumbnailColor: meta.color,
+          thumbnailIcon: meta.icon,
+          instructor: it.snippet.channelTitle,
+          youtubeId: vid,
+        });
+      }
+
+      // Small delay between categories to be quota-friendly
+      await new Promise((r) => setTimeout(r, 150));
+    } catch {
+      // Skip failed categories — continue with others
+      continue;
+    }
+  }
+
+  return all.length > 0 ? all : null;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -86,32 +218,40 @@ async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, cachedVideos: videos, lastVideoFetchDate: fetchDate }));
 }
 
-/** Fetch videos + today's rewarded IDs from the API. Returns null on failure. */
+/** Fetch videos + today's rewarded IDs. Tries YouTube Data API first, falls back to backend. */
 async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number } | null> {
+  // ── 1. Try YouTube Data API directly ─────────────────────────────────────
+  const ytVideos = await fetchFromYouTube();
+
+  // ── 2. Fetch rewards from backend regardless of video source ──────────────
+  let rewardedIds: string[] = [];
+  let dailyCap = DAILY_VIDEO_CAP;
+
   try {
     const res = await api.get<{
       success: boolean;
-      data: {
-        videos: ExploreVideo[];
-        rewardedIds: string[];
-        dailyCap: number;
-      };
+      data: { videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number };
     }>('/explore/videos');
     if (res.data.success) {
-      const d = res.data.data;
-      // Only return videos if the server actually sent some
-      const videos = Array.isArray(d.videos) && d.videos.length > 0 ? d.videos : null;
-      if (!videos) return null;
-      return {
-        videos,
-        rewardedIds: d.rewardedIds ?? [],
-        dailyCap: d.dailyCap ?? DAILY_VIDEO_CAP,
-      };
+      rewardedIds = res.data.data.rewardedIds ?? [];
+      dailyCap = res.data.data.dailyCap ?? DAILY_VIDEO_CAP;
+      // If YouTube fetch failed or key not set, use backend videos as fallback
+      if (!ytVideos) {
+        const backendVideos = Array.isArray(res.data.data.videos) && res.data.data.videos.length > 0
+          ? res.data.data.videos
+          : null;
+        if (!backendVideos) return null;
+        return { videos: backendVideos, rewardedIds, dailyCap };
+      }
     }
-    return null;
   } catch {
+    // Backend unreachable — if YouTube gave us videos, still return them
+    if (ytVideos) return { videos: ytVideos, rewardedIds: [], dailyCap: DAILY_VIDEO_CAP };
     return null;
   }
+
+  if (!ytVideos) return null;
+  return { videos: ytVideos, rewardedIds, dailyCap };
 }
 
 export const useExploreStore = create<ExploreState>((set, get) => ({
