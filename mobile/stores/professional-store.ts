@@ -266,7 +266,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
           ...state.currentCase,
           condition,
           urgency,
-          physicianNotes: notes || state.currentCase.physicianNotes,
+          physicianNotes: notes,
           physicianOutput: (prescription || (investigations && investigations.length > 0))
             ? { prescription, investigations }
             : state.currentCase.physicianOutput,

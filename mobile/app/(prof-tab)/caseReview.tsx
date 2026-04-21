@@ -158,17 +158,17 @@ export default function CaseReviewScreen() {
       return;
     }
     setIsSubmitting(true);
-    const prescription = editMedicine.trim()
-      ? {
-          medicine: editMedicine.trim(),
-          dosage: editDosage.trim(),
-          frequency: editFrequency.trim(),
-          duration: editDuration.trim(),
-          instructions: editMedInstructions.trim(),
-        }
-      : undefined;
-    const investigations = editInvestigations.filter(i => i.test.trim());
     try {
+      const prescription = editMedicine.trim()
+        ? {
+            medicine: editMedicine.trim(),
+            dosage: editDosage.trim(),
+            frequency: editFrequency.trim(),
+            duration: editDuration.trim(),
+            instructions: editMedInstructions.trim(),
+          }
+        : undefined;
+      const investigations = editInvestigations.filter(i => i.test.trim());
       await ProfessionalService.updateAIOutput(
         caseId,
         editCondition.trim(),

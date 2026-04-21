@@ -750,7 +750,7 @@ func (r *Repository) UpdateAIOutput(
 		UPDATE diagnoses
 		SET condition           = $3,
 		    urgency             = $4,
-		    physician_notes     = CASE WHEN $6 <> '' THEN $6 ELSE physician_notes END,
+		    physician_notes     = $6,
 		    physician_ai_output = CASE WHEN $7::text IS NOT NULL
 		                               THEN $7::jsonb
 		                               ELSE physician_ai_output END,
