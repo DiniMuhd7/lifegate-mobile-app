@@ -269,26 +269,27 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
     const today = todayStr();
     let persisted: PersistedExploreData | null = null;
 
-    // 1. Restore all persisted data (coins, progress, AND cached videos) from AsyncStorage
+    // 1. Restore all persisted data from AsyncStorage and mark initialized
+    //    immediately so the screen can render cached content right away.
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         persisted = JSON.parse(raw) as PersistedExploreData;
         const dailyWatchedCount = persisted.lastWatchDate === today ? (persisted.dailyWatchedCount ?? 0) : 0;
-        // Immediately show cached videos so the screen is not blank while the API fetch runs
         const cachedVideos = persisted.cachedVideos ?? [];
-        set({ ...persisted, videos: cachedVideos, dailyWatchedCount });
+        set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true });
+      } else {
+        set({ initialized: true });
       }
-    } catch { /* ignore */ }
+    } catch {
+      set({ initialized: true });
+    }
 
-    // 2. Only call the API if the video catalogue is stale (fetched before today)
+    // 2. Refresh video catalogue if stale (fetched before today)
     const lastFetch = persisted?.lastVideoFetchDate ?? null;
-    const isStale = lastFetch !== today;
-
-    if (isStale) {
+    if (lastFetch !== today) {
       const remote = await fetchRemote();
       if (remote) {
-        // Merge server-known rewarded IDs into local progress so isRewarded() is accurate
         const existingProgress = get().progress.filter((p) => p.rewardedDate !== today);
         const serverProgress: VideoProgress[] = remote.rewardedIds.map((id) => ({
           videoId: id,
@@ -301,9 +302,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           progress: mergedProgress,
           dailyWatchedCount: remote.rewardedIds.length,
           lastVideoRefreshDate: today,
-          initialized: true,
         });
-        // Persist new video cache alongside coins/progress
         const current = get();
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
           lifecoins: current.lifecoins,
@@ -314,12 +313,11 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           cachedVideos: remote.videos,
           lastVideoFetchDate: today,
         } satisfies PersistedExploreData));
-        return;
       }
-      // Remote fetch failed — fall through, use whatever we loaded from cache
+      return;
     }
 
-    // 3. Cache is fresh (or remote failed) — just sync today's rewarded IDs
+    // 3. Cache is fresh — just sync today’s rewarded IDs from the server
     const rewardsRemote = await fetchRemote();
     if (rewardsRemote) {
       const existingProgress = get().progress.filter((p) => p.rewardedDate !== today);
@@ -332,8 +330,6 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
         dailyWatchedCount: rewardsRemote.rewardedIds.length,
       });
     }
-
-    set({ initialized: true });
   },
 
   refreshVideos: async () => {

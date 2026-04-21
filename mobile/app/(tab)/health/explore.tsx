@@ -633,55 +633,24 @@ export default function ExploreScreen() {
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
-  const [availableIds, setAvailableIds] = useState<Set<string> | null>(null);
   const [activeCategory, setActiveCategory] = useState<VideoCategory | 'All'>('All');
+  const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized, initialize]);
 
-  // Re-fetch videos whenever the screen gains focus on a new calendar day so
-  // that users always see the freshest YouTube content without needing to
-  // restart the app.
+  // Re-fetch videos whenever the screen gains focus on a new calendar day.
   useFocusEffect(
     useCallback(() => {
       if (!initialized) return;
       const today = new Date().toISOString().slice(0, 10);
       if (lastVideoRefreshDate !== today) {
-        refreshVideos();
+        setIsFetching(true);
+        refreshVideos().finally(() => setIsFetching(false));
       }
     }, [initialized, lastVideoRefreshDate, refreshVideos]),
   );
-
-  // Probe each YouTube video via the oEmbed endpoint — no API key needed, CORS-safe.
-  // Run against the live videos from the store (updates when store refreshes).
-  useEffect(() => {
-    if (!initialized) return;
-
-    let cancelled = false;
-
-    async function checkAvailability() {
-      const results = await Promise.allSettled(
-        videos.map(async (v) => {
-          const url = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${v.youtubeId}&format=json`;
-          const res = await fetch(url, { method: 'GET' });
-          if (!res.ok) throw new Error(`${res.status}`);
-          return v.id;
-        }),
-      );
-
-      if (cancelled) return;
-
-      const ids = new Set<string>();
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled') ids.add(videos[i].id);
-      });
-      setAvailableIds(ids);
-    }
-
-    checkAvailability();
-    return () => { cancelled = true; };
-  }, [initialized, videos]);
 
   // Daily-shuffled video order — recalculated when the catalogue changes
   const shuffledVideos = useMemo(() => getDailyShuffledVideos(videos), [videos]);
@@ -719,17 +688,9 @@ export default function ExploreScreen() {
     setActiveVideo(null);
   }, [activeVideo, claimReward, showToast, dailyCap, refreshVideos]);
 
-  // Availability-checked, sorted video list.
-  // Duration filter: 5–20 min (300–1200 s) — matches YouTube 'medium' band.
-  // Sort: fresh first → session-viewed → already rewarded.
+  // Sorted video list: fresh first → session-viewed → already rewarded.
   const filteredVideos = shuffledVideos
-    .filter(
-      (v) =>
-        v.durationSeconds >= 300 &&
-        v.durationSeconds <= 1200 &&
-        (!availableIds || availableIds.has(v.id)) &&
-        (activeCategory === 'All' || v.category === activeCategory),
-    )
+    .filter((v) => activeCategory === 'All' || v.category === activeCategory)
     .sort((a, b) => {
       // Sort order: fresh → session-viewed → rewarded
       const aR = isRewarded(a.id);
@@ -742,10 +703,9 @@ export default function ExploreScreen() {
     });
 
   const dailyRemaining = getDailyRemaining();
-  // Accurate counts based on what's actually available
   const todayClaimedCount = videos.filter((v) => isRewarded(v.id)).length;
-  const availableUnclaimed = availableIds
-    ? Array.from(availableIds).filter((id) => !isRewarded(id)).length
+  const availableUnclaimed = videos.length > 0
+    ? videos.filter((v) => !isRewarded(v.id)).length
     : null;
 
   if (!initialized) {
@@ -904,7 +864,7 @@ export default function ExploreScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Section header for category view */}
-        {activeCategory !== 'All' && availableIds !== null && (
+        {activeCategory !== 'All' && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 2 }}>
             <Ionicons
               name={CAT_META[activeCategory as VideoCategory].icon}
@@ -918,11 +878,10 @@ export default function ExploreScreen() {
           </View>
         )}
 
-        {availableIds === null ? (
-          /* Checking availability */
+        {isFetching && videos.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
             <ActivityIndicator size="large" color="#059669" />
-            <Text style={{ fontSize: 13, color: '#6b7280' }}>Checking video availability…</Text>
+            <Text style={{ fontSize: 13, color: '#6b7280' }}>Loading today’s health videos…</Text>
           </View>
         ) : filteredVideos.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
@@ -939,7 +898,7 @@ export default function ExploreScreen() {
             </Text>
           </View>
         ) : null}
-        {availableIds !== null && filteredVideos.map((video) => (
+        {filteredVideos.map((video) => (
           <VideoCard
             key={video.id}
             video={video}
