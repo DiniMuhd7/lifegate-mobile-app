@@ -176,20 +176,47 @@ func (s *Service) GetDiagnosisDetail(physicianID, diagnosisID string) (*Diagnosi
 	return &r, err
 }
 
-func (s *Service) GetRecentActivities(physicianID string, limit, offset int) ([]ActivityRecord, error) {
-	rows, err := s.db.Query(`
-		SELECT d.id,
-		       COALESCE(u.patient_id, u.user_id, d.user_id::text),
-		       COALESCE(u.name, ''),
-		       d.status,
-		       COALESCE(d.condition, ''),
-		       d.updated_at
-		FROM diagnoses d
-		LEFT JOIN users u ON u.id = d.user_id
-		WHERE (d.physician_id = $1 OR (d.physician_id IS NULL AND d.status = 'Pending'))
-		  AND d.status IN ('Completed', 'Pending', 'Active')
-		ORDER BY d.updated_at DESC
-		LIMIT $2 OFFSET $3`, physicianID, limit, offset)
+func (s *Service) GetRecentActivities(physicianID string, limit, offset int, startDate, endDate time.Time) ([]ActivityRecord, error) {
+	var query string
+	var args []interface{}
+	if !startDate.IsZero() && !endDate.IsZero() {
+		query = `
+			SELECT d.id,
+			       d.user_id::text,
+			       COALESCE(u.name, ''),
+			       d.status,
+			       COALESCE(d.physician_decision, ''),
+			       d.escalated,
+			       COALESCE(d.condition, ''),
+			       d.updated_at
+			FROM diagnoses d
+			LEFT JOIN users u ON u.id = d.user_id
+			WHERE (d.physician_id = $1 OR (d.physician_id IS NULL AND d.status = 'Pending'))
+			  AND d.status IN ('Completed', 'Pending', 'Active')
+			  AND d.updated_at >= $2 AND d.updated_at <= $3
+			ORDER BY d.updated_at DESC
+			LIMIT $4 OFFSET $5`
+		args = []interface{}{physicianID, startDate, endDate, limit, offset}
+	} else {
+		query = `
+			SELECT d.id,
+			       d.user_id::text,
+			       COALESCE(u.name, ''),
+			       d.status,
+			       COALESCE(d.physician_decision, ''),
+			       d.escalated,
+			       COALESCE(d.condition, ''),
+			       d.updated_at
+			FROM diagnoses d
+			LEFT JOIN users u ON u.id = d.user_id
+			WHERE (d.physician_id = $1 OR (d.physician_id IS NULL AND d.status = 'Pending'))
+			  AND d.status IN ('Completed', 'Pending', 'Active')
+			ORDER BY d.updated_at DESC
+			LIMIT $2 OFFSET $3`
+		args = []interface{}{physicianID, limit, offset}
+	}
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -199,17 +226,20 @@ func (s *Service) GetRecentActivities(physicianID string, limit, offset int) ([]
 	var activities []ActivityRecord
 	for rows.Next() {
 		var a ActivityRecord
-		var status string
+		var status, decision string
+		var escalated bool
 		var updatedAt time.Time
-		if err := rows.Scan(&a.ID, &a.PatientID, &a.PatientName, &status, &a.Condition, &updatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.PatientID, &a.PatientName, &status, &decision, &escalated, &a.Condition, &updatedAt); err != nil {
 			log.Printf("review: scan activity row: %v", err)
 			continue
 		}
-		switch status {
-		case "Completed":
+		switch {
+		case escalated:
+			a.CaseType = "Escalated"
+		case status == "Completed" && decision == "Rejected":
+			a.CaseType = "Rejected"
+		case status == "Completed":
 			a.CaseType = "Verified"
-		case "Active":
-			a.CaseType = "Active"
 		default:
 			a.CaseType = "Pending"
 		}
