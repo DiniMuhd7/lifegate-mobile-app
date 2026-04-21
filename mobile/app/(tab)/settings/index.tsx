@@ -49,7 +49,7 @@ export default function SettingsScreen() {
           icon: 'person-outline',
           label: 'Manage Profile',
           sublabel: 'Edit name, photo & info',
-          onPress: () => router.push('/(tab)/profile'),
+          onPress: () => router.push('/(tab)/settings/profile'),
         },
         {
           icon: 'notifications-outline',
@@ -123,59 +123,6 @@ export default function SettingsScreen() {
         contentContainerStyle={{ paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Profile card ── */}
-        <TouchableOpacity
-          onPress={() => router.push('/(tab)/profile')}
-          activeOpacity={0.85}
-          style={{
-            margin: 16,
-            borderRadius: 20,
-            backgroundColor: '#fff',
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: 16,
-          }}
-        >
-          {/* Avatar */}
-          <View
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: TEAL_LIGHT,
-              borderWidth: 2,
-              borderColor: TEAL,
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 14,
-            }}
-          >
-            <Text style={{ fontSize: 20, fontWeight: '800', color: TEAL_DARK }}>{initials}</Text>
-          </View>
-          {/* Info */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
-              {user?.name ?? 'User'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }} numberOfLines={1}>
-              {user?.email ?? ''}
-            </Text>
-            <View
-              style={{
-                marginTop: 5,
-                alignSelf: 'flex-start',
-                backgroundColor: TEAL_LIGHT,
-                borderRadius: 20,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-              }}
-            >
-              <Text style={{ fontSize: 10, fontWeight: '700', color: TEAL_DARK }}>{roleLabel}</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#d1d5db" />
-        </TouchableOpacity>
-
         {/* ── Sections ── */}
         {sections.map((section) => (
           <View key={section.title} style={{ marginHorizontal: 16, marginBottom: 14 }}>

@@ -469,7 +469,7 @@ export default function CheckinsScreen() {
             />
             <Text style={{ flex: 1, fontSize: 12, color: '#93c5fd', lineHeight: 18 }}>
               Each check-in slot asks 2-3 health questions tailored to your condition. Complete a slot
-              to earn 3 Lifecoins. Slots reset daily at midnight.
+              to earn 1 Lifecoin. Slots reset daily at midnight.
             </Text>
           </View>
         </View>

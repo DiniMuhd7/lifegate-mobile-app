@@ -16,15 +16,17 @@ import type { BatteryTestId } from 'types/vision-types';
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
 
+const ALL_TEST_IDS: BatteryTestId[] = ['acuity', 'color', 'astigmatism', 'contrast', 'near'];
+
 export default function BatterySelector() {
   const { selectedTests, setSelectedTests, startBattery, isCalibrationComplete } = useVisionStore();
 
   const toggle = useCallback((id: BatteryTestId) => {
-    setSelectedTests(
-      selectedTests.includes(id)
-        ? selectedTests.filter((t) => t !== id)
-        : [...selectedTests, id],
-    );
+    const next = selectedTests.includes(id)
+      ? selectedTests.filter((t) => t !== id)
+      : [...selectedTests, id];
+    // Always keep the canonical order so the first test is predictable
+    setSelectedTests(ALL_TEST_IDS.filter((t) => next.includes(t)));
   }, [selectedTests, setSelectedTests]);
 
   const totalSec = BATTERY_META
@@ -32,10 +34,18 @@ export default function BatterySelector() {
     .reduce((s, m) => s + m.estimatedSec, 0);
   const totalMin = Math.ceil(totalSec / 60);
 
+  const SCREEN_MAP: Record<BatteryTestId, string> = {
+    acuity:      '/(tab)/eyetest/acuity',
+    color:       '/(tab)/eyetest/color',
+    astigmatism: '/(tab)/eyetest/astigmatism',
+    contrast:    '/(tab)/eyetest/contrast',
+    near:        '/(tab)/eyetest/near',
+  };
+
   const handleStart = useCallback(() => {
     if (selectedTests.length === 0) return;
     startBattery();
-    router.push('/(tab)/eyetest/acuity' as never);
+    router.push(SCREEN_MAP[selectedTests[0]] as never);
   }, [selectedTests, startBattery]);
 
   return (

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'checkin_store_v1';
 
 // ── Slot schedule ────────────────────────────────────────────────────────────
-// Each slot unlocks at a specific hour (24-hr). All reward 3 Lifecoins.
+// Each slot unlocks at a specific hour (24-hr). All reward 1 Lifecoin.
 
 export interface HourlySlot {
   id: number;
@@ -15,12 +15,11 @@ export interface HourlySlot {
 }
 
 const SLOT_SCHEDULE: Omit<HourlySlot, 'claimedDate'>[] = [
-  { id: 1, label: 'Morning Boost',  unlockHour: 6,  coins: 3 },
-  { id: 2, label: 'Mid-Morning',    unlockHour: 9,  coins: 3 },
-  { id: 3, label: 'Noon',           unlockHour: 12, coins: 3 },
-  { id: 4, label: 'Afternoon',      unlockHour: 15, coins: 3 },
-  { id: 5, label: 'Evening',        unlockHour: 18, coins: 3 },
-  { id: 6, label: 'Night Boost',    unlockHour: 21, coins: 3 },
+  { id: 1, label: 'Morning',   unlockHour: 6,  coins: 1 },
+  { id: 3, label: 'Noon',      unlockHour: 12, coins: 1 },
+  { id: 4, label: 'Afternoon', unlockHour: 15, coins: 1 },
+  { id: 5, label: 'Evening',   unlockHour: 18, coins: 1 },
+  { id: 6, label: 'Night',     unlockHour: 21, coins: 1 },
 ];
 
 // ── Health Check-in Question Types ───────────────────────────────────────────

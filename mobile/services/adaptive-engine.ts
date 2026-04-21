@@ -297,8 +297,8 @@ export function classifyAstigmatism(
 // 4.  CONTRAST SENSITIVITY — spatial frequency staircase
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Spatial frequencies tested (cycles per degree) */
-export const CS_SPATIAL_FREQS = [0.5, 1, 2, 4, 8, 16] as const;
+/** Spatial frequencies tested (cycles per degree) — 4 diagnostically most informative bands */
+export const CS_SPATIAL_FREQS = [1, 2, 4, 8] as const;
 export type SpatialFreq = (typeof CS_SPATIAL_FREQS)[number];
 
 export interface ContrastStaircase {
@@ -324,7 +324,7 @@ export function stepContrastStaircase(
 
   const newDir: 'down' | 'up' = seen ? 'down' : 'up';
   let reversals = s.reversals;
-  if (newDir !== s.direction && s.reversals.length > 0) {
+  if (newDir !== s.direction) {
     reversals = [...reversals, prev];
   }
 
@@ -333,7 +333,7 @@ export function stepContrastStaircase(
     contrastPercent: next,
     direction: newDir,
     reversals,
-    done: reversals.length >= 6,
+    done: reversals.length >= 3,
   };
 }
 

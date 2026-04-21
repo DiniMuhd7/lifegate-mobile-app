@@ -8,7 +8,7 @@
  * • ~33% of trials are motion trials: letter oscillates horizontally
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StatusBar, Animated, Easing, Modal, BackHandler } from 'react-native';
+import { View, Text, Pressable, StatusBar, Animated, Easing, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useNavigation } from 'expo-router';
@@ -638,26 +638,7 @@ export default function AcuityTest() {
 
   // Exit confirmation
   const navigation = useNavigation();
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const exitConfirmedRef = useRef(false);
 
-  // Block hardware back / gesture navigation while test is active
-  useEffect(() => {
-    const unsub = navigation.addListener('beforeRemove', (e: { preventDefault: () => void }) => {
-      if (exitConfirmedRef.current) return;
-      e.preventDefault();
-      setShowExitConfirm(true);
-    });
-    return unsub;
-  }, [navigation]);
-
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setShowExitConfirm(true);
-      return true;
-    });
-    return () => sub.remove();
-  }, []);
 
   // Init
   useEffect(() => {
@@ -687,7 +668,6 @@ export default function AcuityTest() {
         if (next <= 0) {
           clearInterval(timerRef.current!);
           finaliseAcuity();
-          exitConfirmedRef.current = true;
           router.replace(nextScreen(testStatus) as never);
           return 0;
         }
@@ -905,12 +885,10 @@ export default function AcuityTest() {
     trialStart.current = Date.now();
   }, [pendingPhase, trialsCount, recordEyeSwitch]);
 
-  const handleExitConfirm = useCallback(() => {
+  const handleExit = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     stopMotion();
     markTestSkipped('acuity');
-    exitConfirmedRef.current = true;
-    setShowExitConfirm(false);
     router.replace(nextScreen({ ...testStatus, acuity: 'skipped' }) as never);
   }, [stopMotion, markTestSkipped, testStatus]);
 
@@ -933,7 +911,7 @@ export default function AcuityTest() {
           gap: 10,
         }}>
           <Pressable
-            onPress={() => setShowExitConfirm(true)}
+            onPress={handleExit}
             hitSlop={10}
             style={({ pressed }) => ({
               width: 36, height: 36, borderRadius: 18,
@@ -1180,70 +1158,6 @@ export default function AcuityTest() {
           onSkip={handlePhaseSkip}
         />
 
-        {/* ── Exit Confirmation Modal ───────────────────────────────────── */}
-        <Modal
-          transparent
-          animationType="fade"
-          visible={showExitConfirm}
-          onRequestClose={() => setShowExitConfirm(false)}
-        >
-          <View style={{
-            flex: 1, backgroundColor: 'rgba(0,0,0,0.88)',
-            alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22,
-          }}>
-            <View style={{
-              backgroundColor: '#0d1527', borderRadius: 28, width: '100%',
-              overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-            }}>
-              {/* Header */}
-              <View style={{
-                paddingTop: 28, paddingBottom: 20, paddingHorizontal: 24,
-                alignItems: 'center', gap: 12,
-                borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
-              }}>
-                <View style={{
-                  width: 68, height: 68, borderRadius: 34,
-                  backgroundColor: 'rgba(239,68,68,0.12)',
-                  borderWidth: 2, borderColor: 'rgba(239,68,68,0.25)',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Text style={{ fontSize: 32 }}>👁️</Text>
-                </View>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', textAlign: 'center' }}>
-                  End Acuity Test?
-                </Text>
-                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 20 }}>
-                  Your progress will be lost and this test{'\n'}will be marked as skipped.
-                </Text>
-              </View>
-
-              {/* Buttons */}
-              <View style={{ padding: 20, gap: 10 }}>
-                <Pressable
-                  onPress={() => setShowExitConfirm(false)}
-                  style={({ pressed }) => ({
-                    backgroundColor: pressed ? `${phaseConf.color}cc` : phaseConf.color,
-                    borderRadius: 16, paddingVertical: 15, alignItems: 'center',
-                    shadowColor: phaseConf.color, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
-                  })}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Continue Test</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handleExitConfirm}
-                  style={({ pressed }) => ({
-                    backgroundColor: pressed ? 'rgba(239,68,68,0.18)' : 'rgba(239,68,68,0.1)',
-                    borderRadius: 16, paddingVertical: 15, alignItems: 'center',
-                    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
-                  })}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#f87171' }}>End Test</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
 
       </SafeAreaView>
     </View>

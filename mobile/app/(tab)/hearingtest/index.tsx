@@ -16,7 +16,6 @@ import {
   ScrollView,
   Animated,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -455,15 +454,7 @@ function NoiseStep() {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Microphone Access Required',
-          'Grant microphone access to check ambient noise. You can skip this step.',
-          [
-            { text: 'Skip', onPress: () => skipNoise() },
-            { text: 'OK', style: 'cancel' },
-          ],
-        );
-        setPhase('idle');
+        skipNoise();
         return;
       }
 

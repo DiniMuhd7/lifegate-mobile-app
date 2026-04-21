@@ -27,12 +27,11 @@ import {
   Modal,
   Dimensions,
   Platform,
-  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useNavigation } from 'expo-router';
+import { router } from 'expo-router';
 import { Audio } from 'expo-av';
 import { File as FSFile, Paths as FSPaths } from 'expo-file-system';
 import { useHearingStore } from 'stores/hearing-store';
@@ -280,10 +279,8 @@ export default function PTATest() {
   const [countdown, setCountdown] = useState(2);
   const [responseCountdown, setResponseCountdown] = useState(RESPONSE_TIMEOUT_MS / 1000);
   const [showEarSwitch, setShowEarSwitch] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [earElapsed, setEarElapsed] = useState(0); // seconds since current ear started
-  const exitConfirmedRef = useRef(false); // gates beforeRemove so confirmed nav is allowed
   // Start at 1 — circle is visible from the first countdown (3 → 2 → 1).
   // Previously 0 made the countdown invisible until playback started.
   const fadeAnim  = useRef(new Animated.Value(1)).current;
@@ -318,28 +315,6 @@ export default function PTATest() {
     if (!session) {
       router.replace('/(tab)/hearingtest' as never);
     }
-  }, []);
-
-  // ── Navigation guard — confirm before leaving while test is active ────────
-  const navigation = useNavigation();
-
-  // Intercept stack-pop (back gesture on iOS / in-app back button)
-  useEffect(() => {
-    const unsub = (navigation as any).addListener('beforeRemove', (e: any) => {
-      if (exitConfirmedRef.current) return; // user already confirmed — allow
-      e.preventDefault();
-      setShowExitConfirm(true);
-    });
-    return unsub;
-  }, [navigation]);
-
-  // Android hardware back button
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setShowExitConfirm(true);
-      return true; // prevent default back
-    });
-    return () => sub.remove();
   }, []);
 
   // ── Elapsed time counter + per-ear 2.5-minute expiry ──────────────────────
@@ -723,12 +698,9 @@ export default function PTATest() {
     };
   }, [tonePhase]);
 
-  // ── Exit test confirmation ─────────────────────────────────────────────────
+  // ── Exit test (no confirmation) ──────────────────────────────────────────
 
-  const handleExitConfirm = useCallback(() => {
-    setShowExitConfirm(false);
-    exitConfirmedRef.current = true;
-    // Clean up audio resources before leaving
+  const handleExit = useCallback(() => {
     soundRef.current?.stopAsync().catch(() => {});
     soundRef.current?.unloadAsync().catch(() => {});
     soundRef.current = null;
@@ -800,7 +772,7 @@ export default function PTATest() {
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10, gap: 10 }}>
           {/* Exit button */}
           <Pressable
-            onPress={() => setShowExitConfirm(true)}
+            onPress={handleExit}
             hitSlop={8}
             style={({ pressed }) => ({
               width: 34, height: 34, borderRadius: 17,
@@ -1116,61 +1088,6 @@ export default function PTATest() {
             {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
           </Text>
         </View>
-
-        {/* ── Exit Confirmation Modal ── */}
-        <Modal transparent animationType="fade" visible={showExitConfirm}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(4,4,12,0.92)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
-            <View style={{
-              backgroundColor: '#0d1117', borderRadius: 24, padding: 28,
-              width: '100%', alignItems: 'center', gap: 16,
-              borderWidth: 1, borderColor: '#1f2937',
-            }}>
-              {/* Warning icon */}
-              <View style={{
-                width: 64, height: 64, borderRadius: 32,
-                backgroundColor: '#450a0a', alignItems: 'center', justifyContent: 'center',
-                borderWidth: 2, borderColor: '#7f1d1d',
-              }}>
-                <Ionicons name="warning-outline" size={30} color="#f87171" />
-              </View>
-
-              <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', textAlign: 'center' }}>
-                End Test Session?
-              </Text>
-              <Text style={{ fontSize: 14, color: '#9ca3af', textAlign: 'center', lineHeight: 22 }}>
-                Your current test progress will be discarded.{'\n'}Are you sure you want to exit?
-              </Text>
-
-              <View style={{ flexDirection: 'row', gap: 12, width: '100%', marginTop: 4 }}>
-                {/* Cancel */}
-                <Pressable
-                  onPress={() => setShowExitConfirm(false)}
-                  style={({ pressed }) => ({
-                    flex: 1, paddingVertical: 14, borderRadius: 14,
-                    alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: pressed ? '#1a1a2e' : 'transparent',
-                    borderWidth: 1.5, borderColor: '#374151',
-                  })}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#9ca3af' }}>Continue Test</Text>
-                </Pressable>
-
-                {/* Exit */}
-                <Pressable
-                  onPress={handleExitConfirm}
-                  style={({ pressed }) => ({
-                    flex: 1, paddingVertical: 14, borderRadius: 14,
-                    alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: pressed ? '#7f1d1d' : '#991b1b',
-                    borderWidth: 1.5, borderColor: '#b91c1c',
-                  })}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>End Test</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
 
         {/* ── Ear Switch Modal ── */}
         <Modal transparent animationType="fade" visible={showEarSwitch}>

@@ -270,14 +270,18 @@ export default function ColorVisionTest() {
                   <Pressable
                     key={d}
                     onPress={() => handleSubmit(d)}
+                    android_ripple={{ color: TEAL + '33', borderless: false }}
                     style={({ pressed }) => ({
                       flex: 1, paddingVertical: 16, borderRadius: 14,
-                      backgroundColor: pressed ? '#f0fdfc' : '#f9fafb',
-                      borderWidth: 1.5, borderColor: '#e5e7eb',
+                      backgroundColor: pressed ? TEAL : '#f9fafb',
+                      borderWidth: 1.5, borderColor: pressed ? TEAL_DARK : '#e5e7eb',
                       alignItems: 'center', justifyContent: 'center',
+                      transform: [{ scale: pressed ? 0.94 : 1 }],
                     })}
                   >
-                    <Text style={{ fontSize: 24, fontWeight: '800', color: '#374151' }}>{d}</Text>
+                    {({ pressed }) => (
+                      <Text style={{ fontSize: 24, fontWeight: '800', color: pressed ? '#fff' : '#374151' }}>{d}</Text>
+                    )}
                   </Pressable>
                 ))}
               </View>

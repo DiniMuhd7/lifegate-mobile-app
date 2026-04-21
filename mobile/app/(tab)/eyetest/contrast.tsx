@@ -18,6 +18,7 @@ import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
 const SF_COLORS = ['#0AADA2','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#16a34a'];
+const MAX_TRIALS_PER_SF = 16;
 
 function nextScreen(testStatus: Record<string, string>) {
   if (testStatus.near === 'active') return '/(tab)/eyetest/near';
@@ -69,9 +70,10 @@ export default function ContrastTest() {
 
   const [answered, setAnswered] = useState(false);
   // Minimum stimulus viewing time before response buttons become active.
-  // Gives the visual system time to adapt to subtle contrast changes.
-  const MIN_VIEW_MS = 1500;
+  const MIN_VIEW_MS = 350;
   const [buttonsReady, setButtonsReady] = useState(false);
+  const [sfCompleteFlash, setSfCompleteFlash] = useState(false);
+  const [trialsThisSf, setTrialsThisSf] = useState(0);
   const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -98,6 +100,11 @@ export default function ContrastTest() {
     return () => { if (viewTimerRef.current) clearTimeout(viewTimerRef.current); };
   }, [contrastSfIndex, contrastStaircases[contrastSfIndex]?.contrastPercent]);
 
+  // Reset per-SF trial counter when advancing to a new pattern
+  useEffect(() => {
+    setTrialsThisSf(0);
+  }, [contrastSfIndex]);
+
   const sf = CS_SPATIAL_FREQS[contrastSfIndex];
   const staircase = contrastStaircases[contrastSfIndex];
   const contrastPct = staircase?.contrastPercent ?? 50;
@@ -111,17 +118,27 @@ export default function ContrastTest() {
     const reactionMs = Date.now() - trialStart.current;
     recordContrastTrial({ spatialFrequency: sf, contrastPercent: contrastPct, response: seen ? 'seen' : 'not_seen', reactionMs });
     trialStart.current = Date.now();
+    const nextTrialCount = trialsThisSf + 1;
+    setTrialsThisSf(nextTrialCount);
 
     setTimeout(() => {
       setAnswered(false);
-      if (sfDone) {
-        advanceContrastSf();
+      // Read fresh store state — sfDone from closure is stale after recordContrastTrial updates it
+      const { contrastStaircases, contrastSfIndex: freshIdx } = useVisionStore.getState();
+      const freshDone = contrastStaircases[freshIdx]?.done ?? false;
+      const hitMax = nextTrialCount >= MAX_TRIALS_PER_SF;
+      if (freshDone || hitMax) {
+        setSfCompleteFlash(true);
+        setTimeout(() => {
+          setSfCompleteFlash(false);
+          advanceContrastSf();
+        }, 900);
       }
     }, 300);
-  }, [answered, buttonsReady, sf, contrastPct, sfDone]);
+  }, [answered, buttonsReady, sf, contrastPct, trialsThisSf]);
 
   const totalSf = CS_SPATIAL_FREQS.length;
-  const REVERSALS_NEEDED = 6;
+  const REVERSALS_NEEDED = 3;
   // Overall completion: each SF contributes (reversals / 6) of its 1/totalSf share
   const overallProgress = contrastStaircases.reduce((sum, s, i) => {
     const sfWeight = 1 / totalSf;
@@ -145,7 +162,7 @@ export default function ContrastTest() {
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>Contrast Sensitivity</Text>
             <Text style={{ fontSize: 11, color: '#9ca3af' }}>
-              Frequency {contrastSfIndex + 1}/{totalSf} · {sf} cpd · {contrastPct}% contrast
+              Pattern {contrastSfIndex + 1} of {totalSf} · finding threshold
             </Text>
           </View>
           {/* Overall % badge */}
@@ -161,38 +178,52 @@ export default function ContrastTest() {
           <View style={{ height: 4, width: `${overallProgress * 100}%`, backgroundColor: sfColor, borderRadius: 2 }} />
         </View>
 
-        {/* ── Within-SF convergence bar ── */}
-        <View style={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 2 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: '600' }}>
-              Frequency {contrastSfIndex + 1} convergence
-            </Text>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: sfColor }}>
-              {staircase?.reversals.length ?? 0}/{REVERSALS_NEEDED} reversals
-            </Text>
-          </View>
-          <View style={{ height: 6, backgroundColor: '#f3f4f6', borderRadius: 3 }}>
-            <View style={{
-              height: 6,
-              width: `${sfReversalProgress * 100}%`,
-              backgroundColor: sfDone ? '#a7f3d0' : sfColor,
-              borderRadius: 3,
-            }} />
+        {/* ── Pattern sub-progress (unlabelled thin bar) ── */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 4, paddingBottom: 0 }}>
+          <View style={{ height: 3, backgroundColor: '#f3f4f6', borderRadius: 2 }}>
+            <View style={{ height: 3, width: `${sfReversalProgress * 100}%`, backgroundColor: sfDone ? '#a7f3d0' : sfColor, borderRadius: 2 }} />
           </View>
         </View>
 
+        {/* ── SF complete flash ── */}
+        {sfCompleteFlash && (
+          <View style={{
+            marginHorizontal: 18, marginTop: 6,
+            backgroundColor: '#dcfce7', borderRadius: 10,
+            paddingVertical: 10, paddingHorizontal: 14,
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            borderWidth: 1, borderColor: '#86efac',
+          }}>
+            <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803d', flex: 1 }}>
+              Pattern {contrastSfIndex + 1} complete
+              {contrastSfIndex + 1 < totalSf
+                ? ` — moving to pattern ${contrastSfIndex + 2} of ${totalSf}`
+                : ' — finishing…'}
+            </Text>
+          </View>
+        )}
+
         <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 20, paddingHorizontal: 24 }}>
-          <Text style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', lineHeight: 20 }}>
-            Look at the box below without squinting.{' '}
-            <Text style={{ fontWeight: '800' }}>Can you see any stripes or banding</Text>
-            , however faint?{' '}
+          <View style={{ backgroundColor: '#f8fafc', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#e2e8f0' }}>
+            <Text style={{ textAlign: 'center', fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 6 }}>
+              Can you see stripes in the box?
+            </Text>
+            <Text style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', lineHeight: 20 }}>
+              Tap <Text style={{ fontWeight: '700', color: '#16a34a' }}>Yes</Text> if you see any stripes — even very faint ones.{'\n'}
+              Tap <Text style={{ fontWeight: '700', color: '#dc2626' }}>No</Text> if the box looks like a plain, uniform grey square.
+            </Text>
             {sf >= 8 && (
-              <Text style={{ color: '#d97706', fontWeight: '600' }}>Fine detail — look carefully at the centre. </Text>
+              <Text style={{ textAlign: 'center', fontSize: 12, color: '#d97706', fontWeight: '600', marginTop: 8 }}>
+                Fine stripes — look carefully at the centre of the box.
+              </Text>
             )}
             {sf <= 1 && (
-              <Text style={{ color: '#6b7280' }}>Coarse, wide stripes. </Text>
+              <Text style={{ textAlign: 'center', fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+                Look for wide, gently blending bands across the box.
+              </Text>
             )}
-          </Text>
+          </View>
 
           <View style={{ alignItems: 'center', gap: 12 }}>
             {/* Frequency indicator */}
@@ -235,7 +266,7 @@ export default function ContrastTest() {
               })}
             >
               <Ionicons name="eye-off-outline" size={28} color="#dc2626" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}>Can't see it</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}>No — plain grey</Text>
             </Pressable>
             <Pressable
               onPress={() => handleResponse(true)}
@@ -248,7 +279,7 @@ export default function ContrastTest() {
               })}
             >
               <Ionicons name="eye-outline" size={28} color="#16a34a" />
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}>I see it</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}>Yes — I see stripes</Text>
             </Pressable>
           </View>
         </View>

@@ -10,6 +10,7 @@ export default function UserSettingsLayout() {
     }
     >
       <Stack.Screen name="index" />
+        <Stack.Screen name="profile" />
         <Stack.Screen name="manage-profile" />
         <Stack.Screen name="notification" />
         <Stack.Screen name="subscription" />
