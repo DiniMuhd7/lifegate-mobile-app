@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Activity, ActivityType } from '../types/professional-types';
