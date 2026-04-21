@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	auditpkg "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/audit"
 	ai "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
@@ -403,3 +404,38 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "AI output updated"})
 }
 
+// UpdateProfile lets a physician update their name and phone number.
+//
+// @Summary      Update physician profile
+// @Tags         physician
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{name=string,phone=string}  true  "Profile fields"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /physician/profile [patch]
+func (h *Handler) UpdateProfile(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	var req struct {
+		Name  string `json:"name"`
+		Phone string `json:"phone"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	req.Phone = strings.TrimSpace(req.Phone)
+	if req.Name == "" && req.Phone == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "at least one of name or phone is required"})
+		return
+	}
+	if err := h.svc.UpdateProfile(pid, req.Name, req.Phone); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile updated"})
+}

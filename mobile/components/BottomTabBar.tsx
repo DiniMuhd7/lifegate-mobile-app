@@ -1,11 +1,12 @@
 import { View, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 
 export type TabBarTab = 'consultation' | 'chat' | 'review';
 
 interface BottomTabBarProps {
-  currentTab: TabBarTab;
+  /** Optionally override the active tab. Defaults to pathname-based auto-detection. */
+  currentTab?: TabBarTab;
   onTabChange?: (tab: TabBarTab) => void;
 }
 
@@ -35,16 +36,26 @@ const TABS: Record<TabBarTab, TabConfig> = {
 
 export const BottomTabBar = ({ currentTab, onTabChange }: BottomTabBarProps) => {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Derive active tab from the current pathname so it always reflects
+  // the actual visible screen regardless of how navigation happened.
+  const activeTab: TabBarTab = currentTab ?? (
+    pathname.includes('/consultation') ? 'consultation'
+    : pathname.includes('/chat') ? 'chat'
+    : 'review'
+  );
 
   const handleTabPress = (tab: TabBarTab) => {
     onTabChange?.(tab);
-    router.push(TABS[tab].route);
+    // Use replace so the stack doesn't grow on every tab press.
+    router.replace(TABS[tab].route as any);
   };
 
   return (
     <View className="flex-row border-t border-gray-200 bg-white">
       {(Object.entries(TABS) as [TabBarTab, TabConfig][]).map(([tabKey, tab]) => {
-        const isActive = currentTab === tabKey;
+        const isActive = activeTab === tabKey;
         return (
           <Pressable
             key={tabKey}

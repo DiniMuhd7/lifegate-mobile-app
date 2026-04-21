@@ -202,6 +202,11 @@ func (s *Service) GetPayouts(physicianID string) ([]Payout, error) {
 	return s.repo.GetPayouts(physicianID)
 }
 
+// UpdateProfile updates the physician's name and/or phone in the users table.
+func (s *Service) UpdateProfile(physicianID, name, phone string) error {
+	return s.repo.UpdateProfile(physicianID, name, phone)
+}
+
 // broadcastQueueChange sends a physician.review.status event to all connected
 // WebSocket clients (all physicians pick this up via the physician WS hook).
 func (s *Service) broadcastQueueChange(caseID, physicianID, status string) {

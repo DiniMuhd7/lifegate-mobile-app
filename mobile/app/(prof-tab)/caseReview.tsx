@@ -83,6 +83,7 @@ export default function CaseReviewScreen() {
     currentCase,
     currentPatient,
     isCaseLoading,
+    caseLoadError,
     loadCaseDetail,
     updateLocalAIOutput,
     clearCurrentCase,
@@ -174,11 +175,34 @@ export default function CaseReviewScreen() {
 
   // ── Loading / error states ──────────────────────────────────────────────
 
-  if (isCaseLoading || !currentCase) {
+  if (isCaseLoading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
         <ActivityIndicator size="large" color="#3b82f6" />
         <Text className="text-gray-500 mt-3 text-sm">Loading case…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!currentCase) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center px-8">
+        <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+        <Text className="text-gray-800 font-bold text-base mt-4 text-center">
+          {caseLoadError ?? 'Case not found'}
+        </Text>
+        <Text className="text-gray-500 text-sm mt-2 text-center">
+          The case may have been reassigned or is no longer available.
+        </Text>
+        <TouchableOpacity
+          onPress={() => caseId && loadCaseDetail(caseId)}
+          className="mt-6 px-6 py-3 rounded-xl bg-blue-600"
+        >
+          <Text className="text-white font-semibold text-sm">Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} className="mt-3">
+          <Text className="text-gray-500 text-sm">Go back</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -465,7 +489,27 @@ export default function CaseReviewScreen() {
         </ScrollView>
 
         {/* ── Action Panel ──────────────────────────────────────────── */}
-        {!isCompleted && (
+        {currentCase.status === 'Pending' && (
+          <View
+            className="bg-white border-t border-gray-100 px-4 pt-3 pb-5"
+            style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8 }}
+          >
+            <View className="bg-amber-50 rounded-xl p-3 flex-row items-center gap-2">
+              <Ionicons name="information-circle-outline" size={18} color="#b45309" />
+              <Text className="text-amber-800 text-xs flex-1">
+                This case is pending and not yet assigned. Go to the Case Queue to take it before reviewing.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => router.replace('/(prof-tab)/caseQueue' as any)}
+              className="mt-2 flex-row items-center justify-center gap-2 py-3 rounded-xl bg-blue-600"
+            >
+              <Ionicons name="list-outline" size={16} color="#fff" />
+              <Text className="text-white font-semibold text-sm">Go to Case Queue</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {!isCompleted && currentCase.status === 'Active' && (
           <View
             className="bg-white border-t border-gray-100 px-4 pt-3 pb-5"
             style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8 }}

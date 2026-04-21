@@ -80,6 +80,10 @@ export default function ReviewScreen() {
     const newDate = new Date(selectedDate);
     const delta = rangeMode === '30d' ? 30 : rangeMode === '7d' ? 7 : 1;
     newDate.setDate(newDate.getDate() + direction * delta);
+    // Clamp to today — do not allow future date ranges.
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (newDate > today) return;
     setSelectedDate(newDate);
     loadData(newDate, rangeMode);
   };
@@ -93,7 +97,7 @@ export default function ReviewScreen() {
     await refreshAnalysis();
   }, [refreshAnalysis]);
 
-  const isToday = selectedDate.toDateString() === new Date().toDateString();
+  const isAtMaxDate = selectedDate.toDateString() === new Date().toDateString();
 
   const filteredActivities = searchQuery
     ? activities.filter(
@@ -172,9 +176,9 @@ export default function ReviewScreen() {
 
             <Pressable
               onPress={() => shiftDate(1)}
-              disabled={isToday}
+              disabled={isAtMaxDate}
               className="w-8 h-8 rounded-full bg-white/15 items-center justify-center"
-              style={{ opacity: isToday ? 0.3 : 1 }}
+              style={{ opacity: isAtMaxDate ? 0.3 : 1 }}
             >
               <Ionicons name="chevron-forward" size={16} color="#fff" />
             </Pressable>

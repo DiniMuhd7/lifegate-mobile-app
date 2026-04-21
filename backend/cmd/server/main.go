@@ -126,11 +126,33 @@ func main() {
 			hub.BroadcastToUser(p.UserID, "diagnosis.update", data)
 		}
 	})
+	// early_flag.detected → alert the originating patient only (not a physician queue event).
 	_ = natsClient.Subscribe("early_flag.detected", func(_ string, data []byte) {
-		hub.BroadcastToRole("professional", "physician.review.status", data)
+		var p struct {
+			UserID string `json:"user_id"`
+		}
+		if jsonErr := json.Unmarshal(data, &p); jsonErr == nil && p.UserID != "" {
+			hub.BroadcastToUser(p.UserID, "diagnosis.update", data)
+		}
 	})
+	// physician.review.completed — transform field names so the frontend
+	// physician.review.status handler (expecting caseId + status) works correctly.
+	// Note: broadcastQueueChange in physician/service.go also fires directly via
+	// the WS hub for connected clients; this NATS path ensures offline-then-reconnect
+	// physicians also receive the queue refresh signal.
 	_ = natsClient.Subscribe("physician.review.completed", func(_ string, data []byte) {
-		hub.BroadcastToRole("professional", "physician.review.status", data)
+		var p struct {
+			ReportID string `json:"report_id"`
+			Action   string `json:"action"`
+		}
+		if jsonErr := json.Unmarshal(data, &p); jsonErr != nil || p.ReportID == "" {
+			return
+		}
+		transformed, _ := json.Marshal(map[string]string{
+			"caseId": p.ReportID,
+			"status": p.Action,
+		})
+		hub.BroadcastToRole("professional", "physician.review.status", transformed)
 	})
 	_ = natsClient.Subscribe("physician.verification.confirmed", func(_ string, data []byte) {
 		hub.BroadcastToRole("admin", "case.state.changed", data)
@@ -314,6 +336,7 @@ func main() {
 		physicianGroup.GET("/earnings", physicianHandler.GetEarningsSummary)
 		physicianGroup.GET("/earnings/history", physicianHandler.GetEarningsHistory)
 		physicianGroup.GET("/payouts", physicianHandler.GetPayouts)
+		physicianGroup.PATCH("/profile", physicianHandler.UpdateProfile)
 		// Register/update device push token for in-app notifications
 		physicianGroup.POST("/push-token", func(c *gin.Context) {
 			var req notifications.RegisterTokenRequest
@@ -331,8 +354,8 @@ func main() {
 		})
 	}
 
-	// Review routes
-	reviewGroup := api.Group("/review", middleware.Auth(cfg.JWTSecret))
+	// Review routes — restricted to physicians and admins only.
+	reviewGroup := api.Group("/review", middleware.Auth(cfg.JWTSecret), middleware.PhysicianOnly())
 	{
 		reviewGroup.GET("/analysis", reviewHandler.GetAnalysis)
 		reviewGroup.GET("/diagnoses", reviewHandler.GetDiagnoses)

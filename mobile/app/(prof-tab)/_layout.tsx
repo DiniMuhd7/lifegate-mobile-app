@@ -1,7 +1,7 @@
 import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
 import { View } from 'react-native';
-import { useState, useCallback, useEffect } from 'react';
-import { BottomTabBar, type TabBarTab } from '../../components/BottomTabBar';
+import { useCallback, useEffect, useState } from 'react';
+import { BottomTabBar } from '../../components/BottomTabBar';
 import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
@@ -10,7 +10,6 @@ import { useAuthStore } from 'stores/auth-store';
 
 export default function ProfTabLayout() {
   const router = useRouter();
-  const [currentTab, setCurrentTab] = useState<TabBarTab>('review');
   const [banner, setBanner] = useState<PhysicianNotification | null>(null);
 
   // Mount physician real-time events
@@ -83,8 +82,8 @@ export default function ProfTabLayout() {
       {/* In-app notification banner (overlays content) */}
       <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} />
 
-      {/* Bottom Tab Bar */}
-      <BottomTabBar currentTab={currentTab} onTabChange={setCurrentTab} />
+      {/* Bottom Tab Bar — active tab is auto-detected from the current pathname */}
+      <BottomTabBar />
     </View>
   );
 }

@@ -799,3 +799,16 @@ func (r *Repository) ComputeSLABreach(caseID string) (SLABreachResult, error) {
 	return SLABreachResult{Breached: false}, nil
 }
 
+// UpdateProfile updates name and/or phone for the given physician.
+func (r *Repository) UpdateProfile(physicianID, name, phone string) error {
+	_, err := r.db.Exec(`
+		UPDATE users SET
+			name       = CASE WHEN $2 <> '' THEN $2 ELSE name  END,
+			phone      = CASE WHEN $3 <> '' THEN $3 ELSE phone END,
+			updated_at = NOW()
+		WHERE id = $1::uuid`,
+		physicianID, name, phone,
+	)
+	return err
+}
+

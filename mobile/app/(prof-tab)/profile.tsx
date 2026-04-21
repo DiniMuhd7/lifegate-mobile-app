@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
+import { ProfessionalService } from 'services/professional-service';
 import { useProfileStore } from 'stores/auth/profile-store';
 import { ProfileHeader } from 'components/ProfileHeader';
 import { EditProfileModal } from 'components/EditProfileModal';
@@ -56,16 +57,21 @@ export default function PhysicianProfileScreen() {
     }
   };
 
-  const handleSaveEdit = (values: { firstName: string; lastName: string; phone: string }) => {
+  const handleSaveEdit = async (values: { firstName: string; lastName: string; phone: string }) => {
     setEditFormLoading(true);
     const fullName = [values.firstName.trim(), values.lastName.trim()].filter(Boolean).join(' ');
-    // Update the authenticated user in-store (no general profile-update endpoint yet)
-    useAuthStore.setState((s) => ({
-      user: s.user ? { ...s.user, name: fullName, phone: values.phone.trim() } : s.user,
-    }));
-    setEditFormLoading(false);
-    Alert.alert('Success', 'Profile updated successfully');
-    setShowEditModal(false);
+    try {
+      await ProfessionalService.updateProfile(fullName, values.phone.trim());
+      useAuthStore.setState((s) => ({
+        user: s.user ? { ...s.user, name: fullName, phone: values.phone.trim() } : s.user,
+      }));
+      Alert.alert('Success', 'Profile updated successfully');
+      setShowEditModal(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'Failed to update profile');
+    } finally {
+      setEditFormLoading(false);
+    }
   };
 
   const handleChangePassword = async (values: {
@@ -199,11 +205,10 @@ export default function PhysicianProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Last Password Change Info */}
             <View className="rounded-lg bg-gray-50 p-4">
               <Text className="text-sm text-gray-600">
-                Password last changed: &nbsp;
-                <Text className="font-semibold text-gray-800">Recently</Text>
+                Use the "Change Password" button above to update your password.
+                A confirmation email will be sent after any change.
               </Text>
             </View>
           </View>

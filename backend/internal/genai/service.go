@@ -440,14 +440,15 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message string, r
 	})
 	_ = s.nats.Publish("ai.diagnosis.preliminary", diagData)
 
-	// Real-time physician notification for all new Pending cases (not just escalated).
+	// Real-time physician notification for new and updated Pending cases.
 	// Broadcast a lightweight signal so connected physicians can refetch their queue.
-	if isNewCase && s.notifier != nil {
+	if s.notifier != nil {
 		event := "physician.case.new"
 		casePayload, _ := json.Marshal(map[string]interface{}{
 			"caseId":    id,
 			"urgency":   resp.Diagnosis.Urgency,
 			"escalated": resp.Escalated,
+			"isNew":     isNewCase,
 		})
 		s.notifier.Broadcast(event, casePayload)
 	}

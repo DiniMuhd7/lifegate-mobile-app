@@ -32,6 +32,7 @@ type ProfessionalStore = ProfessionalDashboard & {
   takeCase: (caseId: string) => Promise<void>;
   completeCase: (caseId: string, notes: string) => Promise<void>;
   appendPendingCase: (item: CaseQueueItem) => void;
+  caseLoadError: string | null;
   updateCaseStatus: (caseId: string, status: ReportStatus) => void;
 
   // Case review actions
@@ -76,6 +77,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   currentCase: null,
   currentPatient: null,
   isCaseLoading: false,
+  caseLoadError: null,
 
   // Earnings initial state
   earningsSummary: null,
@@ -175,11 +177,9 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   },
 
   takeCase: async (caseId: string) => {
-    const item = await ProfessionalService.takeCase(caseId);
-    set(state => ({
-      pendingCases: state.pendingCases.filter(c => c.id !== caseId),
-      activeCases: [item, ...state.activeCases],
-    }));
+    await ProfessionalService.takeCase(caseId);
+    // Refetch the full queue so the moved case appears with all correct fields.
+    await get().fetchCaseQueue();
   },
 
   completeCase: async (caseId: string, notes: string) => {
@@ -222,7 +222,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   // ── Case review ──────────────────────────────────────────────────────────
 
   loadCaseDetail: async (caseId: string) => {
-    set({ isCaseLoading: true, currentCase: null, currentPatient: null });
+    set({ isCaseLoading: true, currentCase: null, currentPatient: null, caseLoadError: null });
     try {
       const detail = await ProfessionalService.getCaseDetail(caseId);
       set({ currentCase: detail, isCaseLoading: false });
@@ -232,8 +232,11 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
           .then((profile) => set({ currentPatient: profile }))
           .catch(() => {});
       }
-    } catch {
-      set({ isCaseLoading: false });
+    } catch (err) {
+      set({
+        isCaseLoading: false,
+        caseLoadError: err instanceof Error ? err.message : 'Failed to load case',
+      });
     }
   },
 

@@ -87,7 +87,7 @@ function CaseRow({ item }: { item: CaseQueueItem }) {
           <Text style={{ fontSize: 11, color: '#9ca3af' }}>{timeAgo(item.createdAt)}</Text>
         </View>
         <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 5 }} numberOfLines={1}>
-          {item.condition || 'No condition specified'}
+          {item.title || item.symptomSnippet || 'No details provided'}
         </Text>
         <View
           style={{

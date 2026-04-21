@@ -131,12 +131,11 @@ export const ProfessionalService = {
    * Lock a Pending case to the current physician (Pending → Active)
    * POST /physician/cases/:id/take
    */
-  async takeCase(caseId: string): Promise<CaseQueueItem> {
-    const response = await api.post<{ success: boolean; data: CaseQueueItem }>(
+  async takeCase(caseId: string): Promise<void> {
+    const response = await api.post<{ success: boolean; message: string }>(
       `/physician/cases/${caseId}/take`
     );
-    if (!response.data.success) throw new Error('Failed to take case');
-    return response.data.data;
+    if (!response.data.success) throw new Error(response.data.message ?? 'Failed to take case');
   },
 
   /**
@@ -157,6 +156,18 @@ export const ProfessionalService = {
    */
   async registerPushToken(token: string): Promise<void> {
     await api.post('/physician/push-token', { token });
+  },
+
+  /**
+   * Persist physician profile changes (name and/or phone)
+   * PATCH /physician/profile
+   */
+  async updateProfile(name: string, phone: string): Promise<void> {
+    const response = await api.patch<{ success: boolean; message: string }>(
+      '/physician/profile',
+      { name, phone }
+    );
+    if (!response.data.success) throw new Error(response.data.message ?? 'Failed to update profile');
   },
 
   /**
