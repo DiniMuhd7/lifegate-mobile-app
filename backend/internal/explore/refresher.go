@@ -105,6 +105,16 @@ func (r *Refresher) Start(ctx context.Context) {
 	}
 }
 
+// RunOnce executes a single refresh cycle synchronously. It is safe to call
+// concurrently — only one execution will run at a time (others return immediately).
+// Used by the service layer to populate the catalogue on-demand when the DB is empty.
+func (r *Refresher) RunOnce(ctx context.Context) {
+	if r.apiKey == "" {
+		return
+	}
+	r.run(ctx)
+}
+
 // run performs a single refresh cycle across all categories.
 func (r *Refresher) run(ctx context.Context) {
 	log.Println("[explore/refresher] Starting daily YouTube video refresh…")
