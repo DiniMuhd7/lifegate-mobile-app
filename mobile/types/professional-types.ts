@@ -80,6 +80,26 @@ export interface AICondition {
   confidence: number;
 }
 
+export interface HPIInfo {
+  onset?: string;
+  duration?: string;
+  severityScore?: number;
+  location?: string;
+  character?: string;
+}
+
+export interface ConditionScore {
+  condition: string;
+  confidence: number;
+  description?: string;
+}
+
+export interface RiskFlag {
+  flag: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  description?: string;
+}
+
 export interface PrescriptionInfo {
   medicine: string;
   dosage: string;
@@ -99,6 +119,9 @@ export interface AIOutput {
   diagnosis?: AICondition;
   prescription?: PrescriptionInfo;
   investigations?: InvestigationInfo[];
+  hpi?: HPIInfo;
+  conditions?: ConditionScore[];
+  riskFlags?: RiskFlag[];
 }
 
 export type PhysicianDecision = 'Approved' | 'Rejected';

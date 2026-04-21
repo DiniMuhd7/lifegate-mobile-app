@@ -214,6 +214,17 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
       const item = allCases.find(c => c.id === caseId);
       if (!item) return {};
       const updated = { ...item, status };
+
+      // Sync currentCase if it's the one being updated.
+      const updatedCurrentCase =
+        state.currentCase?.id === caseId
+          ? { ...state.currentCase, status }
+          : state.currentCase;
+
+      // Sync reports / filteredReports list shown on the consultation screen.
+      const syncReports = (list: any[]) =>
+        list.map(r => r.id === caseId ? { ...r, status } : r);
+
       return {
         pendingCases: status === 'Pending'
           ? [...state.pendingCases.filter(c => c.id !== caseId), updated]
@@ -224,6 +235,9 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
         completedCases: status === 'Completed'
           ? [...state.completedCases.filter(c => c.id !== caseId), updated]
           : state.completedCases.filter(c => c.id !== caseId),
+        currentCase: updatedCurrentCase,
+        reports: syncReports(state.reports),
+        filteredReports: syncReports(state.filteredReports),
       };
     });
   },
@@ -261,7 +275,17 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   updateLocalAIOutput: (condition, urgency, confidence, notes, prescription, investigations) => {
     set(state => {
       if (!state.currentCase) return {};
+      const caseId = state.currentCase.id;
+
+      // Sync the lightweight report entries so the consultation list reflects changes.
+      const syncReports = (list: any[]) =>
+        list.map(r =>
+          r.id === caseId ? { ...r, condition, urgency } : r
+        );
+
       return {
+        reports: syncReports(state.reports),
+        filteredReports: syncReports(state.filteredReports),
         currentCase: {
           ...state.currentCase,
           condition,

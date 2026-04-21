@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProfessionalStore } from '../../stores/professional-store';
 import { ProfessionalService } from '../../services/professional-service';
 import { ConfidenceBar } from '../../components/ConfidenceBar';
-import { CaseUrgency, InvestigationInfo } from '../../types/professional-types';
+import { CaseUrgency, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
 import { extractErrorMessage } from '../../utils/error-utils';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -86,6 +86,84 @@ function UrgencyBadge({ urgency }: { urgency: CaseUrgency }) {
   );
 }
 
+const RISK_SEVERITY_COLOR: Record<string, string> = {
+  LOW: '#22c55e', MEDIUM: '#f59e0b', HIGH: '#f97316', CRITICAL: '#ef4444',
+};
+const RISK_SEVERITY_BG: Record<string, string> = {
+  LOW: '#dcfce7', MEDIUM: '#fef9c3', HIGH: '#ffedd5', CRITICAL: '#fee2e2',
+};
+
+function ConditionsSection({ conditions }: { conditions: ConditionScore[] }) {
+  if (!conditions || conditions.length === 0) return null;
+  return (
+    <SectionCard title="Differential Diagnosis">
+      {conditions.map((c, i) => (
+        <View key={i} className="mb-3 last:mb-0">
+          <View className="flex-row items-center justify-between mb-1">
+            <Text className="text-sm font-semibold text-gray-800 flex-1 mr-2" numberOfLines={1}>
+              {c.condition}
+            </Text>
+            <Text className="text-xs font-bold text-teal-700">{c.confidence}%</Text>
+          </View>
+          <ConfidenceBar confidence={c.confidence} />
+          {c.description ? (
+            <Text className="text-xs text-gray-500 mt-1 leading-4">{c.description}</Text>
+          ) : null}
+        </View>
+      ))}
+    </SectionCard>
+  );
+}
+
+function RiskFlagsSection({ flags }: { flags: RiskFlag[] }) {
+  if (!flags || flags.length === 0) return null;
+  return (
+    <SectionCard title="Risk Flags">
+      {flags.map((f, i) => (
+        <View
+          key={i}
+          className="flex-row items-start gap-2 mb-2 p-2.5 rounded-xl"
+          style={{ backgroundColor: RISK_SEVERITY_BG[f.severity] ?? '#f3f4f6' }}
+        >
+          <Ionicons name="warning" size={14} color={RISK_SEVERITY_COLOR[f.severity] ?? '#374151'} style={{ marginTop: 1 }} />
+          <View className="flex-1">
+            <Text className="text-xs font-bold" style={{ color: RISK_SEVERITY_COLOR[f.severity] ?? '#374151' }}>
+              {f.flag.replace(/_/g, ' ')}
+            </Text>
+            {f.description ? (
+              <Text className="text-xs text-gray-600 mt-0.5 leading-4">{f.description}</Text>
+            ) : null}
+          </View>
+          <View
+            className="px-2 py-0.5 rounded-full self-start"
+            style={{ backgroundColor: RISK_SEVERITY_COLOR[f.severity] ?? '#6b7280' }}
+          >
+            <Text className="text-xs font-bold text-white">{f.severity}</Text>
+          </View>
+        </View>
+      ))}
+    </SectionCard>
+  );
+}
+
+function HPISection({ hpi }: { hpi: HPIInfo }) {
+  const rows: { label: string; value?: string | number }[] = [
+    { label: 'Onset', value: hpi.onset },
+    { label: 'Duration', value: hpi.duration },
+    { label: 'Severity (0-10)', value: hpi.severityScore !== undefined ? String(hpi.severityScore) : undefined },
+    { label: 'Location', value: hpi.location },
+    { label: 'Character', value: hpi.character },
+  ].filter(r => r.value !== undefined && r.value !== '' && r.value !== null);
+  if (rows.length === 0) return null;
+  return (
+    <SectionCard title="History of Present Illness">
+      {rows.map((r, i) => (
+        <InfoRow key={i} label={r.label} value={String(r.value)} />
+      ))}
+    </SectionCard>
+  );
+}
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function CaseReviewScreen() {
@@ -101,6 +179,7 @@ export default function CaseReviewScreen() {
     updateLocalAIOutput,
     clearCurrentCase,
     updateCaseStatus,
+    takeCase,
   } = useProfessionalStore();
 
   // Review mode state
@@ -209,8 +288,21 @@ export default function CaseReviewScreen() {
     );
   }, []);
 
-  const handleApprove = useCallback(async () => {
+  const handleTakeCase = useCallback(async () => {
     if (!caseId) return;
+    setIsSubmitting(true);
+    try {
+      await takeCase(caseId);
+      updateCaseStatus(caseId, 'Active');
+      Alert.alert('Case Assigned', 'You have taken this case. You can now review and submit a decision.');
+    } catch (err: any) {
+      Alert.alert('Error', extractErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [caseId, takeCase, updateCaseStatus]);
+
+  const handleApprove = useCallback(async () => {    if (!caseId) return;
     setIsSubmitting(true);
     try {
       await ProfessionalService.approveCase(caseId, notes);
@@ -609,6 +701,37 @@ export default function CaseReviewScreen() {
             </SectionCard>
           )}
 
+          {/* ── AI Investigations (view mode) ───────────────────────── */}
+          {mode !== 'edit' && ai?.investigations && ai.investigations.length > 0 && (
+            <SectionCard title="AI Recommended Tests">
+              {ai.investigations.map((inv, idx) => (
+                <View key={idx} className="flex-row items-start justify-between mb-2 p-2.5 bg-gray-50 rounded-xl">
+                  <View className="flex-1 mr-2">
+                    <Text className="text-xs font-semibold text-gray-800">{inv.test}</Text>
+                    {inv.reason ? <Text className="text-xs text-gray-500 mt-0.5">{inv.reason}</Text> : null}
+                  </View>
+                  <View
+                    className="px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: INV_URGENCY_BG[inv.urgency] ?? '#f3f4f6' }}
+                  >
+                    <Text className="text-xs font-bold" style={{ color: INV_URGENCY_COLORS[inv.urgency] ?? '#374151' }}>
+                      {inv.urgency}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </SectionCard>
+          )}
+
+          {/* ── Differential Diagnosis ──────────────────────────────── */}
+          {mode !== 'edit' && <ConditionsSection conditions={ai?.conditions ?? []} />}
+
+          {/* ── Risk Flags ──────────────────────────────────────────── */}
+          {mode !== 'edit' && <RiskFlagsSection flags={ai?.riskFlags ?? []} />}
+
+          {/* ── HPI ─────────────────────────────────────────────────── */}
+          {mode !== 'edit' && ai?.hpi && <HPISection hpi={ai.hpi} />}
+
           {/* ── Case Timeline ────────────────────────────────────────── */}
           <SectionCard title="Case Timeline">
             <View className="bg-gray-50 rounded-xl p-3 mb-2">
@@ -740,19 +863,36 @@ export default function CaseReviewScreen() {
             className="bg-white border-t border-gray-100 px-4 pt-3 pb-5"
             style={{ elevation: 8, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8 }}
           >
-            <View className="bg-amber-50 rounded-xl p-3 flex-row items-center gap-2">
+            <View className="bg-amber-50 rounded-xl p-3 flex-row items-center gap-2 mb-3">
               <Ionicons name="information-circle-outline" size={18} color="#b45309" />
               <Text className="text-amber-800 text-xs flex-1">
-                This case is pending and not yet assigned. Go to the Case Queue to take it before reviewing.
+                This case is unassigned. Take it to begin your review.
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => router.replace('/(prof-tab)/caseQueue' as any)}
-              className="mt-2 flex-row items-center justify-center gap-2 py-3 rounded-xl bg-blue-600"
-            >
-              <Ionicons name="list-outline" size={16} color="#fff" />
-              <Text className="text-white font-semibold text-sm">Go to Case Queue</Text>
-            </TouchableOpacity>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                onPress={() => router.replace('/(prof-tab)/caseQueue' as any)}
+                className="flex-1 flex-row items-center justify-center gap-1.5 py-3 rounded-xl bg-gray-100"
+              >
+                <Ionicons name="list-outline" size={16} color="#4b5563" />
+                <Text className="text-gray-700 font-semibold text-sm">Back to Queue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleTakeCase}
+                disabled={isSubmitting}
+                className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-teal-600"
+                style={{ flex: 2 }}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="hand-right-outline" size={16} color="#fff" />
+                    <Text className="text-white font-semibold text-sm">Take Case</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
         {!isCompleted && currentCase.status === 'Active' && (
@@ -800,7 +940,7 @@ export default function CaseReviewScreen() {
                 <TouchableOpacity
                   onPress={handleSaveEdit}
                   disabled={isSubmitting}
-                  className="flex-2 flex-row items-center justify-center gap-2 py-3 rounded-xl bg-blue-600"
+                  className="flex-row items-center justify-center gap-2 py-3 rounded-xl bg-blue-600"
                   style={{ flex: 2 }}
                 >
                   {isSubmitting ? (

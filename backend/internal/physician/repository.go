@@ -158,10 +158,13 @@ type HPIOutput struct {
 
 // AIOutput mirrors the full ai_response JSONB column.
 type AIOutput struct {
-	Text         string              `json:"text"`
-	Diagnosis    *AIConditionDetail  `json:"diagnosis,omitempty"`
-	Prescription *PrescriptionOutput `json:"prescription,omitempty"`
-	HPI          *HPIOutput          `json:"hpi,omitempty"`
+	Text           string              `json:"text"`
+	Diagnosis      *AIConditionDetail  `json:"diagnosis,omitempty"`
+	Prescription   *PrescriptionOutput `json:"prescription,omitempty"`
+	HPI            *HPIOutput          `json:"hpi,omitempty"`
+	Conditions     []ai.ConditionScore `json:"conditions,omitempty"`
+	RiskFlags      []ai.RiskFlag       `json:"riskFlags,omitempty"`
+	Investigations []ai.Investigation  `json:"investigations,omitempty"`
 }
 
 // CaseDetail is the rich case record returned for physician review.
