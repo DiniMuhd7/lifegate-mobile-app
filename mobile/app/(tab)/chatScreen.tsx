@@ -23,7 +23,7 @@ import { ProfileMenu } from 'components/ProfileMenu';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
-import { GreetingSection } from 'components';
+
 import { TypingIndicator } from 'components/TypingIndicator';
 import type { ConversationCategory, SessionMode } from 'types/chat-types';
 
@@ -45,46 +45,54 @@ const CATEGORY_LABELS: Record<ConversationCategory, string> = {
   mental_health: 'Mental Health',
 };
 
-const TOPIC_SUGGESTIONS = [
+const STARTER_CHIPS: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+  bg: string;
+  label: string;
+  prompt: string;
+}[] = [
   {
-    icon: 'fitness-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    icon: 'pulse-outline',
     color: '#0AADA2',
     bg: '#f0fdfa',
-    label: 'Report Symptoms',
-    sub: 'Describe how you feel for AI analysis',
-    prompt: 'I have some symptoms I would like to discuss. Please help me understand what might be going on.',
+    label: 'Assess Symptoms',
+    prompt: 'I have some symptoms I want to describe. Please help me understand what may be happening.',
   },
   {
-    icon: 'rose-outline' as React.ComponentProps<typeof Ionicons>['name'],
-    color: '#be185d',
-    bg: '#fdf2f8',
-    label: 'Maternal Health',
-    sub: 'Pregnancy, postnatal care & advice',
-    prompt: 'I have questions about maternal health, including pregnancy care, postnatal recovery, and newborn wellness.',
+    icon: 'medkit-outline',
+    color: '#0891b2',
+    bg: '#e0f2fe',
+    label: 'Medication Advice',
+    prompt: 'I have a question about a medication — its dosage, side effects, or drug interactions.',
   },
   {
-    icon: 'happy-outline' as React.ComponentProps<typeof Ionicons>['name'],
-    color: '#db2777',
-    bg: '#fdf2f8',
-    label: 'Mental Health',
-    sub: 'Talk about mood, stress, or anxiety',
-    prompt: 'I would like to talk about my mental health, including my mood, stress levels, or anxiety.',
+    icon: 'flask-outline',
+    color: '#7c3aed',
+    bg: '#f5f3ff',
+    label: 'Lab Results',
+    prompt: 'I have received lab or test results and would like help understanding what they mean.',
   },
   {
-    icon: 'heart-outline' as React.ComponentProps<typeof Ionicons>['name'],
-    color: '#dc2626',
-    bg: '#fef2f2',
-    label: 'Heart Health',
-    sub: 'Blood pressure, cholesterol and more',
-    prompt: 'I have questions about my heart health, including blood pressure and cholesterol.',
+    icon: 'people-outline',
+    color: '#0f766e',
+    bg: '#ccfbf1',
+    label: 'See a Physician',
+    prompt: 'I would like to be connected to a licensed physician for a clinical consultation.',
   },
   {
-    icon: 'nutrition-outline' as React.ComponentProps<typeof Ionicons>['name'],
+    icon: 'leaf-outline',
     color: '#16a34a',
     bg: '#f0fdf4',
     label: 'Nutrition & Diet',
-    sub: 'Healthy eating and lifestyle tips',
     prompt: 'I have questions about nutrition, healthy eating habits, and lifestyle improvements.',
+  },
+  {
+    icon: 'shield-checkmark-outline',
+    color: '#d97706',
+    bg: '#fffbeb',
+    label: 'Preventive Care',
+    prompt: 'What preventive health measures should I take based on my age and lifestyle?',
   },
 ];
 
@@ -384,68 +392,166 @@ const ChatScreen: React.FC = () => {
                 className="flex-1"
                 contentContainerStyle={{
                   flexGrow: 1,
-                  justifyContent: 'center',
                   paddingHorizontal: 20,
-                  paddingVertical: 24,
+                  paddingTop: 28,
+                  paddingBottom: 16,
                 }}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
-                <GreetingSection userName={user?.name || ''} />
+                {/* ── AI Identity Hero ── */}
+                <View style={{ alignItems: 'center', marginBottom: 28 }}>
+                  {/* Outer glow ring */}
+                  <View
+                    style={{
+                      width: 88,
+                      height: 88,
+                      borderRadius: 44,
+                      backgroundColor: '#ccfbf1',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 18,
+                    }}
+                  >
+                    {/* Inner icon disc */}
+                    <View
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        backgroundColor: '#0AADA2',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#0AADA2',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.35,
+                        shadowRadius: 10,
+                        elevation: 6,
+                      }}
+                    >
+                      <Ionicons name="medical" size={28} color="#fff" />
+                    </View>
+                  </View>
 
-                {/* Topic suggestion list */}
-                <View style={{ marginTop: 24, gap: 10 }}>
+                  <Text
+                    style={{
+                      fontSize: 22,
+                      fontWeight: '800',
+                      color: '#0f766e',
+                      textAlign: 'center',
+                      letterSpacing: -0.4,
+                      lineHeight: 28,
+                    }}
+                  >
+                    {user?.name ? `Hi ${user.name.split(' ')[0]}, ` : 'Hello! '}I&apos;m your{`\n`}AI Health Assistant
+                  </Text>
+
                   <Text
                     style={{
                       fontSize: 13,
-                      fontWeight: '600',
                       color: '#64748b',
                       textAlign: 'center',
-                      marginBottom: 6,
+                      lineHeight: 20,
+                      marginTop: 8,
+                      paddingHorizontal: 8,
                     }}
                   >
-                    What would you like to discuss today?
+                    Ask about symptoms, medications, lab results, or connect with a licensed physician for a clinical consultation.
                   </Text>
-                  {TOPIC_SUGGESTIONS.map((topic) => (
+
+                  {/* Mode badge row */}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 5,
+                        backgroundColor: '#e0f2fe',
+                        borderRadius: 20,
+                        paddingHorizontal: 12,
+                        paddingVertical: 5,
+                      }}
+                    >
+                      <Ionicons name="sparkles-outline" size={12} color="#0891b2" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#0891b2' }}>AI-Powered</Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 5,
+                        backgroundColor: '#ccfbf1',
+                        borderRadius: 20,
+                        paddingHorizontal: 12,
+                        paddingVertical: 5,
+                      }}
+                    >
+                      <Ionicons name="shield-checkmark-outline" size={12} color="#0f766e" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#0f766e' }}>MDCN-Licensed</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* ── Conversation starter chips ── */}
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#94a3b8',
+                    textAlign: 'center',
+                    marginBottom: 14,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                  }}
+                >
+                  Start a conversation
+                </Text>
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  {STARTER_CHIPS.map((chip) => (
                     <TouchableOpacity
-                      key={topic.label}
-                      onPress={() => sendMessage(topic.prompt)}
-                      activeOpacity={0.75}
+                      key={chip.label}
+                      onPress={() => sendMessage(chip.prompt)}
+                      activeOpacity={0.72}
+                      style={{
+                        width: '47.5%',
+                        backgroundColor: '#fff',
+                        borderWidth: 1,
+                        borderColor: '#e5e7eb',
+                        borderRadius: 16,
+                        padding: 14,
+                        gap: 10,
+                      }}
                     >
                       <View
                         style={{
-                          flexDirection: 'row',
+                          width: 38,
+                          height: 38,
+                          borderRadius: 10,
+                          backgroundColor: chip.bg,
                           alignItems: 'center',
-                          backgroundColor: '#fff',
-                          borderWidth: 1,
-                          borderColor: '#e5e7eb',
-                          borderRadius: 16,
-                          padding: 14,
-                          gap: 14,
+                          justifyContent: 'center',
                         }}
                       >
-                        <View
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 22,
-                            backgroundColor: topic.bg,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Ionicons name={topic.icon} size={22} color={topic.color} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>
-                            {topic.label}
-                          </Text>
-                          <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                            {topic.sub}
-                          </Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
+                        <Ionicons name={chip.icon} size={19} color={chip.color} />
                       </View>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '700',
+                          color: '#111827',
+                          lineHeight: 17,
+                        }}
+                      >
+                        {chip.label}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -515,17 +621,18 @@ const ChatScreen: React.FC = () => {
               </View>
             )}
 
-            {/* AI disclaimer */}
+            {/* Professional disclaimer */}
             <Text
               style={{
                 fontSize: 10,
-                color: '#64748b',
+                color: '#94a3b8',
                 textAlign: 'center',
-                paddingHorizontal: 16,
+                paddingHorizontal: 20,
                 paddingTop: 4,
+                lineHeight: 15,
               }}
             >
-              LifeGate AI provides general health information and medical diagnosis under licensed doctor oversight. All AI-generated diagnoses are reviewed and validated by a qualified medical professional.
+              LifeGate AI provides health information and clinical diagnosis facilitated by MDCN-licensed physicians. All AI-generated outputs are reviewed by qualified medical professionals. This service does not replace emergency care — if life is at risk, call emergency services immediately.
             </Text>
 
             <ChatInputBar

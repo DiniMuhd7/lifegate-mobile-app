@@ -155,7 +155,7 @@ export default function ContrastTest() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 }}>
-          <Pressable onPress={() => { markTestSkipped('contrast'); router.replace(nextScreen({ ...testStatus, contrast: 'skipped' }) as never); }} hitSlop={10}
+          <Pressable onPress={() => { markTestSkipped('contrast'); router.replace(nextScreen(useVisionStore.getState().testStatus) as never); }} hitSlop={10}
             style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#e5e7eb' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' })}>
             <Ionicons name="close" size={20} color="#374151" />
           </Pressable>

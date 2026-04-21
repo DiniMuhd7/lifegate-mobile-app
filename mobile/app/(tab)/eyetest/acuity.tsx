@@ -668,7 +668,8 @@ export default function AcuityTest() {
         if (next <= 0) {
           clearInterval(timerRef.current!);
           finaliseAcuity();
-          router.replace(nextScreen(testStatus) as never);
+          const freshStatus = useVisionStore.getState().testStatus;
+          router.replace(nextScreen(freshStatus) as never);
           return 0;
         }
         return next;
@@ -889,8 +890,9 @@ export default function AcuityTest() {
     if (timerRef.current) clearInterval(timerRef.current);
     stopMotion();
     markTestSkipped('acuity');
-    router.replace(nextScreen({ ...testStatus, acuity: 'skipped' }) as never);
-  }, [stopMotion, markTestSkipped, testStatus]);
+    const freshStatus = useVisionStore.getState().testStatus;
+    router.replace(nextScreen(freshStatus) as never);
+  }, [stopMotion, markTestSkipped]);
 
   const clarityColor = CLARITY_COLOR[clarityLevel];
 

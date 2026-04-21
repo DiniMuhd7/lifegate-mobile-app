@@ -19,7 +19,6 @@ import {
   useExploreStore,
   ExploreVideo,
   VideoCategory,
-  SEED_VIDEOS,
   DAILY_VIDEO_CAP,
   getDailyShuffledVideos,
 } from 'stores/explore-store';
@@ -926,12 +925,17 @@ export default function ExploreScreen() {
             <Text style={{ fontSize: 13, color: '#6b7280' }}>Checking video availability…</Text>
           </View>
         ) : filteredVideos.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 40, gap: 10 }}>
-            <Ionicons name="videocam-off-outline" size={36} color="#374151" />
-            <Text style={{ fontSize: 14, color: '#6b7280' }}>
+          <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
+            <Ionicons name="logo-youtube" size={36} color="#374151" />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#e2e8f0', textAlign: 'center' }}>
               {activeCategory === 'All'
-                ? 'No videos available right now'
-                : `No ${activeCategory} videos available`}
+                ? 'Fetching today\'s health videos…'
+                : `No ${activeCategory} videos available yet`}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', paddingHorizontal: 24 }}>
+              {activeCategory === 'All'
+                ? 'Fresh videos are sourced from YouTube daily. Pull to refresh or check back shortly.'
+                : 'Try a different category or check back after the daily refresh.'}
             </Text>
           </View>
         ) : null}
