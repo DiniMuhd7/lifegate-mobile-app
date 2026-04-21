@@ -17,17 +17,17 @@ interface TabConfig {
 }
 
 const TABS: Record<PatientTab, TabConfig> = {
-  chat: {
-    label: 'Chat',
-    icon: 'chatbubble-ellipses-outline',
-    activeIcon: 'chatbubble-ellipses',
-    route: '/(tab)/chatScreen',
-  },
   health: {
     label: 'Health',
     icon: 'heart-outline',
     activeIcon: 'heart',
     route: '/(tab)/health',
+  },
+  chat: {
+    label: 'Chat',
+    icon: 'chatbubble-ellipses-outline',
+    activeIcon: 'chatbubble-ellipses',
+    route: '/(tab)/chatScreen',
   },
   profile: {
     label: 'Profile',

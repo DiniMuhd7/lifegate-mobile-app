@@ -17,7 +17,7 @@ export default function AuthLayout() {
       } else if (user?.role === 'professional') {
         router.replace('/(prof-tab)/consultation');
       } else {
-        router.replace('/(tab)/chatScreen');
+        router.replace('/(tab)/health');
       }
     }
   }, [navigationState?.key, isAuthenticated, user, sessionLoading]);

@@ -48,7 +48,7 @@ export default function SplashScreen() {
             } else if (user?.role === 'professional') {
               router.replace('/(prof-tab)/consultation');
             } else {
-              router.replace('/(tab)/chatScreen');
+              router.replace('/(tab)/health');
             }
           } else {
             router.replace('/login');
@@ -63,20 +63,31 @@ export default function SplashScreen() {
     initializeApp();
   }, []);
 
-  return ( 
+  return (
     <LinearGradient
       colors={['#0AADA2', '#043B3C']}
-      className="flex-1"
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
-      style={{ flex: 1 }}>
-    <View className="flex-1 items-center justify-center">
-      <View className='flex-1/2 flex-row justify-center'>
-      <Logo width={128} height={128} /> 
-      </View>
-      <Text className="text-white text-6xl font-bold">LifeGate</Text>
-      <Text className="text-white/80 mt-2">By DSHub</Text>
-    </View>
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Logo width={96} height={96} />
+      <Text style={{ color: '#fff', fontSize: 36, fontWeight: '800', marginTop: 20, letterSpacing: -0.5 }}>
+        LifeGate
+      </Text>
+      <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6 }}>
+        By DSHub
+      </Text>
+
+      {/* Bottom tagline */}
+      <Text style={{
+        position: 'absolute',
+        bottom: 40,
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 12,
+        letterSpacing: 0.3,
+      }}>
+        Powered by DSHub
+      </Text>
     </LinearGradient>
   );
 }

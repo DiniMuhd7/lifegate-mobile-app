@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from 'stores/auth-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
@@ -20,6 +21,7 @@ type SectionItem = {
 
 export default function SettingsScreen() {
   const { logout, user } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
     await logout();
@@ -102,30 +104,31 @@ export default function SettingsScreen() {
       {/* ── Header ── */}
       <View
         style={{
-          paddingTop: 56,
-          paddingBottom: 20,
+          paddingTop: insets.top + 12,
+          paddingBottom: 16,
           paddingHorizontal: 20,
           backgroundColor: '#fff',
           borderBottomWidth: 1,
           borderBottomColor: '#f3f4f6',
           flexDirection: 'row',
           alignItems: 'center',
+          gap: 12,
         }}
       >
-        <Pressable onPress={() => router.replace('/(tab)/health')} style={{ padding: 4, marginRight: 12 }}>
+        <Pressable onPress={() => router.replace('/(tab)/health')} style={{ padding: 4, marginLeft: -4 }}>
           <Ionicons name="chevron-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827', flex: 1 }}>Settings</Text>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827' }}>Settings</Text>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingTop: 20, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Sections ── */}
         {sections.map((section) => (
-          <View key={section.title} style={{ marginHorizontal: 16, marginBottom: 14 }}>
+          <View key={section.title} style={{ marginHorizontal: 20, marginBottom: 20 }}>
             <Text
               style={{
                 fontSize: 11,
@@ -155,7 +158,7 @@ export default function SettingsScreen() {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    paddingVertical: 13,
+                    paddingVertical: 14,
                     paddingHorizontal: 16,
                     borderBottomWidth: idx < section.items.length - 1 ? 1 : 0,
                     borderBottomColor: '#f9fafb',
@@ -203,7 +206,7 @@ export default function SettingsScreen() {
         ))}
 
         {/* ── Logout ── */}
-        <View style={{ marginHorizontal: 16, marginTop: 8 }}>
+        <View style={{ marginHorizontal: 20, marginTop: 4 }}>
           <TouchableOpacity
             onPress={handleLogout}
             activeOpacity={0.8}
