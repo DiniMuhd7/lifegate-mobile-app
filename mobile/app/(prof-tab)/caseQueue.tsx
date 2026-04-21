@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useProfessionalStore } from '../../stores/professional-store';
 import { CaseCard } from '../../components/CaseCard';
 import { CaseQueueItem } from '../../types/professional-types';
+import { extractErrorMessage } from '../../utils/error-utils';
 
 type Tab = 'Pending' | 'Active' | 'Completed';
 const TABS: Tab[] = ['Pending', 'Active', 'Completed'];
@@ -66,7 +67,7 @@ export default function CaseQueueScreen() {
         await takeCase(id);
         setActiveTab('Active');
       } catch (err: any) {
-        Alert.alert('Could not take case', err?.message ?? 'Please try again.');
+        Alert.alert('Could not take case', extractErrorMessage(err));
       } finally {
         setTakingId(null);
       }

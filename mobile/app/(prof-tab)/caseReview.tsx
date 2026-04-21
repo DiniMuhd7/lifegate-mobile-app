@@ -18,6 +18,7 @@ import { useProfessionalStore } from '../../stores/professional-store';
 import { ProfessionalService } from '../../services/professional-service';
 import { ConfidenceBar } from '../../components/ConfidenceBar';
 import { CaseUrgency, InvestigationInfo } from '../../types/professional-types';
+import { extractErrorMessage } from '../../utils/error-utils';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ export default function CaseReviewScreen() {
         editConfidence,
         editNotes.trim(),
         prescription,
-        investigations,
+        investigations.length > 0 ? investigations : undefined,
       );
       updateLocalAIOutput(
         editCondition.trim(),
@@ -186,8 +187,10 @@ export default function CaseReviewScreen() {
         investigations,
       );
       setMode('view');
+      // Silently refresh to confirm server state is correct.
+      loadCaseDetail(caseId);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Failed to save changes.');
+      Alert.alert('Error', extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -217,7 +220,7 @@ export default function CaseReviewScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Failed to approve case.');
+      Alert.alert('Error', extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
@@ -237,7 +240,7 @@ export default function CaseReviewScreen() {
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'Failed to reject case.');
+      Alert.alert('Error', extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
