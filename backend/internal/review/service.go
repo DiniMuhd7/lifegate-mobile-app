@@ -50,6 +50,8 @@ func NewService(db *sql.DB) *Service {
 }
 
 func (s *Service) GetAnalysis(physicianID string, startDate, endDate time.Time) ([]AnalysisRow, error) {
+	// Include cases assigned to this physician or unassigned Pending cases
+	// (shared pool) so the review analytics reflect all work relevant to them.
 	rows, err := s.db.Query(
 		`SELECT
 			DATE(created_at)::TEXT AS date,
@@ -61,7 +63,7 @@ func (s *Service) GetAnalysis(physicianID string, startDate, endDate time.Time) 
 			SUM(CASE WHEN status='Completed' THEN 1 ELSE 0 END) AS completed,
 			SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) AS pending
 		 FROM diagnoses
-		 WHERE physician_id = $1
+		 WHERE (physician_id = $1 OR (physician_id IS NULL AND status = 'Pending'))
 		   AND created_at >= $2 AND created_at <= $3
 		 GROUP BY DATE(created_at)
 		 ORDER BY date`, physicianID, startDate, endDate)
@@ -84,7 +86,8 @@ func (s *Service) GetAnalysis(physicianID string, startDate, endDate time.Time) 
 
 func (s *Service) GetDiagnoses(physicianID, status, search string, page, pageSize int, start, end time.Time) ([]DiagnosisRecord, int, error) {
 	offset := (page - 1) * pageSize
-	conditions := []string{"d.physician_id = $1"}
+	// Include assigned cases and unassigned Pending cases (shared pool).
+	conditions := []string{"(d.physician_id = $1 OR (d.physician_id IS NULL AND d.status = 'Pending'))"}
 	args := []interface{}{physicianID}
 	argIdx := 2
 
@@ -183,7 +186,7 @@ func (s *Service) GetRecentActivities(physicianID string, limit, offset int) ([]
 		       d.updated_at
 		FROM diagnoses d
 		LEFT JOIN users u ON u.id = d.user_id
-		WHERE d.physician_id = $1
+		WHERE (d.physician_id = $1 OR (d.physician_id IS NULL AND d.status = 'Pending'))
 		  AND d.status IN ('Completed', 'Pending', 'Active')
 		ORDER BY d.updated_at DESC
 		LIMIT $2 OFFSET $3`, physicianID, limit, offset)

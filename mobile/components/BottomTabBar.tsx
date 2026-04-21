@@ -42,7 +42,7 @@ export const BottomTabBar = ({ currentTab, onTabChange }: BottomTabBarProps) => 
   };
 
   return (
-    <View className="flex-row border-t border-gray-200 bg-white mb-7">
+    <View className="flex-row border-t border-gray-200 bg-white">
       {(Object.entries(TABS) as [TabBarTab, TabConfig][]).map(([tabKey, tab]) => {
         const isActive = currentTab === tabKey;
         return (

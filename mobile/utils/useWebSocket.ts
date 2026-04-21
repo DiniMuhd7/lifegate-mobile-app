@@ -113,12 +113,12 @@ export function useDiagnosisWebSocket() {
 
 /**
  * Maintains a WebSocket connection for physicians and dispatches:
- * - `physician.case.new`       → appends to pendingCases + adds notification
+ * - `physician.case.new`       → refetches full case queue + adds notification
  * - `physician.review.status`  → updates case status in queue
  */
 export function usePhysicianWebSocket() {
   const { user } = useAuthStore();
-  const { appendPendingCase, updateCaseStatus } = useProfessionalStore();
+  const { fetchCaseQueue, updateCaseStatus } = useProfessionalStore();
   const { addNotification } = useNotificationStore();
   const wsRef = useRef<WebSocket | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -152,13 +152,18 @@ export function usePhysicianWebSocket() {
 
         if (eventName === 'physician.case.new') {
           try {
-            const item = JSON.parse(payload) as CaseQueueItem;
-            if (item?.id) {
-              appendPendingCase(item);
+            const { caseId, urgency, escalated } = JSON.parse(payload) as {
+              caseId: string;
+              urgency: string;
+              escalated: boolean;
+            };
+            // Refetch the full queue so the new case appears with all fields intact.
+            fetchCaseQueue();
+            if (caseId) {
               addNotification({
                 type: 'new_case',
-                caseId: item.id,
-                message: `New ${item.urgency} case: ${item.title} — ${item.patientName}`,
+                caseId,
+                message: `New ${urgency ?? ''} case assigned${escalated ? ' — Escalated' : ''}`,
               });
             }
           } catch {
@@ -199,7 +204,7 @@ export function usePhysicianWebSocket() {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [user, appendPendingCase, updateCaseStatus, addNotification]);
+  }, [user, fetchCaseQueue, updateCaseStatus, addNotification]);
 }
 
 /**

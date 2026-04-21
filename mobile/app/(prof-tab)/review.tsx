@@ -214,7 +214,7 @@ export default function ReviewScreen() {
           </View>
           <Text className="text-lg font-bold text-gray-800 text-center">No cases yet</Text>
           <Text className="text-sm text-gray-400 text-center mt-2 leading-5">
-            Cases assigned to you will appear here once patients are diagnosed.
+            New patient cases will appear here. Pull to refresh or adjust the date range.
           </Text>
           <Pressable
             onPress={() => loadData(selectedDate, rangeMode)}
