@@ -7,13 +7,13 @@ import (
 )
 
 // PhysicianOnly is a Gin middleware that must be chained after Auth().
-// It aborts with 403 if the authenticated user's role is not "physician" or "admin".
+// It aborts with 403 if the authenticated user's role is not "physician", "professional", or "admin".
 // Admins are granted pass-through so they can inspect physician data for management.
 func PhysicianOnly() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, _ := c.Get("role")
 		switch role {
-		case "physician", "admin":
+		case "physician", "professional", "admin":
 			c.Next()
 		default:
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
