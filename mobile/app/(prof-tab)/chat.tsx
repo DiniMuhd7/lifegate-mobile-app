@@ -121,8 +121,9 @@ export default function PhysicianChatScreen() {
     await fetchCaseQueue();
   }, [fetchCaseQueue]);
 
-  // Active first, then pending, then completed
-  const allCases: CaseQueueItem[] = [...activeCases, ...pendingCases, ...completedCases];
+  // Most recent first across all statuses
+  const allCases: CaseQueueItem[] = [...activeCases, ...pendingCases, ...completedCases]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>

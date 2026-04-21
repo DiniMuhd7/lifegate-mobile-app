@@ -321,7 +321,7 @@ func (r *Repository) GetCaseQueue(physicianID string) (pending, active, complete
 
 	pendingRows, perr := r.db.Query(base + `
 		WHERE d.status = 'Pending' AND d.physician_id IS NULL
-		ORDER BY d.created_at ASC LIMIT 100`)
+		ORDER BY d.created_at DESC LIMIT 100`)
 	if perr != nil {
 		return nil, nil, nil, perr
 	}
