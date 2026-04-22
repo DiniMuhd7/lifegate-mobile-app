@@ -548,7 +548,11 @@ export default function HealthReportScreen() {
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
-        <Pressable onPress={() => router.back()} style={{ padding: 6, marginRight: 8, borderRadius: 20, backgroundColor: '#f3f4f6' }} hitSlop={8}>
+        <Pressable
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tab)/health/timeline' as never)}
+          style={{ padding: 6, marginRight: 8, borderRadius: 20, backgroundColor: '#f3f4f6' }}
+          hitSlop={8}
+        >
           <Ionicons name="chevron-back" size={20} color="#374151" />
         </Pressable>
         <View style={{ flex: 1 }}>
