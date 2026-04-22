@@ -65,8 +65,9 @@ export default function CheckinsScreen() {
     if (!initialized) initialize();
   }, [initialized, initialize]);
 
+  // Always re-fetch so physician-edited condition/urgency are current.
   useEffect(() => {
-    if (diagnoses.length === 0) fetchDiagnoses();
+    fetchDiagnoses();
   }, []);
 
   const showToastMsg = useCallback((message: string, coins: number) => {

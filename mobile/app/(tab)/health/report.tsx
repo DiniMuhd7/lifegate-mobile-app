@@ -437,9 +437,10 @@ export default function HealthReportScreen() {
   const { diagnoses, fetchDiagnoses } = useDiagnosisStore();
   const { user, sessionLoading } = useAuthStore();
 
-  // Load diagnoses only after session is restored to avoid 401 race on web refresh
+  // Always re-fetch on mount so physician edits (condition, urgency, notes, investigations)
+  // are visible without restarting the app. Guard against 401 on web refresh.
   React.useEffect(() => {
-    if (!sessionLoading && user?.id && diagnoses.length === 0) fetchDiagnoses();
+    if (!sessionLoading && user?.id) fetchDiagnoses();
   }, [sessionLoading, user?.id]);
 
   // Build id → prescription lookup — only for physician-approved prescriptions
