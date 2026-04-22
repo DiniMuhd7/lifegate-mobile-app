@@ -17,8 +17,155 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProfessionalStore } from '../../stores/professional-store';
 import { ProfessionalService } from '../../services/professional-service';
 import { ConfidenceBar } from '../../components/ConfidenceBar';
+import { SuggestInput } from '../../components/SuggestInput';
 import { CaseUrgency, PrescriptionInfo, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
 import { extractErrorMessage } from '../../utils/error-utils';
+
+// ─── Autocomplete data ────────────────────────────────────────────────────────
+
+const CONDITION_SUGGESTIONS = [
+  'Malaria', 'Plasmodium falciparum Malaria', 'Plasmodium vivax Malaria',
+  'Typhoid Fever', 'Enteric Fever', 'Dengue Fever', 'Viral Fever',
+  'Upper Respiratory Tract Infection (URTI)', 'Lower Respiratory Tract Infection (LRTI)',
+  'Community-Acquired Pneumonia', 'Bronchitis', 'Asthma', 'COPD Exacerbation',
+  'Pulmonary Tuberculosis (PTB)', 'Extrapulmonary Tuberculosis',
+  'Urinary Tract Infection (UTI)', 'Pyelonephritis', 'Cystitis',
+  'Peptic Ulcer Disease', 'Gastroenteritis', 'Acute Gastritis', 'GERD',
+  'Appendicitis', 'Irritable Bowel Syndrome (IBS)',
+  'Hypertension', 'Hypertensive Urgency', 'Hypertensive Emergency',
+  'Type 2 Diabetes Mellitus', 'Type 1 Diabetes Mellitus', 'Diabetic Ketoacidosis',
+  'Hypoglycaemia', 'Hyperglycaemia',
+  'Anaemia', 'Iron Deficiency Anaemia', 'Sickle Cell Crisis', 'Sickle Cell Disease',
+  'Cellulitis', 'Abscess', 'Wound Infection', 'Sepsis',
+  'Meningitis', 'Encephalitis', 'Febrile Convulsion',
+  'Stroke', 'Transient Ischaemic Attack (TIA)',
+  'Acute Coronary Syndrome', 'Heart Failure', 'Arrhythmia',
+  'Hepatitis B', 'Hepatitis C', 'Liver Cirrhosis', 'Fatty Liver Disease',
+  'HIV/AIDS', 'Opportunistic Infection',
+  'Otitis Media', 'Otitis Externa', 'Sinusitis', 'Tonsillitis', 'Pharyngitis',
+  'Conjunctivitis', 'Uveitis',
+  'Eczema', 'Psoriasis', 'Fungal Skin Infection', 'Scabies', 'Ringworm (Tinea)',
+  'Arthritis', 'Gout', 'Osteoarthritis', 'Rheumatoid Arthritis',
+  'Back Pain', 'Cervical Spondylosis', 'Lumbar Spondylosis',
+  'Migraine', 'Tension Headache', 'Cluster Headache',
+  'Anxiety Disorder', 'Depression', 'Insomnia',
+  'Pre-eclampsia', 'Ectopic Pregnancy', 'Pelvic Inflammatory Disease (PID)',
+  'Benign Prostatic Hyperplasia (BPH)', 'Prostatitis',
+  'Renal Calculi', 'Nephrotic Syndrome', 'Chronic Kidney Disease (CKD)',
+];
+
+const DRUG_SUGGESTIONS = [
+  // Antimalarials
+  'Artemether-Lumefantrine (Coartem)', 'Artesunate-Amodiaquine', 'Dihydroartemisinin-Piperaquine',
+  'Chloroquine', 'Quinine', 'Primaquine',
+  // Antibiotics
+  'Amoxicillin', 'Amoxicillin-Clavulanate (Augmentin)', 'Ampicillin',
+  'Azithromycin', 'Clarithromycin', 'Erythromycin',
+  'Ciprofloxacin', 'Levofloxacin', 'Ofloxacin',
+  'Metronidazole (Flagyl)', 'Tinidazole',
+  'Doxycycline', 'Tetracycline',
+  'Cefuroxime', 'Ceftriaxone', 'Cefalexin',
+  'Trimethoprim-Sulfamethoxazole (Cotrimoxazole)', 'Nitrofurantoin',
+  'Clindamycin', 'Gentamicin',
+  // Analgesics / Antipyretics
+  'Paracetamol (Acetaminophen)', 'Ibuprofen', 'Diclofenac', 'Naproxen', 'Aspirin',
+  'Tramadol', 'Codeine', 'Morphine',
+  // Antihypertensives
+  'Amlodipine', 'Nifedipine', 'Verapamil',
+  'Lisinopril', 'Enalapril', 'Ramipril',
+  'Losartan', 'Valsartan',
+  'Atenolol', 'Metoprolol', 'Bisoprolol', 'Carvedilol',
+  'Hydrochlorothiazide', 'Furosemide', 'Spironolactone',
+  'Methyldopa',
+  // Antidiabetics
+  'Metformin', 'Glibenclamide', 'Glimepiride',
+  'Insulin (Regular)', 'Insulin (NPH)', 'Insulin (Glargine)',
+  // GI
+  'Omeprazole', 'Pantoprazole', 'Rabeprazole', 'Ranitidine',
+  'Metoclopramide', 'Domperidone', 'Ondansetron',
+  'Oral Rehydration Salts (ORS)', 'Zinc Sulfate',
+  'Lactulose', 'Bisacodyl',
+  // Respiratory
+  'Salbutamol (Ventolin)', 'Ipratropium Bromide', 'Budesonide Inhaler',
+  'Prednisolone', 'Dexamethasone', 'Hydrocortisone',
+  'Cetirizine', 'Loratadine', 'Chlorpheniramine',
+  // Antifungals
+  'Fluconazole', 'Ketoconazole', 'Clotrimazole', 'Nystatin', 'Griseofulvin',
+  // Antivirals / HIV
+  'Tenofovir-Lamivudine-Dolutegravir (TLD)', 'Acyclovir',
+  // Vitamins / Supplements
+  'Ferrous Sulfate', 'Folic Acid', 'Vitamin C', 'Vitamin D3', 'Calcium Carbonate',
+  'Multivitamin', 'Zinc',
+  // Other
+  'Diazepam', 'Phenobarbitone', 'Phenytoin', 'Carbamazepine',
+  'Haloperidol', 'Chlorpromazine', 'Amitriptyline', 'Fluoxetine',
+  'Warfarin', 'Heparin', 'Enoxaparin', 'Aspirin 75mg',
+  'Atorvastatin', 'Simvastatin',
+  'Levothyroxine', 'Carbimazole',
+  'Misoprostol', 'Oxytocin', 'Magnesium Sulfate',
+];
+
+const DOSAGE_SUGGESTIONS = [
+  '1 tablet', '2 tablets', '½ tablet',
+  '1 capsule', '2 capsules',
+  '500mg', '250mg', '1g', '200mg', '400mg', '600mg', '800mg', '100mg',
+  '5ml', '10ml', '15ml', '20ml',
+  '1 sachet', '2 sachets',
+  '1 puff', '2 puffs',
+  '1 drop', '2 drops',
+  '1 vial', '1 ampoule',
+  '1 unit', '10 units', '20 units',
+];
+
+export const FREQUENCY_CHIPS = [
+  'Once daily (OD)', 'Twice daily (BD)', 'Three times daily (TDS)',
+  'Four times daily (QDS)', 'Every 8 hours', 'Every 6 hours',
+  'Every 12 hours', 'At bedtime (nocte)', 'Morning & evening',
+  'As needed (PRN)', 'Stat (single dose)',
+];
+
+export const DURATION_CHIPS = [
+  '3 days', '5 days', '7 days', '10 days', '14 days',
+  '3 weeks', '1 month', '2 months', '3 months', 'Ongoing', 'As directed',
+];
+
+const INVESTIGATION_SUGGESTIONS = [
+  'Full Blood Count (FBC)', 'Complete Blood Count (CBC)',
+  'Packed Cell Volume (PCV)', 'Haemoglobin Level',
+  'Blood Group & Genotype', 'Blood Film for Malaria Parasite',
+  'Malaria Rapid Diagnostic Test (RDT)',
+  'Widal Test', 'Blood Culture & Sensitivity',
+  'Fasting Blood Sugar (FBS)', 'Random Blood Sugar (RBS)',
+  'HbA1c (Glycated Haemoglobin)',
+  'Liver Function Tests (LFTs)', 'Renal Function Tests (RFTs)',
+  'Serum Electrolytes (U&E)',
+  'Serum Creatinine', 'eGFR',
+  'Serum Uric Acid', 'Serum Lipid Profile',
+  'Thyroid Function Tests (TFTs)', 'TSH', 'Free T4',
+  'Erythrocyte Sedimentation Rate (ESR)', 'C-Reactive Protein (CRP)',
+  'Prothrombin Time (PT/INR)', 'APTT',
+  'HIV Rapid Test', 'CD4 Count', 'Viral Load',
+  'Hepatitis B Surface Antigen (HBsAg)', 'Hepatitis C Antibody (Anti-HCV)',
+  'Urine Full & Microscopy (UFM)', 'Urine Culture & Sensitivity',
+  'Urine Pregnancy Test (UPT)',
+  'Stool Microscopy & Culture', 'Stool for Ova & Parasites',
+  'Sputum AFB (Ziehl-Neelsen stain)', 'Sputum Culture (TB)',
+  'Wound Swab Culture & Sensitivity', 'Throat Swab Culture & Sensitivity',
+  'Pus Swab Culture & Sensitivity',
+  'Electrocardiogram (ECG)', 'Echocardiogram',
+  'Chest X-Ray (CXR)', 'Abdominal X-Ray',
+  'Abdominal Ultrasound', 'Pelvic Ultrasound', 'Transvaginal Ultrasound',
+  'Scrotal Ultrasound', 'Renal Ultrasound',
+  'CT Scan (Head)', 'CT Scan (Chest)', 'CT Scan (Abdomen & Pelvis)',
+  'MRI Brain', 'MRI Spine',
+  'Lumbar Puncture (LP) / CSF Analysis',
+  'Serum Bilirubin (Total & Direct)', 'Serum Albumin', 'Serum Proteins',
+  'Serum Calcium', 'Serum Phosphate', 'Serum Magnesium',
+  'Sickle Cell Screening', 'Haemoglobin Electrophoresis',
+  'Mantoux Test (Tuberculin Skin Test)',
+  'Fasting Lipid Profile', 'Serum Iron', 'TIBC', 'Serum Ferritin',
+  'PSA (Prostate-Specific Antigen)', 'Pap Smear',
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -527,12 +674,15 @@ export default function CaseReviewScreen() {
               /* Edit mode — inline fields */
               <View>
                 <Text className="text-xs text-gray-500 mb-1">Condition</Text>
-                <TextInput
-                  className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-3 bg-blue-50"
+                <SuggestInput
+                  inputClassName="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-1 bg-blue-50"
                   value={editCondition}
                   onChangeText={setEditCondition}
+                  suggestions={CONDITION_SUGGESTIONS}
                   placeholder="Condition name"
+                  placeholderTextColor="#93c5fd"
                 />
+                <View className="mb-2" />
 
                 <Text className="text-xs text-gray-500 mb-1.5">Urgency</Text>
                 <View className="flex-row flex-wrap gap-2 mb-3">
@@ -649,22 +799,27 @@ export default function CaseReviewScreen() {
                     )}
                   </View>
                   <Text className="text-xs text-gray-500 mb-1">Medicine / Drug name</Text>
-                  <TextInput
-                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                  <SuggestInput
+                    inputClassName="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
                     value={med.medicine}
                     onChangeText={v => updateMedication(idx, 'medicine', v)}
+                    suggestions={DRUG_SUGGESTIONS}
                     placeholder="e.g. Amoxicillin 500mg"
                     placeholderTextColor="#93c5fd"
                   />
-                  <View className="flex-row gap-2 mb-2">
+
+                  {/* Dosage row (left) + Frequency row (right) */}
+                  <View className="flex-row gap-2">
                     <View className="flex-1">
                       <Text className="text-xs text-gray-500 mb-1">Dosage</Text>
-                      <TextInput
-                        className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
+                      <SuggestInput
+                        inputClassName="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
                         value={med.dosage}
                         onChangeText={v => updateMedication(idx, 'dosage', v)}
+                        suggestions={DOSAGE_SUGGESTIONS}
                         placeholder="e.g. 1 tablet"
                         placeholderTextColor="#93c5fd"
+                        autoCapitalize="none"
                       />
                     </View>
                     <View className="flex-1">
@@ -675,17 +830,67 @@ export default function CaseReviewScreen() {
                         onChangeText={v => updateMedication(idx, 'frequency', v)}
                         placeholder="e.g. 3× daily"
                         placeholderTextColor="#93c5fd"
+                        autoCorrect={false}
                       />
                     </View>
                   </View>
+                  {/* Frequency quick-select chips */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-1.5 mb-3" keyboardShouldPersistTaps="handled">
+                    <View className="flex-row gap-1.5 px-0.5">
+                      {FREQUENCY_CHIPS.map(chip => (
+                        <TouchableOpacity
+                          key={chip}
+                          onPress={() => updateMedication(idx, 'frequency', chip)}
+                          className="px-2.5 py-1 rounded-full border"
+                          style={{
+                            borderColor: med.frequency === chip ? '#3b82f6' : '#bfdbfe',
+                            backgroundColor: med.frequency === chip ? '#eff6ff' : '#f8fafc',
+                          }}
+                        >
+                          <Text
+                            className="text-xs"
+                            style={{ color: med.frequency === chip ? '#1d4ed8' : '#64748b' }}
+                          >
+                            {chip}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+
                   <Text className="text-xs text-gray-500 mb-1">Duration</Text>
                   <TextInput
-                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
                     value={med.duration}
                     onChangeText={v => updateMedication(idx, 'duration', v)}
                     placeholder="e.g. 7 days"
                     placeholderTextColor="#93c5fd"
+                    autoCorrect={false}
                   />
+                  {/* Duration quick-select chips */}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-1.5 mb-3" keyboardShouldPersistTaps="handled">
+                    <View className="flex-row gap-1.5 px-0.5">
+                      {DURATION_CHIPS.map(chip => (
+                        <TouchableOpacity
+                          key={chip}
+                          onPress={() => updateMedication(idx, 'duration', chip)}
+                          className="px-2.5 py-1 rounded-full border"
+                          style={{
+                            borderColor: med.duration === chip ? '#3b82f6' : '#bfdbfe',
+                            backgroundColor: med.duration === chip ? '#eff6ff' : '#f8fafc',
+                          }}
+                        >
+                          <Text
+                            className="text-xs"
+                            style={{ color: med.duration === chip ? '#1d4ed8' : '#64748b' }}
+                          >
+                            {chip}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+
                   <Text className="text-xs text-gray-500 mb-1">Instructions (optional)</Text>
                   <TextInput
                     className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
@@ -722,10 +927,11 @@ export default function CaseReviewScreen() {
                     </TouchableOpacity>
                   </View>
                   <Text className="text-xs text-gray-500 mb-1">Test / Investigation name</Text>
-                  <TextInput
-                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                  <SuggestInput
+                    inputClassName="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
                     value={inv.test}
                     onChangeText={v => updateInvestigation(idx, 'test', v)}
+                    suggestions={INVESTIGATION_SUGGESTIONS}
                     placeholder="e.g. Complete Blood Count"
                     placeholderTextColor="#93c5fd"
                   />
@@ -736,6 +942,7 @@ export default function CaseReviewScreen() {
                     onChangeText={v => updateInvestigation(idx, 'reason', v)}
                     placeholder="e.g. To rule out infection"
                     placeholderTextColor="#93c5fd"
+                    autoCorrect
                   />
                   <Text className="text-xs text-gray-500 mb-1.5">Priority</Text>
                   <View className="flex-row gap-2">
