@@ -217,6 +217,7 @@ export default function CaseReviewScreen() {
   // Review mode state
   const [mode, setMode] = useState<ReviewMode>('view');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Edit mode state
   const [editCondition, setEditCondition] = useState('');
@@ -299,7 +300,8 @@ export default function CaseReviewScreen() {
         investigations,
       );
       setMode('view');
-      Alert.alert('Saved', 'Your changes have been saved successfully.');
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err: any) {
       Alert.alert('Error', extractErrorMessage(err));
     } finally {
@@ -490,6 +492,14 @@ export default function CaseReviewScreen() {
             )}
           </View>
         </LinearGradient>
+
+        {/* ── Save success banner ────────────────────────────────────── */}
+        {savedSuccess && (
+          <View className="flex-row items-center bg-green-500 px-4 py-3 gap-x-2">
+            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+            <Text className="text-white text-sm font-semibold flex-1">Changes saved successfully.</Text>
+          </View>
+        )}
 
         {/* ── Scrollable content ─────────────────────────────────────── */}
         <ScrollView
