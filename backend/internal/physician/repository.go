@@ -750,11 +750,14 @@ func (r *Repository) UpdateAIOutput(
 		b, _ := json.Marshal(physOut)
 		physOutArg = string(b)
 	}
+	// Use NullString to safely scan a potentially-NULL user_id column.
+	var nullID sql.NullString
 	err = r.db.QueryRow(`
 		UPDATE diagnoses
 		SET condition           = $3,
 		    urgency             = $4,
 		    physician_notes     = $6,
+		    has_prescription    = CASE WHEN $7::text IS NOT NULL THEN TRUE ELSE has_prescription END,
 		    physician_ai_output = CASE WHEN $7::text IS NOT NULL
 		                               THEN $7::jsonb
 		                               ELSE physician_ai_output END,
@@ -770,13 +773,16 @@ func (r *Repository) UpdateAIOutput(
 		    ),
 		    updated_at = NOW()
 		WHERE id = $1 AND physician_id = $2::uuid AND status = 'Active'
-		RETURNING user_id`,
+		RETURNING user_id::text`,
 		caseID, physicianID, condition, urgency, confidence, notes, physOutArg,
-	).Scan(&patientID)
+	).Scan(&nullID)
 	if err == sql.ErrNoRows {
 		return "", ErrCaseNotActive
 	}
-	return patientID, err
+	if err != nil {
+		return "", err
+	}
+	return nullID.String, nil
 }
 
 // SLABreachResult is returned by ComputeSLABreach.
