@@ -21,19 +21,20 @@ export const ReportList = ({
 }: ReportListProps) => {
 
   return (
-    <View> 
+    <View style={{ flex: 1 }}>
       {/* Filter tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="px-6 py-4"
-        contentContainerStyle={{ gap: 2 }}
-      >
+      <View style={{ borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ height: 40 }}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 2, alignItems: 'center' }}
+        >
         {FILTERS.map(filter => (
           <Pressable
             key={filter}
             onPress={() => onFilterChange(filter)}
-            className={`px-4 py-2 border-b-2 ${
+            className={`px-4 py-1 border-b-2 ${
               selectedFilter === filter ? 'border-teal-600' : 'border-transparent'
             }`}
           >
@@ -48,7 +49,8 @@ export const ReportList = ({
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Reports list */}
       {loading ? (
@@ -63,9 +65,9 @@ export const ReportList = ({
               onPress={() => onReportPress?.(item.id)}
             />
           )}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          scrollEnabled={false}
-          nestedScrollEnabled={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
         />
       ) : (
         <View className="items-center px-6 pt-6">

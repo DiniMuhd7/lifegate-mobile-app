@@ -35,8 +35,7 @@ export default function ConsultationScreen() {
   };
 
   return (
-    <SafeAreaView className='flex-1'>
-    <View className="flex-1 bg-gray-50">
+    <SafeAreaView className='flex-1 bg-gray-50'>
       {/* Header */}
       <PhysicianHeader />
 
@@ -93,7 +92,6 @@ export default function ConsultationScreen() {
         onReportPress={handleReportPress}
         loading={loading}
       />
-    </View>
     </SafeAreaView>
   );
 }

@@ -13,9 +13,9 @@ export const PhysicianHeader = () => {
       colors={['#0AADA2', '#043B3C']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      className="px-6 pt-6 pb-4"
+      className="px-6 pt-4 pb-4"
     >
-      <View className="flex-row justify-between items-center mt-6">
+      <View className="flex-row justify-between items-center mt-2">
         <View>
           <Text className="text-white/70 text-sm font-medium">Welcome back,</Text>
           <Text className="text-white text-2xl font-bold mt-0.5">Dr. {physicianName}</Text>

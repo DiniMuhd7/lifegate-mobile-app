@@ -45,7 +45,7 @@ export const PatientReportCard = ({ report, onPress }: PatientReportCardProps) =
           style={{ backgroundColor: statusColor + '18', paddingHorizontal: 12, paddingVertical: 10, justifyContent: 'center', width: 96 }}
         >
           <Text style={{ color: statusColor }} className="text-xs font-bold">Patient</Text>
-          <Text style={{ color: statusColor }} className="text-sm font-bold mt-0.5" numberOfLines={1}>{report.patientId}</Text>
+          <Text style={{ color: statusColor }} className="text-sm font-bold mt-0.5" numberOfLines={1}>{report.patientId.slice(0, 8).toUpperCase()}</Text>
           <View style={{ backgroundColor: statusColor + '30', alignSelf: 'flex-start' }} className="mt-1.5 px-1.5 py-0.5 rounded-full">
             <Text style={{ color: statusColor }} className="text-xs font-semibold">{report.status}</Text>
           </View>

@@ -97,7 +97,10 @@ describe('tokenStorage — SecureStore available', () => {
   });
 
   it('isTokenValid returns true when token exists', async () => {
-    mockGetItemAsync.mockResolvedValue('valid-token');
+    // isTokenValid parses the JWT exp claim — must be a real base64-encoded JWT.
+    const header  = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ sub: 'user', exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url');
+    mockGetItemAsync.mockResolvedValue(`${header}.${payload}.signature`);
     const { isTokenValid } = requireModule();
     expect(await isTokenValid()).toBe(true);
   });

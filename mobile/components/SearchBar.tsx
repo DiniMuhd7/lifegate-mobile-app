@@ -16,7 +16,7 @@ export const SearchBar = ({
 }: SearchBarProps) => {
   return (
     <View
-      className="mx-5 my-3 flex-row items-center bg-white rounded-xl px-4 py-2.5 border border-gray-100"
+      className="mx-4 mb-2 mt-3 flex-row items-center bg-white rounded-xl px-4 py-2.5 border border-gray-100"
       style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
     >
       <Ionicons name="search-outline" size={18} color="#9CA3AF" />
