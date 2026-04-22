@@ -48,7 +48,6 @@ getProfile: async () => {
   setUser({ loading: true, error: null });
   try {
     const response = await AuthService.getProfile();
-    console.log(response.user)
     if (!response.success || !response.user) {
       setUser({ loading: false, error: response.message ?? 'Failed to fetch profile' });
       return false;
@@ -91,11 +90,11 @@ getProfile: async () => {
         return false;
       }
       setUser({ loading: false, error: null });
-      console.log('Password changed successfully');
       return true;
     } catch (err: any) {
       setUser({ loading: false, error: extractErrorMessage(err) });
       return false;
     }
   },
+  // -------- PROFILE: CHANGE PASSWORD
 }));

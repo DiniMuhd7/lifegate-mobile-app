@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   RefreshControl,
   Pressable,
   ActivityIndicator,
@@ -396,7 +396,10 @@ export default function PatientHistoryScreen() {
 
       {/* List */}
       {filtered.length > 0 && (
-        <ScrollView
+        <FlatList
+          data={filtered}
+          keyExtractor={(entry) => entry.id}
+          renderItem={({ item }) => <PatientCaseCard entry={item} />}
           contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -406,11 +409,7 @@ export default function PatientHistoryScreen() {
               tintColor="#0AADA2"
             />
           }
-        >
-          {filtered.map((entry) => (
-            <PatientCaseCard key={entry.id} entry={entry} />
-          ))}
-        </ScrollView>
+        />
       )}
     </SafeAreaView>
   );

@@ -79,7 +79,7 @@ function isRawJson(text: string): boolean {
 const FALLBACK_MESSAGE =
   "I'm having a little trouble right now — it might be a brief connection issue. Please try sending your message again in a moment. If you're experiencing a medical emergency, please call 199 immediately.";
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({
+export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   message,
   type,
   timestamp,
@@ -367,4 +367,4 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       </TouchableOpacity>
     </Animated.View>
   );
-};
+});

@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { ScrollView, View, Text, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { FlatList, View, Text, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
@@ -44,7 +44,7 @@ const formatDividerDate = (ts: number): string => {
 };
 
 export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onFollowUp, isTyping }) => {
-  const scrollRef = useRef<ScrollView>(null);
+  const flatRef = useRef<FlatList<ListItem>>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const isAtBottomRef = useRef(true);
 
@@ -52,9 +52,8 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
   // but only when the user is already near the bottom (preserves scroll when reading history).
   useEffect(() => {
     if (isAtBottomRef.current) {
-      // Small delay so the layout has settled before scrolling.
       const t = setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
+        flatRef.current?.scrollToEnd({ animated: true });
       }, 60);
       return () => clearTimeout(t);
     }
@@ -69,26 +68,90 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    scrollRef.current?.scrollToEnd({ animated: true });
+    flatRef.current?.scrollToEnd({ animated: true });
   }, []);
 
   // Build list items with date dividers injected
-  const listItems: Array<{ type: 'message'; msg: Message } | { type: 'divider'; label: string }> = [];
-  let lastDateStr = '';
-  messages.forEach((msg) => {
-    const ts = msg.rawTimestamp ?? Date.now();
-    const dateStr = new Date(ts).toDateString();
-    if (dateStr !== lastDateStr) {
-      listItems.push({ type: 'divider', label: formatDividerDate(ts) });
-      lastDateStr = dateStr;
+  type ListItem = { type: 'message'; msg: Message } | { type: 'divider'; label: string };
+
+  const listItems = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    let lastDateStr = '';
+    messages.forEach((msg) => {
+      const ts = msg.rawTimestamp ?? Date.now();
+      const dateStr = new Date(ts).toDateString();
+      if (dateStr !== lastDateStr) {
+        items.push({ type: 'divider', label: formatDividerDate(ts) });
+        lastDateStr = dateStr;
+      }
+      items.push({ type: 'message', msg });
+    });
+    return items;
+  }, [messages]);
+
+  const keyExtractor = useCallback((item: ListItem, index: number) =>
+    item.type === 'divider' ? `divider-${index}` : item.msg.id,
+  []);
+
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
+    if (item.type === 'divider') {
+      return (
+        <View
+          style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 12, paddingHorizontal: 16 }}
+        >
+          <View style={{ flex: 1, height: 1, backgroundColor: '#ccede9' }} />
+          <Text
+            style={{
+              fontSize: 11,
+              color: '#0f766e',
+              fontWeight: '600',
+              marginHorizontal: 10,
+              textTransform: 'uppercase',
+              letterSpacing: 0.8,
+            }}
+          >
+            {item.label}
+          </Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: '#ccede9' }} />
+        </View>
+      );
     }
-    listItems.push({ type: 'message', msg });
-  });
+    const msg = item.msg;
+    const msgIndex = messages.indexOf(msg);
+    const prevMsg = msgIndex > 0 ? messages[msgIndex - 1] : null;
+    const nextMsg = msgIndex < messages.length - 1 ? messages[msgIndex + 1] : null;
+    const isFirstInGroup = !prevMsg || prevMsg.type !== msg.type;
+    const isLastInGroup = !nextMsg || nextMsg.type !== msg.type;
+    return (
+      <MessageBubble
+        message={msg.text}
+        type={msg.type}
+        timestamp={msg.timestamp}
+        status={msg.status}
+        delay={msgIndex * 60}
+        onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
+        onFollowUp={onFollowUp}
+        diagnosis={msg.diagnosis}
+        prescription={msg.prescription}
+        diagnosisId={msg.diagnosisId}
+        isExistingCase={msg.isExistingCase}
+        followUpQuestions={msg.followUpQuestions}
+        conditions={msg.conditions}
+        riskFlags={msg.riskFlags}
+        investigations={msg.investigations}
+        isFirstInGroup={isFirstInGroup}
+        isLastInGroup={isLastInGroup}
+      />
+    );
+  }, [messages, onRetry, onFollowUp]);
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        ref={scrollRef}
+      <FlatList
+        ref={flatRef}
+        data={listItems}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         style={{ flex: 1 }}
         contentContainerClassName={UI_SPACING.MESSAGE_LIST_PADDING_VERTICAL}
         showsVerticalScrollIndicator={false}
@@ -98,67 +161,16 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
         scrollEventThrottle={100}
         onContentSizeChange={() => {
           if (isAtBottomRef.current) {
-            scrollRef.current?.scrollToEnd({ animated: false });
+            flatRef.current?.scrollToEnd({ animated: false });
           }
         }}
-      >
-        {listItems.map((item, index) => {
-          if (item.type === 'divider') {
-            return (
-              <View
-                key={`divider-${index}`}
-                style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 12, paddingHorizontal: 16 }}
-              >
-                <View style={{ flex: 1, height: 1, backgroundColor: '#ccede9' }} />
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: '#0f766e',
-                    fontWeight: '600',
-                    marginHorizontal: 10,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.8,
-                  }}
-                >
-                  {item.label}
-                </Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#ccede9' }} />
-              </View>
-            );
-          }
-          const msg = item.msg;
-          const msgIndex = messages.indexOf(msg);
-          const prevMsg = msgIndex > 0 ? messages[msgIndex - 1] : null;
-          const nextMsg = msgIndex < messages.length - 1 ? messages[msgIndex + 1] : null;
-          const isFirstInGroup = !prevMsg || prevMsg.type !== msg.type;
-          const isLastInGroup = !nextMsg || nextMsg.type !== msg.type;
-          return (
-            <MessageBubble
-              key={msg.id}
-              message={msg.text}
-              type={msg.type}
-              timestamp={msg.timestamp}
-              status={msg.status}
-              delay={msgIndex * 60}
-              onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
-              onFollowUp={onFollowUp}
-              diagnosis={msg.diagnosis}
-              prescription={msg.prescription}
-              diagnosisId={msg.diagnosisId}
-              isExistingCase={msg.isExistingCase}
-              followUpQuestions={msg.followUpQuestions}
-              conditions={msg.conditions}
-              riskFlags={msg.riskFlags}
-              investigations={msg.investigations}
-              isFirstInGroup={isFirstInGroup}
-              isLastInGroup={isLastInGroup}
-            />
-          );
-        })}
-        {isTyping && <TypingIndicator />}
-        {/* Bottom spacing so last bubble clears the input bar */}
-        <View className="h-4" />
-      </ScrollView>
+        ListFooterComponent={
+          <>
+            {isTyping && <TypingIndicator />}
+            <View className="h-4" />
+          </>
+        }
+      />
 
       {/* Scroll-to-bottom FAB */}
       {showScrollFab && (
