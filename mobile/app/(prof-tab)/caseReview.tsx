@@ -386,7 +386,8 @@ export default function CaseReviewScreen() {
   return (
     <KeyboardAvoidingView
       className="flex-1"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
     >
       <SafeAreaView className="flex-1 bg-gray-50">
 
@@ -461,7 +462,11 @@ export default function CaseReviewScreen() {
         </LinearGradient>
 
         {/* ── Scrollable content ─────────────────────────────────────── */}
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}>
+        <ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingTop: 12, paddingBottom: 100 }}
+        >
 
           {/* ── AI Analysis ─────────────────────────────────────────── */}
           <SectionCard title="AI Analysis">
@@ -857,8 +862,6 @@ export default function CaseReviewScreen() {
             </SectionCard>
           )}
 
-          {/* spacing for action panel */}
-          <View style={{ height: 16 }} />
         </ScrollView>
 
         {/* ── Action Panel ──────────────────────────────────────────── */}
