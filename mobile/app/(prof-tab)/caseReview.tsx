@@ -20,6 +20,40 @@ import { ConfidenceBar } from '../../components/ConfidenceBar';
 import { CaseUrgency, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
 import { extractErrorMessage } from '../../utils/error-utils';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Calculate age in whole years from a date-of-birth string.
+ * Handles YYYY-MM-DD, DD/MM/YYYY and MM/DD/YYYY.
+ * Returns null when the string is absent or unparseable.
+ */
+function calculateAge(dob: string | undefined): number | null {
+  if (!dob) return null;
+  let date: Date | null = null;
+
+  // ISO / YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(dob)) {
+    date = new Date(dob);
+  } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dob)) {
+    // Could be DD/MM/YYYY or MM/DD/YYYY — try both and pick whichever is valid
+    const [a, b, y] = dob.split('/').map(Number);
+    // Prefer DD/MM/YYYY (more common internationally)
+    const dmY = new Date(y, b - 1, a);
+    const mdY = new Date(y, a - 1, b);
+    date = dmY.getFullYear() === y && dmY.getMonth() === b - 1 ? dmY : mdY;
+  }
+
+  if (!date || isNaN(date.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const notHadBirthdayYet =
+    today.getMonth() < date.getMonth() ||
+    (today.getMonth() === date.getMonth() && today.getDate() < date.getDate());
+  if (notHadBirthdayYet) age -= 1;
+  return age >= 0 ? age : null;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 type ReviewMode = 'view' | 'edit' | 'approve' | 'reject';
@@ -846,7 +880,12 @@ export default function CaseReviewScreen() {
                 {currentPatient.dob ? (
                   <View className="bg-gray-100 rounded-full px-3 py-1">
                     <Text className="text-xs text-gray-600">
-                      DOB: {currentPatient.dob}
+                      {(() => {
+                        const age = calculateAge(currentPatient.dob);
+                        return age !== null
+                          ? `${currentPatient.dob} · ${age} yrs`
+                          : `DOB: ${currentPatient.dob}`;
+                      })()}
                     </Text>
                   </View>
                 ) : null}
