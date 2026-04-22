@@ -268,8 +268,6 @@ export default function CaseReviewScreen() {
       );
       setMode('view');
       Alert.alert('Saved', 'Your changes have been saved successfully.');
-      // Reload from backend in the background to confirm the write and get fresh data.
-      loadCaseDetail(caseId);
     } catch (err: any) {
       Alert.alert('Error', extractErrorMessage(err));
     } finally {
