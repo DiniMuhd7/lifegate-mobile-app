@@ -737,19 +737,20 @@ func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
 // UpdateAIOutput lets a physician correct the AI-generated diagnostic fields
 // inline and save their own clinical recommendations (notes, medication,
 // investigations) while the case is Active.
+// Returns the patient's user_id so the caller can broadcast a notification.
 func (r *Repository) UpdateAIOutput(
 	caseID, physicianID, condition, urgency string,
 	confidence int,
 	notes string,
 	physOut *PhysicianAIOutput,
-) error {
+) (patientID string, err error) {
 	// Serialize physician recommendations if provided.
 	var physOutArg interface{}
 	if physOut != nil {
 		b, _ := json.Marshal(physOut)
 		physOutArg = string(b)
 	}
-	result, err := r.db.Exec(`
+	err = r.db.QueryRow(`
 		UPDATE diagnoses
 		SET condition           = $3,
 		    urgency             = $4,
@@ -768,17 +769,14 @@ func (r *Repository) UpdateAIOutput(
 		      '{diagnosis,confidence}', to_jsonb($5::int), true
 		    ),
 		    updated_at = NOW()
-		WHERE id = $1 AND physician_id = $2::uuid AND status = 'Active'`,
+		WHERE id = $1 AND physician_id = $2::uuid AND status = 'Active'
+		RETURNING user_id`,
 		caseID, physicianID, condition, urgency, confidence, notes, physOutArg,
-	)
-	if err != nil {
-		return err
+	).Scan(&patientID)
+	if err == sql.ErrNoRows {
+		return "", ErrCaseNotActive
 	}
-	n, _ := result.RowsAffected()
-	if n == 0 {
-		return ErrCaseNotActive
-	}
-	return nil
+	return patientID, err
 }
 
 // SLABreachResult is returned by ComputeSLABreach.

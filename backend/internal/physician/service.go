@@ -71,13 +71,28 @@ func (s *Service) GetPatientProfile(patientID string) (*PatientProfile, error) {
 
 // UpdateAIOutput lets a physician correct the AI-generated fields inline
 // and save clinical recommendations (notes, medication, investigations).
+// On success it broadcasts a `diagnosis.update` WebSocket event to the patient
+// so their app reflects the changes without a manual refresh.
 func (s *Service) UpdateAIOutput(
 	caseID, physicianID, condition, urgency string,
 	confidence int,
 	notes string,
 	physOut *PhysicianAIOutput,
 ) error {
-	return s.repo.UpdateAIOutput(caseID, physicianID, condition, urgency, confidence, notes, physOut)
+	patientID, err := s.repo.UpdateAIOutput(caseID, physicianID, condition, urgency, confidence, notes, physOut)
+	if err != nil {
+		return err
+	}
+
+	// Notify the patient that the physician has updated the case details.
+	if patientID != "" && s.broadcaster != nil {
+		wsPayload, _ := json.Marshal(map[string]string{
+			"diagnosisId": caseID,
+			"action":      "edited",
+		})
+		s.broadcaster.BroadcastToUser(patientID, "diagnosis.update", wsPayload)
+	}
+	return nil
 }
 
 // GetCaseQueue returns the three-bucket case queue for the physician dashboard.

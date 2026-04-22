@@ -45,7 +45,6 @@ function formatDate(iso: string) {
       hour: '2-digit',
       minute: '2-digit',
     })
-    console.log('Formatted date:', date);
     return date.replace(',', ' at')
     ;
   } catch {
@@ -115,7 +114,6 @@ export default function DiagnosisReportScreen() {
   }, [id]);
 
   const d = selectedDiagnosis?.id === id ? selectedDiagnosis : null;
-  console.log('Selected diagnosis:', d);
 
   const urgency = URGENCY_CONFIG[d?.urgency ?? ''] ?? URGENCY_CONFIG.MEDIUM;
   const statusCfg = STATUS_CONFIG[d?.status ?? 'Pending'] ?? STATUS_CONFIG.Pending;

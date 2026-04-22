@@ -45,6 +45,7 @@ function sendSubscribe(ws: WebSocket, events: string[]) {
 export function useDiagnosisWebSocket() {
   const { user } = useAuthStore();
   const updateDiagnosisStatus = useDiagnosisStore((s) => s.updateDiagnosisStatus);
+  const fetchDiagnosisDetail = useDiagnosisStore((s) => s.fetchDiagnosisDetail);
   const wsRef = useRef<WebSocket | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -79,11 +80,18 @@ export function useDiagnosisWebSocket() {
           try {
             const { diagnosisId, status, decision } = JSON.parse(payload) as {
               diagnosisId: string;
-              status: 'Pending' | 'Active' | 'Completed';
+              status?: 'Pending' | 'Active' | 'Completed';
               decision?: string;
             };
-            if (diagnosisId && status) {
-              updateDiagnosisStatus(diagnosisId, status, decision);
+            if (diagnosisId) {
+              // Always refetch for fresh physician-edited fields (condition,
+              // urgency, prescription, investigations, notes).
+              fetchDiagnosisDetail(diagnosisId);
+
+              // Also apply an optimistic status patch so the list updates immediately.
+              if (status) {
+                updateDiagnosisStatus(diagnosisId, status, decision);
+              }
 
               // Show an in-app alert when the physician completes the review.
               if (status === 'Completed' && decision) {
@@ -122,7 +130,7 @@ export function useDiagnosisWebSocket() {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [user, updateDiagnosisStatus]);
+  }, [user, updateDiagnosisStatus, fetchDiagnosisDetail]);
 }
 
 /**
