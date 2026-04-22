@@ -44,7 +44,10 @@ function formatDate(iso: string) {
 }
 
 function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
+  if (!iso) return '—';
+  const ms = new Date(iso).getTime();
+  if (isNaN(ms)) return '—';
+  const diff = Date.now() - ms;
   const h = Math.floor(diff / 3_600_000);
   if (h < 1) return 'Just now';
   if (h < 24) return `${h}h ago`;

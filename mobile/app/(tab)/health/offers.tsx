@@ -17,13 +17,21 @@ import { useOffersStore, Offer, OfferType } from 'stores/offers-store';
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatExpiry(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return '—';
+  }
 }
 
 function daysLeft(dateStr: string): number {
-  const diff = new Date(dateStr).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / 86_400_000));
+  if (!dateStr) return 0;
+  const ms = new Date(dateStr).getTime();
+  if (isNaN(ms)) return 0;
+  return Math.max(0, Math.ceil((ms - Date.now()) / 86_400_000));
 }
 
 const TYPE_META: Record<OfferType, { label: string; icon: keyof typeof Ionicons.glyphMap; bg: string; color: string }> = {

@@ -231,6 +231,19 @@ const INV_URGENCY_BG: Record<string, string> = {
   STAT: '#fee2e2',
 };
 
+// ─── Date helper ──────────────────────────────────────────────────────────────
+
+function safeFormatDate(iso: string | undefined | null): string {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -1032,17 +1045,13 @@ export default function CaseReviewScreen() {
               <View>
                 <Text className="text-xs text-gray-400">Created</Text>
                 <Text className="text-xs text-gray-700 font-medium">
-                  {new Date(currentCase.createdAt).toLocaleDateString('en-GB', {
-                    day: 'numeric', month: 'short', year: 'numeric',
-                  })}
+                  {safeFormatDate(currentCase.createdAt)}
                 </Text>
               </View>
               <View>
                 <Text className="text-xs text-gray-400">Last updated</Text>
                 <Text className="text-xs text-gray-700 font-medium">
-                  {new Date(currentCase.updatedAt).toLocaleDateString('en-GB', {
-                    day: 'numeric', month: 'short', year: 'numeric',
-                  })}
+                  {safeFormatDate(currentCase.updatedAt)}
                 </Text>
               </View>
             </View>

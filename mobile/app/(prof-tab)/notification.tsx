@@ -160,7 +160,7 @@ function HealthAlertCard({
             {alert.message}
           </Text>
           <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
-            {timeAgo(new Date(alert.createdAt).getTime())}  ·  {alert.severity}
+            {(() => { const ms = alert.createdAt ? new Date(alert.createdAt).getTime() : NaN; return isNaN(ms) ? '' : `${timeAgo(ms)} · `; })()}{alert.severity}
           </Text>
         </View>
       </View>
