@@ -257,6 +257,7 @@ export default function CaseReviewScreen() {
         prescription,
         investigations.length > 0 ? investigations : undefined,
       );
+      // Apply an optimistic local update so the view reflects changes immediately.
       updateLocalAIOutput(
         editCondition.trim(),
         editUrgency,
@@ -267,6 +268,8 @@ export default function CaseReviewScreen() {
       );
       setMode('view');
       Alert.alert('Saved', 'Your changes have been saved successfully.');
+      // Reload from backend in the background to confirm the write and get fresh data.
+      loadCaseDetail(caseId);
     } catch (err: any) {
       Alert.alert('Error', extractErrorMessage(err));
     } finally {
@@ -293,14 +296,15 @@ export default function CaseReviewScreen() {
     setIsSubmitting(true);
     try {
       await takeCase(caseId);
-      updateCaseStatus(caseId, 'Active');
+      // takeCase already updates currentCase.status → 'Active' optimistically,
+      // so the Edit/Approve/Reject panel appears without needing updateCaseStatus.
       Alert.alert('Case Assigned', 'You have taken this case. You can now review and submit a decision.');
     } catch (err: any) {
       Alert.alert('Error', extractErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
-  }, [caseId, takeCase, updateCaseStatus]);
+  }, [caseId, takeCase]);
 
   const handleApprove = useCallback(async () => {    if (!caseId) return;
     setIsSubmitting(true);

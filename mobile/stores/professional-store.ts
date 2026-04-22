@@ -187,6 +187,13 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
 
   takeCase: async (caseId: string) => {
     await ProfessionalService.takeCase(caseId);
+    // Optimistically mark currentCase as Active so the Edit/Approve/Reject
+    // action panel appears immediately without waiting for the queue refetch.
+    set(state => ({
+      currentCase: state.currentCase?.id === caseId
+        ? { ...state.currentCase, status: 'Active' as const }
+        : state.currentCase,
+    }));
     // Refetch the full queue so the moved case appears with all correct fields.
     await get().fetchCaseQueue();
   },
@@ -212,10 +219,8 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
     set(state => {
       const allCases = [...state.pendingCases, ...state.activeCases, ...state.completedCases];
       const item = allCases.find(c => c.id === caseId);
-      if (!item) return {};
-      const updated = { ...item, status };
 
-      // Sync currentCase if it's the one being updated.
+      // Always sync currentCase regardless of whether the case is in a queue array.
       const updatedCurrentCase =
         state.currentCase?.id === caseId
           ? { ...state.currentCase, status }
@@ -224,6 +229,18 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
       // Sync reports / filteredReports list shown on the consultation screen.
       const syncReports = (list: any[]) =>
         list.map(r => r.id === caseId ? { ...r, status } : r);
+
+      if (!item) {
+        // Case not found in queue arrays (e.g. opened via direct link / notification).
+        // Still update currentCase so the review screen reflects the new status.
+        return {
+          currentCase: updatedCurrentCase,
+          reports: syncReports(state.reports),
+          filteredReports: syncReports(state.filteredReports),
+        };
+      }
+
+      const updated = { ...item, status };
 
       return {
         pendingCases: status === 'Pending'
