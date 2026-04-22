@@ -240,10 +240,44 @@ export default function DiagnosisReportScreen() {
             </SectionCard>
           )}
 
+          {/* ── Differential Diagnosis ── */}
+          {d.conditions && d.conditions.length > 0 && (() => {
+            const CONF_COLOR = (c: number) =>
+              c >= 75 ? '#16a34a' : c >= 45 ? '#d97706' : '#dc2626';
+            return (
+              <SectionCard title="Differential Diagnosis">
+                {d.conditions!.map((item, idx) => {
+                  const color = CONF_COLOR(item.confidence);
+                  const barWidth = `${Math.min(100, Math.max(0, item.confidence))}%` as `${number}%`;
+                  return (
+                    <View key={idx} className="mb-3 last:mb-0">
+                      <View className="flex-row items-center justify-between mb-1">
+                        <Text className="text-sm font-semibold text-gray-800 flex-1 mr-2" numberOfLines={1}>
+                          {item.condition}
+                        </Text>
+                        <Text style={{ color }} className="text-xs font-bold">{item.confidence}%</Text>
+                      </View>
+                      <View className="h-1.5 rounded-full bg-gray-100 overflow-hidden mb-1">
+                        <View style={{ width: barWidth, backgroundColor: color }} className="h-full rounded-full" />
+                      </View>
+                      {item.description ? (
+                        <Text className="text-xs text-gray-500 leading-4">{item.description}</Text>
+                      ) : null}
+                      {idx < d.conditions!.length - 1 && (
+                        <View className="mt-2 border-b border-gray-100" />
+                      )}
+                    </View>
+                  );
+                })}
+              </SectionCard>
+            );
+          })()}
+
           {/* ── Prescription ── */}
           {(d.hasPrescription || d.prescription) && (() => {
             const isApproved = d.status === 'Completed' && d.physicianDecision === 'Approved';
             if (!isApproved) {
+              const physicianEdited = d.status === 'Active' && d.physicianDecision !== 'Rejected';
               return (
                 <SectionCard title="Recommended Treatment">
                   <View className="flex-row items-start gap-3 py-1">
@@ -252,11 +286,12 @@ export default function DiagnosisReportScreen() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-sm font-semibold text-amber-800">
-                        Pending physician approval
+                        {physicianEdited ? 'Awaiting physician approval' : 'Pending physician review'}
                       </Text>
                       <Text className="text-xs text-amber-600 mt-1 leading-5">
-                        The AI has suggested a prescription for this case. It will be visible here
-                        once a licensed physician reviews and approves it.
+                        {physicianEdited
+                          ? 'The physician has reviewed this case and a treatment plan is ready. It will be visible here once the physician formally approves the case.'
+                          : 'A prescription recommendation exists for this case. It will be visible here once a licensed physician reviews and approves it.'}
                       </Text>
                     </View>
                   </View>
@@ -398,40 +433,6 @@ export default function DiagnosisReportScreen() {
           {d.physicianNotes ? (
             <SectionCard title="Physician Notes">
               <Text className="text-sm text-gray-700 leading-6">{d.physicianNotes}</Text>
-              {d.physicianName ? (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    marginTop: 12,
-                    paddingTop: 10,
-                    borderTopWidth: 1,
-                    borderTopColor: '#f1f5f9',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 13,
-                      backgroundColor: '#ccfbf1',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Ionicons name="person-circle-outline" size={16} color="#0f766e" />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 10, color: '#94a3b8', fontWeight: '500' }}>
-                      Reviewed &amp; signed by
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#1e293b', fontWeight: '700' }}>
-                      Dr. {d.physicianName}
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
             </SectionCard>
           ) : (
             d.status === 'Pending' && (
