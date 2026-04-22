@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { HealthTimelineEntry, PreventiveAlert } from 'types/health-types';
+import type { DiagnosisDetail } from 'types/diagnosis-types';
 import { HealthService } from 'services/health-service';
 
 interface HealthState {
@@ -27,6 +28,7 @@ interface HealthState {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   fetchPatientTimeline: () => Promise<void>;
+  patchTimelineEntry: (detail: DiagnosisDetail) => void;
   fetchPhysicianTimeline: () => Promise<void>;
   fetchPatientAlerts: () => Promise<void>;
   fetchPhysicianAlerts: () => Promise<void>;
@@ -57,6 +59,28 @@ export const useHealthStore = create<HealthState>((set, get) => ({
   unreadPhysicianAlertCount: 0,
 
   // ── Patient timeline ──────────────────────────────────────────────────────
+  patchTimelineEntry: (detail: DiagnosisDetail) => {
+    set((state) => ({
+      patientTimeline: state.patientTimeline.map((e) =>
+        e.id === detail.id
+          ? {
+              ...e,
+              condition: detail.condition,
+              urgency: detail.urgency as HealthTimelineEntry['urgency'],
+              status: detail.status as HealthTimelineEntry['status'],
+              confidence: detail.confidence,
+              physicianNotes: detail.physicianNotes,
+              physicianName: detail.physicianName,
+              physicianDecision: detail.physicianDecision,
+              hasPrescription: detail.hasPrescription,
+              investigations: detail.investigations,
+              updatedAt: detail.updatedAt,
+            }
+          : e
+      ),
+    }));
+  },
+
   fetchPatientTimeline: async () => {
     set({ timelineLoading: true, timelineError: null });
     try {

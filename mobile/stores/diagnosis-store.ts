@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DiagnosisDetail } from 'types/diagnosis-types';
 import { DiagnosisService } from 'services/diagnosis-service';
+import { useHealthStore } from 'stores/health-store';
 
 interface DiagnosisState {
   diagnoses: DiagnosisDetail[];
@@ -48,6 +49,9 @@ export const useDiagnosisStore = create<DiagnosisState>((set, get) => ({
           ? state.diagnoses.map((d) => (d.id === id ? detail : d))
           : [detail, ...state.diagnoses],
       }));
+      // Keep health timeline in sync so health dashboard/timeline/report
+      // reflect physician edits without a full timeline refetch
+      useHealthStore.getState().patchTimelineEntry(detail);
     } catch (e) {
       set({ detailLoading: false, error: e instanceof Error ? e.message : 'Failed to load diagnosis' });
     }
