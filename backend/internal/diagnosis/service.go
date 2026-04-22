@@ -25,6 +25,7 @@ type DiagnosisDetail struct {
 	FollowUpInstructions string               `json:"followUpInstructions,omitempty"`
 	OutcomeChecked       bool                 `json:"outcomeChecked"`
 	Prescription         *PrescriptionDetail  `json:"prescription,omitempty"`
+	Prescriptions        []PrescriptionDetail  `json:"prescriptions,omitempty"`
 	Investigations       []InvestigationDetail `json:"investigations,omitempty"`
 	Conditions           []ConditionScoreDetail `json:"conditions,omitempty"`
 	CreatedAt            string               `json:"createdAt"`
@@ -60,6 +61,7 @@ type rawAIResponse struct {
 		Confidence int `json:"confidence"`
 	} `json:"diagnosis"`
 	Prescription   *PrescriptionDetail    `json:"prescription"`
+	Prescriptions  []PrescriptionDetail   `json:"prescriptions"`
 	Investigations []InvestigationDetail  `json:"investigations"`
 	Conditions     []ConditionScoreDetail `json:"conditions"`
 }
@@ -177,6 +179,13 @@ func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON string) {
 		if err := json.Unmarshal([]byte(physicianAIJSON), &override); err == nil {
 			if override.Prescription != nil {
 				d.Prescription = override.Prescription
+			}
+			if len(override.Prescriptions) > 0 {
+				d.Prescriptions = override.Prescriptions
+				// Keep singular field in sync for backward compat
+				if d.Prescription == nil {
+					d.Prescription = &override.Prescriptions[0]
+				}
 			}
 			if len(override.Investigations) > 0 {
 				d.Investigations = override.Investigations

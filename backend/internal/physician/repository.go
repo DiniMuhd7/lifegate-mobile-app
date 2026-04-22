@@ -210,6 +210,7 @@ type PatientProfile struct {
 // API prefers this over the raw ai_response when it is present.
 type PhysicianAIOutput struct {
 	Prescription   *ai.Prescription   `json:"prescription,omitempty"`
+	Prescriptions  []ai.Prescription  `json:"prescriptions,omitempty"`
 	Investigations []ai.Investigation `json:"investigations,omitempty"`
 	Conditions     []ai.ConditionScore `json:"conditions,omitempty"`
 }

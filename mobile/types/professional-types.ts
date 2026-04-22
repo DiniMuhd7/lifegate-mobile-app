@@ -128,6 +128,7 @@ export type PhysicianDecision = 'Approved' | 'Rejected';
 
 export interface PhysicianOutput {
   prescription?: PrescriptionInfo;
+  prescriptions?: PrescriptionInfo[];
   investigations?: InvestigationInfo[];
 }
 

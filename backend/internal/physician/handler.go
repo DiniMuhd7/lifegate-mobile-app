@@ -383,6 +383,7 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 		Confidence     int                 `json:"confidence"`
 		Notes          string              `json:"notes"`
 		Prescription   *PrescriptionOutput `json:"prescription"`
+		Prescriptions  []PrescriptionOutput `json:"prescriptions"`
 		Investigations []ai.Investigation  `json:"investigations"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -396,9 +397,30 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 
 	// Build physician AI output if any recommendations were provided.
 	var physOut *PhysicianAIOutput
-	if req.Prescription != nil && req.Prescription.Medicine != "" || len(req.Investigations) > 0 {
+	if req.Prescription != nil && req.Prescription.Medicine != "" || len(req.Prescriptions) > 0 || len(req.Investigations) > 0 {
 		var prescOut *ai.Prescription
-		if req.Prescription != nil && req.Prescription.Medicine != "" {
+		var prescsOut []ai.Prescription
+
+		// Use the explicit prescriptions array when provided; fall back to the
+		// legacy single-prescription field for older clients.
+		if len(req.Prescriptions) > 0 {
+			for _, p := range req.Prescriptions {
+				if strings.TrimSpace(p.Medicine) == "" {
+					continue
+				}
+				prescsOut = append(prescsOut, ai.Prescription{
+					Medicine:     strings.TrimSpace(p.Medicine),
+					Dosage:       strings.TrimSpace(p.Dosage),
+					Frequency:    strings.TrimSpace(p.Frequency),
+					Duration:     strings.TrimSpace(p.Duration),
+					Instructions: strings.TrimSpace(p.Instructions),
+				})
+			}
+			// Keep the singular field as the first entry for backward compat.
+			if len(prescsOut) > 0 {
+				prescOut = &prescsOut[0]
+			}
+		} else if req.Prescription != nil && req.Prescription.Medicine != "" {
 			prescOut = &ai.Prescription{
 				Medicine:     strings.TrimSpace(req.Prescription.Medicine),
 				Dosage:       strings.TrimSpace(req.Prescription.Dosage),
@@ -409,6 +431,7 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 		}
 		physOut = &PhysicianAIOutput{
 			Prescription:   prescOut,
+			Prescriptions:  prescsOut,
 			Investigations: req.Investigations,
 		}
 	}

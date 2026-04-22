@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProfessionalStore } from '../../stores/professional-store';
 import { ProfessionalService } from '../../services/professional-service';
 import { ConfidenceBar } from '../../components/ConfidenceBar';
-import { CaseUrgency, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
+import { CaseUrgency, PrescriptionInfo, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
 import { extractErrorMessage } from '../../utils/error-utils';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -224,11 +224,7 @@ export default function CaseReviewScreen() {
   const [editUrgency, setEditUrgency] = useState<CaseUrgency>('LOW');
   const [editConfidence, setEditConfidence] = useState(0);
   const [editNotes, setEditNotes] = useState('');
-  const [editMedicine, setEditMedicine] = useState('');
-  const [editDosage, setEditDosage] = useState('');
-  const [editFrequency, setEditFrequency] = useState('');
-  const [editDuration, setEditDuration] = useState('');
-  const [editMedInstructions, setEditMedInstructions] = useState('');
+  const [editMedications, setEditMedications] = useState<PrescriptionInfo[]>([]);
   const [editInvestigations, setEditInvestigations] = useState<InvestigationInfo[]>([]);
 
   // Approve / Reject state
@@ -249,12 +245,15 @@ export default function CaseReviewScreen() {
     setEditUrgency((currentCase.urgency as CaseUrgency) || 'LOW');
     setEditConfidence(currentCase.aiResponse?.diagnosis?.confidence ?? 0);
     setEditNotes(currentCase.physicianNotes || '');
-    const rx = currentCase.physicianOutput?.prescription ?? currentCase.aiResponse?.prescription;
-    setEditMedicine(rx?.medicine || '');
-    setEditDosage(rx?.dosage || '');
-    setEditFrequency(rx?.frequency || '');
-    setEditDuration(rx?.duration || '');
-    setEditMedInstructions(rx?.instructions || '');
+    // Populate medications array from physician override, then AI, then empty slot
+    const existingMeds: PrescriptionInfo[] =
+      currentCase.physicianOutput?.prescriptions ??
+      (currentCase.physicianOutput?.prescription
+        ? [currentCase.physicianOutput.prescription]
+        : currentCase.aiResponse?.prescription
+        ? [currentCase.aiResponse.prescription]
+        : []);
+    setEditMedications(existingMeds.length > 0 ? existingMeds : [{ medicine: '', dosage: '', frequency: '', duration: '', instructions: '' }]);
     setEditInvestigations(
       currentCase.physicianOutput?.investigations ??
       currentCase.aiResponse?.investigations ??
@@ -271,15 +270,15 @@ export default function CaseReviewScreen() {
     }
     setIsSubmitting(true);
     try {
-      const prescription = editMedicine.trim()
-        ? {
-            medicine: editMedicine.trim(),
-            dosage: editDosage.trim(),
-            frequency: editFrequency.trim(),
-            duration: editDuration.trim(),
-            instructions: editMedInstructions.trim(),
-          }
-        : undefined;
+      const prescriptions = editMedications
+        .filter(m => m.medicine.trim())
+        .map(m => ({
+          medicine: m.medicine.trim(),
+          dosage: m.dosage.trim(),
+          frequency: m.frequency.trim(),
+          duration: m.duration.trim(),
+          instructions: m.instructions?.trim() ?? '',
+        }));
       const investigations = editInvestigations.filter(i => i.test.trim());
       await ProfessionalService.updateAIOutput(
         caseId,
@@ -287,7 +286,7 @@ export default function CaseReviewScreen() {
         editUrgency,
         editConfidence,
         editNotes.trim(),
-        prescription,
+        prescriptions.length > 0 ? prescriptions : undefined,
         investigations.length > 0 ? investigations : undefined,
       );
       // Apply an optimistic local update so the view reflects changes immediately.
@@ -296,7 +295,7 @@ export default function CaseReviewScreen() {
         editUrgency,
         editConfidence,
         editNotes.trim(),
-        prescription,
+        prescriptions[0],
         investigations,
       );
       setMode('view');
@@ -307,7 +306,7 @@ export default function CaseReviewScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [caseId, editCondition, editUrgency, editConfidence, editNotes, editMedicine, editDosage, editFrequency, editDuration, editMedInstructions, editInvestigations, updateLocalAIOutput]);
+  }, [caseId, editCondition, editUrgency, editConfidence, editNotes, editMedications, editInvestigations, updateLocalAIOutput]);
 
   const addInvestigation = useCallback(() => {
     setEditInvestigations(prev => [...prev, { test: '', reason: '', urgency: 'ROUTINE' }]);
@@ -315,6 +314,20 @@ export default function CaseReviewScreen() {
 
   const removeInvestigation = useCallback((idx: number) => {
     setEditInvestigations(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const addMedication = useCallback(() => {
+    setEditMedications(prev => [...prev, { medicine: '', dosage: '', frequency: '', duration: '', instructions: '' }]);
+  }, []);
+
+  const removeMedication = useCallback((idx: number) => {
+    setEditMedications(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const updateMedication = useCallback((idx: number, field: keyof PrescriptionInfo, value: string) => {
+    setEditMedications(prev =>
+      prev.map((med, i) => (i === idx ? { ...med, [field]: value } : med))
+    );
   }, []);
 
   const updateInvestigation = useCallback((idx: number, field: keyof InvestigationInfo, value: string) => {
@@ -621,59 +634,78 @@ export default function CaseReviewScreen() {
             </SectionCard>
           )}
 
-          {/* ── Edit-mode: Recommended Medication ───────────────────── */}
+          {/* ── Edit-mode: Recommended Medications ───────────────────── */}
           {mode === 'edit' && (
-            <SectionCard title="Recommended Medication">
-              <Text className="text-xs text-gray-400 mb-3">Leave blank if no medication is needed.</Text>
-              <Text className="text-xs text-gray-500 mb-1">Medicine / Drug name</Text>
-              <TextInput
-                className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-3 bg-blue-50"
-                value={editMedicine}
-                onChangeText={setEditMedicine}
-                placeholder="e.g. Amoxicillin 500mg"
-                placeholderTextColor="#93c5fd"
-              />
-              <View className="flex-row gap-2 mb-3">
-                <View className="flex-1">
-                  <Text className="text-xs text-gray-500 mb-1">Dosage</Text>
+            <SectionCard title="Recommended Medications">
+              <Text className="text-xs text-gray-400 mb-3">Add one or more medications. Leave the first entry blank if none are needed.</Text>
+              {editMedications.map((med, idx) => (
+                <View key={idx} className="border border-blue-100 rounded-xl p-3 mb-3 bg-blue-50">
+                  <View className="flex-row items-center justify-between mb-2">
+                    <Text className="text-xs font-semibold text-gray-600">Medication {idx + 1}</Text>
+                    {editMedications.length > 1 && (
+                      <TouchableOpacity onPress={() => removeMedication(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Ionicons name="close-circle" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text className="text-xs text-gray-500 mb-1">Medicine / Drug name</Text>
                   <TextInput
-                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-blue-50"
-                    value={editDosage}
-                    onChangeText={setEditDosage}
-                    placeholder="e.g. 1 tablet"
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                    value={med.medicine}
+                    onChangeText={v => updateMedication(idx, 'medicine', v)}
+                    placeholder="e.g. Amoxicillin 500mg"
                     placeholderTextColor="#93c5fd"
                   />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-xs text-gray-500 mb-1">Frequency</Text>
+                  <View className="flex-row gap-2 mb-2">
+                    <View className="flex-1">
+                      <Text className="text-xs text-gray-500 mb-1">Dosage</Text>
+                      <TextInput
+                        className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
+                        value={med.dosage}
+                        onChangeText={v => updateMedication(idx, 'dosage', v)}
+                        placeholder="e.g. 1 tablet"
+                        placeholderTextColor="#93c5fd"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-xs text-gray-500 mb-1">Frequency</Text>
+                      <TextInput
+                        className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
+                        value={med.frequency}
+                        onChangeText={v => updateMedication(idx, 'frequency', v)}
+                        placeholder="e.g. 3× daily"
+                        placeholderTextColor="#93c5fd"
+                      />
+                    </View>
+                  </View>
+                  <Text className="text-xs text-gray-500 mb-1">Duration</Text>
                   <TextInput
-                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-blue-50"
-                    value={editFrequency}
-                    onChangeText={setEditFrequency}
-                    placeholder="e.g. 3× daily"
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-2 bg-white"
+                    value={med.duration}
+                    onChangeText={v => updateMedication(idx, 'duration', v)}
+                    placeholder="e.g. 7 days"
                     placeholderTextColor="#93c5fd"
                   />
+                  <Text className="text-xs text-gray-500 mb-1">Instructions (optional)</Text>
+                  <TextInput
+                    className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white"
+                    value={med.instructions}
+                    onChangeText={v => updateMedication(idx, 'instructions', v)}
+                    placeholder="e.g. Take after meals"
+                    placeholderTextColor="#93c5fd"
+                    multiline
+                    numberOfLines={2}
+                    style={{ minHeight: 56, textAlignVertical: 'top' }}
+                  />
                 </View>
-              </View>
-              <Text className="text-xs text-gray-500 mb-1">Duration</Text>
-              <TextInput
-                className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 mb-3 bg-blue-50"
-                value={editDuration}
-                onChangeText={setEditDuration}
-                placeholder="e.g. 7 days"
-                placeholderTextColor="#93c5fd"
-              />
-              <Text className="text-xs text-gray-500 mb-1">Instructions (optional)</Text>
-              <TextInput
-                className="border border-blue-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-blue-50"
-                value={editMedInstructions}
-                onChangeText={setEditMedInstructions}
-                placeholder="e.g. Take after meals"
-                placeholderTextColor="#93c5fd"
-                multiline
-                numberOfLines={2}
-                style={{ minHeight: 56, textAlignVertical: 'top' }}
-              />
+              ))}
+              <TouchableOpacity
+                onPress={addMedication}
+                className="flex-row items-center justify-center border border-dashed border-blue-300 rounded-xl py-2.5 gap-2"
+              >
+                <Ionicons name="add-circle-outline" size={16} color="#3b82f6" />
+                <Text className="text-blue-500 text-xs font-semibold">Add Another Medication</Text>
+              </TouchableOpacity>
             </SectionCard>
           )}
 
