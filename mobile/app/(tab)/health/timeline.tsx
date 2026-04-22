@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react'
 import {
   View,
   Text,
-  ScrollView,
+  SectionList,
   RefreshControl,
   Pressable,
   ActivityIndicator,
@@ -483,81 +483,95 @@ export default function HealthTimelineScreen() {
 
       {/* Main content */}
       {!timelineLoading && !timelineError && patientTimeline.length > 0 && (
-        <ScrollView
+        <SectionList
+          sections={groups.map((g) => ({ title: g.month, data: g.items }))}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingTop: 16, paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={timelineLoading} onRefresh={onRefresh} tintColor="#0AADA2" />}
-        >
-          {/* Summary strip — Total / Active / Resolved */}
-          <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
-            {[
-              { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
-              { label: 'Active', value: patientTimeline.filter((e) => e.status !== 'Completed').length, color: '#d97706' },
-              { label: 'Resolved', value: patientTimeline.filter((e) => e.status === 'Completed').length, color: '#16a34a' },
-            ].map((s, i, arr) => (
-              <View key={s.label} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRightWidth: i < arr.length - 1 ? 1 : 0, borderRightColor: '#f3f4f6' }}>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: s.color }}>{s.value}</Text>
-                <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontWeight: '500' }}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Recorded / Abnormal / Recurring strip */}
-          <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
-            {[
-              { label: 'Recorded', value: dateFiltered.length, color: '#0891b2' },
-              { label: 'Abnormal', value: abnormalCount, color: '#dc2626' },
-              { label: 'Recurring', value: recurringCount, color: '#d97706' },
-            ].map((s, i, arr) => (
-              <View key={s.label} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRightWidth: i < arr.length - 1 ? 1 : 0, borderRightColor: '#f3f4f6' }}>
-                <Text style={{ fontSize: 22, fontWeight: '800', color: s.color }}>{s.value}</Text>
-                <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontWeight: '500' }}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Severity chart */}
-          <View style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginBottom: 8 }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Severity Trend</Text>
-              <Text style={{ fontSize: 11, color: '#9ca3af' }}>Last {Math.min(dateFiltered.length, 15)} sessions</Text>
-            </View>
-            <SeverityLineChart entries={dateFiltered} />
-          </View>
-
-          {/* Filters */}
-          <FilterBar
-            dateFilter={dateFilter}
-            severityFilter={severityFilter}
-            abnormalOnly={abnormalOnly}
-            onDateChange={setDateFilter}
-            onSeverityChange={setSeverityFilter}
-            onAbnormalToggle={() => setAbnormalOnly((p) => !p)}
-          />
-
-          {/* Timeline entries separator */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Symptom Log</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: '#f3f4f6', marginLeft: 10 }} />
-            <Text style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>{listEntries.length} record{listEntries.length !== 1 ? 's' : ''}</Text>
-          </View>
-
-          {/* Empty filter state */}
-          {listEntries.length === 0 && (
-            <View style={{ alignItems: 'center', paddingVertical: 36, marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6' }}>
-              <Ionicons name="search-outline" size={32} color="#d1d5db" />
-              <Text style={{ marginTop: 10, fontSize: 14, fontWeight: '600', color: '#374151' }}>No records match</Text>
-              <Text style={{ marginTop: 4, fontSize: 12, color: '#9ca3af', textAlign: 'center', paddingHorizontal: 24 }}>
-                Try adjusting the date range or severity filter.
-              </Text>
+          renderSectionHeader={({ section }) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10, marginTop: 8 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>{section.title}</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: '#f3f4f6', marginLeft: 10 }} />
+              <Text style={{ fontSize: 12, color: '#9ca3af', marginLeft: 8 }}>{section.data.length} case{section.data.length !== 1 ? 's' : ''}</Text>
             </View>
           )}
+          renderItem={({ item, index, section }) => (
+            <TimelineItem
+              entry={item}
+              isRecurring={recurringSet.has((item.condition || item.title).toLowerCase().trim())}
+              isLast={index === section.data.length - 1}
+            />
+          )}
+          ListHeaderComponent={
+            <View>
+              {/* Summary strip — Total / Active / Resolved */}
+              <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
+                {[
+                  { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
+                  { label: 'Active', value: patientTimeline.filter((e) => e.status !== 'Completed').length, color: '#d97706' },
+                  { label: 'Resolved', value: patientTimeline.filter((e) => e.status === 'Completed').length, color: '#16a34a' },
+                ].map((s, i, arr) => (
+                  <View key={s.label} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRightWidth: i < arr.length - 1 ? 1 : 0, borderRightColor: '#f3f4f6' }}>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: s.color }}>{s.value}</Text>
+                    <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontWeight: '500' }}>{s.label}</Text>
+                  </View>
+                ))}
+              </View>
 
-          {/* Month-grouped timeline */}
-          {groups.map((g) => (
-            <MonthGroup key={g.month} month={g.month} items={g.items} recurringSet={recurringSet} />
-          ))}
-        </ScrollView>
+              {/* Recorded / Abnormal / Recurring strip */}
+              <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
+                {[
+                  { label: 'Recorded', value: dateFiltered.length, color: '#0891b2' },
+                  { label: 'Abnormal', value: abnormalCount, color: '#dc2626' },
+                  { label: 'Recurring', value: recurringCount, color: '#d97706' },
+                ].map((s, i, arr) => (
+                  <View key={s.label} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRightWidth: i < arr.length - 1 ? 1 : 0, borderRightColor: '#f3f4f6' }}>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: s.color }}>{s.value}</Text>
+                    <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontWeight: '500' }}>{s.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Severity chart */}
+              <View style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 16, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Severity Trend</Text>
+                  <Text style={{ fontSize: 11, color: '#9ca3af' }}>Last {Math.min(dateFiltered.length, 15)} sessions</Text>
+                </View>
+                <SeverityLineChart entries={dateFiltered} />
+              </View>
+
+              {/* Filters */}
+              <FilterBar
+                dateFilter={dateFilter}
+                severityFilter={severityFilter}
+                abnormalOnly={abnormalOnly}
+                onDateChange={setDateFilter}
+                onSeverityChange={setSeverityFilter}
+                onAbnormalToggle={() => setAbnormalOnly((p) => !p)}
+              />
+
+              {/* Timeline entries separator */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Symptom Log</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#f3f4f6', marginLeft: 10 }} />
+                <Text style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>{listEntries.length} record{listEntries.length !== 1 ? 's' : ''}</Text>
+              </View>
+
+              {/* Empty filter state */}
+              {listEntries.length === 0 && (
+                <View style={{ alignItems: 'center', paddingVertical: 36, marginHorizontal: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6' }}>
+                  <Ionicons name="search-outline" size={32} color="#d1d5db" />
+                  <Text style={{ marginTop: 10, fontSize: 14, fontWeight: '600', color: '#374151' }}>No records match</Text>
+                  <Text style={{ marginTop: 4, fontSize: 12, color: '#9ca3af', textAlign: 'center', paddingHorizontal: 24 }}>
+                    Try adjusting the date range or severity filter.
+                  </Text>
+                </View>
+              )}
+            </View>
+          }
+        />
       )}
     </SafeAreaView>
     <PatientBottomTabBar activeTab="health" />

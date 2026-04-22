@@ -4,10 +4,12 @@ const { withNativeWind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
-// SVG support
+// SVG support + inline requires for faster startup
 config.transformer = {
   ...config.transformer,
   babelTransformerPath: require.resolve('react-native-svg-transformer'),
+  // Defers module evaluation until first use — cuts JS parse/init time on startup
+  inlineRequires: true,
 };
 
 config.resolver = {

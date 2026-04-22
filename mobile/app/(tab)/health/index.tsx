@@ -669,10 +669,12 @@ export default function HealthDashboardScreen() {
   const status = useMemo(() => deriveStatus(patientTimeline), [patientTimeline]);
   const insight = useMemo(() => deriveInsight(patientTimeline), [patientTimeline]);
 
-  // Schedule (or reschedule) the daily 8 AM health insight notification
-  // whenever the insight text changes. Skips if timeline is still loading.
+  // Schedule the daily 8 AM health insight notification only when the insight
+  // text actually changes — avoids re-scheduling on every WebSocket patch.
+  const lastScheduledInsight = useRef<string>('');
   useEffect(() => {
-    if (!timelineLoading && patientTimeline.length >= 0) {
+    if (!timelineLoading && insight.text !== lastScheduledInsight.current) {
+      lastScheduledInsight.current = insight.text;
       scheduleHealthInsightNotification(insight.text);
     }
   }, [insight.text, timelineLoading]);
