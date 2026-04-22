@@ -20,6 +20,7 @@ type DiagnosisDetail struct {
 	HasPrescription      bool                 `json:"hasPrescription"`
 	PhysicianDecision    string               `json:"physicianDecision,omitempty"`
 	PhysicianNotes       string               `json:"physicianNotes,omitempty"`
+	PhysicianName        string               `json:"physicianName,omitempty"`
 	FollowUpDate         string               `json:"followUpDate,omitempty"`
 	FollowUpInstructions string               `json:"followUpInstructions,omitempty"`
 	OutcomeChecked       bool                 `json:"outcomeChecked"`
@@ -76,19 +77,21 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 	offset := (page - 1) * pageSize
 
 	rows, err := s.db.Query(`
-		SELECT id, COALESCE(title,''), COALESCE(description,''),
-		       COALESCE(condition,''), COALESCE(urgency,''),
-		       status, escalated, has_prescription,
-		       COALESCE(physician_decision,''), COALESCE(physician_notes,''),
-		       COALESCE(TO_CHAR(follow_up_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),''),
-		       COALESCE(follow_up_instructions,''),
-		       outcome_checked,
-		       COALESCE(ai_response::text,'{}'),
-		       COALESCE(physician_ai_output::text,''),
-		       created_at::text, updated_at::text
-		FROM diagnoses
-		WHERE user_id = $1::uuid
-		ORDER BY created_at DESC
+		SELECT d.id, COALESCE(d.title,''), COALESCE(d.description,''),
+		       COALESCE(d.condition,''), COALESCE(d.urgency,''),
+		       d.status, d.escalated, d.has_prescription,
+		       COALESCE(d.physician_decision,''), COALESCE(d.physician_notes,''),
+		       COALESCE(TO_CHAR(d.follow_up_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),''),
+		       COALESCE(d.follow_up_instructions,''),
+		       d.outcome_checked,
+		       COALESCE(d.ai_response::text,'{}'),
+		       COALESCE(d.physician_ai_output::text,''),
+		       d.created_at::text, d.updated_at::text,
+		       COALESCE(pu.name,'')
+		FROM diagnoses d
+		LEFT JOIN users pu ON pu.id = d.physician_id
+		WHERE d.user_id = $1::uuid
+		ORDER BY d.created_at DESC
 		LIMIT $2 OFFSET $3`, userID, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
@@ -103,7 +106,7 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 			&d.Urgency, &d.Status, &d.Escalated, &d.HasPrescription,
 			&d.PhysicianDecision, &d.PhysicianNotes,
 			&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
-			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName); err != nil {
 			log.Printf("diagnosis: scan row: %v", err)
 			continue
 		}
@@ -122,24 +125,26 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 	var d DiagnosisDetail
 	var aiJSON, physicianAIJSON string
 	err := s.db.QueryRow(`
-		SELECT id, COALESCE(title,''), COALESCE(description,''),
-		       COALESCE(condition,''), COALESCE(urgency,''),
-		       status, escalated, has_prescription,
-		       COALESCE(physician_decision,''), COALESCE(physician_notes,''),
-		       COALESCE(TO_CHAR(follow_up_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),''),
-		       COALESCE(follow_up_instructions,''),
-		       outcome_checked,
-		       COALESCE(ai_response::text,'{}'),
-		       COALESCE(physician_ai_output::text,''),
-		       created_at::text, updated_at::text
-		FROM diagnoses
-		WHERE id = $1 AND user_id = $2::uuid`,
+		SELECT d.id, COALESCE(d.title,''), COALESCE(d.description,''),
+		       COALESCE(d.condition,''), COALESCE(d.urgency,''),
+		       d.status, d.escalated, d.has_prescription,
+		       COALESCE(d.physician_decision,''), COALESCE(d.physician_notes,''),
+		       COALESCE(TO_CHAR(d.follow_up_date AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),''),
+		       COALESCE(d.follow_up_instructions,''),
+		       d.outcome_checked,
+		       COALESCE(d.ai_response::text,'{}'),
+		       COALESCE(d.physician_ai_output::text,''),
+		       d.created_at::text, d.updated_at::text,
+		       COALESCE(pu.name,'')
+		FROM diagnoses d
+		LEFT JOIN users pu ON pu.id = d.physician_id
+		WHERE d.id = $1 AND d.user_id = $2::uuid`,
 		diagnosisID, userID,
 	).Scan(&d.ID, &d.Title, &d.Description, &d.Condition,
 		&d.Urgency, &d.Status, &d.Escalated, &d.HasPrescription,
 		&d.PhysicianDecision, &d.PhysicianNotes,
 		&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
-		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt)
+		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName)
 
 	if err == sql.ErrNoRows {
 		return nil, nil

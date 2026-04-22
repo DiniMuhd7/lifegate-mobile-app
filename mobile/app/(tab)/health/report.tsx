@@ -360,6 +360,22 @@ function EntryRow({ entry, isRecurring, prescription, hasPendingRx }: { entry: H
           </Text>
         </View>
       )}
+      {/* Recommended investigations */}
+      {entry.investigations && entry.investigations.length > 0 && (
+        <View style={{ marginTop: 6, marginLeft: 20, padding: 8, backgroundColor: '#f0fdfa', borderLeftWidth: 2, borderLeftColor: '#0d9488', borderRadius: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#0d9488', marginBottom: 4 }}>RECOMMENDED TESTS</Text>
+          {entry.investigations.map((inv, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: i < entry.investigations!.length - 1 ? 4 : 0 }}>
+              <Text style={{ fontSize: 10, color: '#0d9488', marginRight: 4, marginTop: 1 }}>•</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, color: '#134e4a', fontWeight: '600' }}>{inv.test}</Text>
+                {!!inv.reason && <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>{inv.reason}</Text>}
+              </View>
+              <Text style={{ fontSize: 9, fontWeight: '700', color: inv.urgency === 'STAT' ? '#dc2626' : inv.urgency === 'URGENT' ? '#d97706' : '#16a34a', marginLeft: 4, marginTop: 1 }}>{inv.urgency}</Text>
+            </View>
+          ))}
+        </View>
+      )}
       {/* Prescription */}
       {!prescription && !!hasPendingRx && (
         <View style={{ marginTop: 8, padding: 10, backgroundColor: '#fffbeb', borderLeftWidth: 3, borderLeftColor: '#d97706', borderRadius: 6 }}>
@@ -433,14 +449,17 @@ function ExportButton({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function HealthReportScreen() {
-  const { patientTimeline } = useHealthStore();
+  const { patientTimeline, fetchPatientTimeline } = useHealthStore();
   const { diagnoses, fetchDiagnoses } = useDiagnosisStore();
   const { user, sessionLoading } = useAuthStore();
 
   // Always re-fetch on mount so physician edits (condition, urgency, notes, investigations)
   // are visible without restarting the app. Guard against 401 on web refresh.
   React.useEffect(() => {
-    if (!sessionLoading && user?.id) fetchDiagnoses();
+    if (!sessionLoading && user?.id) {
+      fetchDiagnoses();
+      fetchPatientTimeline();
+    }
   }, [sessionLoading, user?.id]);
 
   // Build id → prescription lookup — only for physician-approved prescriptions

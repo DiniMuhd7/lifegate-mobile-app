@@ -253,8 +253,12 @@ func (r *Repository) ReviewReport(reportID, physicianID string, input ReviewInpu
 	var q string
 	if input.Action == "Completed" {
 		// Gate: case must be Active AND owned by this physician.
+		// physician_notes: only overwrite with the incoming value when it is non-empty so that
+		// clinical notes entered during the Edit step are not erased by an empty Approve notes field.
 		q = `UPDATE diagnoses
-		     SET physician_id=$1, physician_notes=$2, status=$3,
+		     SET physician_id=$1,
+		         physician_notes=CASE WHEN $2 <> '' THEN $2 ELSE physician_notes END,
+		         status=$3,
 		         physician_decision=$5, rejection_reason=$6,
 		         physician_ai_output=CASE WHEN $7::jsonb IS NOT NULL THEN $7::jsonb ELSE physician_ai_output END,
 		         updated_at=NOW()
@@ -263,7 +267,9 @@ func (r *Repository) ReviewReport(reportID, physicianID string, input ReviewInpu
 	} else {
 		// Gate: case must be Pending AND unowned (or already owned by this physician).
 		q = `UPDATE diagnoses
-		     SET physician_id=$1, physician_notes=$2, status=$3,
+		     SET physician_id=$1,
+		         physician_notes=CASE WHEN $2 <> '' THEN $2 ELSE physician_notes END,
+		         status=$3,
 		         physician_decision=$5, rejection_reason=$6,
 		         physician_ai_output=CASE WHEN $7::jsonb IS NOT NULL THEN $7::jsonb ELSE physician_ai_output END,
 		         updated_at=NOW()

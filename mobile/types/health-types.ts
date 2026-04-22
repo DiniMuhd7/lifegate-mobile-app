@@ -13,6 +13,10 @@ export interface HealthTimelineEntry {
   escalated: boolean;
   confidence: number;
   physicianNotes?: string;
+  physicianName?: string;
+  physicianDecision?: string;
+  hasPrescription?: boolean;
+  investigations?: Array<{ test: string; reason: string; urgency: string }>;
   /** ISO-8601 creation date */
   createdAt: string;
   updatedAt: string;
