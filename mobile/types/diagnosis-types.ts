@@ -41,6 +41,8 @@ export interface DiagnosisDetail {
   /** Set by the reviewing physician: "Approved" | "Rejected" */
   physicianDecision?: string;
   physicianNotes?: string;
+  /** Full name of the physician who reviewed / edited this case */
+  physicianName?: string;
   /** ISO-8601 follow-up date set by EDIS */
   followUpDate?: string;
   /** Instructions listing trigger symptoms to watch for before the follow-up date */

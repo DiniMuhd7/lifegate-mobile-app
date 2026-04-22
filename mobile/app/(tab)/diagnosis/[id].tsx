@@ -398,6 +398,40 @@ export default function DiagnosisReportScreen() {
           {d.physicianNotes ? (
             <SectionCard title="Physician Notes">
               <Text className="text-sm text-gray-700 leading-6">{d.physicianNotes}</Text>
+              {d.physicianName ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginTop: 12,
+                    paddingTop: 10,
+                    borderTopWidth: 1,
+                    borderTopColor: '#f1f5f9',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 26,
+                      height: 26,
+                      borderRadius: 13,
+                      backgroundColor: '#ccfbf1',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="person-circle-outline" size={16} color="#0f766e" />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 10, color: '#94a3b8', fontWeight: '500' }}>
+                      Reviewed &amp; signed by
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#1e293b', fontWeight: '700' }}>
+                      Dr. {d.physicianName}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
             </SectionCard>
           ) : (
             d.status === 'Pending' && (
