@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
@@ -384,6 +384,15 @@ export default function HealthTimelineScreen() {
       fetchedForUserId.current = null;
     }
   }, [sessionLoading, user?.id]);
+
+  // Re-fetch on every return-to-focus so physician edits are visible immediately.
+  useFocusEffect(
+    useCallback(() => {
+      if (!sessionLoading && user?.id && fetchedForUserId.current === user.id) {
+        fetchPatientTimeline();
+      }
+    }, [sessionLoading, user?.id, fetchPatientTimeline]),
+  );
 
   const onRefresh = useCallback(async () => { await fetchPatientTimeline(); }, [fetchPatientTimeline]);
 

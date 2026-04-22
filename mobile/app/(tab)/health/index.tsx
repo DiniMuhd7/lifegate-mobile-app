@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
@@ -653,6 +653,20 @@ export default function HealthDashboardScreen() {
       fetchedForUserId.current = null;
     }
   }, [sessionLoading, user?.id]);
+
+  // Silently re-fetch whenever the patient navigates back to this tab so
+  // physician edits (condition, urgency, notes) appear without a manual
+  // pull-to-refresh. Only runs after the initial auth-gated load above has
+  // already completed (fetchedForUserId.current is set), which avoids a
+  // redundant double-fetch on first mount.
+  useFocusEffect(
+    useCallback(() => {
+      if (!sessionLoading && user?.id && fetchedForUserId.current === user.id) {
+        fetchPatientTimeline();
+        fetchPatientAlerts();
+      }
+    }, [sessionLoading, user?.id, fetchPatientTimeline, fetchPatientAlerts]),
+  );
 
   const [refreshing, setRefreshing] = useState(false);
 
