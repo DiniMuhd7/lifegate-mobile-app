@@ -2,7 +2,7 @@ import { View, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 
-export type TabBarTab = 'consultation' | 'chat' | 'review';
+export type TabBarTab = 'review' | 'chat' | 'consultation' | 'earnings';
 
 interface BottomTabBarProps {
   /** Optionally override the active tab. Defaults to pathname-based auto-detection. */
@@ -17,20 +17,25 @@ interface TabConfig {
 }
 
 const TABS: Record<TabBarTab, TabConfig> = {
+  review: {
+    label: 'Home',
+    icon: 'grid',
+    route: '/(prof-tab)/review',
+  },
   consultation: {
-    label: 'Consultation',
+    label: 'Cases',
     icon: 'heart',
     route: '/(prof-tab)/consultation',
   },
   chat: {
-    label: 'Chat',
+    label: 'Diagnosis',
     icon: 'chatbubble-ellipses',
     route: '/(prof-tab)/chat',
   },
-  review: {
-    label: 'Review',
-    icon: 'document-text',
-    route: '/(prof-tab)/review',
+  earnings: {
+    label: 'Earnings',
+    icon: 'wallet',
+    route: '/(prof-tab)/earnings',
   },
 };
 
@@ -43,6 +48,7 @@ export const BottomTabBar = ({ currentTab, onTabChange }: BottomTabBarProps) => 
   const activeTab: TabBarTab = currentTab ?? (
     pathname.includes('/consultation') ? 'consultation'
     : pathname.includes('/chat') ? 'chat'
+    : pathname.includes('/earnings') ? 'earnings'
     : 'review'
   );
 
