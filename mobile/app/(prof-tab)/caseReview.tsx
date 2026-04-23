@@ -439,6 +439,7 @@ export default function CaseReviewScreen() {
           duration: m.duration.trim(),
           instructions: m.instructions?.trim() ?? '',
         }));
+        
       const investigations = editInvestigations.filter(i => i.test.trim());
       await ProfessionalService.updateAIOutput(
         caseId,
