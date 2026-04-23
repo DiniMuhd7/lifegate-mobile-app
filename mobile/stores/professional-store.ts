@@ -270,7 +270,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
       if (detail?.patientId) {
         ProfessionalService.getPatientProfile(detail.patientId)
           .then((profile) => set({ currentPatient: profile }))
-          .catch(() => {});
+          .catch(() => { });
       }
     } catch (err) {
       set({
@@ -290,15 +290,24 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   },
 
   updateLocalAIOutput: (condition, urgency, confidence, notes, prescription, investigations) => {
-    set(state => {
-      if (!state.currentCase) return {};
-      const caseId = state.currentCase.id;
+    set((state) => {
+      if (!state.currentCase) return state;
 
-      // Sync the lightweight report entries so the consultation list reflects changes.
-      const syncReports = (list: any[]) =>
-        list.map(r =>
-          r.id === caseId ? { ...r, condition, urgency } : r
-        );
+      const caseId = state.currentCase.id;
+      const hasPrescription = !!prescription?.medicine?.trim();
+      const cleanedInvestigations = (investigations ?? []).filter((i) => i.test?.trim());
+      const hasInvestigations = cleanedInvestigations.length > 0;
+
+      const physicianOutput =
+        hasPrescription || hasInvestigations
+          ? {
+            prescription: hasPrescription ? prescription : undefined,
+            investigations: hasInvestigations ? cleanedInvestigations : undefined,
+          }
+          : undefined;
+
+      const syncReports = (list: typeof state.reports) =>
+        list.map((r) => (r.id === caseId ? { ...r, condition, urgency } : r));
 
       return {
         reports: syncReports(state.reports),
@@ -308,17 +317,20 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
           condition,
           urgency,
           physicianNotes: notes,
-          physicianOutput: (prescription || (investigations && investigations.length > 0))
-            ? { prescription, investigations }
-            : state.currentCase.physicianOutput,
-          aiResponse: state.currentCase.aiResponse
-            ? {
-                ...state.currentCase.aiResponse,
-                diagnosis: state.currentCase.aiResponse.diagnosis
-                  ? { ...state.currentCase.aiResponse.diagnosis, condition, urgency, confidence }
-                  : { condition, urgency, description: '', confidence },
+          physicianOutput,
+          aiResponse: {
+            ...(state.currentCase.aiResponse ?? { text: '' }),
+            diagnosis: state.currentCase.aiResponse?.diagnosis
+              ? {
+                ...state.currentCase.aiResponse.diagnosis,
+                condition,
+                urgency,
+                confidence,
               }
-            : undefined,
+              : { condition, urgency, description: '', confidence },
+            prescription: hasPrescription ? prescription : undefined,
+            investigations: hasInvestigations ? cleanedInvestigations : undefined,
+          },
         },
       };
     });
