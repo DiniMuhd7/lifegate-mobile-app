@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
 import { UI_SPACING } from 'constants/constants';
-import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation } from 'types/chat-types';
+import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation, VerifiedPhysician } from 'types/chat-types';
 
 export interface Message {
   id: string;
@@ -23,6 +23,7 @@ export interface Message {
   conditions?: ConditionScore[];
   riskFlags?: RiskFlag[];
   investigations?: Investigation[];
+  physicianSuggestions?: VerifiedPhysician[];
 }
 
 interface MessageListProps {
@@ -139,6 +140,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
         conditions={msg.conditions}
         riskFlags={msg.riskFlags}
         investigations={msg.investigations}
+        physicianSuggestions={msg.physicianSuggestions}
         isFirstInGroup={isFirstInGroup}
         isLastInGroup={isLastInGroup}
       />

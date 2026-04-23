@@ -10,7 +10,7 @@
  */
 
 import api from './api';
-import { Message, AIResponse, FinalizeResult } from 'types/chat-types';
+import { Message, AIResponse, FinalizeResult, VerifiedPhysician } from 'types/chat-types';
 
 /**
  * Service responsible for communicating with the Backend AI API.
@@ -121,5 +121,16 @@ export class ChatService {
       `/chat/sessions/${sessionId}/finalize`
     );
     return res.data.data;
+  }
+
+  /**
+   * Returns the list of MDCN-verified, active physicians available for
+   * patient preview in clinical diagnosis mode.
+   */
+  static async getAvailablePhysicians(): Promise<VerifiedPhysician[]> {
+    const res = await api.get<{ success: boolean; data: VerifiedPhysician[] }>(
+      '/physicians/available'
+    );
+    return res.data.data ?? [];
   }
 }

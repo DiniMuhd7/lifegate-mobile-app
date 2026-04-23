@@ -217,9 +217,14 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 
 	patient := s.fetchPatientContext(req.UserID)
 
-	// Carry forward the accumulated HPI from previous turns (Fix 5).
-	// This prevents the AI from re-asking for already-collected OLDCARTS fields.
-	knownHPI := s.fetchLatestHPI(req.UserID)
+	// Carry forward accumulated HPI only for continuation turns — NOT for the very
+	// first message of a new chat. On a fresh session the HPI from a previous
+	// unrelated case must not be injected or EDIS will skip symptom collection
+	// and produce a stale diagnosis without gathering new symptoms.
+	var knownHPI *ai.SymptomProfile
+	if len(req.PreviousMessages) > 0 {
+		knownHPI = s.fetchLatestHPI(req.UserID)
+	}
 
 	// Process never returns an error — graceful fallback is applied on failure.
 	resp, _ := s.engine.Process(ctx, messages, req.Category, patient, knownHPI)
@@ -253,8 +258,13 @@ func (s *Service) ChatInSession(ctx context.Context, sessionID, userID, message,
 
 	patient := s.fetchPatientContext(userID)
 
-	// Carry forward any previously collected HPI (Fix 5).
-	knownHPI := s.fetchLatestHPI(userID)
+	// Only carry forward HPI from the DB when the session already has prior turns.
+	// A session with an empty history is a fresh intake — injecting old-case HPI
+	// would bypass new symptom collection.
+	var knownHPI *ai.SymptomProfile
+	if len(history) > 0 {
+		knownHPI = s.fetchLatestHPI(userID)
+	}
 
 	resp, _ := s.engine.Process(ctx, messages, category, patient, knownHPI)
 
@@ -443,6 +453,14 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message string, r
 
 	cr.DiagnosisID = id
 	cr.IsExistingCase = !isNewCase
+
+	// When the patient's current symptoms match an existing active case, prepend a
+	// brief patient-facing notice so they know their record is being updated rather
+	// than a new case being created.  This satisfies Requirement 2: the patient is
+	// explicitly informed before the diagnosis card renders.
+	if !isNewCase {
+		cr.Text = "📋 Your current symptoms match your existing active case — I've updated it with today's information.\n\n" + cr.Text
+	}
 
 	diagData, _ := json.Marshal(map[string]interface{}{
 		"user_id":      userID,
@@ -699,4 +717,45 @@ func truncateMsg(s string, n int) string {
 		return s
 	}
 	return string(runes[:n]) + "…"
+}
+
+// ─── Available physicians ─────────────────────────────────────────────────────
+
+// AvailablePhysician is the patient-facing view of a verified, active physician.
+// Only public, non-sensitive fields are exposed.
+type AvailablePhysician struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Specialization string `json:"specialization"`
+	IsVerified     bool   `json:"isVerified"`
+}
+
+// GetAvailablePhysicians returns all MDCN-verified, active physicians suitable
+// for display as preview cards in the patient-facing chat UI.
+func (s *Service) GetAvailablePhysicians(ctx context.Context) ([]AvailablePhysician, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id::text, name, COALESCE(specialization, ''), mdcn_verified
+		FROM users
+		WHERE role = 'physician'
+		  AND mdcn_verified = true
+		  AND COALESCE(account_status, 'active') = 'active'
+		  AND (flagged IS NULL OR flagged = false)
+		ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []AvailablePhysician
+	for rows.Next() {
+		var p AvailablePhysician
+		if err := rows.Scan(&p.ID, &p.Name, &p.Specialization, &p.IsVerified); err != nil {
+			continue
+		}
+		result = append(result, p)
+	}
+	if result == nil {
+		result = []AvailablePhysician{}
+	}
+	return result, nil
 }

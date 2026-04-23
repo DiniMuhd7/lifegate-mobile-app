@@ -320,6 +320,10 @@ func main() {
 		chatSessionsGroup.POST("/:id/finalize", genaiHandler.FinalizeSession)
 	}
 
+	// Patient-accessible physician preview endpoint — authenticated patients can browse
+	// verified physicians before requesting a consultation (clinical mode only in the UI).
+	api.GET("/physicians/available", middleware.Auth(cfg.JWTSecret), genaiHandler.GetAvailablePhysicians)
+
 	// Physician routes — require both a valid JWT and the "physician" (or "admin") role.
 	physicianGroup := api.Group("/physician", middleware.Auth(cfg.JWTSecret), middleware.PhysicianOnly())
 	{

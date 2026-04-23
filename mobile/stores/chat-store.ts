@@ -25,6 +25,7 @@ import {
   Message,
   MessageStatus,
   SessionMode,
+  VerifiedPhysician,
 } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
 import { SessionService } from 'services/session-service';
@@ -144,7 +145,7 @@ function buildUserMessage(text: string): Message {
   };
 }
 
-function buildAIMessage(aiResponse: AIResponse): Message {
+function buildAIMessage(aiResponse: AIResponse, physicianSuggestions?: VerifiedPhysician[]): Message {
   return {
     id: generateId(),
     role: 'AI',
@@ -159,11 +160,27 @@ function buildAIMessage(aiResponse: AIResponse): Message {
     conditions: aiResponse.conditions,
     riskFlags: aiResponse.riskFlags,
     investigations: aiResponse.investigations,
+    physicianSuggestions,
   };
 }
 
 function deriveConversationTitle(conversation: Conversation, userMessage: Message) {
   return conversation.title || `Chat - ${userMessage.text.substring(0, 30)}...`;
+}
+
+/**
+ * Returns true when the user message explicitly requests a physician connection.
+ * Used to trigger the physician preview cards in Clinical Diagnosis mode.
+ */
+const PHYSICIAN_INTENT_KEYWORDS = [
+  'physician', 'doctor', 'specialist', 'consult', 'consultation',
+  'licensed', 'see a physician', 'see a doctor', 'connect me', 'connect to a',
+  'medical professional', 'clinical consultation',
+];
+
+function isPhysicianRequestIntent(text: string): boolean {
+  const lower = text.toLowerCase();
+  return PHYSICIAN_INTENT_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 function handleEscalation(
@@ -200,9 +217,10 @@ function handleEscalation(
 function appendAIMessage(
   conversation: Conversation,
   userMessage: Message,
-  aiResponse: AIResponse
+  aiResponse: AIResponse,
+  physicianSuggestions?: VerifiedPhysician[]
 ) {
-  const aiMessage = buildAIMessage(aiResponse);
+  const aiMessage = buildAIMessage(aiResponse, physicianSuggestions);
   const updatedMessages = conversation.messages.map((message) =>
     message.id === userMessage.id ? { ...message, status: 'READ' as MessageStatus } : message
   );
@@ -484,7 +502,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      const appended = appendAIMessage(conversationSnapshot, userMessage, aiResponse);
+      // Fetch physician preview cards when the patient is in Clinical Diagnosis mode
+      // and the message signals intent to consult a physician (Requirement 4).
+      let physicianSuggestions: VerifiedPhysician[] | undefined;
+      const isClinicalMode =
+        conversationSnapshot.mode === 'clinical_diagnosis' ||
+        aiResponse.mode === 'clinical';
+      if (isClinicalMode && isPhysicianRequestIntent(snapshot.userMessage.text)) {
+        physicianSuggestions = await ChatService.getAvailablePhysicians().catch(() => undefined);
+      }
+
+      const appended = appendAIMessage(conversationSnapshot, userMessage, aiResponse, physicianSuggestions);
       const escalatedConversation = handleEscalation(
         appended.conversation,
         aiResponse,

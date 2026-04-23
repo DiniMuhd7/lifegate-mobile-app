@@ -81,6 +81,8 @@ export type Message = {
   conditions?: ConditionScore[];   // Ranked differential diagnosis list
   riskFlags?: RiskFlag[];          // Early-stage risk signals
   investigations?: Investigation[]; // Recommended medical tests
+  // Physician preview cards injected when the patient requests a physician in clinical mode
+  physicianSuggestions?: VerifiedPhysician[];
 };
 
 // Conversation (session of messages)
@@ -144,6 +146,15 @@ export type ChatServiceResponse = {
   success: boolean;
   data?: AIResponse;
   error?: string;
+};
+
+// Verified, active physician available for patient-facing consultation preview.
+// Only public, non-sensitive fields are returned by the backend.
+export type VerifiedPhysician = {
+  id: string;
+  name: string;
+  specialization: string;
+  isVerified: boolean;
 };
 
 // ─── Server-side session types ────────────────────────────────────────────────

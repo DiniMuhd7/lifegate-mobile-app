@@ -203,3 +203,24 @@ func (h *Handler) FinalizeSession(c *gin.Context) {
 	})
 }
 
+// ─── GET /api/physicians/available ───────────────────────────────────────────
+
+// GetAvailablePhysicians returns the list of MDCN-verified, active physicians
+// for display as preview cards in the patient-facing chat UI (clinical mode only).
+//
+// @Summary      List available physicians
+// @Description  Returns verified, active physicians for the patient to browse before connecting.
+// @Tags         genai
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physicians/available [get]
+func (h *Handler) GetAvailablePhysicians(c *gin.Context) {
+	physicians, err := h.svc.GetAvailablePhysicians(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch physicians"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": physicians})
+}

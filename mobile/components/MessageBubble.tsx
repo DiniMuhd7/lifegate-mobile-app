@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { UI_FONT_SIZES, UI_SPACING } from 'constants/constants';
-import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation } from 'types/chat-types';
+import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation, VerifiedPhysician } from 'types/chat-types';
 import { DiagnosisCard } from './DiagnosisCard';
 import { PrescriptionCard } from './PrescriptionCard';
 import { MarkdownText } from './MarkdownText';
@@ -12,6 +12,7 @@ import { FollowUpChips } from './FollowUpChips';
 import { DifferentialList } from './DifferentialList';
 import { RiskFlagList } from './RiskFlagList';
 import { InvestigationList } from './InvestigationList';
+import { PhysicianPreviewList } from './PhysicianPreviewList';
 
 // Tick/check status indicator for sent messages (WhatsApp-style)
 const MessageTicks: React.FC<{ status: 'SENDING' | 'SENT' | 'READ' | 'FAILED' }> = ({ status }) => {
@@ -58,6 +59,7 @@ interface MessageBubbleProps {
   conditions?: ConditionScore[];
   riskFlags?: RiskFlag[];
   investigations?: Investigation[];
+  physicianSuggestions?: VerifiedPhysician[];
   /** Whether this is the first bubble in a consecutive same-sender group */
   isFirstInGroup?: boolean;
   /** Whether this is the last bubble in a consecutive same-sender group */
@@ -95,6 +97,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   conditions,
   riskFlags,
   investigations,
+  physicianSuggestions,
   isFirstInGroup = true,
   isLastInGroup = true,
 }) => {
@@ -342,6 +345,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
             {/* Investigations */}
             {investigations && investigations.length > 0 && (
               <InvestigationList investigations={investigations} />
+            )}
+
+            {/* Physician preview cards — only shown in clinical mode when patient requests a physician */}
+            {physicianSuggestions && (
+              <PhysicianPreviewList physicians={physicianSuggestions} />
             )}
 
             {/* Follow-up chips — only shown while triage is still in progress (no diagnosis yet) */}
