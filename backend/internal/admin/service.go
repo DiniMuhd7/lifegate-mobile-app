@@ -106,6 +106,10 @@ func (s *Service) GetAllTransactions(status string, page, pageSize int) ([]Admin
 	return s.repo.GetAllTransactions(status, page, pageSize)
 }
 
+func (s *Service) AdjustCredit(userID string, amount int, reason, adminID string) error {
+	return s.repo.AdjustCredit(userID, amount, reason, adminID)
+}
+
 func (s *Service) BuildTransactionCSV(status string) ([]byte, error) {
 	return s.repo.BuildTransactionCSV(status)
 }

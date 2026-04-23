@@ -593,6 +593,39 @@ func (h *Handler) ExportTransactionsCSV(c *gin.Context) {
 	c.Data(http.StatusOK, "text/csv; charset=utf-8", csv)
 }
 
+// ─── POST /api/admin/credits/adjust ──────────────────────────────────────────
+
+// AdjustCredit manually adds or deducts credits for a patient account.
+//
+// @Summary      Admin credit adjustment
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{userId=string,amount=integer,reason=string}  true  "Adjustment"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /admin/credits/adjust [post]
+func (h *Handler) AdjustCredit(c *gin.Context) {
+	var body struct {
+		UserID string `json:"userId" binding:"required"`
+		Amount int    `json:"amount" binding:"required"`
+		Reason string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+	if err := h.svc.AdjustCredit(body.UserID, body.Amount, body.Reason, adminIDStr); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Credit balance adjusted"})
+}
+
 // ─── GET /api/admin/compliance/ndpa ──────────────────────────────────────────
 
 // GetNDPASnapshots returns recent NDPA 2023 compliance snapshots.

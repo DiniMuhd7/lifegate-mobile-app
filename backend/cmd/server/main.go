@@ -194,6 +194,7 @@ func main() {
 		cfg.FlutterwaveSecretKey,
 		cfg.FlutterwavePublicKey,
 		cfg.FlutterwaveRedirectURL,
+		cfg.FlutterwaveWebhookHash,
 	)
 	paymentsHandler := payments.NewHandler(paymentsSvc)
 	referralSvc := referral.NewService(database)
@@ -288,6 +289,7 @@ func main() {
 		// The mobile client sends ?category=clinical_diagnosis as a query param
 		// in addition to the body so we can gate without body re-reading.
 		genaiGroup.POST("/chat", func(c *gin.Context) {
+			var refundUID string
 			if c.Query("category") == "clinical_diagnosis" {
 				uid, _ := c.Get("userID")
 				uidStr, _ := uid.(string)
@@ -306,8 +308,14 @@ func main() {
 					c.Abort()
 					return
 				}
+				refundUID = uidStr
 			}
 			genaiHandler.Chat(c)
+			// Refund the credit if the AI handler returned a server error so the
+			// user is not billed for a failed request.
+			if refundUID != "" && c.Writer.Status() >= 500 {
+				_ = paymentsSvc.RefundCredit(refundUID)
+			}
 		})
 		genaiGroup.POST("/health-check", genaiHandler.HealthCheck)
 		genaiGroup.GET("/status", genaiHandler.Status)
@@ -385,6 +393,9 @@ func main() {
 	api.GET("/physician/alerts", middleware.Auth(cfg.JWTSecret), alertsHandler.GetPhysicianAlerts)
 
 	// Payments & Credits
+	// Webhook is public (no JWT) — Flutterwave calls it directly.
+	// Authenticity is verified inside the handler via the verif-hash header.
+	api.POST("/payments/webhook", paymentsHandler.Webhook)
 	api.GET("/payments/bundles", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetBundles)
 	api.POST("/payments/initiate", middleware.Auth(cfg.JWTSecret), paymentsHandler.InitiatePayment)
 	api.POST("/payments/verify", middleware.Auth(cfg.JWTSecret), paymentsHandler.VerifyPayment)
@@ -478,6 +489,7 @@ func main() {
 		// Payment & credit transaction log (admin view)
 		adminGroup.GET("/transactions", adminHandler.GetAllTransactions)
 		adminGroup.GET("/transactions/export", adminHandler.ExportTransactionsCSV)
+		adminGroup.POST("/credits/adjust", adminHandler.AdjustCredit)
 
 		// NDPA 2023 compliance
 		adminGroup.GET("/compliance/ndpa", adminHandler.GetNDPASnapshots)

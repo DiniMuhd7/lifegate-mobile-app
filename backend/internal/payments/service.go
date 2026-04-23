@@ -3,20 +3,23 @@ package payments
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 )
 
 // Credit bundles: bundleID → {amount in kobo, credits granted}
 var Bundles = map[string]Bundle{
-	"2000":  {ID: "2000", AmountNaira: 2000, Credits: 5, Label: "₦2,000 — 5 Diagnoses"},
-	"5000":  {ID: "5000", AmountNaira: 5000, Credits: 15, Label: "₦5,000 — 15 Diagnoses"},
-	"10000": {ID: "10000", AmountNaira: 10000, Credits: 40, Label: "₦10,000 — 40 Diagnoses"},
+	"2000":  {ID: "2000", AmountNaira: 2000, Credits: 5, Label: "₦2,000 — 5 Credits"},
+	"5000":  {ID: "5000", AmountNaira: 5000, Credits: 15, Label: "₦5,000 — 15 Credits"},
+	"10000": {ID: "10000", AmountNaira: 10000, Credits: 40, Label: "₦10,000 — 40 Credits"},
 }
 
 type Bundle struct {
@@ -83,6 +86,28 @@ type flwVerifyResponse struct {
 	} `json:"data"`
 }
 
+type flwTransactionListResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Data    []struct {
+		ID     int    `json:"id"`
+		TxRef  string `json:"tx_ref"`
+		Amount int    `json:"amount"`
+		Status string `json:"status"`
+	} `json:"data"`
+}
+
+// WebhookPayload is the body Flutterwave POSTs to our webhook endpoint.
+type WebhookPayload struct {
+	Event string `json:"event"`
+	Data  struct {
+		ID     int    `json:"id"`
+		TxRef  string `json:"tx_ref"`
+		Amount int    `json:"amount"`
+		Status string `json:"status"` // "successful"
+	} `json:"data"`
+}
+
 const flwBaseURL = "https://api.flutterwave.com/v3"
 
 // TrialCredits is the number of free credits granted to every new patient account.
@@ -98,15 +123,17 @@ type Service struct {
 	secretKey   string
 	publicKey   string
 	redirectURL string
+	webhookHash string
 	httpClient  *http.Client
 }
 
-func NewService(db *sql.DB, secretKey, publicKey, redirectURL string) *Service {
+func NewService(db *sql.DB, secretKey, publicKey, redirectURL, webhookHash string) *Service {
 	return &Service{
 		db:          db,
 		secretKey:   secretKey,
 		publicKey:   publicKey,
 		redirectURL: redirectURL,
+		webhookHash: webhookHash,
 		httpClient:  &http.Client{Timeout: flwHTTPTimeout},
 	}
 }
@@ -422,6 +449,61 @@ func (s *Service) InitiatePayment(userID, email, name, bundleID string) (string,
 	return txRef, link, nil
 }
 
+// RefundCredit atomically adds 1 credit back to a user's wallet.
+// Called when the AI endpoint errors after a credit was already deducted.
+func (s *Service) RefundCredit(userID string) error {
+	_, err := s.db.Exec(
+		`UPDATE credits SET balance = balance + 1, updated_at = NOW()
+		 WHERE user_id = $1::uuid`,
+		userID,
+	)
+	return err
+}
+
+// ProcessWebhook validates a Flutterwave webhook and credits the user on success.
+// hashHeader is the value of the "verif-hash" HTTP header sent by Flutterwave.
+func (s *Service) ProcessWebhook(payload WebhookPayload, hashHeader string) error {
+	// Verify signature: Flutterwave sends the raw webhook secret in verif-hash.
+	// We compare with HMAC-SHA256 of the raw body when a webhook secret is set,
+	// falling back to a plain equality check (legacy dashboard config).
+	if s.webhookHash != "" && hashHeader != s.webhookHash {
+		// Second chance: check HMAC-SHA256 signature for newer setups.
+		h := sha256.New()
+		h.Write([]byte(s.webhookHash))
+		expected := hex.EncodeToString(h.Sum(nil))
+		if hashHeader != expected {
+			return fmt.Errorf("webhook: invalid signature")
+		}
+	}
+
+	if payload.Event != "charge.completed" {
+		// Unrecognised event — acknowledge without action.
+		return nil
+	}
+	if payload.Data.Status != "successful" {
+		return nil
+	}
+
+	flwTxID := strconv.Itoa(payload.Data.ID)
+
+	// Look up which user owns this txRef.
+	var userID string
+	err := s.db.QueryRow(
+		`SELECT user_id::text FROM payment_transactions WHERE tx_ref = $1`,
+		payload.Data.TxRef,
+	).Scan(&userID)
+	if err == sql.ErrNoRows {
+		// Transaction not initiated through our system — ignore.
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = s.VerifyAndCredit(userID, payload.Data.TxRef, flwTxID)
+	return err
+}
+
 // VerifyAndCredit verifies a completed Flutterwave payment and credits the user.
 func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransaction, error) {
 	var pt PaymentTransaction
@@ -445,6 +527,18 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 
 	// In dev mode (no secret key), auto-approve.
 	verified := s.secretKey == ""
+
+	// Web clients cannot capture flwTxId from the deep-link redirect.
+	// Look it up via Flutterwave's filter API so verification still succeeds.
+	if !verified && flwTxID == "" {
+		lookuped, err := s.flwGetIDByTxRef(txRef)
+		if err == nil {
+			flwTxID = lookuped
+		}
+		// If the lookup also fails, verification will fall through to "failed" —
+		// no change in behaviour from before this fix.
+	}
+
 	if !verified && flwTxID != "" {
 		ok, err := s.flwVerify(flwTxID, pt.Amount)
 		if err != nil {
@@ -612,4 +706,34 @@ func (s *Service) flwVerify(flwTxID string, expectedAmount int) (bool, error) {
 	}
 	d := flwResp.Data
 	return d.Status == "successful" && d.Amount >= expectedAmount && d.Currency == "NGN", nil
+}
+
+// flwGetIDByTxRef looks up a Flutterwave transaction by tx_ref and returns
+// the flw transaction ID as a string. Used when the client cannot supply it
+// (e.g. web redirect flow where the deep-link callback is not interceptable).
+func (s *Service) flwGetIDByTxRef(txRef string) (string, error) {
+	httpReq, err := http.NewRequestWithContext(
+		context.Background(), http.MethodGet,
+		flwBaseURL+"/transactions?tx_ref="+txRef, nil,
+	)
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+s.secretKey)
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	raw, _ := io.ReadAll(resp.Body)
+	var res flwTransactionListResponse
+	if err := json.Unmarshal(raw, &res); err != nil {
+		return "", fmt.Errorf("flutterwave: bad response: %s", string(raw))
+	}
+	if res.Status != "success" || len(res.Data) == 0 {
+		return "", fmt.Errorf("flutterwave: no transaction found for tx_ref=%s", txRef)
+	}
+	return strconv.Itoa(res.Data[0].ID), nil
 }

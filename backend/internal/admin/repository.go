@@ -1061,6 +1061,61 @@ func (r *Repository) GetAllTransactions(status string, page, pageSize int) ([]Ad
 	return out, total, rows.Err()
 }
 
+// AdjustCredit manually adds or deducts credits for a user and records an
+// audit transaction so the change is visible in the admin transaction log.
+// A positive amount adds credits; negative deducts (balance floored at 0).
+func (r *Repository) AdjustCredit(userID string, amount int, reason, adminID string) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var newBalance int
+	scanErr := tx.QueryRow(
+		`UPDATE credits
+		 SET balance = GREATEST(0, balance + $1), updated_at = NOW()
+		 WHERE user_id = $2::uuid
+		 RETURNING balance`,
+		amount, userID,
+	).Scan(&newBalance)
+	if scanErr == sql.ErrNoRows {
+		// User has no credits row yet — create one.
+		adj := amount
+		if adj < 0 {
+			adj = 0
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO credits (user_id, balance, updated_at)
+			 VALUES ($1::uuid, $2, NOW())`,
+			userID, adj,
+		); err != nil {
+			return err
+		}
+		newBalance = adj
+	} else if scanErr != nil {
+		return scanErr
+	}
+
+	// Record in payment_transactions for full audit trail.
+	bundleLabel := "admin_credit"
+	if amount < 0 {
+		bundleLabel = "admin_debit"
+	}
+	txRef := fmt.Sprintf("ADMIN-ADJ-%s-%d", adminID[:8], time.Now().UnixMilli())
+	if _, err := tx.Exec(
+		`INSERT INTO payment_transactions
+		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
+		 VALUES ($1::uuid, $2, 0, $3, 'success', $4)`,
+		userID, txRef, amount, bundleLabel,
+	); err != nil {
+		return err
+	}
+
+	_ = newBalance // available for future audit-log enrichment
+	return tx.Commit()
+}
+
 // ─── NDPA compliance ──────────────────────────────────────────────────────────
 
 // GenerateNDPASnapshot computes a live NDPA 2023 compliance snapshot and persists it.

@@ -43,6 +43,7 @@ type Config struct {
 	FlutterwaveSecretKey   string
 	FlutterwavePublicKey   string
 	FlutterwaveRedirectURL string
+	FlutterwaveWebhookHash string
 
 	// HealthDataKey is used to derive the AES-256 key for encrypting
 	// sensitive health fields in the users table. Falls back to JWT_SECRET
@@ -98,6 +99,7 @@ func Load() *Config {
 		FlutterwaveSecretKey:   getEnv("FLW_SECRET_KEY", ""),
 		FlutterwavePublicKey:   getEnv("FLW_PUBLIC_KEY", ""),
 		FlutterwaveRedirectURL: getEnv("FLW_REDIRECT_URL", ""),
+		FlutterwaveWebhookHash: getEnv("FLW_WEBHOOK_HASH", ""),
 
 		HealthDataKey: getEnv("HEALTH_DATA_KEY", getEnv("JWT_SECRET", "changeme-secret")),
 

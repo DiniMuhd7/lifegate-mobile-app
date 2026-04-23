@@ -10,7 +10,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { type WebViewNavigation } from 'react-native-webview';
 
 // WebView is only loaded on native to avoid the "platform not supported" error on web.
@@ -31,6 +31,7 @@ export default function SubscriptionScreen() {
   const {
     balance,
     bundles,
+    transactions,
     paymentLink,
     activeTxRef,
     loading,
@@ -55,6 +56,13 @@ export default function SubscriptionScreen() {
     fetchBalance();
     fetchBundles();
   }, []);
+
+  // Refresh balance whenever the screen is focused (e.g. returning from checkout).
+  useFocusEffect(
+    useCallback(() => {
+      fetchBalance();
+    }, [])
+  );
 
   useEffect(() => {
     if (!paymentLink) return;
@@ -205,7 +213,10 @@ export default function SubscriptionScreen() {
             <Text className="text-sm text-gray-500 mt-1">credits available for diagnosis sessions</Text>
           </View>
 
-          {(balance?.balance ?? 0) > 0 && (balance?.balance ?? 0) <= 3 && (
+          {(balance?.balance ?? 0) > 0 &&
+            (balance?.balance ?? 0) <= 3 &&
+            transactions.length > 0 &&
+            transactions.every((t) => t.bundleId === 'trial') && (
             <View className="mb-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex-row items-start gap-3">
               <Ionicons name="gift-outline" size={20} color="#b45309" style={{ marginTop: 1 }} />
               <View className="flex-1">

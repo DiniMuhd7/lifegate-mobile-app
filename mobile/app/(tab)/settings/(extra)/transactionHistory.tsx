@@ -129,25 +129,3 @@ export default function TransactionHistoryScreen() {
     </View>
   );
 }
-
-interface Transaction {
-  id: string;
-  status: 'successful' | 'declined' | 'pending';
-  title: string;
-  amount: string;
-  timeAgo: string;
-}
-
-const transactionData: { today: Transaction[]; yesterday: Transaction[]; older: Transaction[] } = {
-  today: [
-    { id: '1', status: 'successful', title: 'Payment Successful', amount: '₦5,000 LifeGate Credit', timeAgo: '2h ago' },
-    { id: '2', status: 'successful', title: 'Payment Successful', amount: '₦2,000 LifeGate Credit', timeAgo: '5h ago' },
-  ],
-  yesterday: [
-    { id: '3', status: 'declined', title: 'Payment Declined', amount: '₦2,000 payment declined', timeAgo: '12h ago' },
-  ],
-  older: [
-    { id: '4', status: 'pending', title: 'Pending', amount: '₦2,000 payment declined', timeAgo: '2d ago' },
-    { id: '5', status: 'successful', title: 'Payment Successful', amount: '₦10,000 LifeGate Credit', timeAgo: '6d ago' },
-  ],
-};

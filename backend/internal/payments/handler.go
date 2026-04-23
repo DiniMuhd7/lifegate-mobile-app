@@ -182,3 +182,31 @@ func (h *Handler) GetTransactions(c *gin.Context) {
 		},
 	})
 }
+
+// Webhook receives Flutterwave payment event notifications and auto-credits
+// users when a charge.completed event arrives with status "successful".
+//
+// @Summary      Flutterwave webhook
+// @Tags         payments
+// @Accept       json
+// @Produce      json
+// @Param        verif-hash  header    string  true  "Flutterwave webhook secret hash"
+// @Success      200         {object}  object{success=bool}
+// @Router       /payments/webhook [post]
+func (h *Handler) Webhook(c *gin.Context) {
+	hashHeader := c.GetHeader("verif-hash")
+
+	var payload WebhookPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		// Return 200 so Flutterwave doesn't keep retrying malformed payloads.
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "bad payload"})
+		return
+	}
+
+	if err := h.svc.ProcessWebhook(payload, hashHeader); err != nil {
+		// Log but always return 200 — Flutterwave retries on non-2xx.
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
