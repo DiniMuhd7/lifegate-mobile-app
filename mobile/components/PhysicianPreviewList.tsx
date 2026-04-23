@@ -15,25 +15,10 @@ interface PhysicianPreviewListProps {
  * in Clinical Diagnosis mode.
  */
 export const PhysicianPreviewList: React.FC<PhysicianPreviewListProps> = ({ physicians }) => {
+  // Never render an inline empty-state card — if there are no physicians, the AI
+  // text response already guides the patient. Only render when we have real cards.
   if (!physicians || physicians.length === 0) {
-    return (
-      <View
-        style={{
-          marginTop: 10,
-          padding: 12,
-          borderRadius: 12,
-          backgroundColor: '#f0fdfa',
-          borderWidth: 1,
-          borderColor: '#99f6e4',
-          alignItems: 'center',
-        }}
-      >
-        <Ionicons name="person-circle-outline" size={24} color="#0f766e" />
-        <Text style={{ fontSize: 12, color: '#0f766e', fontWeight: '600', marginTop: 4, textAlign: 'center' }}>
-          No physicians are currently available. Please try again shortly.
-        </Text>
-      </View>
-    );
+    return null;
   }
 
   return (

@@ -502,14 +502,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      // Fetch physician preview cards when the patient is in Clinical Diagnosis mode
-      // and the message signals intent to consult a physician (Requirement 4).
+      // Fetch physician preview cards ONLY when the session is explicitly in Clinical
+      // Diagnosis mode AND the patient's message signals physician intent (Req 4).
+      // Deliberately NOT using aiResponse.mode === 'clinical' here: the AI returns
+      // mode='clinical' for almost any symptom message, which would incorrectly
+      // trigger physician cards on every health query.
       let physicianSuggestions: VerifiedPhysician[] | undefined;
-      const isClinicalMode =
-        conversationSnapshot.mode === 'clinical_diagnosis' ||
-        aiResponse.mode === 'clinical';
+      const isClinicalMode = conversationSnapshot.mode === 'clinical_diagnosis';
       if (isClinicalMode && isPhysicianRequestIntent(snapshot.userMessage.text)) {
-        physicianSuggestions = await ChatService.getAvailablePhysicians().catch(() => undefined);
+        const physicians = await ChatService.getAvailablePhysicians().catch(() => undefined);
+        // Only attach when there are actual physicians to show — an empty array is
+        // truthy and would render the "no physicians" fallback card unnecessarily.
+        if (physicians && physicians.length > 0) {
+          physicianSuggestions = physicians;
+        }
       }
 
       const appended = appendAIMessage(conversationSnapshot, userMessage, aiResponse, physicianSuggestions);

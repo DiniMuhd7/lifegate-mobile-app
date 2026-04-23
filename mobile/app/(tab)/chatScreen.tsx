@@ -51,6 +51,8 @@ const STARTER_CHIPS: {
   bg: string;
   label: string;
   prompt: string;
+  /** Optional category override applied on the first message of a new session. */
+  category?: ConversationCategory;
 }[] = [
   {
     icon: 'pulse-outline',
@@ -79,6 +81,9 @@ const STARTER_CHIPS: {
     bg: '#ccfbf1',
     label: 'See a Physician',
     prompt: 'I would like to be connected to a licensed physician for a clinical consultation.',
+    // Explicitly route to doctor_consultation so EDIS uses the consultation-
+    // specific prompt snippet and does NOT fire the generic off-topic redirect.
+    category: 'doctor_consultation',
   },
 ];
 
@@ -505,7 +510,7 @@ const ChatScreen: React.FC = () => {
                   {STARTER_CHIPS.map((chip) => (
                     <TouchableOpacity
                       key={chip.label}
-                      onPress={() => sendMessage(chip.prompt)}
+                      onPress={() => sendMessage(chip.prompt, chip.category)}
                       activeOpacity={0.72}
                       style={{
                         width: '47.5%',
