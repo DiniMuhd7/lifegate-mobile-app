@@ -481,23 +481,13 @@ const PROMOTIONS = [
 function PromotionsSection() {
   return (
     <View style={{ marginBottom: 16 }}>
-      <Text
+      <View
         style={{
-          fontSize: 11,
-          fontWeight: '700',
-          color: '#6b7280',
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-          marginBottom: 10,
-          marginHorizontal: 16,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: 10,
+          paddingHorizontal: 16,
         }}
-      >
-        Promotion
-      </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
       >
         {PROMOTIONS.map((item) => (
           <Pressable
@@ -539,7 +529,7 @@ function PromotionsSection() {
             </Text>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
