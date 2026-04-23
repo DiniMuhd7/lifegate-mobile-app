@@ -225,13 +225,7 @@ export default function PatientProfileScreen() {
         >
           <View className="px-4 pt-4 pb-3">
             <View className="flex-row items-center mb-3">
-              <TouchableOpacity
-                className="h-10 w-10 rounded-full bg-white items-center justify-center active:opacity-70"
-                onPress={() => router.replace('/(tab)/health')}
-              >
-                <Ionicons name="arrow-back" size={20} color="#1A1A2E" />
-              </TouchableOpacity>
-              <Text className="flex-1 text-center text-2xl font-black text-gray-900 mr-10">
+              <Text className="flex-1 text-center text-2xl font-black text-gray-900">
                 Profile
               </Text>
             </View>
