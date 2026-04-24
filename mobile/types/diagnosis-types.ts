@@ -41,6 +41,8 @@ export interface DiagnosisDetail {
   /** Set by the reviewing physician: "Approved" | "Rejected" */
   physicianDecision?: string;
   physicianNotes?: string;
+  /** Personalised health tips written by the reviewing physician. */
+  physicianHealthTips?: string;
   /** Full name of the physician who reviewed / edited this case */
   physicianName?: string;
   /** ISO-8601 follow-up date set by EDIS */

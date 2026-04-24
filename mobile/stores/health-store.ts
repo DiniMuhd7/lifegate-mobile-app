@@ -70,6 +70,7 @@ export const useHealthStore = create<HealthState>((set, get) => ({
               status: detail.status as HealthTimelineEntry['status'],
               confidence: detail.confidence,
               physicianNotes: detail.physicianNotes,
+              physicianHealthTips: detail.physicianHealthTips,
               physicianName: detail.physicianName,
               physicianDecision: detail.physicianDecision,
               hasPrescription: detail.hasPrescription,

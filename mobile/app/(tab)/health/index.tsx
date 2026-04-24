@@ -816,12 +816,13 @@ export default function HealthDashboardScreen() {
               lastReportedCase={latest ? (latest.condition || latest.title) : undefined}
               lastReportedDate={latest ? formatRelativeDate(latest.createdAt) : undefined}
               activeCases={totalActive}
-              insightText={insight.text}
+              insightText={
+                latest?.physicianHealthTips?.trim()
+                  ? latest.physicianHealthTips.trim()
+                  : 'Your physician\'s personalised health tips will appear here once your case is reviewed.'
+              }
             />
           </View>
-
-          {/* AI / Physician insight card — always shown so the label is visible */}
-          <AIInsightCard insight={insight} />
 
           <PromotionsSection />
 
