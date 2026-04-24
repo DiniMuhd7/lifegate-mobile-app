@@ -211,50 +211,50 @@ function calculateAge(dob: string | undefined): number | null {
 function generateHealthTipsForCondition(condition: string): string {
   const c = condition.toLowerCase();
   if (c.includes('malaria')) {
-    return 'Complete your full antimalarial course even if you feel better. Sleep under an insecticide-treated net every night. Drink at least 2–3 litres of water daily. Avoid self-medicating — return to your physician if fever persists beyond 48 hours of treatment.';
+    return 'Complete your full antimalarial course even if you feel better, and return if fever persists after 48 hours.';
   }
   if (c.includes('typhoid')) {
-    return 'Eat soft, easily digestible foods and drink only boiled or bottled water. Take all antibiotics exactly as prescribed — do not stop early. Wash hands thoroughly before meals. Return for review if you develop a severe headache or persistent high fever.';
+    return 'Eat soft foods, drink only boiled or bottled water, and complete all prescribed antibiotics without stopping early.';
   }
   if (c.includes('hypertension') || c.includes('blood pressure')) {
-    return 'Reduce salt intake to less than 5g per day. Aim for 30 minutes of moderate exercise (walking) most days. Take your blood pressure medication at the same time each day without skipping. Monitor your blood pressure weekly if possible and report any readings above 160/100 mmHg promptly.';
+    return 'Reduce salt intake and take your blood pressure medication at the same time every day without skipping.';
   }
   if (c.includes('diabetes')) {
-    return 'Check your blood glucose daily if you have a glucometer. Avoid sugary drinks, white bread, and processed foods. Take a 15–20 minute walk after meals. Never skip your diabetes medication. Contact your physician immediately if blood sugar is consistently above 15 mmol/L or you feel confused or drowsy.';
+    return 'Avoid sugary drinks and processed foods, take a short walk after meals, and never skip your diabetes medication.';
   }
   if (c.includes('tuberculosis') || c.includes('tb')) {
-    return 'Take all TB medications daily — never skip a dose as this causes drug resistance. Keep your sleeping area well-ventilated. Cover your mouth when coughing. Eat protein-rich foods (eggs, beans, fish) to support recovery. TB is curable when treated correctly; complete the full course.';
+    return 'Take all TB medications daily without missing a dose, as missed doses cause drug resistance — complete the full course.';
   }
   if (c.includes('hiv') || c.includes('aids')) {
-    return 'Take your antiretroviral (ARV) medication every day at the same time. Do not share needles or razors. Use condoms consistently. Keep all clinic appointments for viral load monitoring. A healthy diet and regular sleep strengthen your immune response.';
+    return 'Take your antiretroviral medication every day at the same time and keep all clinic appointments for viral load monitoring.';
   }
   if (c.includes('sickle cell') || c.includes('scd')) {
-    return 'Stay well-hydrated — aim for 2–3 litres of water per day. Avoid becoming too cold or overheated. Keep pain relief medication accessible at home. Seek emergency care immediately for chest pain, severe shortness of breath, or a stroke-like event.';
+    return 'Stay well-hydrated with 2–3 litres of water daily, avoid extreme temperatures, and seek emergency care for chest pain or shortness of breath.';
   }
   if (c.includes('peptic') || c.includes('ulcer') || c.includes('gastritis')) {
-    return 'Eat 4–5 small meals a day instead of large ones. Avoid ibuprofen, aspirin, alcohol, and spicy foods. Take your antacid or PPI medication as prescribed, usually 30 minutes before meals. Quit smoking if applicable. Return if you notice black or tarry stools, which may indicate bleeding.';
+    return 'Avoid ibuprofen, aspirin, alcohol, and spicy foods while taking your prescribed antacid or PPI medication.';
   }
   if (c.includes('uti') || c.includes('urinary')) {
-    return 'Drink 2–3 litres of water daily to flush bacteria. Complete the full antibiotic course. Urinate after sexual activity. Women should wipe front to back. Return for review if symptoms persist after finishing antibiotics or if you develop back pain and fever (possible kidney infection).';
+    return 'Drink 2–3 litres of water daily and complete the full antibiotic course — return if symptoms persist or back pain and fever develop.';
   }
   if (c.includes('respiratory') || c.includes('pneumonia') || c.includes('bronchitis') || c.includes('asthma')) {
-    return 'Avoid cigarette smoke and dusty environments. Use your inhaler exactly as directed — do not stop steroids abruptly. Elevate your head while sleeping. Seek emergency care if you experience severe difficulty breathing, bluish lips, or persistent oxygen desaturation.';
+    return 'Avoid cigarette smoke and dusty environments, and use your inhaler exactly as directed without stopping steroids abruptly.';
   }
   if (c.includes('heart failure') || c.includes('cardiac') || c.includes('coronary')) {
-    return 'Restrict fluid intake to the amount your physician recommends. Weigh yourself daily; report a gain of more than 2 kg in 24 hours. Take all heart medications without missing doses. Limit salt to less than 2g per day. Rest when fatigued and gradually increase activity as tolerated.';
+    return 'Take all heart medications daily, limit salt to under 2g per day, and report a weight gain of more than 2 kg in 24 hours.';
   }
   if (c.includes('anaemia') || c.includes('anemia')) {
-    return 'Eat iron-rich foods daily: beans, liver, dark leafy greens, and lean red meat. Take iron tablets with a glass of orange juice to improve absorption. Avoid tea and calcium-rich foods within 2 hours of your iron supplement. Report any worsening dizziness, fainting, or shortness of breath.';
+    return 'Eat iron-rich foods such as beans, liver, and dark leafy greens, and take iron supplements with orange juice to improve absorption.';
   }
   if (c.includes('dengue')) {
-    return 'Rest completely and maintain adequate fluid intake. Use only paracetamol for fever — avoid aspirin, ibuprofen, and other NSAIDs as they can cause bleeding. Report any signs of severe dengue immediately: persistent vomiting, severe abdominal pain, bleeding from gums or nose, or rapid deterioration.';
+    return 'Rest, stay well-hydrated, and use only paracetamol for fever — avoid aspirin and NSAIDs, and seek emergency care for any bleeding.';
   }
   if (c.includes('arthritis') || c.includes('gout') || c.includes('joint')) {
-    return 'Keep affected joints elevated when at rest. Apply heat or cold packs as directed. Avoid purine-rich foods (red meat, organ meats, shellfish) if you have gout. Take prescribed anti-inflammatory medication with food to protect your stomach. Report any joint that becomes hot, very swollen, or impossible to move.';
+    return 'Keep affected joints elevated at rest and take prescribed anti-inflammatory medication with food to protect your stomach.';
   }
   // Generic safe fallback
   const conditionLabel = condition.trim() || 'your condition';
-  return `Follow your physician's instructions for ${conditionLabel} carefully. Take all prescribed medications as directed and do not stop early without medical advice. Eat a balanced diet, stay hydrated with 2–3 litres of water daily, and get adequate rest. Attend all follow-up appointments. Contact your physician if symptoms worsen or you experience unexpected side effects.`;
+  return `Follow your physician's instructions for ${conditionLabel}, take all prescribed medications as directed, and attend all follow-up appointments.`;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -1124,15 +1124,28 @@ export default function CaseReviewScreen() {
 
               {/* Generate button */}
               <TouchableOpacity
-                onPress={() => {
-                  const generated = generateHealthTipsForCondition(editCondition);
-                  setEditHealthTips(generated);
+                onPress={() => setEditHealthTips(generateHealthTipsForCondition(editCondition))}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginBottom: 12,
+                  backgroundColor: '#0AADA2',
+                  borderRadius: 12,
+                  paddingVertical: 11,
+                  paddingHorizontal: 16,
+                  elevation: 2,
+                  shadowColor: '#0AADA2',
+                  shadowOpacity: 0.3,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 2 },
                 }}
-                className="flex-row items-center gap-2 mb-3 self-start bg-teal-50 border border-teal-200 rounded-xl px-3 py-2"
               >
-                <Ionicons name="sparkles" size={14} color="#0AADA2" />
-                <Text className="text-xs font-semibold text-teal-700">
-                  Generate suggestions based on condition
+                <Ionicons name="sparkles" size={15} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>
+                  Generate health tips for this condition
                 </Text>
               </TouchableOpacity>
 
