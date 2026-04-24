@@ -164,7 +164,7 @@ export default function DiagnosisReportScreen() {
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 bg-white border-b border-gray-100">
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => router.replace('/(tab)/health')}
           className="w-9 h-9 rounded-full items-center justify-center bg-gray-100 mr-3"
           hitSlop={8}
         >

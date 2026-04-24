@@ -98,6 +98,23 @@ export default function TabLayout() {
   const [profileReminderDismissed, setProfileReminderDismissed] = useState(false);
   const showProfileReminder = !profileReminderDismissed && isHealthProfileIncomplete(user);
 
+  // ── Initialise chat store as soon as the user is authenticated ───────────
+  // This ensures conversations are loaded from AsyncStorage before any
+  // screen (e.g. diagnosis/[id]) tries to look up a linkedConversation.
+  // chatScreen.tsx has its own guard too, but relies on that screen being
+  // mounted first — which isn't guaranteed when navigating directly from health.
+  const initializeChat = useChatStore((s) => s.initializeChat);
+  const chatUserId = useChatStore((s) => s.userId);
+  const initializedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user?.id || user.role !== 'user') return;
+    if (initializedRef.current === user.id) return;
+    if (chatUserId === user.id) { initializedRef.current = user.id; return; }
+    initializedRef.current = user.id;
+    initializeChat(user.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // ── Abandoned-session detection (save state when app goes to background) ──
   const appState = useRef<AppStateStatus>(AppState.currentState);
 

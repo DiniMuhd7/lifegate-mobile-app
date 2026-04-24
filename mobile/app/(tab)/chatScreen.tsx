@@ -127,18 +127,29 @@ const ChatScreen: React.FC = () => {
   // switching accounts always loads the correct user's conversation history.
   const initializedForUserId = useRef<string | null>(null);
 
+  // Returns to the welcome screen. Reuses an existing empty conversation rather
+  // than creating a new one on every back press (avoids accumulating blank convs).
+  const goToWelcome = useCallback(() => {
+    const empty = useChatStore.getState().conversations.find((c) => c.messages.length === 0);
+    if (empty) {
+      setActiveConversation(empty.id);
+    } else {
+      createConversation();
+    }
+  }, [createConversation, setActiveConversation]);
+
   // Hardware back button (Android) — mirrors the back arrow behaviour
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!showWelcomeRef.current) {
-        createConversation();
+        goToWelcome();
       } else {
         router.replace('/(tab)/health');
       }
       return true; // prevent default back action
     });
     return () => sub.remove();
-  }, [createConversation]);
+  }, [goToWelcome]);
 
   // Network connectivity
   useEffect(() => {
@@ -276,10 +287,10 @@ const ChatScreen: React.FC = () => {
               <TouchableOpacity
                 onPress={() => {
                   if (!showWelcome) {
-                    // In an active session — go back to the chat welcome screen
-                    createConversation();
+                    // In an active session — return to welcome, reusing an empty conv
+                    goToWelcome();
                   } else {
-                    // Already on welcome — go back to dashboard
+                    // Already on welcome — go back to patient health dashboard
                     router.replace('/(tab)/health');
                   }
                 }}

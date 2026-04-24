@@ -306,6 +306,8 @@ export function InstantMessageModal({
   const [currentOffset, setCurrentOffset]   = useState(() => FULL_HEIGHT - HALF_HEIGHT);
   const [isAtBottom, setIsAtBottom]         = useState(true);
   const [newMsgCount, setNewMsgCount]       = useState(0);
+  // Measured height of the floating input bar so the FlatList pads accordingly.
+  const [inputBarHeight, setInputBarHeight] = useState(76);
 
   // isFullScreen: translateY offset near 0 means the sheet is at full height.
   const isFullScreen = currentOffset <= 4;
@@ -636,7 +638,7 @@ export function InstantMessageModal({
                   data={listItems}
                   renderItem={renderItem}
                   keyExtractor={keyExtractor}
-                  contentContainerStyle={styles.messageList}
+                  contentContainerStyle={[styles.messageList, { paddingBottom: currentOffset + inputBarHeight + 8 }]}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                   onScroll={handleScroll}
@@ -698,6 +700,7 @@ export function InstantMessageModal({
            software keyboard. ─────────────────────────────────────────── */}
       <Animated.View
         style={[styles.inputBarOuter, { transform: [{ translateY: inputBarTranslateY }] }]}
+        onLayout={(e) => setInputBarHeight(e.nativeEvent.layout.height)}
       >
         <View
           style={[
@@ -911,7 +914,7 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: 14,
     paddingTop: 10,
-    paddingBottom: 76, // leave room for the floating input bar (~68px + a little breathing room)
+    paddingBottom: 0, // overridden inline: currentOffset + inputBarHeight + 8
   },
   // ── Date separator ────────────────────────────────────────────────────────
   dateSeparator: {
