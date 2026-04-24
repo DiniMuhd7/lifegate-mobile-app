@@ -177,15 +177,16 @@ type CaseDetail struct {
 	Condition         string             `json:"condition"`
 	Urgency           string             `json:"urgency"`
 	Status            string             `json:"status"`
-	PhysicianID       string             `json:"physicianId,omitempty"`
-	PhysicianNotes    string             `json:"physicianNotes,omitempty"`
-	PhysicianDecision string             `json:"physicianDecision,omitempty"`
-	RejectionReason   string             `json:"rejectionReason,omitempty"`
-	Escalated         bool               `json:"escalated"`
-	AIResponse        *AIOutput          `json:"aiResponse,omitempty"`
-	PhysicianOutput   *PhysicianAIOutput `json:"physicianOutput,omitempty"`
-	CreatedAt         time.Time          `json:"createdAt"`
-	UpdatedAt         time.Time          `json:"updatedAt"`
+	PhysicianID          string             `json:"physicianId,omitempty"`
+	PhysicianNotes       string             `json:"physicianNotes,omitempty"`
+	PhysicianDecision    string             `json:"physicianDecision,omitempty"`
+	RejectionReason      string             `json:"rejectionReason,omitempty"`
+	PhysicianHealthTips  string             `json:"physicianHealthTips,omitempty"`
+	Escalated            bool               `json:"escalated"`
+	AIResponse           *AIOutput          `json:"aiResponse,omitempty"`
+	PhysicianOutput      *PhysicianAIOutput `json:"physicianOutput,omitempty"`
+	CreatedAt            time.Time          `json:"createdAt"`
+	UpdatedAt            time.Time          `json:"updatedAt"`
 }
 
 // PatientProfile is the subset of user data included in the case-detail view.
@@ -456,6 +457,7 @@ func (r *Repository) GetCaseDetail(caseID, physicianID string) (*CaseDetail, err
 		       COALESCE(d.physician_notes,''),
 		       COALESCE(d.physician_decision,''),
 		       COALESCE(d.rejection_reason,''),
+		       COALESCE(d.physician_health_tips,''),
 		       d.escalated,
 		       COALESCE(d.ai_response::text,'{}'),
 		       COALESCE(d.physician_ai_output::text,'null'),
@@ -476,6 +478,7 @@ func (r *Repository) GetCaseDetail(caseID, physicianID string) (*CaseDetail, err
 		&d.PhysicianNotes,
 		&d.PhysicianDecision,
 		&d.RejectionReason,
+		&d.PhysicianHealthTips,
 		&d.Escalated,
 		&aiJSON,
 		&physOutJSON,
@@ -743,12 +746,13 @@ func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
 
 // UpdateAIOutput lets a physician correct the AI-generated diagnostic fields
 // inline and save their own clinical recommendations (notes, medication,
-// investigations) while the case is Active.
+// investigations, personalised health tips) while the case is Active.
 // Returns the patient's user_id so the caller can broadcast a notification.
 func (r *Repository) UpdateAIOutput(
 	caseID, physicianID, condition, urgency string,
 	confidence int,
 	notes string,
+	healthTips string,
 	physOut *PhysicianAIOutput,
 ) (patientID string, err error) {
 	// Serialize physician recommendations if provided.
@@ -761,9 +765,10 @@ func (r *Repository) UpdateAIOutput(
 	var nullID sql.NullString
 	err = r.db.QueryRow(`
 		UPDATE diagnoses
-		SET condition           = $3,
-		    urgency             = $4,
-		    physician_notes     = $6,
+		SET condition              = $3,
+		    urgency                = $4,
+		    physician_notes        = $6,
+		    physician_health_tips  = CASE WHEN $8 <> '' THEN $8 ELSE physician_health_tips END,
 		    has_prescription    = CASE WHEN $7::text IS NOT NULL THEN TRUE ELSE has_prescription END,
 		    physician_ai_output = CASE WHEN $7::text IS NOT NULL
 		                               THEN $7::jsonb
@@ -781,7 +786,7 @@ func (r *Repository) UpdateAIOutput(
 		    updated_at = NOW()
 		WHERE id = $1 AND physician_id = $2::uuid AND status = 'Active'
 		RETURNING user_id::text`,
-		caseID, physicianID, condition, urgency, confidence, notes, physOutArg,
+		caseID, physicianID, condition, urgency, confidence, notes, physOutArg, healthTips,
 	).Scan(&nullID)
 	if err == sql.ErrNoRows {
 		return "", ErrCaseNotActive

@@ -21,6 +21,7 @@ type DiagnosisDetail struct {
 	PhysicianDecision    string               `json:"physicianDecision,omitempty"`
 	PhysicianNotes       string               `json:"physicianNotes,omitempty"`
 	PhysicianName        string               `json:"physicianName,omitempty"`
+	PhysicianHealthTips  string               `json:"physicianHealthTips,omitempty"`
 	FollowUpDate         string               `json:"followUpDate,omitempty"`
 	FollowUpInstructions string               `json:"followUpInstructions,omitempty"`
 	OutcomeChecked       bool                 `json:"outcomeChecked"`
@@ -89,7 +90,8 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 		       COALESCE(d.ai_response::text,'{}'),
 		       COALESCE(d.physician_ai_output::text,''),
 		       d.created_at::text, d.updated_at::text,
-		       COALESCE(pu.name,'')
+		       COALESCE(pu.name,''),
+		       COALESCE(d.physician_health_tips,'')
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.user_id = $1::uuid
@@ -108,7 +110,8 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 			&d.Urgency, &d.Status, &d.Escalated, &d.HasPrescription,
 			&d.PhysicianDecision, &d.PhysicianNotes,
 			&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
-			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName); err != nil {
+			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
+			&d.PhysicianHealthTips); err != nil {
 			log.Printf("diagnosis: scan row: %v", err)
 			continue
 		}
@@ -137,7 +140,8 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		       COALESCE(d.ai_response::text,'{}'),
 		       COALESCE(d.physician_ai_output::text,''),
 		       d.created_at::text, d.updated_at::text,
-		       COALESCE(pu.name,'')
+		       COALESCE(pu.name,''),
+		       COALESCE(d.physician_health_tips,'')
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.id = $1 AND d.user_id = $2::uuid`,
@@ -146,7 +150,8 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		&d.Urgency, &d.Status, &d.Escalated, &d.HasPrescription,
 		&d.PhysicianDecision, &d.PhysicianNotes,
 		&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
-		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName)
+		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
+		&d.PhysicianHealthTips)
 
 	if err == sql.ErrNoRows {
 		return nil, nil

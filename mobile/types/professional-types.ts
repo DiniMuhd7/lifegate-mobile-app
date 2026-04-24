@@ -145,6 +145,8 @@ export interface CaseDetail {
   physicianNotes?: string;
   physicianDecision?: PhysicianDecision;
   rejectionReason?: string;
+  /** Personalised health tips written by the physician for this patient. */
+  physicianHealthTips?: string;
   escalated: boolean;
   aiResponse?: AIOutput;
   physicianOutput?: PhysicianOutput;

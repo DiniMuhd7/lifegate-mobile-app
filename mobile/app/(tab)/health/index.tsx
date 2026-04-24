@@ -126,6 +126,25 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   text: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
+  isPhysicianTip: boolean;
+} {
+  // Physician-authored tips take priority over AI-derived suggestions.
+  const latest = entries[0];
+  if (latest?.physicianHealthTips?.trim()) {
+    return {
+      text: latest.physicianHealthTips.trim(),
+      icon: 'medical',
+      color: '#0AADA2',
+      isPhysicianTip: true,
+    };
+  }
+  return { ..._deriveBaseInsight(entries), isPhysicianTip: false };
+}
+
+function _deriveBaseInsight(entries: HealthTimelineEntry[]): {
+  text: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
 } {
   if (entries.length === 0) {
     return {
@@ -136,6 +155,7 @@ function deriveInsight(entries: HealthTimelineEntry[]): {
   }
 
   const latest = entries[0];
+
   const condition = latest.condition || latest.title || '';
   const cond = condition.toLowerCase();
   const isActive = latest.status !== 'Completed';
@@ -423,8 +443,10 @@ function HealthStatusCard({
 function AIInsightCard({
   insight,
 }: {
-  insight: { text: string; icon: keyof typeof Ionicons.glyphMap; color: string };
+  insight: { text: string; icon: keyof typeof Ionicons.glyphMap; color: string; isPhysicianTip: boolean };
 }) {
+  const label = insight.isPhysicianTip ? 'Physician Health Tip' : 'AI Health Insight';
+  const labelColor = insight.isPhysicianTip ? '#0AADA2' : '#0891b2';
   return (
     <View
       style={{
@@ -432,7 +454,7 @@ function AIInsightCard({
         borderRadius: 16,
         backgroundColor: '#fff',
         borderWidth: 1,
-        borderColor: '#e0f2fe',
+        borderColor: insight.isPhysicianTip ? '#99f6e4' : '#e0f2fe',
         padding: 14,
         marginBottom: 12,
         flexDirection: 'row',
@@ -458,13 +480,13 @@ function AIInsightCard({
           style={{
             fontSize: 11,
             fontWeight: '700',
-            color: '#0891b2',
+            color: labelColor,
             textTransform: 'uppercase',
             letterSpacing: 0.8,
             marginBottom: 4,
           }}
         >
-          AI Health Insight
+          {label}
         </Text>
         <Text style={{ fontSize: 13, color: '#374151', lineHeight: 19 }}>{insight.text}</Text>
       </View>
@@ -785,7 +807,7 @@ export default function HealthDashboardScreen() {
         ) : (
           <View>
           {/* Greeting card — colours follow current health status */}
-          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+          <View style={{ paddingHorizontal: 16, marginBottom: 8 }}>
             <GreetingSection
               userName={user?.name || ''}
               gradientColors={GREETING_GRADIENT[status] ?? GREETING_GRADIENT.default}
@@ -797,6 +819,9 @@ export default function HealthDashboardScreen() {
               insightText={insight.text}
             />
           </View>
+
+          {/* AI / Physician insight card — always shown so the label is visible */}
+          <AIInsightCard insight={insight} />
 
           <PromotionsSection />
 

@@ -202,6 +202,61 @@ function calculateAge(dob: string | undefined): number | null {
   return age >= 0 ? age : null;
 }
 
+// ─── Health-tips generator ────────────────────────────────────────────────────
+// Generates personalised, safety-validated health tips for common conditions.
+// Used as the "Generate Suggestions" shortcut in the case-review edit form.
+// All generated tips are clinically conservative and prompt patients to defer
+// to their physician rather than self-treat.
+
+function generateHealthTipsForCondition(condition: string): string {
+  const c = condition.toLowerCase();
+  if (c.includes('malaria')) {
+    return 'Complete your full antimalarial course even if you feel better. Sleep under an insecticide-treated net every night. Drink at least 2–3 litres of water daily. Avoid self-medicating — return to your physician if fever persists beyond 48 hours of treatment.';
+  }
+  if (c.includes('typhoid')) {
+    return 'Eat soft, easily digestible foods and drink only boiled or bottled water. Take all antibiotics exactly as prescribed — do not stop early. Wash hands thoroughly before meals. Return for review if you develop a severe headache or persistent high fever.';
+  }
+  if (c.includes('hypertension') || c.includes('blood pressure')) {
+    return 'Reduce salt intake to less than 5g per day. Aim for 30 minutes of moderate exercise (walking) most days. Take your blood pressure medication at the same time each day without skipping. Monitor your blood pressure weekly if possible and report any readings above 160/100 mmHg promptly.';
+  }
+  if (c.includes('diabetes')) {
+    return 'Check your blood glucose daily if you have a glucometer. Avoid sugary drinks, white bread, and processed foods. Take a 15–20 minute walk after meals. Never skip your diabetes medication. Contact your physician immediately if blood sugar is consistently above 15 mmol/L or you feel confused or drowsy.';
+  }
+  if (c.includes('tuberculosis') || c.includes('tb')) {
+    return 'Take all TB medications daily — never skip a dose as this causes drug resistance. Keep your sleeping area well-ventilated. Cover your mouth when coughing. Eat protein-rich foods (eggs, beans, fish) to support recovery. TB is curable when treated correctly; complete the full course.';
+  }
+  if (c.includes('hiv') || c.includes('aids')) {
+    return 'Take your antiretroviral (ARV) medication every day at the same time. Do not share needles or razors. Use condoms consistently. Keep all clinic appointments for viral load monitoring. A healthy diet and regular sleep strengthen your immune response.';
+  }
+  if (c.includes('sickle cell') || c.includes('scd')) {
+    return 'Stay well-hydrated — aim for 2–3 litres of water per day. Avoid becoming too cold or overheated. Keep pain relief medication accessible at home. Seek emergency care immediately for chest pain, severe shortness of breath, or a stroke-like event.';
+  }
+  if (c.includes('peptic') || c.includes('ulcer') || c.includes('gastritis')) {
+    return 'Eat 4–5 small meals a day instead of large ones. Avoid ibuprofen, aspirin, alcohol, and spicy foods. Take your antacid or PPI medication as prescribed, usually 30 minutes before meals. Quit smoking if applicable. Return if you notice black or tarry stools, which may indicate bleeding.';
+  }
+  if (c.includes('uti') || c.includes('urinary')) {
+    return 'Drink 2–3 litres of water daily to flush bacteria. Complete the full antibiotic course. Urinate after sexual activity. Women should wipe front to back. Return for review if symptoms persist after finishing antibiotics or if you develop back pain and fever (possible kidney infection).';
+  }
+  if (c.includes('respiratory') || c.includes('pneumonia') || c.includes('bronchitis') || c.includes('asthma')) {
+    return 'Avoid cigarette smoke and dusty environments. Use your inhaler exactly as directed — do not stop steroids abruptly. Elevate your head while sleeping. Seek emergency care if you experience severe difficulty breathing, bluish lips, or persistent oxygen desaturation.';
+  }
+  if (c.includes('heart failure') || c.includes('cardiac') || c.includes('coronary')) {
+    return 'Restrict fluid intake to the amount your physician recommends. Weigh yourself daily; report a gain of more than 2 kg in 24 hours. Take all heart medications without missing doses. Limit salt to less than 2g per day. Rest when fatigued and gradually increase activity as tolerated.';
+  }
+  if (c.includes('anaemia') || c.includes('anemia')) {
+    return 'Eat iron-rich foods daily: beans, liver, dark leafy greens, and lean red meat. Take iron tablets with a glass of orange juice to improve absorption. Avoid tea and calcium-rich foods within 2 hours of your iron supplement. Report any worsening dizziness, fainting, or shortness of breath.';
+  }
+  if (c.includes('dengue')) {
+    return 'Rest completely and maintain adequate fluid intake. Use only paracetamol for fever — avoid aspirin, ibuprofen, and other NSAIDs as they can cause bleeding. Report any signs of severe dengue immediately: persistent vomiting, severe abdominal pain, bleeding from gums or nose, or rapid deterioration.';
+  }
+  if (c.includes('arthritis') || c.includes('gout') || c.includes('joint')) {
+    return 'Keep affected joints elevated when at rest. Apply heat or cold packs as directed. Avoid purine-rich foods (red meat, organ meats, shellfish) if you have gout. Take prescribed anti-inflammatory medication with food to protect your stomach. Report any joint that becomes hot, very swollen, or impossible to move.';
+  }
+  // Generic safe fallback
+  const conditionLabel = condition.trim() || 'your condition';
+  return `Follow your physician's instructions for ${conditionLabel} carefully. Take all prescribed medications as directed and do not stop early without medical advice. Eat a balanced diet, stay hydrated with 2–3 litres of water daily, and get adequate rest. Attend all follow-up appointments. Contact your physician if symptoms worsen or you experience unexpected side effects.`;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 type ReviewMode = 'view' | 'edit' | 'approve' | 'reject';
@@ -387,6 +442,7 @@ export default function CaseReviewScreen() {
   const [editUrgency, setEditUrgency] = useState<CaseUrgency>('LOW');
   const [editConfidence, setEditConfidence] = useState(0);
   const [editNotes, setEditNotes] = useState('');
+  const [editHealthTips, setEditHealthTips] = useState('');
   const [editMedications, setEditMedications] = useState<PrescriptionInfo[]>([]);
   const [editInvestigations, setEditInvestigations] = useState<InvestigationInfo[]>([]);
 
@@ -416,6 +472,7 @@ export default function CaseReviewScreen() {
     setEditUrgency((currentCase.urgency as CaseUrgency) || 'LOW');
     setEditConfidence(currentCase.aiResponse?.diagnosis?.confidence ?? 0);
     setEditNotes(currentCase.physicianNotes || '');
+    setEditHealthTips(currentCase.physicianHealthTips || '');
     // Populate medications array from physician override, then AI, then empty slot
     const existingMeds: PrescriptionInfo[] =
       currentCase.physicianOutput?.prescriptions ??
@@ -460,6 +517,7 @@ export default function CaseReviewScreen() {
         editNotes.trim(),
         prescriptions.length > 0 ? prescriptions : undefined,
         investigations.length > 0 ? investigations : undefined,
+        editHealthTips.trim() || undefined,
       );
       // Apply an optimistic local update so the view reflects changes immediately.
       updateLocalAIOutput(
@@ -469,6 +527,7 @@ export default function CaseReviewScreen() {
         editNotes.trim(),
         prescriptions[0],
         investigations,
+        editHealthTips.trim() || undefined,
       );
       setMode('view');
       setSavedSuccess(true);
@@ -478,7 +537,7 @@ export default function CaseReviewScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [caseId, editCondition, editUrgency, editConfidence, editNotes, editMedications, editInvestigations, updateLocalAIOutput]);
+  }, [caseId, editCondition, editUrgency, editConfidence, editNotes, editHealthTips, editMedications, editInvestigations, updateLocalAIOutput]);
 
   const addInvestigation = useCallback(() => {
     setEditInvestigations(prev => [...prev, { test: '', reason: '', urgency: 'ROUTINE' }]);
@@ -1054,6 +1113,56 @@ export default function CaseReviewScreen() {
             </SectionCard>
           )}
 
+          {/* ── Edit-mode: Patient Health Tips ───────────────────────── */}
+          {mode === 'edit' && (
+            <SectionCard title="Patient Health Tips">
+              <Text className="text-xs text-gray-400 mb-3">
+                Add personalised, condition-specific health tips for this patient. These will appear
+                on their health dashboard greeting card. Keep tips actionable, safe, and
+                easy to understand.
+              </Text>
+
+              {/* Generate button */}
+              <TouchableOpacity
+                onPress={() => {
+                  const generated = generateHealthTipsForCondition(editCondition);
+                  setEditHealthTips(generated);
+                }}
+                className="flex-row items-center gap-2 mb-3 self-start bg-teal-50 border border-teal-200 rounded-xl px-3 py-2"
+              >
+                <Ionicons name="sparkles" size={14} color="#0AADA2" />
+                <Text className="text-xs font-semibold text-teal-700">
+                  Generate suggestions based on condition
+                </Text>
+              </TouchableOpacity>
+
+              <TextInput
+                className="border border-blue-300 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-blue-50"
+                value={editHealthTips}
+                onChangeText={setEditHealthTips}
+                placeholder="e.g. Drink 2–3 litres of water daily, complete your antibiotic course, and rest…"
+                placeholderTextColor="#93c5fd"
+                multiline
+                numberOfLines={5}
+                style={{ minHeight: 110, textAlignVertical: 'top' }}
+                maxLength={600}
+              />
+              <Text className="text-xs text-gray-400 mt-1 text-right">
+                {editHealthTips.length}/600
+              </Text>
+
+              {/* Safety disclaimer */}
+              <View className="flex-row items-start gap-2 mt-2 bg-amber-50 rounded-xl p-3">
+                <Ionicons name="shield-checkmark-outline" size={14} color="#b45309" style={{ marginTop: 1 }} />
+                <Text className="text-xs text-amber-800 flex-1 leading-4">
+                  Tips are advisory only. Do not recommend stopping prescribed medication, performing
+                  procedures, or seeking emergency care unless you have assessed the patient. All tips
+                  are visible to the patient on their health screen.
+                </Text>
+              </View>
+            </SectionCard>
+          )}
+
           {/* ── Prescription (view mode only) ────────────────────────── */}
           {mode !== 'edit' && prescription && (
             <SectionCard title="AI Prescription">
@@ -1131,12 +1240,21 @@ export default function CaseReviewScreen() {
           </SectionCard>
 
           {/* ── Physician Recommendations (view mode) ────────────────── */}
-          {mode !== 'edit' && (currentCase.physicianNotes || currentCase.physicianOutput) && (
+          {mode !== 'edit' && (currentCase.physicianNotes || currentCase.physicianOutput || currentCase.physicianHealthTips) && (
             <SectionCard title="Physician Recommendations">
               {currentCase.physicianNotes ? (
                 <View className="bg-green-50 rounded-xl p-3 mb-3">
                   <Text className="text-xs font-semibold text-green-700 mb-1">Clinical Notes</Text>
                   <Text className="text-xs text-green-800 leading-5">{currentCase.physicianNotes}</Text>
+                </View>
+              ) : null}
+              {currentCase.physicianHealthTips ? (
+                <View className="bg-teal-50 rounded-xl p-3 mb-3" style={{ borderWidth: 1, borderColor: '#99f6e4' }}>
+                  <View className="flex-row items-center gap-1.5 mb-1.5">
+                    <Ionicons name="sparkles" size={12} color="#0AADA2" />
+                    <Text className="text-xs font-semibold text-teal-700">Patient Health Tips</Text>
+                  </View>
+                  <Text className="text-xs text-teal-900 leading-5">{currentCase.physicianHealthTips}</Text>
                 </View>
               ) : null}
               {currentCase.physicianOutput?.prescription ? (

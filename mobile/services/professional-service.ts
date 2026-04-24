@@ -209,10 +209,11 @@ export const ProfessionalService = {
     notes: string,
     prescriptions?: Array<{ medicine: string; dosage: string; frequency: string; duration: string; instructions: string }>,
     investigations?: Array<{ test: string; reason: string; urgency: string }>,
+    healthTips?: string,
   ): Promise<void> {
     const response = await api.patch<{ success: boolean; message: string }>(
       `/physician/cases/${caseId}/ai`,
-      { condition, urgency, confidence, notes, prescriptions, investigations },
+      { condition, urgency, confidence, notes, prescriptions, investigations, healthTips },
     );
     if (!response.data.success)
       throw new Error(response.data.message || 'Failed to update AI output');

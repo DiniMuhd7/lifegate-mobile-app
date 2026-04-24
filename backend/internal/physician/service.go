@@ -70,16 +70,18 @@ func (s *Service) GetPatientProfile(patientID string) (*PatientProfile, error) {
 }
 
 // UpdateAIOutput lets a physician correct the AI-generated fields inline
-// and save clinical recommendations (notes, medication, investigations).
+// and save clinical recommendations (notes, medication, investigations,
+// personalised health tips for the patient).
 // On success it broadcasts a `diagnosis.update` WebSocket event to the patient
 // so their app reflects the changes without a manual refresh.
 func (s *Service) UpdateAIOutput(
 	caseID, physicianID, condition, urgency string,
 	confidence int,
 	notes string,
+	healthTips string,
 	physOut *PhysicianAIOutput,
 ) error {
-	patientID, err := s.repo.UpdateAIOutput(caseID, physicianID, condition, urgency, confidence, notes, physOut)
+	patientID, err := s.repo.UpdateAIOutput(caseID, physicianID, condition, urgency, confidence, notes, healthTips, physOut)
 	if err != nil {
 		return err
 	}

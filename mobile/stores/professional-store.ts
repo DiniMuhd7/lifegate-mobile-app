@@ -47,6 +47,7 @@ type ProfessionalStore = ProfessionalDashboard & {
     notes: string,
     prescription?: PrescriptionInfo,
     investigations?: InvestigationInfo[],
+    healthTips?: string,
   ) => void;
   clearCurrentCase: () => void;
 
@@ -289,7 +290,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
     }
   },
 
-  updateLocalAIOutput: (condition, urgency, confidence, notes, prescription, investigations) => {
+  updateLocalAIOutput: (condition, urgency, confidence, notes, prescription, investigations, healthTips) => {
     set((state) => {
       if (!state.currentCase) return state;
 
@@ -317,6 +318,7 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
           condition,
           urgency,
           physicianNotes: notes,
+          physicianHealthTips: healthTips !== undefined ? healthTips : state.currentCase.physicianHealthTips,
           physicianOutput,
           aiResponse: {
             ...(state.currentCase.aiResponse ?? { text: '' }),

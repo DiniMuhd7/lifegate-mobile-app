@@ -378,13 +378,14 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 	pid, _ := physicianID.(string)
 
 	var req struct {
-		Condition      string              `json:"condition"   binding:"required"`
-		Urgency        string              `json:"urgency"     binding:"required"`
-		Confidence     int                 `json:"confidence"`
-		Notes          string              `json:"notes"`
-		Prescription   *PrescriptionOutput `json:"prescription"`
+		Condition      string               `json:"condition"    binding:"required"`
+		Urgency        string               `json:"urgency"      binding:"required"`
+		Confidence     int                  `json:"confidence"`
+		Notes          string               `json:"notes"`
+		HealthTips     string               `json:"healthTips"`
+		Prescription   *PrescriptionOutput  `json:"prescription"`
 		Prescriptions  []PrescriptionOutput `json:"prescriptions"`
-		Investigations []ai.Investigation  `json:"investigations"`
+		Investigations []ai.Investigation   `json:"investigations"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
@@ -436,7 +437,7 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 		}
 	}
 
-	if err := h.svc.UpdateAIOutput(caseID, pid, req.Condition, req.Urgency, req.Confidence, req.Notes, physOut); err != nil {
+	if err := h.svc.UpdateAIOutput(caseID, pid, req.Condition, req.Urgency, req.Confidence, req.Notes, strings.TrimSpace(req.HealthTips), physOut); err != nil {
 		if errors.Is(err, ErrCaseNotActive) {
 			c.JSON(http.StatusConflict, gin.H{
 				"success": false,
