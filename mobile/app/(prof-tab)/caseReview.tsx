@@ -1117,9 +1117,7 @@ export default function CaseReviewScreen() {
           {mode === 'edit' && (
             <SectionCard title="Patient Health Tips">
               <Text className="text-xs text-gray-400 mb-3">
-                Add personalised, condition-specific health tips for this patient. These will appear
-                on their health dashboard greeting card. Keep tips actionable, safe, and
-                easy to understand.
+                Add a short, actionable health tip for this patient's condition.
               </Text>
 
               {/* Generate button */}
@@ -1153,7 +1151,7 @@ export default function CaseReviewScreen() {
                 className="border border-blue-300 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-blue-50"
                 value={editHealthTips}
                 onChangeText={setEditHealthTips}
-                placeholder="e.g. Drink 2–3 litres of water daily, complete your antibiotic course, and rest…"
+                placeholder="e.g. Take your medication daily and stay well-hydrated."
                 placeholderTextColor="#93c5fd"
                 multiline
                 numberOfLines={5}
@@ -1168,9 +1166,7 @@ export default function CaseReviewScreen() {
               <View className="flex-row items-start gap-2 mt-2 bg-amber-50 rounded-xl p-3">
                 <Ionicons name="shield-checkmark-outline" size={14} color="#b45309" style={{ marginTop: 1 }} />
                 <Text className="text-xs text-amber-800 flex-1 leading-4">
-                  Tips are advisory only. Do not recommend stopping prescribed medication, performing
-                  procedures, or seeking emergency care unless you have assessed the patient. All tips
-                  are visible to the patient on their health screen.
+                  Tips are advisory only and visible to the patient on their health screen.
                 </Text>
               </View>
             </SectionCard>
