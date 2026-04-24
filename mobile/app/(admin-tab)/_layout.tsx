@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Stack, router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useAdminWebSocket } from '../../utils/useWebSocket';
+import wsService from 'services/websocket-service';
+import { getToken } from 'utils/tokenStorage';
 
 export default function AdminTabLayout() {
   useAdminWebSocket();
@@ -10,6 +12,24 @@ export default function AdminTabLayout() {
   const user = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
   const navigationState = useRootNavigationState();
+
+  // Connect wsService so the admin WebSocket hook can receive events
+  const wsConnected = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (wsConnected.current) return;
+    getToken().then((token) => {
+      if (token) {
+        wsService.connect(token);
+        wsConnected.current = true;
+      }
+    });
+    return () => {
+      wsService.disconnect();
+      wsConnected.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!navigationState?.key) return;
