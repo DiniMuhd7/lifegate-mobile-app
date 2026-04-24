@@ -2,8 +2,10 @@ import { create } from 'zustand';
 
 export interface PhysicianNotification {
   id: string;
-  type: 'new_case' | 'case_status';
+  type: 'new_case' | 'case_status' | 'im_message';
   caseId: string;
+  /** Present for im_message notifications — the diagnosis the chat belongs to. */
+  diagnosisId?: string;
   message: string;
   timestamp: number;
   isRead: boolean;

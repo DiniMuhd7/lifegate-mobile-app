@@ -1,6 +1,7 @@
 package im
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -17,19 +18,28 @@ type WSBroadcaster interface {
 	BroadcastToUser(userID, event string, data []byte)
 }
 
+// PushNotifier is satisfied by *notifications.Service and is used to send
+// Expo push notifications when the counterpart is not connected via WebSocket.
+type PushNotifier interface {
+	SendToUser(ctx context.Context, userID, title, body string, data map[string]string)
+	SendToPhysician(ctx context.Context, physicianID, title, body string, data map[string]string)
+}
+
 // Handler exposes the IM HTTP endpoints.
 type Handler struct {
-	svc *Service
-	db  *sql.DB
-	hub WSBroadcaster
+	svc     *Service
+	db      *sql.DB
+	hub     WSBroadcaster
+	pushSvc PushNotifier
 }
 
 // NewHandler builds a Handler.
 //
-//	db  — used only for looking up the authenticated user's display name.
-//	hub — optional; if non-nil, new messages are broadcast in real time.
-func NewHandler(svc *Service, db *sql.DB, hub WSBroadcaster) *Handler {
-	return &Handler{svc: svc, db: db, hub: hub}
+//	db      — used only for looking up the authenticated user's display name.
+//	hub     — optional; if non-nil, new messages are broadcast in real time.
+//	pushSvc — optional; if non-nil, a push notification is sent to the counterpart.
+func NewHandler(svc *Service, db *sql.DB, hub WSBroadcaster, pushSvc PushNotifier) *Handler {
+	return &Handler{svc: svc, db: db, hub: hub, pushSvc: pushSvc}
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -175,6 +185,26 @@ func (h *Handler) broadcastNewMessage(diagnosisID, senderRole string, msg *Messa
 		if m.SenderRole != senderRole && !seen[m.SenderID] {
 			seen[m.SenderID] = true
 			h.hub.BroadcastToUser(m.SenderID, "im.message", payload)
+			// Send a push notification so the counterpart is alerted even
+			// when they are in the background or have the modal closed.
+			if h.pushSvc != nil {
+				pushData := map[string]string{
+					"type":        "im_message",
+					"diagnosisId": diagnosisID,
+				}
+				var title, body string
+				if senderRole == "user" {
+					// Patient sent — notify physician
+					title = "New message from patient"
+					body = msg.SenderName + " sent you a message"
+					h.pushSvc.SendToPhysician(context.Background(), m.SenderID, title, body, pushData)
+				} else {
+					// Physician sent — notify patient
+					title = "New message from your doctor"
+					body = msg.SenderName + " sent you a message"
+					h.pushSvc.SendToUser(context.Background(), m.SenderID, title, body, pushData)
+				}
+			}
 		}
 	}
 }

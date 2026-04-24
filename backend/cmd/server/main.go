@@ -513,7 +513,7 @@ func main() {
 	// Both "user" and "professional" roles may access these routes; the
 	// middleware.Auth guard ensures only authenticated callers reach them.
 	imService := imsvc.NewService(database)
-	imHandler := imsvc.NewHandler(imService, database, hub)
+	imHandler := imsvc.NewHandler(imService, database, hub, pushSvc)
 
 	imGroup := api.Group("/im", middleware.Auth(cfg.JWTSecret))
 	{

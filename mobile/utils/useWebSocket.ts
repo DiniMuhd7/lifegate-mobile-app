@@ -5,6 +5,8 @@ import { useAuthStore } from 'stores/auth/auth-store';
 import { getToken } from 'utils/tokenStorage';
 import { useProfessionalStore } from 'stores/professional-store';
 import { useNotificationStore } from 'stores/notification-store';
+import { useIMStore } from 'stores/im-store';
+import { IMMessage } from 'types/im-types';
 import { CaseQueueItem, ReportStatus } from 'types/professional-types';
 
 /** Derive the WebSocket base URL from the same env-var logic used by the HTTP client. */
@@ -65,7 +67,7 @@ export function useDiagnosisWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        sendSubscribe(ws, ['diagnosis.update']);
+        sendSubscribe(ws, ['diagnosis.update', 'im.message']);
       };
 
       ws.onmessage = (event) => {
@@ -75,6 +77,17 @@ export function useDiagnosisWebSocket() {
 
         const eventName = raw.slice(0, colonIdx);
         const payload = raw.slice(colonIdx + 1);
+
+        if (eventName === 'im.message') {
+          try {
+            const msg = JSON.parse(payload) as IMMessage;
+            if (msg?.diagnosis_id) {
+              useIMStore.getState().receiveMessage(msg);
+            }
+          } catch {
+            // Ignore malformed payloads
+          }
+        }
 
         if (eventName === 'diagnosis.update') {
           try {
@@ -161,7 +174,7 @@ export function usePhysicianWebSocket() {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        sendSubscribe(ws, ['physician.case.new', 'physician.review.status']);
+        sendSubscribe(ws, ['physician.case.new', 'physician.review.status', 'im.message']);
       };
 
       ws.onmessage = (event) => {
@@ -171,6 +184,23 @@ export function usePhysicianWebSocket() {
 
         const eventName = raw.slice(0, colonIdx);
         const payload = raw.slice(colonIdx + 1);
+
+        if (eventName === 'im.message') {
+          try {
+            const msg = JSON.parse(payload) as IMMessage;
+            if (msg?.diagnosis_id) {
+              useIMStore.getState().receiveMessage(msg);
+              addNotification({
+                type: 'im_message',
+                caseId: msg.diagnosis_id,
+                diagnosisId: msg.diagnosis_id,
+                message: `${msg.sender_name || 'Patient'}: ${msg.content}`,
+              });
+            }
+          } catch {
+            // Ignore malformed payloads
+          }
+        }
 
         if (eventName === 'physician.case.new') {
           try {

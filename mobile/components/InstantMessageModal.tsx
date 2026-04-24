@@ -677,6 +677,7 @@ export function InstantMessageModal({
                   maxLength={2000}
                   returnKeyType="default"
                   blurOnSubmit={false}
+                  textAlignVertical="top"
                 />
                 {text.length >= CHAR_WARN && (
                   <Text
@@ -983,7 +984,7 @@ const styles = StyleSheet.create({
   // ── New-message banner ────────────────────────────────────────────────────
   newMsgBanner: {
     position: 'absolute',
-    bottom: 72,
+    bottom: 90,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
@@ -1006,7 +1007,7 @@ const styles = StyleSheet.create({
   // ── Scroll-to-bottom FAB ──────────────────────────────────────────────────
   scrollFab: {
     position: 'absolute',
-    bottom: 72,
+    bottom: 90,
     right: 16,
     width: 36,
     height: 36,
@@ -1039,10 +1040,10 @@ const styles = StyleSheet.create({
   // ── Input bar ─────────────────────────────────────────────────────────────
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
     paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#e5e7eb',
     backgroundColor: '#fff',
@@ -1054,14 +1055,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 10,
-    minHeight: 40,
-    maxHeight: 100,
+    minHeight: 44,
+    maxHeight: 120,
+    overflow: 'hidden',
   },
   input: {
     fontSize: 14,
     color: '#111827',
     lineHeight: 20,
     padding: 0,
+    // Keeps text at the top of the field on Android when multiline
+    textAlignVertical: 'top',
   },
   charCounter: {
     fontSize: 10,
@@ -1074,9 +1078,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#0AADA2',
     alignItems: 'center',
     justifyContent: 'center',

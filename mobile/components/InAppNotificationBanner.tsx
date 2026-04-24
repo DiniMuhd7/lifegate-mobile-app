@@ -76,7 +76,11 @@ export function InAppNotificationBanner({ notification, onDismiss }: Props) {
       >
         <View className="flex-1">
           <Text className="text-white font-bold text-sm mb-0.5">
-            {notification.type === 'new_case' ? '🔔 New Case Assigned' : '📋 Case Updated'}
+            {notification.type === 'new_case'
+              ? '🔔 New Case Assigned'
+              : notification.type === 'im_message'
+              ? '💬 New Message'
+              : '📋 Case Updated'}
           </Text>
           <Text className="text-blue-100 text-xs" numberOfLines={2}>
             {notification.message}
