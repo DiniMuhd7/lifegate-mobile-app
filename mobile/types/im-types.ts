@@ -9,6 +9,8 @@ export interface IMMessage {
   content: string;
   created_at: string; // ISO-8601
   read_at: string | null;
+  /** Client-side only — set to true when an optimistic send fails. */
+  _failed?: boolean;
 }
 
 export interface IMConversation {
@@ -17,6 +19,10 @@ export interface IMConversation {
   /** Unread count of messages sent TO the current user */
   unreadCount: number;
   loading: boolean;
+  /** True while a pull-to-refresh is in flight (keeps messages visible). */
+  refreshing: boolean;
   sending: boolean;
   error: string | null;
+  /** True when the counterpart is actively typing (from im.typing WS event). */
+  counterpartTyping?: boolean;
 }

@@ -11,8 +11,20 @@ interface IMState {
   /** Load (or refresh) a conversation. Marks incoming messages as read. */
   loadConversation: (diagnosisId: string) => Promise<void>;
 
+  /** Pull-to-refresh: reload messages keeping existing ones visible. */
+  refreshConversation: (diagnosisId: string) => Promise<void>;
+
   /** Optimistically append a sent message, then confirm with the server. */
-  sendMessage: (diagnosisId: string, content: string) => Promise<void>;
+  sendMessage: (
+    diagnosisId: string,
+    content: string,
+    senderRole?: 'user' | 'professional',
+    senderId?: string,
+    senderName?: string,
+  ) => Promise<void>;
+
+  /** Re-send a message that previously failed (_failed: true). */
+  retryMessage: (diagnosisId: string, messageId: string, content: string) => Promise<void>;
 
   /** Apply a real-time inbound message received via WebSocket. */
   receiveMessage: (msg: IMMessage) => void;
@@ -22,6 +34,9 @@ interface IMState {
 
   /** Reset a single conversation's error state. */
   clearError: (diagnosisId: string) => void;
+
+  /** Update counterpart typing indicator (from im.typing WS event). */
+  setCounterpartTyping: (diagnosisId: string, isTyping: boolean) => void;
 }
 
 // ─── Default conversation factory ────────────────────────────────────────────
@@ -32,6 +47,7 @@ function emptyConversation(diagnosisId: string): IMConversation {
     messages: [],
     unreadCount: 0,
     loading: false,
+    refreshing: false,
     sending: false,
     error: null,
   };
@@ -84,14 +100,20 @@ export const useIMStore = create<IMState>((set, get) => ({
   },
 
   // ── sendMessage ────────────────────────────────────────────────────────────
-  sendMessage: async (diagnosisId, content) => {
+  sendMessage: async (
+    diagnosisId,
+    content,
+    senderRole = 'user',
+    senderId = 'me',
+    senderName = '',
+  ) => {
     const tempId = `optimistic-${Date.now()}`;
     const optimistic: IMMessage = {
       id: tempId,
       diagnosis_id: diagnosisId,
-      sender_id: 'me',
-      sender_role: 'user', // replaced by server response
-      sender_name: '',
+      sender_id: senderId,
+      sender_role: senderRole,
+      sender_name: senderName,
       content,
       created_at: new Date().toISOString(),
       read_at: null,
@@ -124,17 +146,92 @@ export const useIMStore = create<IMState>((set, get) => ({
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Failed to send message';
-      // Remove the optimistic entry on failure
+      // Keep the optimistic entry but mark it as failed (enables retry).
       set((s) => {
         const conv = s.conversations[diagnosisId] ?? emptyConversation(diagnosisId);
         return {
           conversations: patchConversation(s.conversations, diagnosisId, {
-            messages: conv.messages.filter((m) => m.id !== tempId),
+            messages: conv.messages.map((m) =>
+              m.id === tempId ? { ...m, _failed: true } : m,
+            ),
             sending: false,
             error: message,
           }),
         };
       });
+    }
+  },
+
+  // ── retryMessage ────────────────────────────────────────────────────────────
+  retryMessage: async (diagnosisId, messageId, content) => {
+    // Clear the failed flag and mark as sending.
+    set((s) => {
+      const conv = s.conversations[diagnosisId] ?? emptyConversation(diagnosisId);
+      return {
+        conversations: patchConversation(s.conversations, diagnosisId, {
+          messages: conv.messages.map((m) =>
+            m.id === messageId ? { ...m, _failed: false } : m,
+          ),
+          sending: true,
+          error: null,
+        }),
+      };
+    });
+
+    try {
+      const saved = await IMService.sendMessage(diagnosisId, content);
+      set((s) => {
+        const conv = s.conversations[diagnosisId] ?? emptyConversation(diagnosisId);
+        return {
+          conversations: patchConversation(s.conversations, diagnosisId, {
+            messages: conv.messages.map((m) => (m.id === messageId ? saved : m)),
+            sending: false,
+          }),
+        };
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send message';
+      set((s) => {
+        const conv = s.conversations[diagnosisId] ?? emptyConversation(diagnosisId);
+        return {
+          conversations: patchConversation(s.conversations, diagnosisId, {
+            messages: conv.messages.map((m) =>
+              m.id === messageId ? { ...m, _failed: true } : m,
+            ),
+            sending: false,
+            error: message,
+          }),
+        };
+      });
+    }
+  },
+
+  // ── refreshConversation ────────────────────────────────────────────────────
+  refreshConversation: async (diagnosisId) => {
+    set((s) => ({
+      conversations: patchConversation(s.conversations, diagnosisId, {
+        refreshing: true,
+        error: null,
+      }),
+    }));
+
+    try {
+      const messages = await IMService.getMessages(diagnosisId);
+      set((s) => ({
+        conversations: patchConversation(s.conversations, diagnosisId, {
+          messages,
+          unreadCount: 0,
+          refreshing: false,
+        }),
+      }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to refresh messages';
+      set((s) => ({
+        conversations: patchConversation(s.conversations, diagnosisId, {
+          refreshing: false,
+          error: message,
+        }),
+      }));
     }
   },
 
@@ -175,6 +272,15 @@ export const useIMStore = create<IMState>((set, get) => ({
     set((s) => ({
       conversations: patchConversation(s.conversations, diagnosisId, {
         error: null,
+      }),
+    }));
+  },
+
+  // ── setCounterpartTyping ───────────────────────────────────────────────────
+  setCounterpartTyping: (diagnosisId, isTyping) => {
+    set((s) => ({
+      conversations: patchConversation(s.conversations, diagnosisId, {
+        counterpartTyping: isTyping,
       }),
     }));
   },
