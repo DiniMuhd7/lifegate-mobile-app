@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Pressable,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -13,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
 import { DiagnosisService } from 'services/diagnosis-service';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { InstantMessageModal } from 'components/InstantMessageModal';
+import { useChatStore } from 'stores/chat-store';
 
 // ─── Urgency config ──────────────────────────────────────────────────────────
 const URGENCY_CONFIG: Record<
@@ -101,6 +104,24 @@ export default function DiagnosisReportScreen() {
   const { selectedDiagnosis, detailLoading, error, fetchDiagnosisDetail, clearSelectedDiagnosis } =
     useDiagnosisStore();
   const [submittingOutcome, setSubmittingOutcome] = useState(false);
+  const [imVisible, setImVisible] = useState(false);
+
+  // Find the local chat conversation that produced this diagnosis so the
+  // patient can resume it with one tap.
+  const conversations = useChatStore((state) => state.conversations);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const linkedConversation = id
+    ? conversations.find((c) => c.messages.some((m) => m.diagnosisId === id))
+    : null;
+
+  const handleResumeChat = () => {
+    if (linkedConversation) {
+      setActiveConversation(linkedConversation.id);
+      router.push(`/(tab)/chatScreen?conversationId=${linkedConversation.id}`);
+    } else {
+      router.push('/(tab)/chatScreen');
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -148,6 +169,16 @@ export default function DiagnosisReportScreen() {
           <Ionicons name="chevron-back" size={20} color="#374151" />
         </Pressable>
         <Text className="flex-1 text-lg font-bold text-gray-900">Diagnosis Report</Text>
+        {/* Message physician — only shown when a physician is assigned */}
+        {d && (d.status === 'Active' || d.status === 'Completed') && (
+          <Pressable
+            onPress={() => setImVisible(true)}
+            className="w-9 h-9 rounded-full items-center justify-center bg-[#0AADA2]/10 ml-2"
+            hitSlop={8}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={19} color="#0AADA2" />
+          </Pressable>
+        )}
       </View>
 
       {/* Loading */}
@@ -239,6 +270,30 @@ export default function DiagnosisReportScreen() {
               <Text className="text-sm text-gray-700 leading-6">{d.description}</Text>
             </SectionCard>
           )}
+
+          {/* ── Continue Triage with AI ── */}
+          <View className="mx-4 mb-4">
+            <Pressable
+              onPress={handleResumeChat}
+              className="flex-row items-center gap-3 rounded-2xl px-4 py-4 border"
+              style={{ backgroundColor: '#f0fdfa', borderColor: '#99f6e4' }}
+            >
+              <View className="w-10 h-10 rounded-full bg-[#0AADA2] items-center justify-center flex-shrink-0">
+                <Ionicons name="chatbubbles" size={18} color="#fff" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-[#0f766e]">
+                  {linkedConversation ? 'Continue Triage with AI' : 'Start a New Chat with AI'}
+                </Text>
+                <Text className="text-xs text-teal-600 mt-0.5">
+                  {linkedConversation
+                    ? 'Resume the conversation that generated this report'
+                    : 'Describe new or ongoing symptoms to the AI assistant'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#0AADA2" />
+            </Pressable>
+          </View>
 
           {/* ── Differential Diagnosis ── */}
           {d.conditions && d.conditions.length > 0 && (() => {
@@ -526,6 +581,24 @@ export default function DiagnosisReportScreen() {
       )}
     </SafeAreaView>
     <PatientBottomTabBar activeTab="health" />
+
+      {/* ── Instant Message Modal ── */}
+      {imVisible && id && (
+        <Modal
+          visible={imVisible}
+          transparent
+          animationType="none"
+          statusBarTranslucent
+          onRequestClose={() => setImVisible(false)}
+        >
+          <InstantMessageModal
+            diagnosisId={id}
+            counterpartName={d?.physicianName ? `Dr. ${d.physicianName}` : 'Your Physician'}
+            perspective="patient"
+            onClose={() => setImVisible(false)}
+          />
+        </Modal>
+      )}
     </View>
   );
 }

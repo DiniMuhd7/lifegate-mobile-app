@@ -32,6 +32,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/alerts"
 	auditpkg "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/audit"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
+	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
@@ -506,6 +507,24 @@ func main() {
 	{
 		sensorGroup.POST("/vision/interpret", sensorHandler.InterpretVision)
 		sensorGroup.POST("/hearing/interpret", sensorHandler.InterpretHearing)
+	}
+
+	// Instant messaging — patient ↔ physician on a per-diagnosis basis.
+	// Both "user" and "professional" roles may access these routes; the
+	// middleware.Auth guard ensures only authenticated callers reach them.
+	imService := imsvc.NewService(database)
+	imHandler := imsvc.NewHandler(imService, database, hub)
+
+	imGroup := api.Group("/im", middleware.Auth(cfg.JWTSecret))
+	{
+		// GET  /im/:diagnosisId        — fetch full conversation history
+		imGroup.GET("/:diagnosisId", imHandler.ListMessages)
+		// POST /im/:diagnosisId        — send a new message
+		imGroup.POST("/:diagnosisId", imHandler.SendMessage)
+		// PUT  /im/:diagnosisId/read   — mark all incoming messages as read
+		imGroup.PUT("/:diagnosisId/read", imHandler.MarkRead)
+		// GET  /im/:diagnosisId/unread — unread count for the calling role
+		imGroup.GET("/:diagnosisId/unread", imHandler.UnreadCount)
 	}
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)

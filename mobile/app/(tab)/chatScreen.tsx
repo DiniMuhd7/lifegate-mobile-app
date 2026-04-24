@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
 
+import { useLocalSearchParams } from 'expo-router';
 import { Background } from 'components/Background';
 import { MessageList } from 'components/MessageList';
 import type { Message as ChatMessage } from 'components/MessageList';
@@ -88,12 +89,17 @@ const STARTER_CHIPS: {
 ];
 
 const ChatScreen: React.FC = () => {
+  // Optional deep-link param: resume a specific conversation by its local ID.
+  // Set by the diagnosis report screen when the user taps "Continue with AI".
+  const { conversationId: resumeConversationId } = useLocalSearchParams<{ conversationId?: string }>();
+
   const conversations = useChatStore((state) => state.conversations);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const retrySendMessage = useChatStore((state) => state.retrySendMessage);
   const createConversation = useChatStore((state) => state.createConversation);
   const setConversationMode = useChatStore((state) => state.setConversationMode);
+  const setActiveConversation = useChatStore((state) => state.setActiveConversation);
   const isThinking = useChatStore((state) => state.isThinking);
   const processingPhase = useChatStore((state) => state.processingPhase);
   const isInitializing = useChatStore((state) => state.isInitializing);
@@ -214,6 +220,17 @@ const ChatScreen: React.FC = () => {
       fetchBalance();
     }
   }, [activeMode, fetchBalance]);
+
+  // Resume a specific conversation when navigated to from the diagnosis report.
+  // The param is only present when the user taps "Continue with AI" on a report.
+  // We wait until the store is done initialising so the conversations array is ready.
+  useEffect(() => {
+    if (!resumeConversationId || isInitializing) return;
+    const target = conversations.find((c) => c.id === resumeConversationId);
+    if (target) {
+      setActiveConversation(target.id);
+    }
+  }, [resumeConversationId, isInitializing]);
 
   const handleSend = useCallback(
     (text: string) => {

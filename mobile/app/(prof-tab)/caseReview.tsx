@@ -7,6 +7,7 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Alert,
   SafeAreaView,
@@ -20,6 +21,7 @@ import { ConfidenceBar } from '../../components/ConfidenceBar';
 import { SuggestInput } from '../../components/SuggestInput';
 import { CaseUrgency, PrescriptionInfo, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
 import { extractErrorMessage } from '../../utils/error-utils';
+import { InstantMessageModal } from '../../components/InstantMessageModal';
 
 // ─── Autocomplete data ────────────────────────────────────────────────────────
 
@@ -391,6 +393,9 @@ export default function CaseReviewScreen() {
   const [notes, setNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
 
+  // Instant messaging panel
+  const [imVisible, setImVisible] = useState(false);
+
   // Load data on mount
   useEffect(() => {
     if (!caseId) return;
@@ -617,6 +622,17 @@ export default function CaseReviewScreen() {
               </Text>
             </View>
             <UrgencyBadge urgency={urgency} />
+            {/* Message patient — available on Active and Completed cases */}
+            {(currentCase.status === 'Active' || currentCase.status === 'Completed') && (
+              <TouchableOpacity
+                onPress={() => setImVisible(true)}
+                className="ml-3 p-2 rounded-full"
+                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={19} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Status row */}
@@ -1361,6 +1377,24 @@ export default function CaseReviewScreen() {
           </View>
         )}
       </SafeAreaView>
+
+      {/* ── Instant Message Modal ──────────────────────────────────────── */}
+      {imVisible && currentCase && (
+        <Modal
+          visible={imVisible}
+          transparent
+          animationType="none"
+          statusBarTranslucent
+          onRequestClose={() => setImVisible(false)}
+        >
+          <InstantMessageModal
+            diagnosisId={currentCase.id}
+            counterpartName={currentCase.patientName}
+            perspective="physician"
+            onClose={() => setImVisible(false)}
+          />
+        </Modal>
+      )}
     </KeyboardAvoidingView>
   );
 }
