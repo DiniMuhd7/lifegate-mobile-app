@@ -13,7 +13,7 @@ interface Props {
   onSelect: (question: string) => void;
 }
 
-export const FollowUpChips: React.FC<Props> = ({ questions, onSelect }) => {
+export const FollowUpChips = React.memo<Props>(function FollowUpChips({ questions, onSelect }) {
   if (!questions || questions.length === 0) return null;
 
   return (
@@ -54,4 +54,4 @@ export const FollowUpChips: React.FC<Props> = ({ questions, onSelect }) => {
       </ScrollView>
     </View>
   );
-};
+});

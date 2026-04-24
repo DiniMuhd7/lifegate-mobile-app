@@ -48,6 +48,9 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
   const flatRef = useRef<FlatList<ListItem>>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const isAtBottomRef = useRef(true);
+  // Snapshot the message count on first render — anything beyond this index
+  // was added after mount and should animate in. History messages skip animation.
+  const initialCountRef = useRef(messages.length);
 
   // Auto-scroll to bottom whenever a new message is appended,
   // but only when the user is already near the bottom (preserves scroll when reading history).
@@ -72,20 +75,32 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
     flatRef.current?.scrollToEnd({ animated: true });
   }, []);
 
-  // Build list items with date dividers injected
-  type ListItem = { type: 'message'; msg: Message } | { type: 'divider'; label: string };
+  // Build list items with date dividers injected.
+  // Group flags and msgIndex are precomputed here so renderItem never needs
+  // to call messages.indexOf() — O(1) per render instead of O(n).
+  type ListItem =
+    | { type: 'message'; msg: Message; msgIndex: number; isFirstInGroup: boolean; isLastInGroup: boolean }
+    | { type: 'divider'; label: string };
 
   const listItems = useMemo<ListItem[]>(() => {
     const items: ListItem[] = [];
     let lastDateStr = '';
-    messages.forEach((msg) => {
+    messages.forEach((msg, idx) => {
       const ts = msg.rawTimestamp ?? Date.now();
       const dateStr = new Date(ts).toDateString();
       if (dateStr !== lastDateStr) {
         items.push({ type: 'divider', label: formatDividerDate(ts) });
         lastDateStr = dateStr;
       }
-      items.push({ type: 'message', msg });
+      const prevMsg = idx > 0 ? messages[idx - 1] : null;
+      const nextMsg = idx < messages.length - 1 ? messages[idx + 1] : null;
+      items.push({
+        type: 'message',
+        msg,
+        msgIndex: idx,
+        isFirstInGroup: !prevMsg || prevMsg.type !== msg.type,
+        isLastInGroup: !nextMsg || nextMsg.type !== msg.type,
+      });
     });
     return items;
   }, [messages]);
@@ -117,19 +132,16 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
         </View>
       );
     }
-    const msg = item.msg;
-    const msgIndex = messages.indexOf(msg);
-    const prevMsg = msgIndex > 0 ? messages[msgIndex - 1] : null;
-    const nextMsg = msgIndex < messages.length - 1 ? messages[msgIndex + 1] : null;
-    const isFirstInGroup = !prevMsg || prevMsg.type !== msg.type;
-    const isLastInGroup = !nextMsg || nextMsg.type !== msg.type;
+    const { msg, msgIndex, isFirstInGroup, isLastInGroup } = item;
+    // Only animate bubbles that arrived after the initial mount snapshot.
+    const isNew = msgIndex >= initialCountRef.current;
     return (
       <MessageBubble
         message={msg.text}
         type={msg.type}
         timestamp={msg.timestamp}
         status={msg.status}
-        delay={msgIndex * 60}
+        isNew={isNew}
         onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
         onFollowUp={onFollowUp}
         diagnosis={msg.diagnosis}
@@ -145,7 +157,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
         isLastInGroup={isLastInGroup}
       />
     );
-  }, [messages, onRetry, onFollowUp]);
+  }, [onRetry, onFollowUp, initialCountRef]);
 
   return (
     <View style={{ flex: 1 }}>

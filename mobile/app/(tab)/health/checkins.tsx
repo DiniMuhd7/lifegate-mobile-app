@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -70,9 +70,15 @@ export default function CheckinsScreen() {
     fetchDiagnoses();
   }, []);
 
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending toast timer when the component unmounts.
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
+
   const showToastMsg = useCallback((message: string, coins: number) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ message, coins });
-    setTimeout(() => setToast(null), 2500);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
   }, []);
 
   const handleSlotTap = (slot: HourlySlot) => {

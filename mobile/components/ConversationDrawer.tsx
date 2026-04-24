@@ -4,7 +4,7 @@
  * Allows switching between conversations and creating new ones
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,13 +33,14 @@ const CATEGORY_META: Record<ConversationCategory, { label: string; color: string
 export const ConversationDrawer: React.FC<ConversationDrawerProps> = ({
   onClose,
 }) => {
-  const {
-    conversations,
-    activeConversationId,
-    createConversation,
-    setActiveConversation,
-    deleteConversation,
-  } = useChatStore();
+  // Granular selectors — each subscription only re-renders this component
+  // when its specific slice changes. A full destructure would re-render on
+  // every isThinking / streamingContent / processingPhase update.
+  const conversations = useChatStore((s) => s.conversations);
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const createConversation = useChatStore((s) => s.createConversation);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+  const deleteConversation = useChatStore((s) => s.deleteConversation);
 
   const handleNewChat = () => {
     const newId = createConversation();
@@ -99,6 +100,76 @@ export const ConversationDrawer: React.FC<ConversationDrawerProps> = ({
     return firstMessage?.text.substring(0, 40) || 'Conversation';
   };
 
+  const renderItem = useCallback(({ item }: { item: Conversation }) => {
+    const isActive = item.id === activeConversationId;
+    return (
+      <TouchableOpacity
+        onPress={() => handleSelectConversation(item.id)}
+        className={`flex-row items-center px-4 py-3 rounded-lg mb-2 ${
+          isActive ? 'bg-teal-100' : 'bg-gray-50'
+        }`}
+      >
+        {/* Chat Icon */}
+        <Ionicons
+          name="chatbubble"
+          size={18}
+          color={isActive ? '#0AADA2' : '#999'}
+        />
+
+        {/* Conversation Info */}
+        <View className="flex-1 ml-3">
+          <Text
+            numberOfLines={1}
+            className={`font-semibold ${
+              isActive ? 'text-teal-900' : 'text-gray-700'
+            }`}
+          >
+            {formatTitle(item)}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+            <Text className="text-xs text-gray-500">
+              {formatDate(item.updatedAt)} &bull; {item.messages.length} messages
+            </Text>
+            {item.category && CATEGORY_META[item.category] && (
+              <View
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: 8,
+                  backgroundColor: CATEGORY_META[item.category].bg,
+                  borderWidth: 1,
+                  borderColor: CATEGORY_META[item.category].color + '44',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 9,
+                    fontWeight: '700',
+                    color: CATEGORY_META[item.category].color,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {CATEGORY_META[item.category].label}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Delete Button */}
+        <TouchableOpacity
+          onPress={() => handleDeleteConversation(item.id)}
+          className="p-2"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="trash-outline" size={16} color="#ef4444" />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId, handleSelectConversation, handleDeleteConversation]);
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 bg-gradient-to-b from-teal-50 to-white">
@@ -129,74 +200,7 @@ export const ConversationDrawer: React.FC<ConversationDrawerProps> = ({
             data={conversations}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8 }}
-            renderItem={({ item }) => {
-              const isActive = item.id === activeConversationId;
-              return (
-                <TouchableOpacity
-                  onPress={() => handleSelectConversation(item.id)}
-                  className={`flex-row items-center px-4 py-3 rounded-lg mb-2 ${
-                    isActive ? 'bg-teal-100' : 'bg-gray-50'
-                  }`}
-                >
-                  {/* Chat Icon */}
-                  <Ionicons
-                    name="chatbubble"
-                    size={18}
-                    color={isActive ? '#0AADA2' : '#999'}
-                  />
-
-                  {/* Conversation Info */}
-                  <View className="flex-1 ml-3">
-                    <Text
-                      numberOfLines={1}
-                      className={`font-semibold ${
-                        isActive ? 'text-teal-900' : 'text-gray-700'
-                      }`}
-                    >
-                      {formatTitle(item)}
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                      <Text className="text-xs text-gray-500">
-                        {formatDate(item.updatedAt)} • {item.messages.length} messages
-                      </Text>
-                      {item.category && CATEGORY_META[item.category] && (
-                        <View
-                          style={{
-                            paddingHorizontal: 6,
-                            paddingVertical: 1,
-                            borderRadius: 8,
-                            backgroundColor: CATEGORY_META[item.category].bg,
-                            borderWidth: 1,
-                            borderColor: CATEGORY_META[item.category].color + '44',
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 9,
-                              fontWeight: '700',
-                              color: CATEGORY_META[item.category].color,
-                              textTransform: 'uppercase',
-                              letterSpacing: 0.5,
-                            }}
-                          >
-                            {CATEGORY_META[item.category].label}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Delete Button */}
-                  <TouchableOpacity
-                    onPress={() => handleDeleteConversation(item.id)}
-                    className="p-2"
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={renderItem}
           />
         )}
 

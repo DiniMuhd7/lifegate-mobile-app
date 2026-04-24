@@ -19,7 +19,7 @@ function confidenceColor(v: number): string {
   return '#dc2626';
 }
 
-export const DifferentialList: React.FC<Props> = ({ conditions }) => {
+export const DifferentialList = React.memo<Props>(function DifferentialList({ conditions }) {
   const [expanded, setExpanded] = useState(false);
 
   if (!conditions || conditions.length === 0) return null;
@@ -112,4 +112,4 @@ export const DifferentialList: React.FC<Props> = ({ conditions }) => {
       )}
     </View>
   );
-};
+});

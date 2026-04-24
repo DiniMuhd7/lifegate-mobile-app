@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -108,11 +108,13 @@ export default function DiagnosisReportScreen() {
 
   // Find the local chat conversation that produced this diagnosis so the
   // patient can resume it with one tap.
+  // Memoized — O(n×m) find+some only re-runs when conversations or id changes.
   const conversations = useChatStore((state) => state.conversations);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
-  const linkedConversation = id
-    ? conversations.find((c) => c.messages.some((m) => m.diagnosisId === id))
-    : null;
+  const linkedConversation = useMemo(
+    () => (id ? conversations.find((c) => c.messages.some((m) => m.diagnosisId === id)) : null),
+    [conversations, id],
+  );
 
   const handleResumeChat = () => {
     if (linkedConversation) {

@@ -55,13 +55,36 @@ function emptyConversation(diagnosisId: string): IMConversation {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Shallow equality over an object's own enumerable key–value pairs.
+ * Used to bail out early before creating new object references that would
+ * otherwise trigger re-renders on every Zustand subscriber.
+ */
+function shallowEq<T extends object>(a: T, b: T): boolean {
+  if (a === b) return true;
+  const keysA = Object.keys(a) as (keyof T)[];
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k) => a[k] === b[k]);
+}
+
+/**
+ * Returns a new conversations record with the single entry for `diagnosisId`
+ * patched.  If the patch produces no observable change (shallow-equal), the
+ * original record is returned untouched, keeping every Zustand selector that
+ * depends on sibling conversations stable (no spurious re-renders).
+ */
 function patchConversation(
   conversations: Record<string, IMConversation>,
   diagnosisId: string,
   patch: Partial<IMConversation>,
 ): Record<string, IMConversation> {
   const existing = conversations[diagnosisId] ?? emptyConversation(diagnosisId);
-  return { ...conversations, [diagnosisId]: { ...existing, ...patch } };
+  const patched: IMConversation = { ...existing, ...patch };
+  // Bail out when nothing actually changed — both the conversation slot and the
+  // root record keep the same reference, so no subscriber re-renders.
+  if (shallowEq(existing, patched)) return conversations;
+  return { ...conversations, [diagnosisId]: patched };
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -255,8 +278,10 @@ export const useIMStore = create<IMState>((set, get) => ({
   receiveReadReceipt: (diagnosisId) => {
     set((s) => {
       const conv = s.conversations[diagnosisId];
-      if (!conv) return s;
-      const now = new Date().toISOString();
+      if (!conv) return s;      // If every message is already read, skip the update entirely — the map
+      // would produce a new array with identical elements, which shallowEq
+      // cannot detect (array identity changes even when content is the same).
+      if (!conv.messages.some((m) => !m.read_at)) return s;      const now = new Date().toISOString();
       return {
         conversations: patchConversation(s.conversations, diagnosisId, {
           messages: conv.messages.map((m) =>
@@ -278,10 +303,16 @@ export const useIMStore = create<IMState>((set, get) => ({
 
   // ── setCounterpartTyping ───────────────────────────────────────────────────
   setCounterpartTyping: (diagnosisId, isTyping) => {
-    set((s) => ({
-      conversations: patchConversation(s.conversations, diagnosisId, {
-        counterpartTyping: isTyping,
-      }),
-    }));
+    set((s) => {
+      const conv = s.conversations[diagnosisId];
+      // Skip if the typing state is unchanged — im.typing events fire on every
+      // keystroke and we must not churn the store on identical values.
+      if (conv?.counterpartTyping === isTyping) return s;
+      return {
+        conversations: patchConversation(s.conversations, diagnosisId, {
+          counterpartTyping: isTyping,
+        }),
+      };
+    });
   },
 }));

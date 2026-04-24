@@ -1,11 +1,100 @@
-import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { VerifiedPhysician } from 'types/chat-types';
 
 interface PhysicianPreviewListProps {
   physicians: VerifiedPhysician[];
 }
+
+// ---------------------------------------------------------------------------
+// Card — memoized so re-renders of the parent list don't recreate every card
+// ---------------------------------------------------------------------------
+const PhysicianCard = React.memo<{ physician: VerifiedPhysician }>(({ physician }) => (
+  <View
+    style={{
+      width: 140,
+      backgroundColor: '#ffffff',
+      borderRadius: 14,
+      padding: 12,
+      borderWidth: 1.5,
+      borderColor: '#99f6e4',
+      shadowColor: '#0d9488',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 2,
+    }}
+  >
+    {/* Avatar placeholder */}
+    <View
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#ccfbf1',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+        alignSelf: 'center',
+      }}
+    >
+      <Ionicons name="person" size={22} color="#0f766e" />
+    </View>
+
+    {/* Name */}
+    <Text
+      style={{
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#1e293b',
+        textAlign: 'center',
+        marginBottom: 3,
+      }}
+      numberOfLines={2}
+    >
+      Dr. {physician.name}
+    </Text>
+
+    {/* Specialization */}
+    {physician.specialization ? (
+      <Text
+        style={{
+          fontSize: 10,
+          color: '#64748b',
+          textAlign: 'center',
+          lineHeight: 14,
+          marginBottom: 8,
+        }}
+        numberOfLines={2}
+      >
+        {physician.specialization}
+      </Text>
+    ) : null}
+
+    {/* MDCN verified badge */}
+    {physician.isVerified && (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 3,
+          backgroundColor: '#f0fdf4',
+          borderRadius: 8,
+          paddingHorizontal: 6,
+          paddingVertical: 3,
+          alignSelf: 'center',
+        }}
+      >
+        <Ionicons name="shield-checkmark" size={10} color="#15803d" />
+        <Text style={{ fontSize: 9, fontWeight: '700', color: '#15803d' }}>
+          MDCN Verified
+        </Text>
+      </View>
+    )}
+  </View>
+));
+PhysicianCard.displayName = 'PhysicianCard';
 
 /**
  * PhysicianPreviewList
@@ -20,6 +109,13 @@ export const PhysicianPreviewList: React.FC<PhysicianPreviewListProps> = ({ phys
   if (!physicians || physicians.length === 0) {
     return null;
   }
+
+  const renderCard = useCallback(
+    ({ item }: { item: VerifiedPhysician }) => <PhysicianCard physician={item} />,
+    [],
+  );
+
+  const keyExtractor = useCallback((item: VerifiedPhysician) => item.id, []);
 
   return (
     <View style={{ marginTop: 10 }}>
@@ -51,97 +147,15 @@ export const PhysicianPreviewList: React.FC<PhysicianPreviewListProps> = ({ phys
       </View>
 
       {/* Horizontally scrollable physician cards */}
-      <ScrollView
+      <FlatList
         horizontal
+        data={physicians}
+        keyExtractor={keyExtractor}
+        renderItem={renderCard}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ gap: 10, paddingRight: 4 }}
-      >
-        {physicians.map((physician) => (
-          <View
-            key={physician.id}
-            style={{
-              width: 140,
-              backgroundColor: '#ffffff',
-              borderRadius: 14,
-              padding: 12,
-              borderWidth: 1.5,
-              borderColor: '#99f6e4',
-              shadowColor: '#0d9488',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-              elevation: 2,
-            }}
-          >
-            {/* Avatar placeholder */}
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: '#ccfbf1',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 8,
-                alignSelf: 'center',
-              }}
-            >
-              <Ionicons name="person" size={22} color="#0f766e" />
-            </View>
-
-            {/* Name */}
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: '#1e293b',
-                textAlign: 'center',
-                marginBottom: 3,
-              }}
-              numberOfLines={2}
-            >
-              Dr. {physician.name}
-            </Text>
-
-            {/* Specialization */}
-            {physician.specialization ? (
-              <Text
-                style={{
-                  fontSize: 10,
-                  color: '#64748b',
-                  textAlign: 'center',
-                  lineHeight: 14,
-                  marginBottom: 8,
-                }}
-                numberOfLines={2}
-              >
-                {physician.specialization}
-              </Text>
-            ) : null}
-
-            {/* MDCN verified badge */}
-            {physician.isVerified && (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 3,
-                  backgroundColor: '#f0fdf4',
-                  borderRadius: 8,
-                  paddingHorizontal: 6,
-                  paddingVertical: 3,
-                  alignSelf: 'center',
-                }}
-              >
-                <Ionicons name="shield-checkmark" size={10} color="#15803d" />
-                <Text style={{ fontSize: 9, fontWeight: '700', color: '#15803d' }}>
-                  MDCN Verified
-                </Text>
-              </View>
-            )}
-          </View>
-        ))}
-      </ScrollView>
+        removeClippedSubviews
+      />
 
       {/* Footer note */}
       <Text

@@ -339,14 +339,14 @@ function getTimeOfDay(): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function HealthStatusCard({
-  status,
-  latest,
-  totalActive,
-}: {
+const HealthStatusCard = React.memo<{
   status: HealthStatus;
   latest: HealthTimelineEntry | null;
   totalActive: number;
+}>(function HealthStatusCard({
+  status,
+  latest,
+  totalActive,
 }) {
   const cfg = STATUS_CFG[status];
   return (
@@ -438,12 +438,12 @@ function HealthStatusCard({
       </View>
     </LinearGradient>
   );
-}
+});
 
-function AIInsightCard({
-  insight,
-}: {
+const AIInsightCard = React.memo<{
   insight: { text: string; icon: keyof typeof Ionicons.glyphMap; color: string; isPhysicianTip: boolean };
+}>(function AIInsightCard({
+  insight,
 }) {
   const label = insight.isPhysicianTip ? 'Physician Health Tip' : 'AI Health Insight';
   const labelColor = insight.isPhysicianTip ? '#0AADA2' : '#0891b2';
@@ -492,7 +492,7 @@ function AIInsightCard({
       </View>
     </View>
   );
-}
+});
 
 const PROMOTIONS = [
   { title: 'Check-ins', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
@@ -584,7 +584,7 @@ function UnreadAlertsBanner({ unreadAlertCount }: { unreadAlertCount: number }) 
   );
 }
 
-function RecentCaseRow({ entry }: { entry: HealthTimelineEntry }) {
+const RecentCaseRow = React.memo<{ entry: HealthTimelineEntry }>(function RecentCaseRow({ entry }) {
   const color = URGENCY_COLOR[entry.urgency] ?? '#6b7280';
   const bg = URGENCY_BG[entry.urgency] ?? '#f9fafb';
   const border = URGENCY_BORDER[entry.urgency] ?? '#e5e7eb';
@@ -625,7 +625,7 @@ function RecentCaseRow({ entry }: { entry: HealthTimelineEntry }) {
       </View>
     </Pressable>
   );
-}
+});
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
@@ -671,13 +671,22 @@ export default function HealthDashboardScreen() {
   // pull-to-refresh. Only runs after the initial auth-gated load above has
   // already completed (fetchedForUserId.current is set), which avoids a
   // redundant double-fetch on first mount.
+  // Skipped when data is less than 60 seconds old to prevent rapid tab-switch storms.
+  const lastTimelineFetchAt = useHealthStore((s) => s.lastTimelineFetchAt);
+  const lastAlertsFetchAt = useHealthStore((s) => s.lastAlertsFetchAt);
+  const STALE_MS = 60_000;
   useFocusEffect(
     useCallback(() => {
       if (!sessionLoading && user?.id && fetchedForUserId.current === user.id) {
-        fetchPatientTimeline();
-        fetchPatientAlerts();
+        const now = Date.now();
+        if (!lastTimelineFetchAt || now - lastTimelineFetchAt >= STALE_MS) {
+          fetchPatientTimeline();
+        }
+        if (!lastAlertsFetchAt || now - lastAlertsFetchAt >= STALE_MS) {
+          fetchPatientAlerts();
+        }
       }
-    }, [sessionLoading, user?.id, fetchPatientTimeline, fetchPatientAlerts]),
+    }, [sessionLoading, user?.id, fetchPatientTimeline, fetchPatientAlerts, lastTimelineFetchAt, lastAlertsFetchAt]),
   );
 
   const [refreshing, setRefreshing] = useState(false);

@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useProfessionalStore } from '../../stores/professional-store';
+import { useEarningsStore } from '../../stores/professional-store';
 import { Payout } from '../../types/professional-types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export default function EarningsScreen() {
     isEarningsLoading,
     loadEarningsSummary,
     loadPayouts,
-  } = useProfessionalStore();
+  } = useEarningsStore();
 
   const refresh = useCallback(async () => {
     await Promise.all([loadEarningsSummary(), loadPayouts()]);

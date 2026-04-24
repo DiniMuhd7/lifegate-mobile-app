@@ -41,7 +41,7 @@ interface DiagnosisCardProps {
   isExistingCase?: boolean;
 }
 
-export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnosisId, isExistingCase }) => {
+export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCard({ diagnosis, diagnosisId, isExistingCase }) {
   if (!diagnosis?.condition?.trim()) return null;
 
   const config =
@@ -166,4 +166,4 @@ export const DiagnosisCard: React.FC<DiagnosisCardProps> = ({ diagnosis, diagnos
       </View>
     </Pressable>
   );
-};
+});

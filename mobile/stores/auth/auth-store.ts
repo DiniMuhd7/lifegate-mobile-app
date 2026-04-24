@@ -144,8 +144,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
       // Clear any previous user's health data before applying the new user's state.
       try {
-        const { useHealthStore } = await import('../health-store');
+        const { useHealthStore, usePhysicianHealthStore } = await import('../health-store');
         useHealthStore.getState().reset();
+        usePhysicianHealthStore.getState().reset();
       } catch { /* best-effort */ }
 
       set({
@@ -191,8 +192,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       }
       // Clear any previous user's health data before applying the new user's state.
       try {
-        const { useHealthStore } = await import('../health-store');
+        const { useHealthStore, usePhysicianHealthStore } = await import('../health-store');
         useHealthStore.getState().reset();
+        usePhysicianHealthStore.getState().reset();
       } catch { /* best-effort */ }
 
       set({
@@ -253,8 +255,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       useChatStore.getState().resetChatState();
     } catch { /* best-effort */ }
     try {
-      const { useHealthStore } = await import('../health-store');
+      const { useHealthStore, usePhysicianHealthStore } = await import('../health-store');
       useHealthStore.getState().reset();
+      usePhysicianHealthStore.getState().reset();
     } catch { /* best-effort */ }
   },
 

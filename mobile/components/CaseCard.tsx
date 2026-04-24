@@ -36,7 +36,7 @@ const STATUS_BAR: Record<string, string> = {
   Completed: '#22c55e',
 };
 
-export function CaseCard({ item, onTakeCase, onPress, isTaking }: CaseCardProps) {
+export const CaseCard = React.memo(function CaseCard({ item, onTakeCase, onPress, isTaking }: CaseCardProps) {
   const urgency = (item.urgency ?? 'LOW') as CaseUrgency;
   const barColor = STATUS_BAR[item.status] ?? '#e5e7eb';
 
@@ -121,4 +121,4 @@ export function CaseCard({ item, onTakeCase, onPress, isTaking }: CaseCardProps)
       </View>
     </TouchableOpacity>
   );
-}
+});

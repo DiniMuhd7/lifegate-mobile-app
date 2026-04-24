@@ -14,6 +14,65 @@ import {
 } from '../types/professional-types';
 import { ProfessionalService } from '../services/professional-service';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Earnings store
+//
+// Extracted from the monolithic ProfessionalStore so that
+// loadEarningsSummary() / loadPayouts() completing no longer triggers
+// re-renders in CaseQueue, Chat, or CaseReview screens.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface EarningsState {
+  earningsSummary: EarningsSummary | null;
+  earningsHistory: EarningRecord[];
+  earningsTotal: number;
+  payouts: Payout[];
+  isEarningsLoading: boolean;
+  loadEarningsSummary: () => Promise<void>;
+  loadEarningsHistory: (page?: number, pageSize?: number) => Promise<void>;
+  loadPayouts: () => Promise<void>;
+}
+
+export const useEarningsStore = create<EarningsState>((set) => ({
+  earningsSummary: null,
+  earningsHistory: [],
+  earningsTotal: 0,
+  payouts: [],
+  isEarningsLoading: false,
+
+  loadEarningsSummary: async () => {
+    set({ isEarningsLoading: true });
+    try {
+      const summary = await ProfessionalService.getEarningsSummary();
+      set({ earningsSummary: summary, isEarningsLoading: false });
+    } catch {
+      set({ isEarningsLoading: false });
+    }
+  },
+
+  loadEarningsHistory: async (page = 1, pageSize = 20) => {
+    try {
+      const { records, total } = await ProfessionalService.getEarningsHistory(page, pageSize);
+      set({ earningsHistory: records, earningsTotal: total });
+    } catch {
+      // silently fail — UI shows empty state
+    }
+  },
+
+  loadPayouts: async () => {
+    try {
+      const payouts = await ProfessionalService.getPayouts();
+      set({ payouts });
+    } catch {
+      // silently fail
+    }
+  },
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Professional store (case queue · case review · reports)
+// ─────────────────────────────────────────────────────────────────────────────
+
 type ProfessionalStore = ProfessionalDashboard & {
   // Case queue
   pendingCases: CaseQueueItem[];
@@ -50,16 +109,6 @@ type ProfessionalStore = ProfessionalDashboard & {
     healthTips?: string,
   ) => void;
   clearCurrentCase: () => void;
-
-  // Earnings
-  earningsSummary: EarningsSummary | null;
-  earningsHistory: EarningRecord[];
-  earningsTotal: number;
-  payouts: Payout[];
-  isEarningsLoading: boolean;
-  loadEarningsSummary: () => Promise<void>;
-  loadEarningsHistory: (page?: number, pageSize?: number) => Promise<void>;
-  loadPayouts: () => Promise<void>;
 };
 
 export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
@@ -88,13 +137,6 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   currentPatient: null,
   isCaseLoading: false,
   caseLoadError: null,
-
-  // Earnings initial state
-  earningsSummary: null,
-  earningsHistory: [],
-  earningsTotal: 0,
-  payouts: [],
-  isEarningsLoading: false,
 
   // Actions
   fetchReports: async () => {
@@ -339,32 +381,4 @@ export const useProfessionalStore = create<ProfessionalStore>((set, get) => ({
   },
 
   clearCurrentCase: () => set({ currentCase: null, currentPatient: null }),
-
-  loadEarningsSummary: async () => {
-    set({ isEarningsLoading: true });
-    try {
-      const summary = await ProfessionalService.getEarningsSummary();
-      set({ earningsSummary: summary, isEarningsLoading: false });
-    } catch {
-      set({ isEarningsLoading: false });
-    }
-  },
-
-  loadEarningsHistory: async (page = 1, pageSize = 20) => {
-    try {
-      const { records, total } = await ProfessionalService.getEarningsHistory(page, pageSize);
-      set({ earningsHistory: records, earningsTotal: total });
-    } catch {
-      // silently fail — UI shows empty state
-    }
-  },
-
-  loadPayouts: async () => {
-    try {
-      const payouts = await ProfessionalService.getPayouts();
-      set({ payouts });
-    } catch {
-      // silently fail
-    }
-  },
 }));

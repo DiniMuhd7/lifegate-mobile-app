@@ -3,62 +3,49 @@ import type { HealthTimelineEntry, PreventiveAlert } from 'types/health-types';
 import type { DiagnosisDetail } from 'types/diagnosis-types';
 import { HealthService } from 'services/health-service';
 
-interface HealthState {
-  // ── Patient timeline ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Patient health store
+//
+// Owns: patient timeline, patient preventive alerts, fetch timestamps.
+// Exported as both `usePatientHealthStore` (explicit) and `useHealthStore`
+// (backward-compat alias) so no existing patient-screen import needs updating.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PatientHealthState {
   patientTimeline: HealthTimelineEntry[];
   timelineLoading: boolean;
   timelineError: string | null;
 
-  // ── Physician timeline ─────────────────────────────────────────────────────
-  physicianTimeline: HealthTimelineEntry[];
-  physicianTimelineLoading: boolean;
-  physicianTimelineError: string | null;
-
-  // ── Patient alerts ─────────────────────────────────────────────────────────
   patientAlerts: PreventiveAlert[];
   alertsLoading: boolean;
   alertsError: string | null;
   unreadAlertCount: number;
 
-  // ── Physician alerts ───────────────────────────────────────────────────────
-  physicianAlerts: PreventiveAlert[];
-  physicianAlertsLoading: boolean;
-  physicianAlertsError: string | null;
-  unreadPhysicianAlertCount: number;
+  // Staleness timestamps — screens skip refetch when data is fresh.
+  lastTimelineFetchAt: number | null;
+  lastAlertsFetchAt: number | null;
 
-  // ── Actions ────────────────────────────────────────────────────────────────
   fetchPatientTimeline: () => Promise<void>;
   patchTimelineEntry: (detail: DiagnosisDetail) => void;
-  fetchPhysicianTimeline: () => Promise<void>;
   fetchPatientAlerts: () => Promise<void>;
-  fetchPhysicianAlerts: () => Promise<void>;
   markAlertRead: (id: string) => void;
-  markPhysicianAlertRead: (id: string) => void;
   markAllAlertsRead: () => void;
-  markAllPhysicianAlertsRead: () => void;
   reset: () => void;
 }
 
-export const useHealthStore = create<HealthState>((set, get) => ({
+export const usePatientHealthStore = create<PatientHealthState>((set) => ({
   patientTimeline: [],
   timelineLoading: false,
   timelineError: null,
-
-  physicianTimeline: [],
-  physicianTimelineLoading: false,
-  physicianTimelineError: null,
 
   patientAlerts: [],
   alertsLoading: false,
   alertsError: null,
   unreadAlertCount: 0,
 
-  physicianAlerts: [],
-  physicianAlertsLoading: false,
-  physicianAlertsError: null,
-  unreadPhysicianAlertCount: 0,
+  lastTimelineFetchAt: null,
+  lastAlertsFetchAt: null,
 
-  // ── Patient timeline ──────────────────────────────────────────────────────
   patchTimelineEntry: (detail: DiagnosisDetail) => {
     set((state) => ({
       patientTimeline: state.patientTimeline.map((e) =>
@@ -86,7 +73,7 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     set({ timelineLoading: true, timelineError: null });
     try {
       const res = await HealthService.getPatientTimeline();
-      set({ patientTimeline: res.entries, timelineLoading: false });
+      set({ patientTimeline: res.entries, timelineLoading: false, lastTimelineFetchAt: Date.now() });
     } catch (e) {
       set({
         timelineLoading: false,
@@ -95,7 +82,91 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     }
   },
 
-  // ── Physician timeline ────────────────────────────────────────────────────
+  fetchPatientAlerts: async () => {
+    set({ alertsLoading: true, alertsError: null });
+    try {
+      const res = await HealthService.getPatientAlerts();
+      const unread = (res.alerts ?? []).filter((a) => !a.isRead).length;
+      set({ patientAlerts: res.alerts ?? [], alertsLoading: false, unreadAlertCount: unread, lastAlertsFetchAt: Date.now() });
+    } catch (e) {
+      set({
+        alertsLoading: false,
+        alertsError: e instanceof Error ? e.message : 'Failed to load alerts',
+      });
+    }
+  },
+
+  markAlertRead: (id: string) => {
+    set((state) => {
+      const updated = state.patientAlerts.map((a) =>
+        a.id === id ? { ...a, isRead: true } : a
+      );
+      return { patientAlerts: updated, unreadAlertCount: updated.filter((a) => !a.isRead).length };
+    });
+  },
+
+  markAllAlertsRead: () => {
+    set((state) => ({
+      patientAlerts: state.patientAlerts.map((a) => ({ ...a, isRead: true })),
+      unreadAlertCount: 0,
+    }));
+  },
+
+  reset: () =>
+    set({
+      patientTimeline: [],
+      timelineError: null,
+      patientAlerts: [],
+      alertsError: null,
+      unreadAlertCount: 0,
+      lastTimelineFetchAt: null,
+      lastAlertsFetchAt: null,
+    }),
+}));
+
+/**
+ * Backward-compatible alias.
+ * All existing patient screens import `useHealthStore` and continue to work
+ * without modification. Only physician screens need to switch to
+ * `usePhysicianHealthStore`.
+ */
+export const useHealthStore = usePatientHealthStore;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Physician health store
+//
+// Owns: physician timeline + physician preventive alerts.
+// Completely separate Zustand instance — physician writes never touch the
+// patient store, eliminating cross-domain re-renders.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PhysicianHealthState {
+  physicianTimeline: HealthTimelineEntry[];
+  physicianTimelineLoading: boolean;
+  physicianTimelineError: string | null;
+
+  physicianAlerts: PreventiveAlert[];
+  physicianAlertsLoading: boolean;
+  physicianAlertsError: string | null;
+  unreadPhysicianAlertCount: number;
+
+  fetchPhysicianTimeline: () => Promise<void>;
+  fetchPhysicianAlerts: () => Promise<void>;
+  markPhysicianAlertRead: (id: string) => void;
+  markAllPhysicianAlertsRead: () => void;
+  reset: () => void;
+}
+
+export const usePhysicianHealthStore = create<PhysicianHealthState>((set) => ({
+  physicianTimeline: [],
+  physicianTimelineLoading: false,
+  physicianTimelineError: null,
+
+  physicianAlerts: [],
+  physicianAlertsLoading: false,
+  physicianAlertsError: null,
+  unreadPhysicianAlertCount: 0,
+
   fetchPhysicianTimeline: async () => {
     set({ physicianTimelineLoading: true, physicianTimelineError: null });
     try {
@@ -109,22 +180,6 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     }
   },
 
-  // ── Patient alerts ────────────────────────────────────────────────────────
-  fetchPatientAlerts: async () => {
-    set({ alertsLoading: true, alertsError: null });
-    try {
-      const res = await HealthService.getPatientAlerts();
-      const unread = (res.alerts ?? []).filter((a) => !a.isRead).length;
-      set({ patientAlerts: res.alerts ?? [], alertsLoading: false, unreadAlertCount: unread });
-    } catch (e) {
-      set({
-        alertsLoading: false,
-        alertsError: e instanceof Error ? e.message : 'Failed to load alerts',
-      });
-    }
-  },
-
-  // ── Physician alerts ──────────────────────────────────────────────────────
   fetchPhysicianAlerts: async () => {
     set({ physicianAlertsLoading: true, physicianAlertsError: null });
     try {
@@ -143,16 +198,6 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     }
   },
 
-  // ── Mark read (client-side only) ──────────────────────────────────────────
-  markAlertRead: (id: string) => {
-    set((state) => {
-      const updated = state.patientAlerts.map((a) =>
-        a.id === id ? { ...a, isRead: true } : a
-      );
-      return { patientAlerts: updated, unreadAlertCount: updated.filter((a) => !a.isRead).length };
-    });
-  },
-
   markPhysicianAlertRead: (id: string) => {
     set((state) => {
       const updated = state.physicianAlerts.map((a) =>
@@ -165,13 +210,6 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     });
   },
 
-  markAllAlertsRead: () => {
-    set((state) => ({
-      patientAlerts: state.patientAlerts.map((a) => ({ ...a, isRead: true })),
-      unreadAlertCount: 0,
-    }));
-  },
-
   markAllPhysicianAlertsRead: () => {
     set((state) => ({
       physicianAlerts: state.physicianAlerts.map((a) => ({ ...a, isRead: true })),
@@ -179,16 +217,10 @@ export const useHealthStore = create<HealthState>((set, get) => ({
     }));
   },
 
-  /** Clear all user-scoped data (call on logout / user switch). */
   reset: () =>
     set({
-      patientTimeline: [],
-      timelineError: null,
       physicianTimeline: [],
       physicianTimelineError: null,
-      patientAlerts: [],
-      alertsError: null,
-      unreadAlertCount: 0,
       physicianAlerts: [],
       physicianAlertsError: null,
       unreadPhysicianAlertCount: 0,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { View, Text, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,7 +42,9 @@ export const GreetingSection: React.FC<GreetingSectionProps> = ({
   const slide = useRef(new Animated.Value(20)).current;
 
   const displayName = userName ? userName.split(' ')[0] : 'there';
-  const { label: greeting, icon: timeIcon } = getTimeGreeting();
+  // getTimeGreeting() only changes at most 3 times per day — cache it for the
+  // component lifetime to avoid a Date allocation + string compare on every render.
+  const { label: greeting, icon: timeIcon } = useMemo(() => getTimeGreeting(), []);
 
   useEffect(() => {
     Animated.parallel([

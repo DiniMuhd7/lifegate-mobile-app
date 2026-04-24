@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useHealthStore } from 'stores/health-store';
+import { usePhysicianHealthStore } from 'stores/health-store';
 import type { HealthTimelineEntry } from 'types/health-types';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -211,7 +211,7 @@ export default function PatientHistoryScreen() {
     physicianTimelineError,
     fetchPhysicianTimeline,
     unreadPhysicianAlertCount,
-  } = useHealthStore();
+  } = usePhysicianHealthStore();
 
   const [filter, setFilter] = useState<FilterStatus>('All');
   const [search, setSearch] = useState('');

@@ -86,7 +86,11 @@ const generateId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${M
 const now = () => Date.now();
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingPersistSnapshot: { userId: string; conversations: Conversation[] } | null = null;
+let pendingPersistSnapshot: {
+  userId: string;
+  conversations: Conversation[];
+  changedIds: Set<string> | null; // null = write all
+} | null = null;
 
 function cloneConversation(conversation: Conversation): Conversation {
   return {
@@ -99,18 +103,48 @@ function cloneConversations(conversations: Conversation[]): Conversation[] {
   return conversations.map(cloneConversation);
 }
 
-async function persistSnapshot(snapshot: { userId: string; conversations: Conversation[] } | null) {
+async function persistSnapshot(snapshot: {
+  userId: string;
+  conversations: Conversation[];
+  changedIds: Set<string> | null;
+} | null) {
   if (!snapshot || !snapshot.userId) return;
-  await PersistenceManager.saveConversations(snapshot.conversations, snapshot.userId);
+  const { userId, conversations, changedIds } = snapshot;
+
+  if (changedIds === null) {
+    // Bulk write (e.g. after migration or initial load)
+    await PersistenceManager.saveConversations(conversations, userId);
+    return;
+  }
+
+  // Hot path: only write the conversations that actually changed
+  const toWrite = conversations.filter((c) => changedIds.has(c.id));
+  await Promise.all(toWrite.map((c) => PersistenceManager.saveConversation(c, userId)));
 }
 
-function scheduleConversationPersist(userId: string, conversations: Conversation[]) {
+function scheduleConversationPersist(
+  userId: string,
+  conversations: Conversation[],
+  changedId?: string
+) {
   if (!userId) return;
 
-  pendingPersistSnapshot = {
-    userId,
-    conversations: cloneConversations(conversations),
-  };
+  if (pendingPersistSnapshot) {
+    // Accumulate into the existing pending snapshot
+    if (pendingPersistSnapshot.changedIds !== null && changedId) {
+      pendingPersistSnapshot.changedIds.add(changedId);
+    } else {
+      // Either no specific ID provided OR already a full-write pending → write all
+      pendingPersistSnapshot.changedIds = null;
+    }
+    pendingPersistSnapshot.conversations = cloneConversations(conversations);
+  } else {
+    pendingPersistSnapshot = {
+      userId,
+      conversations: cloneConversations(conversations),
+      changedIds: changedId ? new Set([changedId]) : null,
+    };
+  }
 
   if (persistTimer) {
     clearTimeout(persistTimer);
@@ -274,7 +308,7 @@ async function finalizeDiagnosis(sessionId: string, conversationId: string, aiMe
   const state = useChatStore.getState();
   const updatedConversation = getConversation(state.conversations, conversationId);
   if (updatedConversation) {
-    scheduleConversationPersist(state.userId || '', state.conversations);
+    scheduleConversationPersist(state.userId || '', state.conversations, conversationId);
   }
 }
 
@@ -369,7 +403,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeConversationId: conversationId,
     }));
 
-    scheduleConversationPersist(get().userId || '', get().conversations);
+    scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
 
     return conversationId;
   },
@@ -388,7 +422,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
 
-    scheduleConversationPersist(get().userId || '', get().conversations);
+    scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
   },
 
   setActiveConversation: (conversationId: string) => {
@@ -536,7 +570,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeAbortController: null,
       }));
 
-      scheduleConversationPersist(get().userId || '', get().conversations);
+      scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
 
       const updatedConversation = getConversation(get().conversations, conversationId);
       if (updatedConversation) {
@@ -593,7 +627,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : 'Failed to get AI response. Please try again.',
       }));
 
-      scheduleConversationPersist(get().userId || '', get().conversations);
+      scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
     }
   },
 
@@ -672,7 +706,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     });
 
-    scheduleConversationPersist(get().userId || '', get().conversations);
+    // Delete just the one key — no need to rewrite all other conversations.
+    PersistenceManager.deleteConversation(conversationId, get().userId || '').catch(() => {});
   },
 
   setConversationServerSessionId: (conversationId: string, serverSessionId: string) => {
@@ -684,7 +719,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
 
-    scheduleConversationPersist(get().userId || '', get().conversations);
+    scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
   },
 
   clearError: () => set({ error: null }),
@@ -701,7 +736,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
 
-    scheduleConversationPersist(get().userId || '', get().conversations);
+    scheduleConversationPersist(get().userId || '', get().conversations, targetConversationId);
   },
 
   resetChatState: () => {

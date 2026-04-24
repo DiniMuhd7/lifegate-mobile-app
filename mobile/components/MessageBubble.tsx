@@ -48,7 +48,8 @@ interface MessageBubbleProps {
   type: 'sent' | 'received';
   timestamp?: string;
   status?: 'SENDING' | 'SENT' | 'READ' | 'FAILED';
-  delay?: number;
+  /** When true the bubble fades+slides in. False for history messages already on screen at mount. */
+  isNew?: boolean;
   onRetry?: () => void;
   onFollowUp?: (question: string) => void;
   diagnosis?: Diagnosis;
@@ -86,7 +87,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   type,
   timestamp,
   status,
-  delay = 0,
+  isNew = false,
   onRetry,
   onFollowUp,
   diagnosis,
@@ -103,25 +104,25 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 }) => {
   const displayMessage = isRawJson(message) ? FALLBACK_MESSAGE : message;
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(12)).current;
+  // History messages start fully visible — no animation, no JS-thread work.
+  // New messages (added after mount) animate in once.
+  const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
+  const slideAnim = useRef(new Animated.Value(isNew ? 12 : 0)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.delay(delay),
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 80,
-          friction: 10,
-        }),
-      ]),
+    if (!isNew) return;
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }),
     ]).start();
   }, []);
 

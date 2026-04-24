@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useHealthStore } from 'stores/health-store';
+import { usePhysicianHealthStore } from 'stores/health-store';
 import { useNotificationStore } from 'stores/notification-store';
 import type { PreventiveAlert, AlertSeverity } from 'types/health-types';
 import type { PhysicianNotification } from 'stores/notification-store';
@@ -44,8 +44,9 @@ function timeAgo(ms: number) {
 // ─── Case notification card ───────────────────────────────────────────────────
 
 const CASE_TYPE_CFG: Record<PhysicianNotification['type'], { color: string; bg: string; icon: keyof typeof Ionicons.glyphMap; label: string }> = {
-  new_case:    { color: '#0AADA2', bg: '#f0fdfc', icon: 'briefcase-outline', label: 'New Case' },
-  case_status: { color: '#f59e0b', bg: '#fffbeb', icon: 'refresh-circle-outline', label: 'Case Update' },
+  new_case:    { color: '#0AADA2', bg: '#f0fdfc', icon: 'briefcase-outline',       label: 'New Case'     },
+  case_status: { color: '#f59e0b', bg: '#fffbeb', icon: 'refresh-circle-outline',  label: 'Case Update'  },
+  im_message:  { color: '#6366f1', bg: '#eef2ff', icon: 'chatbubble-ellipses-outline', label: 'Message' },
 };
 
 function CaseNotificationCard({
@@ -178,7 +179,7 @@ export default function NotificationScreen() {
     fetchPhysicianAlerts,
     markPhysicianAlertRead,
     markAllPhysicianAlertsRead,
-  } = useHealthStore();
+  } = usePhysicianHealthStore();
 
   const {
     notifications: caseNotifications,

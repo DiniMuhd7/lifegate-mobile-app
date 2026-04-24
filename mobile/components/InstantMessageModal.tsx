@@ -33,10 +33,8 @@ import React, {
 } from 'react';
 import {
   Animated,
-  Dimensions,
   FlatList,
   Keyboard,
-  KeyboardAvoidingView,
   PanResponder,
   Platform,
   Pressable,
@@ -46,6 +44,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,12 +56,8 @@ import { IMMessage } from '../types/im-types';
 import wsService from '../services/websocket-service';
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
-
-const { height: SCREEN_H } = Dimensions.get('window');
-const HALF_HEIGHT  = SCREEN_H * 0.52;
-const FULL_HEIGHT  = SCREEN_H * 0.92;
-const SNAP_DISMISS = SCREEN_H * 0.08;
-const CHAR_WARN    = 1800;
+// Moved inside the component — useWindowDimensions() updates on rotation.
+const CHAR_WARN = 1800;
 
 // ─── List item types ──────────────────────────────────────────────────────────
 
@@ -285,37 +280,45 @@ export function InstantMessageModal({
   onClose,
 }: InstantMessageModalProps) {
   const insets = useSafeAreaInsets();
+  const { height: SCREEN_H } = useWindowDimensions();
+  const HALF_HEIGHT  = SCREEN_H * 0.52;
+  const FULL_HEIGHT  = SCREEN_H * 0.92;
+  const SNAP_DISMISS = SCREEN_H * 0.08;
   const { user } = useAuthStore();
   const myRole: 'user' | 'professional' = perspective === 'patient' ? 'user' : 'professional';
 
-  const {
-    conversations,
-    loadConversation,
-    refreshConversation,
-    sendMessage,
-    retryMessage,
-    receiveMessage,
-    receiveReadReceipt,
-    setCounterpartTyping,
-  } = useIMStore();
+  // Scoped selector — only re-renders when THIS conversation changes, not others.
+  const conv = useIMStore((s) => s.conversations[diagnosisId]);
+  const loadConversation      = useIMStore((s) => s.loadConversation);
+  const refreshConversation   = useIMStore((s) => s.refreshConversation);
+  const sendMessage           = useIMStore((s) => s.sendMessage);
+  const retryMessage          = useIMStore((s) => s.retryMessage);
+  const receiveMessage        = useIMStore((s) => s.receiveMessage);
+  const receiveReadReceipt    = useIMStore((s) => s.receiveReadReceipt);
+  const setCounterpartTyping  = useIMStore((s) => s.setCounterpartTyping);
 
-  const conv     = conversations[diagnosisId];
   const messages = conv?.messages ?? [];
 
   // ── UI state ─────────────────────────────────────────────────────────────
-  const [text, setText]                   = useState('');
-  const [currentHeight, setCurrentHeight] = useState(HALF_HEIGHT);
-  const [isAtBottom, setIsAtBottom]       = useState(true);
-  const [newMsgCount, setNewMsgCount]     = useState(0);
+  const [text, setText]                     = useState('');
+  // Tracks the snapped translateY offset so isFullScreen is correct in render.
+  // The live animation runs on sheetAnim (native thread) independently.
+  const [currentOffset, setCurrentOffset]   = useState(() => FULL_HEIGHT - HALF_HEIGHT);
+  const [isAtBottom, setIsAtBottom]         = useState(true);
+  const [newMsgCount, setNewMsgCount]       = useState(0);
 
-  // isFullScreen is derived — no separate boolean state
-  const isFullScreen = currentHeight >= FULL_HEIGHT - 4;
+  // isFullScreen: translateY offset near 0 means the sheet is at full height.
+  const isFullScreen = currentOffset <= 4;
 
   // ── Refs ──────────────────────────────────────────────────────────────────
-  const slideAnim       = useRef(new Animated.Value(0)).current;
-  const heightAnim      = useRef(new Animated.Value(HALF_HEIGHT)).current;
+  // A single Animated.Value drives the sheet's translateY position.
+  // Because translateY is a transform (not a layout) property, useNativeDriver: true
+  // is valid — every drag frame runs on the UI thread with zero JS involvement.
+  // Initial value = SCREEN_H (sheet starts fully off-screen below the viewport).
+  const sheetAnim       = useRef(new Animated.Value(SCREEN_H)).current;
+  const keyboardAnim    = useRef(new Animated.Value(0)).current;
   const listRef         = useRef<FlatList>(null);
-  const dragStartHeight = useRef(HALF_HEIGHT);
+  const dragStartOffset = useRef(FULL_HEIGHT - HALF_HEIGHT);
   const prevMsgLen      = useRef(0);
 
   // ── Build list data (memoised) ────────────────────────────────────────────
@@ -327,8 +330,10 @@ export function InstantMessageModal({
 
   // ── Mount: slide in + load ────────────────────────────────────────────────
   useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: 1,
+    // Spring the sheet up from off-screen to the resting half-height position.
+    // useNativeDriver: true — translateY runs entirely on the UI thread.
+    Animated.spring(sheetAnim, {
+      toValue: FULL_HEIGHT - HALF_HEIGHT,
       useNativeDriver: true,
       tension: 65,
       friction: 11,
@@ -354,6 +359,28 @@ export function InstantMessageModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
+
+  // ── Keyboard offset — lifts the input bar above the software keyboard ─────
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => Animated.timing(keyboardAnim, {
+        toValue: e.endCoordinates.height,
+        duration: Platform.OS === 'ios' ? (e.duration ?? 250) : 200,
+        useNativeDriver: true,
+      }).start(),
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      (e) => Animated.timing(keyboardAnim, {
+        toValue: 0,
+        duration: Platform.OS === 'ios' ? (e.duration ?? 250) : 200,
+        useNativeDriver: true,
+      }).start(),
+    );
+    return () => { show.remove(); hide.remove(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Auto-dismiss error after 4 s ─────────────────────────────────────────
   useEffect(() => {
@@ -385,57 +412,57 @@ export function InstantMessageModal({
 
   // ── Toggle full / half screen ─────────────────────────────────────────────
   const toggleFullScreen = useCallback(() => {
-    const targetH = isFullScreen ? HALF_HEIGHT : FULL_HEIGHT;
-    setCurrentHeight(targetH);
-    Animated.spring(heightAnim, {
-      toValue: targetH,
-      useNativeDriver: false,
+    const targetOffset = isFullScreen ? (FULL_HEIGHT - HALF_HEIGHT) : 0;
+    setCurrentOffset(targetOffset);
+    Animated.spring(sheetAnim, {
+      toValue: targetOffset,
+      useNativeDriver: true,
       tension: 70,
       friction: 12,
     }).start();
-  }, [isFullScreen, heightAnim]);
+  }, [isFullScreen, sheetAnim]);
 
   // ── Dismiss ───────────────────────────────────────────────────────────────
   const dismiss = useCallback(() => {
     Keyboard.dismiss();
-    Animated.timing(slideAnim, {
-      toValue: 0,
+    Animated.timing(sheetAnim, {
+      toValue: SCREEN_H,
       duration: 220,
       useNativeDriver: true,
     }).start(onClose);
-  }, [slideAnim, onClose]);
+  }, [sheetAnim, onClose]);
 
   // ── Drag callbacks ────────────────────────────────────────────────────────
   const onDragStart = useCallback(() => {
-    dragStartHeight.current = currentHeight;
-  }, [currentHeight]);
+    dragStartOffset.current = currentOffset;
+  }, [currentOffset]);
 
   const onDragMove = useCallback(
     (dy: number) => {
-      const newH = Math.min(
-        FULL_HEIGHT,
-        Math.max(HALF_HEIGHT * 0.35, dragStartHeight.current - dy),
-      );
-      heightAnim.setValue(newH);
+      // Clamp between 0 (fully expanded) and FULL_HEIGHT (nearly hidden).
+      const newOffset = Math.max(0, Math.min(FULL_HEIGHT, dragStartOffset.current + dy));
+      sheetAnim.setValue(newOffset);
     },
-    [heightAnim],
+    [sheetAnim],
   );
 
   const onDragEnd = useCallback(
     (dy: number) => {
-      const newH = dragStartHeight.current - dy;
-      if (newH < SNAP_DISMISS) { dismiss(); return; }
-      const snapFull = newH > (HALF_HEIGHT + FULL_HEIGHT) / 2;
-      const targetH  = snapFull ? FULL_HEIGHT : HALF_HEIGHT;
-      setCurrentHeight(targetH);
-      Animated.spring(heightAnim, {
-        toValue: targetH,
-        useNativeDriver: false,
+      const finalOffset = dragStartOffset.current + dy;
+      // Dismiss if dragged down past the threshold (too little sheet visible).
+      if (finalOffset > FULL_HEIGHT - SNAP_DISMISS) { dismiss(); return; }
+      // Snap to full (offset 0) or half based on midpoint between the two positions.
+      const snapFull     = finalOffset < (FULL_HEIGHT - HALF_HEIGHT) / 2;
+      const targetOffset = snapFull ? 0 : (FULL_HEIGHT - HALF_HEIGHT);
+      setCurrentOffset(targetOffset);
+      Animated.spring(sheetAnim, {
+        toValue: targetOffset,
+        useNativeDriver: true,
         tension: 70,
         friction: 12,
       }).start();
     },
-    [dismiss, heightAnim],
+    [dismiss, sheetAnim],
   );
 
   // ── Send ──────────────────────────────────────────────────────────────────
@@ -474,12 +501,6 @@ export function InstantMessageModal({
   const handleRefresh = useCallback(() => {
     refreshConversation(diagnosisId);
   }, [diagnosisId, refreshConversation]);
-
-  // ── Slide transform ───────────────────────────────────────────────────────
-  const translateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [SCREEN_H, 0],
-  });
 
   // ── List render helpers ───────────────────────────────────────────────────
   const renderItem = useCallback(
@@ -520,15 +541,27 @@ export function InstantMessageModal({
     ? 'Assigned physician'
     : 'Patient';
 
+  // Input bar translateY: stays at the physical screen bottom (translateY=0) in
+  // both half-screen and full-screen modes, and only slides off during dismiss
+  // (when sheetAnim goes above FULL_HEIGHT - HALF_HEIGHT toward FULL_HEIGHT).
+  // Keyboard lift is applied separately via keyboardAnim.
+  const inputBarTranslateY = useMemo(() => Animated.add(
+    sheetAnim.interpolate({
+      inputRange:  [0, FULL_HEIGHT - HALF_HEIGHT, FULL_HEIGHT],
+      outputRange: [0, 0,                         FULL_HEIGHT],
+      extrapolate: 'clamp',
+    }),
+    Animated.multiply(keyboardAnim, -1),
+  ), [sheetAnim, keyboardAnim, FULL_HEIGHT, HALF_HEIGHT]);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       {/* Backdrop */}
       <Pressable style={styles.backdrop} onPress={dismiss} />
 
-      {/* Sheet */}
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-        <Animated.View style={[styles.sheetInner, { height: heightAnim }]}>
+      {/* Sheet — fixed FULL_HEIGHT, offset by sheetAnim translateY on the native thread. */}
+      <Animated.View style={[styles.sheet, { height: FULL_HEIGHT, transform: [{ translateY: sheetAnim }] }]}>
 
           {/* ── Drag Handle ────────────────────────────────────────────── */}
           <DragHandle
@@ -579,11 +612,7 @@ export function InstantMessageModal({
           </View>
 
           {/* ── Messages ───────────────────────────────────────────────── */}
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-          >
+          <View style={{ flex: 1 }}>
             {/* Loading / empty states */}
             {conv?.loading && messages.length === 0 ? (
               <View style={styles.emptyState}>
@@ -658,53 +687,61 @@ export function InstantMessageModal({
                 <Text style={styles.errorText} numberOfLines={2}>{conv.error}</Text>
               </View>
             )}
+          </View>
+      </Animated.View>
 
-            {/* ── Input bar ───────────────────────────────────────────── */}
-            <View
-              style={[
-                styles.inputBar,
-                { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 },
-              ]}
-            >
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={styles.input}
-                  value={text}
-                  onChangeText={setText}
-                  placeholder="Type a message…"
-                  placeholderTextColor="#9ca3af"
-                  multiline
-                  maxLength={2000}
-                  returnKeyType="default"
-                  blurOnSubmit={false}
-                  textAlignVertical="top"
-                />
-                {text.length >= CHAR_WARN && (
-                  <Text
-                    style={[
-                      styles.charCounter,
-                      text.length >= 1970 && styles.charCounterWarn,
-                    ]}
-                  >
-                    {text.length}/2000
-                  </Text>
-                )}
-              </View>
-
-              <TouchableOpacity
-                onPress={handleSend}
-                disabled={!text.trim() || conv?.sending}
+      {/* ── Input bar ─────────────────────────────────────────────────────
+           Rendered OUTSIDE the translated sheet so it always sits at the
+           physical screen bottom regardless of the sheet's translateY offset.
+           inputBarTranslateY keeps it pinned in half/full mode and slides it
+           off-screen only during dismiss. keyboardAnim lifts it above the
+           software keyboard. ─────────────────────────────────────────── */}
+      <Animated.View
+        style={[styles.inputBarOuter, { transform: [{ translateY: inputBarTranslateY }] }]}
+      >
+        <View
+          style={[
+            styles.inputBar,
+            { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 },
+          ]}
+        >
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              value={text}
+              onChangeText={setText}
+              placeholder="Type a message…"
+              placeholderTextColor="#9ca3af"
+              multiline
+              maxLength={2000}
+              returnKeyType="default"
+              blurOnSubmit={false}
+              textAlignVertical="top"
+            />
+            {text.length >= CHAR_WARN && (
+              <Text
                 style={[
-                  styles.sendBtn,
-                  (!text.trim() || conv?.sending) && styles.sendBtnDisabled,
+                  styles.charCounter,
+                  text.length >= 1970 && styles.charCounterWarn,
                 ]}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Ionicons name="send" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        </Animated.View>
+                {text.length}/2000
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!text.trim() || conv?.sending}
+            style={[
+              styles.sendBtn,
+              (!text.trim() || conv?.sending) && styles.sendBtnDisabled,
+            ]}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Ionicons name="send" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </>
   );
@@ -722,15 +759,24 @@ interface DragHandleProps {
 function DragHandle({ onStart, onMove, onEnd }: DragHandleProps) {
   const startY = useRef(0);
 
+  // Keep mutable refs to the latest callbacks so PanResponder (created once in
+  // useRef) always calls the current version, not the version from first render.
+  const onStartRef = useRef(onStart);
+  const onMoveRef  = useRef(onMove);
+  const onEndRef   = useRef(onEnd);
+  onStartRef.current = onStart;
+  onMoveRef.current  = onMove;
+  onEndRef.current   = onEnd;
+
   // Both refs must be created unconditionally (rules of hooks).
   // pan is only used on native; on web we use pointer events instead.
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => onStart(),
-      onPanResponderMove: (_: unknown, gs: { dy: number }) => onMove(gs.dy),
-      onPanResponderRelease: (_: unknown, gs: { dy: number }) => onEnd(gs.dy),
+      onMoveShouldSetPanResponder:  () => true,
+      onPanResponderGrant:   ()                            => onStartRef.current(),
+      onPanResponderMove:    (_: unknown, gs: { dy: number }) => onMoveRef.current(gs.dy),
+      onPanResponderRelease: (_: unknown, gs: { dy: number }) => onEndRef.current(gs.dy),
     }),
   ).current;
 
@@ -779,8 +825,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 101,
-  },
-  sheetInner: {
+    // Visual styles merged from the former sheetInner — one fewer Animated.View.
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -866,7 +911,7 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: 14,
     paddingTop: 10,
-    paddingBottom: 6,
+    paddingBottom: 76, // leave room for the floating input bar (~68px + a little breathing room)
   },
   // ── Date separator ────────────────────────────────────────────────────────
   dateSeparator: {
@@ -1038,6 +1083,14 @@ const styles = StyleSheet.create({
     color: '#dc2626',
   },
   // ── Input bar ─────────────────────────────────────────────────────────────
+  inputBarOuter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 102,
+    backgroundColor: '#fff',
+  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',

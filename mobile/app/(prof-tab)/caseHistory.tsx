@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useProfessionalStore } from '../../stores/professional-store';
+import { useProfessionalStore, useEarningsStore } from '../../stores/professional-store';
 import { EarningRecord, CaseUrgency } from '../../types/professional-types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ export default function CaseHistoryScreen() {
     earningsSummary,
     loadEarningsSummary,
     loadEarningsHistory,
-  } = useProfessionalStore();
+  } = useEarningsStore();
 
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);

@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  FlatList,
   Pressable,
   ActivityIndicator,
   Modal,
@@ -70,7 +71,7 @@ function darken(hex: string): string {
 
 // ── VideoCard ─────────────────────────────────────────────────────────────────
 
-function VideoCard({
+const VideoCard = React.memo(function VideoCard({
   video,
   rewarded,
   onWatch,
@@ -256,7 +257,7 @@ function VideoCard({
       </View>
     </Pressable>
   );
-}
+});
 
 // ── VideoPlayerModal ──────────────────────────────────────────────────────────
 
@@ -689,18 +690,31 @@ export default function ExploreScreen() {
   }, [activeVideo, claimReward, showToast, dailyCap, refreshVideos]);
 
   // Sorted video list: fresh first → session-viewed → already rewarded.
-  const filteredVideos = shuffledVideos
-    .filter((v) => activeCategory === 'All' || v.category === activeCategory)
-    .sort((a, b) => {
-      // Sort order: fresh → session-viewed → rewarded
-      const aR = isRewarded(a.id);
-      const bR = isRewarded(b.id);
-      if (aR !== bR) return aR ? 1 : -1;
-      const aV = viewedIds.has(a.id);
-      const bV = viewedIds.has(b.id);
-      if (aV !== bV) return aV ? 1 : -1;
-      return 0;
-    });
+  // Memoized so FlatList receives a stable reference and avoids unnecessary re-renders.
+  const filteredVideos = useMemo(() =>
+    shuffledVideos
+      .filter((v) => activeCategory === 'All' || v.category === activeCategory)
+      .sort((a, b) => {
+        // Sort order: fresh → session-viewed → rewarded
+        const aR = isRewarded(a.id);
+        const bR = isRewarded(b.id);
+        if (aR !== bR) return aR ? 1 : -1;
+        const aV = viewedIds.has(a.id);
+        const bV = viewedIds.has(b.id);
+        if (aV !== bV) return aV ? 1 : -1;
+        return 0;
+      }),
+  [shuffledVideos, activeCategory, isRewarded, viewedIds]);
+
+  const renderVideoCard = useCallback(({ item: video }: { item: ExploreVideo }) => (
+    <View style={{ flex: 1, marginBottom: 12 }}>
+      <VideoCard
+        video={video}
+        rewarded={isRewarded(video.id)}
+        onWatch={() => handleWatch(video)}
+      />
+    </View>
+  ), [isRewarded, handleWatch]);
 
   const dailyRemaining = getDailyRemaining();
   const todayClaimedCount = videos.filter((v) => isRewarded(v.id)).length;
@@ -857,80 +871,82 @@ export default function ExploreScreen() {
       </ScrollView>
       </View>
 
-      {/* Video list */}
-      <ScrollView
+      {/* Video list — virtualized 2-column grid; only visible cards are mounted */}
+      <FlatList
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4, gap: 12, paddingBottom: 48 }}
+        data={filteredVideos}
+        keyExtractor={(v) => v.id}
+        renderItem={renderVideoCard}
+        numColumns={2}
+        columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 4, paddingBottom: 48 }}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Section header for category view */}
-        {activeCategory !== 'All' && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 2 }}>
-            <Ionicons
-              name={CAT_META[activeCategory as VideoCategory].icon}
-              size={16}
-              color={CAT_META[activeCategory as VideoCategory].color}
-            />
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>{activeCategory}</Text>
-            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
-              · {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        )}
-
-        {isFetching && videos.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
-            <ActivityIndicator size="large" color="#059669" />
-            <Text style={{ fontSize: 13, color: '#6b7280' }}>Loading today’s health videos…</Text>
-          </View>
-        ) : filteredVideos.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12 }}>
-            <Ionicons name="logo-youtube" size={36} color="#374151" />
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#e2e8f0', textAlign: 'center' }}>
-              {activeCategory === 'All'
-                ? 'Fetching today\'s health videos…'
-                : `No ${activeCategory} videos available yet`}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', paddingHorizontal: 24 }}>
-              {activeCategory === 'All'
-                ? 'Fresh videos are sourced from YouTube daily. Pull to refresh or check back shortly.'
-                : 'Try a different category or check back after the daily refresh.'}
-            </Text>
-          </View>
-        ) : null}
-        {filteredVideos.map((video) => (
-          <VideoCard
-            key={video.id}
-            video={video}
-            rewarded={isRewarded(video.id)}
-            onWatch={() => handleWatch(video)}
-          />
-        ))}
-
-        {filteredVideos.length > 0 && (
-          <View
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
-              borderRadius: 12,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.08)',
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.3)',
-                lineHeight: 16,
-                textAlign: 'center',
-              }}
-            >
-              Earn Lifecoins for every video you watch. Up to {DAILY_VIDEO_CAP} rewards per day. Feed
-              refreshes daily. Health videos are for educational purposes only.
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+        removeClippedSubviews
+        ListHeaderComponent={
+          activeCategory !== 'All' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 10, paddingHorizontal: 16 }}>
+              <Ionicons
+                name={CAT_META[activeCategory as VideoCategory].icon}
+                size={16}
+                color={CAT_META[activeCategory as VideoCategory].color}
+              />
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>{activeCategory}</Text>
+              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
+                · {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          isFetching && videos.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12, paddingHorizontal: 16 }}>
+              <ActivityIndicator size="large" color="#059669" />
+              <Text style={{ fontSize: 13, color: '#6b7280' }}>Loading today’s health videos…</Text>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12, paddingHorizontal: 16 }}>
+              <Ionicons name="logo-youtube" size={36} color="#374151" />
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#e2e8f0', textAlign: 'center' }}>
+                {activeCategory === 'All'
+                  ? "Fetching today’s health videos…"
+                  : `No ${activeCategory} videos available yet`}
+              </Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', paddingHorizontal: 24 }}>
+                {activeCategory === 'All'
+                  ? 'Fresh videos are sourced from YouTube daily. Pull to refresh or check back shortly.'
+                  : 'Try a different category or check back after the daily refresh.'}
+              </Text>
+            </View>
+          )
+        }
+        ListFooterComponent={
+          filteredVideos.length > 0 ? (
+            <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.04)',
+                  borderRadius: 12,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.08)',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: 'rgba(255,255,255,0.3)',
+                    lineHeight: 16,
+                    textAlign: 'center',
+                  }}
+                >
+                  Earn Lifecoins for every video you watch. Up to {DAILY_VIDEO_CAP} rewards per day. Feed
+                  refreshes daily. Health videos are for educational purposes only.
+                </Text>
+              </View>
+            </View>
+          ) : null
+        }
+      />
 
       {/* Active video modal */}
       {activeVideo && (

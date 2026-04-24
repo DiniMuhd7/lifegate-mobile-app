@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ function timeAgo(iso: string) {
 
 // ─── Case conversation row ────────────────────────────────────────────────────
 
-function CaseRow({ item }: { item: CaseQueueItem }) {
+const CaseRow = React.memo(function CaseRow({ item }: { item: CaseQueueItem }) {
   const cfg = STATUS_CFG[item.status] ?? STATUS_CFG.Pending;
   const initials = (item.patientName ?? 'P')[0].toUpperCase();
 
@@ -105,7 +105,7 @@ function CaseRow({ item }: { item: CaseQueueItem }) {
       <Ionicons name="chevron-forward" size={16} color="#d1d5db" />
     </Pressable>
   );
-}
+});
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -121,9 +121,20 @@ export default function PhysicianChatScreen() {
     await fetchCaseQueue();
   }, [fetchCaseQueue]);
 
-  // Most recent first across all statuses
-  const allCases: CaseQueueItem[] = [...activeCases, ...pendingCases, ...completedCases]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  // Most recent first across all statuses — memoized so FlatList gets a stable
+  // reference and avoids invalidating all rows on unrelated re-renders.
+  const allCases = useMemo<CaseQueueItem[]>(
+    () =>
+      [...activeCases, ...pendingCases, ...completedCases].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
+    [activeCases, pendingCases, completedCases],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: CaseQueueItem }) => <CaseRow item={item} />,
+    [],
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top']}>
@@ -185,7 +196,7 @@ export default function PhysicianChatScreen() {
         <FlatList
           data={allCases}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <CaseRow item={item} />}
+          renderItem={renderItem}
           refreshControl={
             <RefreshControl
               refreshing={isQueueLoading}

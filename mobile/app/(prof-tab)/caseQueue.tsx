@@ -32,6 +32,11 @@ export default function CaseQueueScreen() {
 
   const [activeTab, setActiveTab] = useState<Tab>('Pending');
   const [takingId, setTakingId] = useState<string | null>(null);
+  // Keep a ref in sync so renderItem can read the live value without being
+  // re-created on every spinner toggle. React.memo on CaseCard then skips
+  // re-renders for every row that didn't actually change.
+  const takingIdRef = useRef<string | null>(null);
+  takingIdRef.current = takingId;
   const listRef = useRef<FlatList<CaseQueueItem>>(null);
 
   useEffect(() => {
@@ -89,10 +94,13 @@ export default function CaseQueueScreen() {
         item={item}
         onTakeCase={activeTab === 'Pending' ? handleTakeCase : undefined}
         onPress={handlePress}
-        isTaking={takingId === item.id}
+        isTaking={takingIdRef.current === item.id}
       />
     ),
-    [activeTab, handleTakeCase, handlePress, takingId]
+    // takingId intentionally excluded — read via ref so this callback stays
+    // stable across spinner toggles. extraData on FlatList drives the update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeTab, handleTakeCase, handlePress],
   );
 
   const countFor = (tab: Tab) =>
@@ -155,6 +163,7 @@ export default function CaseQueueScreen() {
         data={cases}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        extraData={takingId}
         contentContainerStyle={{ paddingTop: 4, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
