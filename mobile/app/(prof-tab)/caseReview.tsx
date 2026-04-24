@@ -210,51 +210,135 @@ function calculateAge(dob: string | undefined): number | null {
 
 function generateHealthTipsForCondition(condition: string): string {
   const c = condition.toLowerCase();
-  if (c.includes('malaria')) {
+
+  // Malaria (all species)
+  if (c.includes('malaria') || c.includes('plasmodium')) {
     return 'Complete your full antimalarial course even if you feel better, and return if fever persists after 48 hours.';
   }
-  if (c.includes('typhoid')) {
+  // Typhoid / Enteric Fever
+  if (c.includes('typhoid') || c.includes('enteric fever')) {
     return 'Eat soft foods, drink only boiled or bottled water, and complete all prescribed antibiotics without stopping early.';
   }
-  if (c.includes('hypertension') || c.includes('blood pressure')) {
-    return 'Reduce salt intake and take your blood pressure medication at the same time every day without skipping.';
-  }
-  if (c.includes('diabetes')) {
-    return 'Avoid sugary drinks and processed foods, take a short walk after meals, and never skip your diabetes medication.';
-  }
-  if (c.includes('tuberculosis') || c.includes('tb')) {
-    return 'Take all TB medications daily without missing a dose, as missed doses cause drug resistance — complete the full course.';
-  }
-  if (c.includes('hiv') || c.includes('aids')) {
-    return 'Take your antiretroviral medication every day at the same time and keep all clinic appointments for viral load monitoring.';
-  }
-  if (c.includes('sickle cell') || c.includes('scd')) {
-    return 'Stay well-hydrated with 2–3 litres of water daily, avoid extreme temperatures, and seek emergency care for chest pain or shortness of breath.';
-  }
-  if (c.includes('peptic') || c.includes('ulcer') || c.includes('gastritis')) {
-    return 'Avoid ibuprofen, aspirin, alcohol, and spicy foods while taking your prescribed antacid or PPI medication.';
-  }
-  if (c.includes('uti') || c.includes('urinary')) {
-    return 'Drink 2–3 litres of water daily and complete the full antibiotic course — return if symptoms persist or back pain and fever develop.';
-  }
-  if (c.includes('respiratory') || c.includes('pneumonia') || c.includes('bronchitis') || c.includes('asthma')) {
-    return 'Avoid cigarette smoke and dusty environments, and use your inhaler exactly as directed without stopping steroids abruptly.';
-  }
-  if (c.includes('heart failure') || c.includes('cardiac') || c.includes('coronary')) {
-    return 'Take all heart medications daily, limit salt to under 2g per day, and report a weight gain of more than 2 kg in 24 hours.';
-  }
-  if (c.includes('anaemia') || c.includes('anemia')) {
-    return 'Eat iron-rich foods such as beans, liver, and dark leafy greens, and take iron supplements with orange juice to improve absorption.';
-  }
+  // Dengue
   if (c.includes('dengue')) {
     return 'Rest, stay well-hydrated, and use only paracetamol for fever — avoid aspirin and NSAIDs, and seek emergency care for any bleeding.';
   }
-  if (c.includes('arthritis') || c.includes('gout') || c.includes('joint')) {
+  // Viral fever (generic)
+  if (c.includes('viral fever') || c.includes('febrile')) {
+    return 'Rest, drink plenty of fluids, and take paracetamol as directed — return if fever lasts more than 3 days.';
+  }
+  // Tuberculosis
+  if (c.includes('tuberculosis') || c.includes('ptb') || (c.includes('tb') && !c.startsWith('tbi'))) {
+    return 'Take all TB medications daily without missing a dose, as missed doses cause drug resistance — complete the full course.';
+  }
+  // HIV / AIDS / Opportunistic infections
+  if (c.includes('hiv') || c.includes('aids') || c.includes('opportunistic')) {
+    return 'Take your antiretroviral medication every day at the same time and keep all clinic appointments for viral load monitoring.';
+  }
+  // Hepatitis
+  if (c.includes('hepatitis')) {
+    return 'Avoid alcohol completely, eat a low-fat diet, and take all antiviral medication as prescribed without skipping doses.';
+  }
+  // Liver disease
+  if (c.includes('cirrhosis') || c.includes('fatty liver')) {
+    return 'Avoid alcohol and fatty foods entirely, and attend all follow-up appointments to monitor liver function.';
+  }
+  // Hypertension
+  if (c.includes('hypertension') || c.includes('blood pressure')) {
+    return 'Reduce salt intake and take your blood pressure medication at the same time every day without skipping.';
+  }
+  // Heart failure / Coronary
+  if (c.includes('heart failure') || c.includes('cardiac') || c.includes('coronary') || c.includes('arrhythmia') || c.includes('acute coronary')) {
+    return 'Take all heart medications daily, limit salt to under 2g per day, and report a weight gain of more than 2 kg in 24 hours.';
+  }
+  // Stroke / TIA
+  if (c.includes('stroke') || c.includes('ischaemic attack') || c.includes('tia')) {
+    return 'Take all prescribed medications daily, avoid smoking, and report any new weakness, vision changes, or speech difficulty immediately.';
+  }
+  // Diabetes and related conditions
+  if (c.includes('diabetes') || c.includes('diabetic') || c.includes('hyperglycaemia') || c.includes('hyperglycemia') || c.includes('hypoglycaemia') || c.includes('hypoglycemia') || c.includes('ketoacidosis')) {
+    return 'Avoid sugary drinks and processed foods, take a short walk after meals, and never skip your diabetes medication.';
+  }
+  // Anaemia / Iron deficiency
+  if (c.includes('anaemia') || c.includes('anemia') || c.includes('iron deficiency')) {
+    return 'Eat iron-rich foods such as beans, liver, and dark leafy greens, and take iron supplements with orange juice to improve absorption.';
+  }
+  // Sickle cell
+  if (c.includes('sickle cell') || c.includes('scd')) {
+    return 'Stay well-hydrated with 2–3 litres of water daily, avoid extreme temperatures, and seek emergency care for chest pain or shortness of breath.';
+  }
+  // Respiratory / Lungs
+  if (c.includes('respiratory') || c.includes('pneumonia') || c.includes('bronchitis') || c.includes('asthma') || c.includes('copd') || c.includes('urti') || c.includes('lrti')) {
+    return 'Avoid cigarette smoke and dusty environments, and use your inhaler exactly as directed without stopping steroids abruptly.';
+  }
+  // UTI / Urinary / Kidney
+  if (c.includes('uti') || c.includes('urinary') || c.includes('pyelonephritis') || c.includes('cystitis')) {
+    return 'Drink 2–3 litres of water daily and complete the full antibiotic course — return if symptoms persist or back pain and fever develop.';
+  }
+  // Kidney / Renal
+  if (c.includes('renal') || c.includes('kidney') || c.includes('nephrotic') || c.includes('calculi')) {
+    return 'Drink at least 2–3 litres of water daily, follow your low-salt diet, and take all prescribed medications without missing doses.';
+  }
+  // GI / Peptic / Gastro
+  if (c.includes('peptic') || c.includes('ulcer') || c.includes('gastritis') || c.includes('gerd') || c.includes('gastro') || c.includes('ibs') || c.includes('irritable bowel')) {
+    return 'Avoid ibuprofen, aspirin, alcohol, and spicy foods while taking your prescribed antacid or PPI medication.';
+  }
+  // Appendicitis
+  if (c.includes('appendicitis')) {
+    return 'Follow post-operative care instructions, keep the wound clean and dry, and return immediately for any fever, swelling, or discharge.';
+  }
+  // Sepsis / Infection
+  if (c.includes('sepsis') || c.includes('cellulitis') || c.includes('abscess') || c.includes('wound infection')) {
+    return 'Complete the full antibiotic course without stopping early and keep any wounds clean — seek emergency care if you develop high fever or confusion.';
+  }
+  // Meningitis / Brain
+  if (c.includes('meningitis') || c.includes('encephalitis')) {
+    return 'Complete all prescribed antibiotics or antivirals and attend all follow-up appointments, returning immediately for any new headache or confusion.';
+  }
+  // Febrile Convulsion
+  if (c.includes('febrile convulsion') || c.includes('febrile seizure')) {
+    return 'Control fever promptly with paracetamol and seek emergency care immediately if a seizure lasts more than 5 minutes.';
+  }
+  // ENT — Ear/Throat
+  if (c.includes('otitis') || c.includes('sinusitis') || c.includes('tonsillitis') || c.includes('pharyngitis')) {
+    return 'Complete your full antibiotic course and avoid cold drinks — return if symptoms worsen or you develop high fever.';
+  }
+  // Eye
+  if (c.includes('conjunctivitis') || c.includes('uveitis')) {
+    return 'Apply prescribed eye drops as directed, avoid touching your eyes, and return if vision changes or pain worsens.';
+  }
+  // Skin / Dermatology
+  if (c.includes('eczema') || c.includes('psoriasis') || c.includes('fungal') || c.includes('scabies') || c.includes('tinea') || c.includes('ringworm')) {
+    return 'Apply prescribed cream consistently as directed, keep the affected area clean and dry, and avoid sharing towels or clothing.';
+  }
+  // Arthritis / Gout / Joint
+  if (c.includes('arthritis') || c.includes('gout') || c.includes('joint') || c.includes('osteoarthritis') || c.includes('rheumatoid')) {
     return 'Keep affected joints elevated at rest and take prescribed anti-inflammatory medication with food to protect your stomach.';
   }
+  // Back / Spine pain
+  if (c.includes('back pain') || c.includes('spondylosis') || c.includes('lumbar') || c.includes('cervical')) {
+    return 'Avoid heavy lifting, apply prescribed heat or cold therapy, and take pain relief medication with food.';
+  }
+  // Headache / Migraine
+  if (c.includes('migraine') || c.includes('headache')) {
+    return 'Rest in a quiet, dark room at onset and take prescribed medication early — identify and avoid your personal triggers.';
+  }
+  // Mental health
+  if (c.includes('anxiety') || c.includes('depression') || c.includes('insomnia')) {
+    return 'Take prescribed medication consistently, maintain a regular sleep schedule, and attend all follow-up or therapy appointments.';
+  }
+  // Obstetric / Gynaecological
+  if (c.includes('pre-eclampsia') || c.includes('eclampsia') || c.includes('ectopic') || c.includes('pelvic inflammatory') || c.includes('pid')) {
+    return 'Rest, take all prescribed medications without missing doses, and attend all antenatal or gynaecology follow-up appointments.';
+  }
+  // Prostate / Male
+  if (c.includes('prostatic') || c.includes('prostatitis') || c.includes('bph')) {
+    return 'Take prescribed medication daily, avoid caffeine and alcohol, and return if urination becomes painful or completely blocked.';
+  }
+  // Tuberculosis variants already caught above; PTB acronym
   // Generic safe fallback
   const conditionLabel = condition.trim() || 'your condition';
-  return `Follow your physician's instructions for ${conditionLabel}, take all prescribed medications as directed, and attend all follow-up appointments.`;
+  return `Follow your physician's instructions, take all medications prescribed for ${conditionLabel} as directed, and attend all follow-up appointments.`;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
