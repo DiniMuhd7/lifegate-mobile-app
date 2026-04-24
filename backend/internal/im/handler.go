@@ -148,12 +148,9 @@ func (h *Handler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	// Real-time delivery to the counterpart. We scan existing messages to
-	// identify the other party's user ID (the first message from the opposite
-	// role gives us their ID).
-	if h.hub != nil {
-		go h.broadcastNewMessage(diagnosisID, senderRole, msg)
-	}
+	// Real-time delivery + push notification to the counterpart.
+	// Runs in a goroutine so the HTTP response is not delayed.
+	go h.broadcastNewMessage(diagnosisID, senderRole, senderID, msg)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
@@ -161,15 +158,27 @@ func (h *Handler) SendMessage(c *gin.Context) {
 	})
 }
 
-// broadcastNewMessage looks up counter-party user IDs and emits an im.message
-// event to them via the WebSocket hub.
-func (h *Handler) broadcastNewMessage(diagnosisID, senderRole string, msg *Message) {
-	msgs, err := h.svc.GetMessages(diagnosisID)
-	if err != nil {
+// broadcastNewMessage looks up the counterpart's userID directly from the
+// diagnoses table (reliable even when no messages exist yet) and emits an
+// im.message WS event plus an Expo push notification.
+func (h *Handler) broadcastNewMessage(diagnosisID, senderRole, senderID string, msg *Message) {
+	patientID, physicianID, err := h.svc.GetParticipants(diagnosisID)
+	if err != nil || patientID == "" {
+		log.Printf("im: broadcastNewMessage: failed to get participants for %s: %v", diagnosisID, err)
 		return
 	}
 
-	seen := map[string]bool{}
+	// Counterpart is whoever is NOT the sender.
+	var counterpartID string
+	if senderRole == "user" {
+		counterpartID = physicianID
+	} else {
+		counterpartID = patientID
+	}
+	if counterpartID == "" {
+		return // diagnosis not yet assigned to both parties
+	}
+
 	payload, _ := json.Marshal(map[string]interface{}{
 		"id":           msg.ID,
 		"diagnosis_id": msg.DiagnosisID,
@@ -181,30 +190,26 @@ func (h *Handler) broadcastNewMessage(diagnosisID, senderRole string, msg *Messa
 		"read_at":      nil,
 	})
 
-	for _, m := range msgs {
-		if m.SenderRole != senderRole && !seen[m.SenderID] {
-			seen[m.SenderID] = true
-			h.hub.BroadcastToUser(m.SenderID, "im.message", payload)
-			// Send a push notification so the counterpart is alerted even
-			// when they are in the background or have the modal closed.
-			if h.pushSvc != nil {
-				pushData := map[string]string{
-					"type":        "im_message",
-					"diagnosisId": diagnosisID,
-				}
-				var title, body string
-				if senderRole == "user" {
-					// Patient sent — notify physician
-					title = "New message from patient"
-					body = msg.SenderName + " sent you a message"
-					h.pushSvc.SendToPhysician(context.Background(), m.SenderID, title, body, pushData)
-				} else {
-					// Physician sent — notify patient
-					title = "New message from your doctor"
-					body = msg.SenderName + " sent you a message"
-					h.pushSvc.SendToUser(context.Background(), m.SenderID, title, body, pushData)
-				}
-			}
+	if h.hub != nil {
+		h.hub.BroadcastToUser(counterpartID, "im.message", payload)
+	}
+
+	if h.pushSvc != nil {
+		pushData := map[string]string{
+			"type":        "im_message",
+			"diagnosisId": diagnosisID,
+		}
+		var title, body string
+		if senderRole == "user" {
+			// Patient sent — notify physician
+			title = "New message from patient"
+			body = msg.SenderName + " sent you a message"
+			h.pushSvc.SendToPhysician(context.Background(), counterpartID, title, body, pushData)
+		} else {
+			// Physician sent — notify patient
+			title = "New message from your doctor"
+			body = msg.SenderName + " sent you a message"
+			h.pushSvc.SendToUser(context.Background(), counterpartID, title, body, pushData)
 		}
 	}
 }

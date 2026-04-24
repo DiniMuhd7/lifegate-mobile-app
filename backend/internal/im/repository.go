@@ -103,3 +103,17 @@ func (r *Repository) UnreadCount(diagnosisID, callerRole string) (int, error) {
 	err := r.db.QueryRow(q, diagnosisID, callerRole).Scan(&n)
 	return n, err
 }
+
+// GetParticipants returns the patient userID and physician userID for a
+// diagnosis directly from the diagnoses table — reliable even when no messages
+// have been exchanged yet. Returns empty strings (no error) when the row is
+// not found.
+func (r *Repository) GetParticipants(diagnosisID string) (patientID, physicianID string, err error) {
+	const q = `SELECT COALESCE(user_id::text,''), COALESCE(physician_id::text,'')
+	           FROM diagnoses WHERE id = $1`
+	err = r.db.QueryRow(q, diagnosisID).Scan(&patientID, &physicianID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", nil
+	}
+	return patientID, physicianID, err
+}

@@ -22,6 +22,7 @@ import { SuggestInput } from '../../components/SuggestInput';
 import { CaseUrgency, PrescriptionInfo, InvestigationInfo, ConditionScore, RiskFlag, HPIInfo } from '../../types/professional-types';
 import { extractErrorMessage } from '../../utils/error-utils';
 import { InstantMessageModal } from '../../components/InstantMessageModal';
+import { useIMStore } from '../../stores/im-store';
 
 // ─── Autocomplete data ────────────────────────────────────────────────────────
 
@@ -396,6 +397,11 @@ export default function CaseReviewScreen() {
   // Instant messaging panel
   const [imVisible, setImVisible] = useState(false);
 
+  // Unread IM count for the badge
+  const imUnread = useIMStore(
+    (s) => s.conversations[caseId as string]?.unreadCount ?? 0,
+  );
+
   // Load data on mount
   useEffect(() => {
     if (!caseId) return;
@@ -622,17 +628,6 @@ export default function CaseReviewScreen() {
               </Text>
             </View>
             <UrgencyBadge urgency={urgency} />
-            {/* Message patient — available on Active and Completed cases */}
-            {(currentCase.status === 'Active' || currentCase.status === 'Completed') && (
-              <TouchableOpacity
-                onPress={() => setImVisible(true)}
-                className="ml-3 p-2 rounded-full"
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={19} color="#fff" />
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* Status row */}
@@ -698,7 +693,60 @@ export default function CaseReviewScreen() {
           contentContainerStyle={{ paddingTop: 12, paddingBottom: 100 }}
         >
 
-          {/* ── AI Analysis ─────────────────────────────────────────── */}
+          {/* ── Message Patient card ─────────────────────────────────── */}
+          {(currentCase.status === 'Active' || currentCase.status === 'Completed') && (
+            <TouchableOpacity
+              onPress={() => setImVisible(true)}
+              activeOpacity={0.85}
+              className="mx-4 mb-3 rounded-2xl overflow-hidden"
+              style={{ elevation: 2, shadowColor: '#0AADA2', shadowOpacity: 0.12, shadowRadius: 6 }}
+            >
+              <View
+                className="flex-row items-center px-4 py-3"
+                style={{ backgroundColor: '#f0fdfc', borderWidth: 1, borderColor: '#99f6e4', borderRadius: 16 }}
+              >
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: '#0AADA2' }}
+                >
+                  <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
+                  {imUnread > 0 && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: -2,
+                        right: -2,
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        backgroundColor: '#ef4444',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingHorizontal: 3,
+                        borderWidth: 1.5,
+                        borderColor: '#fff',
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                        {imUnread > 9 ? '9+' : imUnread}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-bold text-teal-800">
+                    Message Patient
+                  </Text>
+                  <Text className="text-xs text-teal-600 mt-0.5">
+                    {imUnread > 0
+                      ? `${imUnread} unread message${imUnread > 1 ? 's' : ''}`
+                      : 'Chat with ' + (currentCase.patientName || 'the patient')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#0AADA2" />
+              </View>
+            </TouchableOpacity>
+          )}
           <SectionCard title="AI Analysis">
             {mode === 'edit' ? (
               /* Edit mode — inline fields */

@@ -1,12 +1,14 @@
 import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
 import { View } from 'react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BottomTabBar } from '../../components/BottomTabBar';
 import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
 import { registerPhysicianPushToken, addNotificationResponseListener } from '../../utils/pushNotifications';
 import { useAuthStore } from 'stores/auth-store';
+import wsService from 'services/websocket-service';
+import { getToken } from 'utils/tokenStorage';
 
 export default function ProfTabLayout() {
   const router = useRouter();
@@ -37,10 +39,28 @@ export default function ProfTabLayout() {
     return () => sub.remove();
   }, [router]);
 
+  // Connect wsService so the IM modal read-receipts/typing work
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const wsConnected = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (wsConnected.current) return;
+    getToken().then((token) => {
+      if (token) {
+        wsService.connect(token);
+        wsConnected.current = true;
+      }
+    });
+    return () => {
+      wsService.disconnect();
+      wsConnected.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
   const handleDismissBanner = useCallback(() => setBanner(null), []);
 
   // ── Auth guard ────────────────────────────────────────────────────────────
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authUser = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
   const navigationState = useRootNavigationState();

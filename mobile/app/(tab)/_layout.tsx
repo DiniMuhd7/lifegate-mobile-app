@@ -5,7 +5,7 @@
  * - ConversationDrawer as side drawer for conversation history
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, BackHandler } from 'react-native';
 import { Drawer } from 'expo-router/drawer';
 import { router, useRootNavigationState } from 'expo-router';
@@ -13,11 +13,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ConversationDrawer } from 'components/ConversationDrawer';
 import { ResumeSessionModal } from 'components/ResumeSessionModal';
 import { ProfileReminderBanner } from 'components/ProfileReminderBanner';
+import { InAppNotificationBanner } from 'components/InAppNotificationBanner';
 import { Ionicons } from '@expo/vector-icons';
 import { useDiagnosisWebSocket } from 'utils/useWebSocket';
 import { useChatStore } from '@/stores/chat-store';
 import { useSessionStore } from '@/stores/session-store';
 import { useAuthStore } from 'stores/auth/auth-store';
+import { useNotificationStore, PhysicianNotification } from 'stores/notification-store';
+import wsService from 'services/websocket-service';
+import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
 
 function isHealthProfileIncomplete(user: User | null): boolean {
@@ -43,8 +47,41 @@ export default function TabLayout() {
   // Maintain a live WebSocket connection for real-time diagnosis status updates.
   useDiagnosisWebSocket();
 
-  // ── Auth guard — redirect unauthenticated or wrong-role users ─────────────
+  // ── In-app IM notification banner ─────────────────────────────────────────
+  const [banner, setBanner] = useState<PhysicianNotification | null>(null);
+
+  useEffect(() => {
+    const unsub = useNotificationStore.subscribe((state) => {
+      const latest = state.notifications[0];
+      if (latest && !latest.isRead && latest.type === 'im_message') {
+        setBanner((prev) => (prev?.id === latest.id ? prev : latest));
+      }
+    });
+    return unsub;
+  }, []);
+
+  const handleDismissBanner = useCallback(() => setBanner(null), []);
+
+  // ── Connect wsService so IM modal read-receipts and typing work ────────────
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const wsConnected = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (wsConnected.current) return;
+    getToken().then((token) => {
+      if (token) {
+        wsService.connect(token);
+        wsConnected.current = true;
+      }
+    });
+    return () => {
+      wsService.disconnect();
+      wsConnected.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  // ── Auth guard — redirect unauthenticated or wrong-role users ─────────────
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
   const navigationState = useRootNavigationState();
 
@@ -148,6 +185,9 @@ export default function TabLayout() {
         visible={showProfileReminder}
         onDismiss={() => setProfileReminderDismissed(true)}
       />
+      {/* In-app banner for new IM messages from the physician */}
+      {/* onPress just dismisses — navigating into the physician route stack from here would cause a blank screen */}
+      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleDismissBanner} />
       <Drawer
         screenOptions={{
           headerShown: false,

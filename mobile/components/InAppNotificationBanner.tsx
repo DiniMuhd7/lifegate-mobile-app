@@ -6,13 +6,15 @@ import { PhysicianNotification } from '../stores/notification-store';
 interface Props {
   notification: PhysicianNotification | null;
   onDismiss: () => void;
+  /** Optional: overrides the default tap navigation. Called after the banner dismisses. */
+  onPress?: () => void;
 }
 
 /**
  * Slides in from the top for 4 seconds then auto-dismisses.
- * Tapping navigates to the relevant case.
+ * Tapping navigates to the relevant case (or calls onPress if provided).
  */
-export function InAppNotificationBanner({ notification, onDismiss }: Props) {
+export function InAppNotificationBanner({ notification, onDismiss, onPress }: Props) {
   const router = useRouter();
   const translateY = useRef(new Animated.Value(-120)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,7 +50,9 @@ export function InAppNotificationBanner({ notification, onDismiss }: Props) {
   function handlePress() {
     if (timerRef.current) clearTimeout(timerRef.current);
     dismiss();
-    if (notification?.caseId) {
+    if (onPress) {
+      onPress();
+    } else if (notification?.caseId) {
       router.push({ pathname: '/(prof-tab)/caseQueue', params: { caseId: notification.caseId } });
     }
   }

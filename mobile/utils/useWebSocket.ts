@@ -48,6 +48,7 @@ export function useDiagnosisWebSocket() {
   const { user } = useAuthStore();
   const updateDiagnosisStatus = useDiagnosisStore((s) => s.updateDiagnosisStatus);
   const fetchDiagnosisDetail = useDiagnosisStore((s) => s.fetchDiagnosisDetail);
+  const { addNotification } = useNotificationStore();
   const wsRef = useRef<WebSocket | null>(null);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -83,6 +84,13 @@ export function useDiagnosisWebSocket() {
             const msg = JSON.parse(payload) as IMMessage;
             if (msg?.diagnosis_id) {
               useIMStore.getState().receiveMessage(msg);
+              // Notify the patient so they see a banner when the modal is closed.
+              addNotification({
+                type: 'im_message',
+                caseId: msg.diagnosis_id,
+                diagnosisId: msg.diagnosis_id,
+                message: `${msg.sender_name || 'Your doctor'}: ${msg.content}`,
+              });
             }
           } catch {
             // Ignore malformed payloads
@@ -143,7 +151,7 @@ export function useDiagnosisWebSocket() {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [user, updateDiagnosisStatus, fetchDiagnosisDetail]);
+  }, [user, updateDiagnosisStatus, fetchDiagnosisDetail, addNotification]);
 }
 
 /**

@@ -44,6 +44,11 @@ func (s *Service) UnreadCount(diagnosisID, callerRole string) (int, error) {
 	return s.repo.UnreadCount(diagnosisID, callerRole)
 }
 
+// GetParticipants returns the patient and physician userIDs for the diagnosis.
+func (s *Service) GetParticipants(diagnosisID string) (patientID, physicianID string, err error) {
+	return s.repo.GetParticipants(diagnosisID)
+}
+
 // ValidationError is returned when user input fails server-side constraints.
 type ValidationError struct {
 	Field   string
