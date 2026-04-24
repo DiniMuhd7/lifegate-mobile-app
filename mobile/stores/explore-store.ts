@@ -91,84 +91,86 @@ function coinsForDuration(seconds: number): number {
  * resolves exact durations via videos.list, and returns ExploreVideo[]
  * ready for the store. Returns null if the API key is absent or any call fails.
  */
+async function fetchCategoryVideos(category: VideoCategory): Promise<ExploreVideo[]> {
+  const query = encodeURIComponent(CATEGORY_QUERIES[category]);
+  const searchUrl =
+    `https://www.googleapis.com/youtube/v3/search` +
+    `?part=snippet&q=${query}&type=video&videoDuration=medium` +
+    `&maxResults=${YT_RESULTS_PER_CAT}&relevanceLanguage=en` +
+    `&safeSearch=strict&key=${YT_API_KEY}`;
+
+  const searchRes = await fetch(searchUrl);
+  if (!searchRes.ok) return [];
+  const searchData = await searchRes.json() as {
+    items?: Array<{
+      id: { videoId: string };
+      snippet: { title: string; description: string; channelTitle: string };
+    }>;
+  };
+
+  const items = searchData.items ?? [];
+  if (items.length === 0) return [];
+
+  const ids = items.map((it) => it.id.videoId).join(',');
+  const detailsUrl =
+    `https://www.googleapis.com/youtube/v3/videos` +
+    `?part=contentDetails&id=${encodeURIComponent(ids)}&key=${YT_API_KEY}`;
+
+  const detailsRes = await fetch(detailsUrl);
+  if (!detailsRes.ok) return [];
+  const detailsData = await detailsRes.json() as {
+    items?: Array<{ id: string; contentDetails: { duration: string } }>;
+  };
+
+  const durationMap = new Map<string, number>();
+  for (const d of detailsData.items ?? []) {
+    durationMap.set(d.id, parseISO8601Duration(d.contentDetails.duration));
+  }
+
+  const meta = CATEGORY_META[category];
+  const videos: ExploreVideo[] = [];
+
+  for (const it of items) {
+    const vid = it.id.videoId;
+    const dur = durationMap.get(vid) ?? 0;
+    // Keep only 5–20 min videos (300–1200 s)
+    if (dur < 300 || dur > 1200) continue;
+
+    let desc = it.snippet.description ?? '';
+    if (desc.length > 180) desc = desc.slice(0, 177) + '\u2026';
+    desc = desc.replace(/\n/g, ' ');
+
+    videos.push({
+      id: `yt_${category.toLowerCase().replace(/\s+/g, '_')}_${vid}`,
+      title: it.snippet.title,
+      description: desc || `${category} educational video.`,
+      category,
+      durationSeconds: dur,
+      coins: coinsForDuration(dur),
+      thumbnailColor: meta.color,
+      thumbnailIcon: meta.icon,
+      instructor: it.snippet.channelTitle,
+      youtubeId: vid,
+    });
+  }
+
+  return videos;
+}
+
 async function fetchFromYouTube(): Promise<ExploreVideo[] | null> {
   if (!YT_API_KEY) return null;
 
   const categories = Object.keys(CATEGORY_QUERIES) as VideoCategory[];
-  const all: ExploreVideo[] = [];
 
-  for (const category of categories) {
-    try {
-      const query = encodeURIComponent(CATEGORY_QUERIES[category]);
-      const searchUrl =
-        `https://www.googleapis.com/youtube/v3/search` +
-        `?part=snippet&q=${query}&type=video&videoDuration=medium` +
-        `&maxResults=${YT_RESULTS_PER_CAT}&relevanceLanguage=en` +
-        `&safeSearch=strict&key=${YT_API_KEY}`;
+  // Fetch all categories in parallel — reduces wait from ~16 sequential
+  // network calls to the latency of the single slowest category.
+  const results = await Promise.all(
+    categories.map((category) =>
+      fetchCategoryVideos(category).catch(() => [] as ExploreVideo[])
+    )
+  );
 
-      const searchRes = await fetch(searchUrl);
-      if (!searchRes.ok) continue;
-      const searchData = await searchRes.json() as {
-        items?: Array<{
-          id: { videoId: string };
-          snippet: { title: string; description: string; channelTitle: string };
-        }>;
-      };
-
-      const items = searchData.items ?? [];
-      if (items.length === 0) continue;
-
-      const ids = items.map((it) => it.id.videoId).join(',');
-      const detailsUrl =
-        `https://www.googleapis.com/youtube/v3/videos` +
-        `?part=contentDetails&id=${encodeURIComponent(ids)}&key=${YT_API_KEY}`;
-
-      const detailsRes = await fetch(detailsUrl);
-      if (!detailsRes.ok) continue;
-      const detailsData = await detailsRes.json() as {
-        items?: Array<{ id: string; contentDetails: { duration: string } }>;
-      };
-
-      const durationMap = new Map<string, number>();
-      for (const d of detailsData.items ?? []) {
-        durationMap.set(d.id, parseISO8601Duration(d.contentDetails.duration));
-      }
-
-      const meta = CATEGORY_META[category];
-      const snippetMap = new Map(items.map((it) => [it.id.videoId, it.snippet]));
-
-      for (const it of items) {
-        const vid = it.id.videoId;
-        const dur = durationMap.get(vid) ?? 0;
-        // Keep only 5–20 min videos (300–1200 s)
-        if (dur < 300 || dur > 1200) continue;
-
-        let desc = it.snippet.description ?? '';
-        if (desc.length > 180) desc = desc.slice(0, 177) + '\u2026';
-        desc = desc.replace(/\n/g, ' ');
-
-        all.push({
-          id: `yt_${category.toLowerCase().replace(/\s+/g, '_')}_${vid}`,
-          title: it.snippet.title,
-          description: desc || `${category} educational video.`,
-          category,
-          durationSeconds: dur,
-          coins: coinsForDuration(dur),
-          thumbnailColor: meta.color,
-          thumbnailIcon: meta.icon,
-          instructor: it.snippet.channelTitle,
-          youtubeId: vid,
-        });
-      }
-
-      // Small delay between categories to be quota-friendly
-      await new Promise((r) => setTimeout(r, 150));
-    } catch {
-      // Skip failed categories — continue with others
-      continue;
-    }
-  }
-
+  const all = results.flat();
   return all.length > 0 ? all : null;
 }
 
