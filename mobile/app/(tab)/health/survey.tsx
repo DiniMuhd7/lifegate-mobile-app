@@ -319,8 +319,34 @@ function SurveyWebView({
   const completeSurvey = useSurveyStore((s) => s.completeSurvey);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Time-gate: user must spend at least half the estimated survey time on the
+  // page before the Claim button is enabled.  This prevents instant-claim fraud.
+  const [canClaim, setCanClaim] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const countdownRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleLoadEnd = () => {
+    setLoaded(true);
+    // Minimum read time = estimatedMinutes × 30 s (half the survey duration).
+    const minSeconds = Math.max(30, survey.estimatedMinutes * 30);
+    setSecondsLeft(minSeconds);
+    countdownRef.current = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!);
+          setCanClaim(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // Clear interval on unmount.
+  React.useEffect(() => () => { if (countdownRef.current) clearInterval(countdownRef.current); }, []);
 
   const handleClaim = async () => {
+    if (!canClaim) return;
     setSubmitting(true);
     const result = await completeSurvey(survey.id);
     setSubmitting(false);
@@ -375,19 +401,27 @@ function SurveyWebView({
         <WebView
           source={{ uri: survey.surveyUrl }}
           style={{ flex: 1 }}
-          onLoadEnd={() => setLoaded(true)}
+          onLoadEnd={handleLoadEnd}
           javaScriptEnabled
           domStorageEnabled
         />
       </View>
 
-      {/* Claim bar — appears once the survey has loaded */}
+      {/* Claim bar — appears once the survey has loaded; enabled after time gate */}
       {loaded && (
         <View style={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
+          {!canClaim && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, gap: 6 }}>
+              <Ionicons name="time-outline" size={14} color="#7c3aed" />
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                Available in {secondsLeft}s — please complete the survey
+              </Text>
+            </View>
+          )}
           <Pressable
             onPress={handleClaim}
-            disabled={submitting}
-            style={({ pressed }) => ({ opacity: submitting ? 0.6 : pressed ? 0.85 : 1, borderRadius: 14, overflow: 'hidden' })}
+            disabled={submitting || !canClaim}
+            style={({ pressed }) => ({ opacity: (submitting || !canClaim) ? 0.45 : pressed ? 0.85 : 1, borderRadius: 14, overflow: 'hidden' })}
           >
             <LinearGradient
               colors={['#7c3aed', '#4c1d95']}
@@ -399,9 +433,9 @@ function SurveyWebView({
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                  <Ionicons name={canClaim ? 'checkmark-circle-outline' : 'lock-closed-outline'} size={18} color="#fff" />
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
-                    Done — Claim +{survey.coins} Lifecoins
+                    {canClaim ? `Done — Claim +${survey.coins} Lifecoins` : 'Complete the survey first'}
                   </Text>
                 </>
               )}

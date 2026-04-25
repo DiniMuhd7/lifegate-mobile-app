@@ -404,6 +404,15 @@ func main() {
 	api.GET("/credits/balance", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditBalance)
 	api.GET("/referral/stats", middleware.Auth(cfg.JWTSecret), referralHandler.GetStats)
 
+	// Lifecoins wallet — health-engagement rewards and health-insurance waiver redemption.
+	lifecoinsGroup := api.Group("/lifecoins", middleware.Auth(cfg.JWTSecret))
+	{
+		lifecoinsGroup.GET("/balance", paymentsHandler.GetLifecoinBalance)
+		lifecoinsGroup.GET("/transactions", paymentsHandler.GetLifecoinTransactions)
+		lifecoinsGroup.POST("/redeem", paymentsHandler.RedeemLifecoins)
+	}
+	api.POST("/checkins/answers", middleware.Auth(cfg.JWTSecret), paymentsHandler.SubmitCheckinAnswers)
+
 	// Explore — health education videos
 	exploreGroup := api.Group("/explore", middleware.Auth(cfg.JWTSecret))
 	{

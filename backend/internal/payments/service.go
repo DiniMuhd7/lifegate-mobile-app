@@ -164,7 +164,7 @@ type WebhookPayload struct {
 const flwBaseURL = "https://api.flutterwave.com/v3"
 
 // TrialCredits is the number of free credits granted to every new patient account.
-const TrialCredits = 5
+const TrialCredits = 25
 
 // flwHTTPTimeout caps Flutterwave API calls to prevent the service from
 // hanging indefinitely when the payment provider is slow or unreachable.

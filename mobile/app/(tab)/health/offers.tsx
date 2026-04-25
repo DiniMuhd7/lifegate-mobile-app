@@ -38,7 +38,6 @@ const TYPE_META: Record<OfferType, { label: string; icon: keyof typeof Ionicons.
   app_download:    { label: 'App Download',    icon: 'download-outline',           bg: '#eff6ff', color: '#1d4ed8' },
   product_trial:   { label: 'Product Trial',   icon: 'gift-outline',               bg: '#fef3c7', color: '#b45309' },
   signup:          { label: 'Service Sign-up', icon: 'person-add-outline',         bg: '#f0fdf4', color: '#15803d' },
-  referral_signup: { label: 'Referral',        icon: 'people-outline',             bg: '#fdf4ff', color: '#7e22ce' },
 };
 
 // ── OfferCard ────────────────────────────────────────────────────────────────

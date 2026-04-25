@@ -5,7 +5,7 @@ const STORAGE_KEY = 'offers_store_v1';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type OfferType = 'app_download' | 'product_trial' | 'signup' | 'referral_signup';
+export type OfferType = 'app_download' | 'product_trial' | 'signup';
 export type OfferStatus = 'available' | 'pending' | 'completed' | 'expired';
 
 export interface Offer {
@@ -22,11 +22,13 @@ export interface Offer {
   actionUrl: string;        // real URL to open when the CTA is tapped
   status: OfferStatus;
   completedDate: string | null;
+  // ISO timestamp when this offer entered 'pending' state — used for fraud check.
+  pendingStartedAt: string | null;
 }
 
 // ── Seed offers ─────────────────────────────────────────────────────────────
 
-const SEED_OFFERS: Omit<Offer, 'status' | 'completedDate'>[] = [
+const SEED_OFFERS: Omit<Offer, 'status' | 'completedDate' | 'pendingStartedAt'>[] = [
   // ── App Downloads ──────────────────────────────────────────────────────
   {
     id: 'offer_app_medisafe',
@@ -148,6 +150,7 @@ function buildSeeds(): Offer[] {
     ...o,
     status: o.expiresAt < today ? 'expired' : 'available',
     completedDate: null,
+    pendingStartedAt: null,
   }));
 }
 
@@ -189,8 +192,8 @@ export const useOffersStore = create<OffersState>((set, get) => ({
           const saved = data.offers?.find((o) => o.id === seed.id);
           if (!saved) return seed;
           // If persisted as completed, keep it; else refresh expiry status
-          if (saved.status === 'completed') return { ...seed, status: 'completed' as OfferStatus, completedDate: saved.completedDate };
-          return { ...seed, status: seed.expiresAt < today ? ('expired' as OfferStatus) : saved.status };
+          if (saved.status === 'completed') return { ...seed, status: 'completed' as OfferStatus, completedDate: saved.completedDate, pendingStartedAt: saved.pendingStartedAt ?? null };
+          return { ...seed, status: seed.expiresAt < today ? ('expired' as OfferStatus) : saved.status, pendingStartedAt: saved.pendingStartedAt ?? null };
         });
         set({ ...data, offers, initialized: true });
       } else {
@@ -205,7 +208,11 @@ export const useOffersStore = create<OffersState>((set, get) => ({
     const { offers, lifecoins, totalEarned } = get();
     const offer = offers.find((o) => o.id === id);
     if (!offer || offer.status !== 'available') return;
-    const updated = offers.map((o) => (o.id === id ? { ...o, status: 'pending' as OfferStatus } : o));
+    const updated = offers.map((o) =>
+      o.id === id
+        ? { ...o, status: 'pending' as OfferStatus, pendingStartedAt: new Date().toISOString() }
+        : o,
+    );
     set({ offers: updated });
     persist({ lifecoins, totalEarned, offers: updated });
   },
@@ -215,6 +222,16 @@ export const useOffersStore = create<OffersState>((set, get) => ({
     const offer = offers.find((o) => o.id === id);
     if (!offer) return { alreadyDone: false, coinsEarned: 0 };
     if (offer.status === 'completed') return { alreadyDone: true, coinsEarned: 0 };
+
+    // Anti-fraud: require the offer to have been in 'pending' state for at
+    // least 30 seconds before coins can be claimed.
+    if (offer.status !== 'pending' || !offer.pendingStartedAt) {
+      return { alreadyDone: false, coinsEarned: 0 };
+    }
+    const elapsed = (Date.now() - new Date(offer.pendingStartedAt).getTime()) / 1000;
+    if (elapsed < 30) {
+      return { alreadyDone: false, coinsEarned: 0 };
+    }
 
     const updated = offers.map((o) =>
       o.id === id

@@ -15,6 +15,7 @@ import { useHealthStore } from 'stores/health-store';
 import { useCheckinStore } from 'stores/checkin-store';
 import { useOffersStore } from 'stores/offers-store';
 import { useExploreStore } from 'stores/explore-store';
+import { useSurveyStore } from 'stores/survey-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
 import { SeverityLineChart } from 'components/SeverityLineChart';
 import { PrimaryButton } from 'components/Button';
@@ -33,6 +34,7 @@ export default function PatientProfileScreen() {
   const checkinCoins       = useCheckinStore((s) => s.lifecoins);
   const offersCoins        = useOffersStore((s) => s.lifecoins);
   const exploreCoins       = useExploreStore((s) => s.lifecoins);
+  const surveyCoins        = useSurveyStore((s) => s.totalCoinsEarned);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -78,8 +80,8 @@ export default function PatientProfileScreen() {
   }, [user?.dob]);
 
   const totalLifecoins = useMemo(
-    () => checkinCoins + offersCoins + exploreCoins,
-    [checkinCoins, offersCoins, exploreCoins],
+    () => checkinCoins + offersCoins + exploreCoins + surveyCoins,
+    [checkinCoins, offersCoins, exploreCoins, surveyCoins],
   );
 
   // criticalHealthFields folded in — one useMemo instead of two passes.
@@ -178,9 +180,13 @@ export default function PatientProfileScreen() {
                       <Text style={{ fontSize: 11, fontWeight: '600', color: '#D97706' }}>coins</Text>
                     </View>
                   </View>
-                  <View style={{ backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: '#FDE68A' }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#92400E' }}>Earned</Text>
-                  </View>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(tab)/health/redeem')}
+                    style={{ backgroundColor: '#F59E0B', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Redeem</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 

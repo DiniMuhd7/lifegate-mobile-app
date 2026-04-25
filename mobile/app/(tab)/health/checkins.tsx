@@ -19,6 +19,7 @@ import {
   CheckinAnswer,
 } from 'stores/checkin-store';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
+import api from 'services/api';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -105,8 +106,17 @@ export default function CheckinsScreen() {
       setQuestionIdx(questionIdx + 1);
     } else {
       if (!activeSlot) return;
+      const finalAnswers: CheckinAnswer[] = [
+        ...answers,
+        { questionId: questions[questionIdx].id, value },
+      ];
       setClaiming(true);
       const result = await claimSlot(activeSlot.id);
+      // Submit answers to backend (non-blocking — don't fail UX on error)
+      api.post('/checkins/answers', {
+        slotId: activeSlot.id,
+        answers: finalAnswers.map((a) => ({ questionId: a.questionId, value: a.value })),
+      }).catch(() => { /* analytics best-effort */ });
       setClaiming(false);
       setShowModal(false);
       if (result.success) {
@@ -126,7 +136,10 @@ export default function CheckinsScreen() {
 
   const totalClaimed = slots.filter((s) => s.claimedDate === todayStr()).length;
   const totalAvailable = slots.filter((s) => getSlotStatus(s) === 'available').length;
-  const todayEarned = totalClaimed * 3;
+  // Sum the coins value of each slot claimed today (each slot awards 1 coin).
+  const todayEarned = slots
+    .filter((s) => s.claimedDate === todayStr())
+    .reduce((sum, s) => sum + s.coins, 0);
 
   const currentQuestion = questions[questionIdx];
 

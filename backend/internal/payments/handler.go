@@ -194,6 +194,144 @@ func (h *Handler) GetTransactions(c *gin.Context) {
 	})
 }
 
+// GetLifecoinBalance returns the authenticated user's Lifecoin wallet balance.
+//
+// @Summary      Get Lifecoin balance
+// @Tags         lifecoins
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /lifecoins/balance [get]
+func (h *Handler) GetLifecoinBalance(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+	bal, err := h.svc.GetLifecoinBalance(uid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": bal})
+}
+
+// GetLifecoinTransactions returns the user's Lifecoin transaction history.
+//
+// @Summary      Get Lifecoin transactions
+// @Tags         lifecoins
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit   query  integer  false  "Max records (default 20, max 100)"
+// @Param        offset  query  integer  false  "Pagination offset"
+// @Success      200     {object}  object{success=bool,data=array}
+// @Failure      500     {object}  object{success=bool,message=string}
+// @Router       /lifecoins/transactions [get]
+func (h *Handler) GetLifecoinTransactions(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	limit := 20
+	offset := 0
+	if l := c.Query("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil {
+			limit = n
+		}
+	}
+	if o := c.Query("offset"); o != "" {
+		if n, err := strconv.Atoi(o); err == nil {
+			offset = n
+		}
+	}
+
+	txns, err := h.svc.GetLifecoinTransactions(uid, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if txns == nil {
+		txns = []LifecoinTransaction{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": txns})
+}
+
+// RedeemLifecoins initiates a Naira disbursement to a health firm's bank
+// account as a prescription discount (health insurance waiver).
+//
+// @Summary      Redeem Lifecoins — health insurance waiver
+// @Tags         lifecoins
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      LifecoinRedeemRequest  true  "Redemption details"
+// @Success      200   {object}  object{success=bool,data=object}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      402   {object}  object{success=bool,message=string}
+// @Router       /lifecoins/redeem [post]
+func (h *Handler) RedeemLifecoins(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	var req LifecoinRedeemRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	tx, err := h.svc.RedeemLifecoins(uid, req)
+	if err != nil {
+		// Insufficient balance returns a 402.
+		if isInsufficientBalance(err) {
+			c.JSON(http.StatusPaymentRequired, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Redemption initiated. The Naira equivalent will be disbursed to the health firm's account.",
+		"data":    tx,
+	})
+}
+
+// SubmitCheckinAnswers records a patient's health check-in answers for a slot.
+//
+// @Summary      Submit check-in answers
+// @Tags         lifecoins
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{slotId=integer,answers=array}  true  "Slot answers"
+// @Success      200   {object}  object{success=bool}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /checkins/answers [post]
+func (h *Handler) SubmitCheckinAnswers(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	var body struct {
+		SlotID  int                      `json:"slotId"  binding:"required"`
+		Answers []map[string]interface{} `json:"answers" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if err := h.svc.SubmitCheckinAnswers(uid, body.SlotID, body.Answers); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// isInsufficientBalance returns true when the error message starts with "insufficient balance".
+func isInsufficientBalance(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return len(msg) >= 22 && msg[:22] == "insufficient balance: "
+}
+
 // Webhook receives Flutterwave payment event notifications and auto-credits
 // users when a charge.completed event arrives with status "successful".
 //
