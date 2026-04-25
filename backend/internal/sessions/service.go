@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 )
@@ -81,6 +82,13 @@ func (s *Service) GetIncomplete(ctx context.Context, userID string) (*Session, e
 	if err == nil && cachedID != "" {
 		session, dbErr := s.repo.Get(ctx, cachedID, userID)
 		if dbErr == nil {
+			// Discard if the session has no messages or is older than 24 hours.
+			msgLen := len(session.Messages)
+			age := time.Since(session.UpdatedAt)
+			if msgLen <= 2 || age > 24*time.Hour { // "[]" is 2 bytes
+				_ = s.redis.Del(ctx, abandonedKey(userID))
+				return nil, nil
+			}
 			return session, nil
 		}
 		// Stale cache entry (session was deleted) — clear and fall through.

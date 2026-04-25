@@ -162,7 +162,8 @@ func (r *Repository) Delete(ctx context.Context, id, userID string) error {
 	return nil
 }
 
-// GetIncomplete fetches the most-recently-updated abandoned session for a user.
+// GetIncomplete fetches the most-recently-updated abandoned session for a user
+// within the last 24 hours (matching the Redis TTL so DB and cache agree).
 // Returns (nil, nil) when no abandoned session exists — this is not an error.
 func (r *Repository) GetIncomplete(ctx context.Context, userID string) (*Session, error) {
 	var s Session
@@ -171,7 +172,10 @@ func (r *Repository) GetIncomplete(ctx context.Context, userID string) (*Session
 		        COALESCE(title,''), COALESCE(category,''), COALESCE(mode,''),
 		        status, messages, created_at, updated_at
 		 FROM chat_sessions
-		 WHERE user_id = $1 AND status = 'abandoned'
+		 WHERE user_id = $1
+		   AND status = 'abandoned'
+		   AND updated_at > NOW() - INTERVAL '24 hours'
+		   AND jsonb_array_length(COALESCE(messages, '[]')::jsonb) > 0
 		 ORDER BY updated_at DESC
 		 LIMIT 1`,
 		userID,
