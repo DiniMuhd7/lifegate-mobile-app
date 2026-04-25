@@ -31,8 +31,12 @@ export function ResumeSessionModal() {
   const handleResume = async () => {
     setIsResuming(true);
     try {
-      // Mark session as active on the server (clears the Redis abandoned key).
-      await updateSession(incompleteSession.id, { status: 'active' });
+      // Mark session as completed on the server — it has been handled and
+      // must NOT reappear as abandoned on the next login.
+      // (Setting it 'active' would cause the AppState background listener to
+      // re-mark it 'abandoned' the next time the app is backgrounded, creating
+      // an infinite resume-modal loop.)
+      await updateSession(incompleteSession.id, { status: 'completed' });
 
       // Create a new local conversation pre-loaded with the server messages.
       const { createConversation } = useChatStore.getState();
@@ -60,9 +64,10 @@ export function ResumeSessionModal() {
       useChatStore.getState().setConversationServerSessionId(convId, incompleteSession.id);
       await useChatStore.getState().flushPendingPersistence();
 
-      // Track the active server session ID so background-sync updates the
-      // correct record.
-      useSessionStore.getState().setActiveServerSessionId(incompleteSession.id);
+      // Clear activeServerSessionId so the AppState background listener
+      // creates a FRESH server session for any new messages, rather than
+      // updating the just-resumed (now completed) session.
+      useSessionStore.getState().setActiveServerSessionId(null);
 
       // Clear the modal.
       useSessionStore.setState({ incompleteSession: null });

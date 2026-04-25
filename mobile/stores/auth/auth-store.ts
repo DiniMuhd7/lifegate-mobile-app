@@ -221,6 +221,19 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   // -------- LOGOUT --------
   logout: async () => {
+    // Before revoking the token, mark any in-flight abandoned session as
+    // completed so it won't reappear as a resume prompt on the next login.
+    // (The background AppState listener saves as 'abandoned' when the app is
+    // backgrounded; if the user logs out from that state without coming back
+    // to foreground, the session is stuck as 'abandoned' in the DB.)
+    try {
+      const { useSessionStore } = await import('../session-store');
+      const { activeServerSessionId, updateSession } = useSessionStore.getState();
+      if (activeServerSessionId) {
+        await updateSession(activeServerSessionId, { status: 'completed' });
+      }
+    } catch { /* best-effort */ }
+
     // Revoke refresh token server-side (best-effort).
     try {
       const refreshToken = await getRefreshToken();
