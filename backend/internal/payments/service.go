@@ -422,6 +422,9 @@ const ReferralBonus = 5
 
 // GrantReferralBonus credits ReferralBonus to the referrer's wallet and records the
 // transaction. It is idempotent via the txRef (format "REF-<referrerShort>-<referredShort>").
+// It writes to both the diagnosis-credits ledger (payment_transactions / credits) AND
+// the Lifecoins wallet (lifecoins_wallet / lifecoins_transactions) so referral earnings
+// appear in the patient's Lifecoins balance.
 func (s *Service) GrantReferralBonus(referrerID, txRef string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -455,7 +458,15 @@ func (s *Service) GrantReferralBonus(referrerID, txRef string) error {
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	// Also credit the Lifecoins wallet so referral earnings appear in the
+	// patient's total Lifecoins balance alongside check-ins, surveys, etc.
+	// This call is best-effort: if it fails the credits grant above still stands.
+	_ = s.AddLifecoins(referrerID, "referral", "Referral bonus", ReferralBonus)
+	return nil
 }
 
 // DeductCredit atomically deducts 1 credit and logs it. Returns false if balance is 0.

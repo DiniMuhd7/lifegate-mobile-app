@@ -16,6 +16,7 @@ import { useCheckinStore } from 'stores/checkin-store';
 import { useOffersStore } from 'stores/offers-store';
 import { useExploreStore } from 'stores/explore-store';
 import { useSurveyStore } from 'stores/survey-store';
+import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
 import { SeverityLineChart } from 'components/SeverityLineChart';
 import { PrimaryButton } from 'components/Button';
@@ -35,13 +36,17 @@ export default function PatientProfileScreen() {
   const offersCoins        = useOffersStore((s) => s.lifecoins);
   const exploreCoins       = useExploreStore((s) => s.lifecoins);
   const surveyCoins        = useSurveyStore((s) => s.totalCoinsEarned);
+  const walletBalance      = useLifecoinsWalletStore((s) => s.balance);
+  const walletSynced       = useLifecoinsWalletStore((s) => s.synced);
+  const syncWallet         = useLifecoinsWalletStore((s) => s.syncFromBackend);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     getProfile();
     fetchPatientTimeline();
-  }, [getProfile, fetchPatientTimeline]);
+    syncWallet();
+  }, [getProfile, fetchPatientTimeline, syncWallet]);
 
   // ── Derived values — memoized before early returns (Rules of Hooks) ─────────
   const profileCompletion = useMemo(() => {
@@ -79,10 +84,11 @@ export default function PatientProfileScreen() {
     return a;
   }, [user?.dob]);
 
-  const totalLifecoins = useMemo(
-    () => checkinCoins + offersCoins + exploreCoins + surveyCoins,
-    [checkinCoins, offersCoins, exploreCoins, surveyCoins],
-  );
+  // Prefer the backend-synced wallet balance (includes ALL sources: check-ins,
+  // surveys, offers, explore, and referrals). Fall back to the local sum while
+  // the initial sync is still in-flight.
+  const localTotal = checkinCoins + offersCoins + exploreCoins + surveyCoins;
+  const totalLifecoins = walletSynced ? walletBalance : localTotal;
 
   // criticalHealthFields folded in — one useMemo instead of two passes.
   const missingCritical = useMemo(() => {
@@ -98,7 +104,7 @@ export default function PatientProfileScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([getProfile(), fetchPatientTimeline()]);
+    await Promise.all([getProfile(), fetchPatientTimeline(), syncWallet()]);
     setIsRefreshing(false);
     if (!user) {
       Alert.alert('Failed to Refresh', error || 'Could not fetch your profile. Please try again.', [
