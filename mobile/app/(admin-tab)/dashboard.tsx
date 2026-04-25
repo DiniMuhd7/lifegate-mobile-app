@@ -1148,7 +1148,10 @@ export default function AdminDashboardScreen() {
           <TouchableOpacity
             onPress={() => Alert.alert('Logout', 'Sign out of admin?', [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Logout', style: 'destructive', onPress: logout },
+              { text: 'Logout', style: 'destructive', onPress: async () => {
+                await logout();
+                router.replace('/(auth)/login');
+              }},
             ])}
             className="w-9 h-9 rounded-full bg-white/15 items-center justify-center">
             <Ionicons name="log-out-outline" size={18} color="#fff" />
