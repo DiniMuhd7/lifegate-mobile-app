@@ -21,6 +21,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -519,21 +520,25 @@ export default function AdminDashboardScreen() {
   // Reliable logout: clear auth state synchronously first so layout guards
   // don't redirect back to admin, then navigate, then let full async cleanup run.
   const handleLogout = useCallback(() => {
-    Alert.alert('Logout', 'Sign out of admin?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: () => {
-          // Clear auth state synchronously before navigating.
-          useAuthStore.setState({ user: null, isAuthenticated: false, pending2FA: null, error: null });
-          // Navigate immediately — layout guards will now see isAuthenticated: false.
-          router.replace('/(auth)/login');
-          // Full async cleanup (token revocation, store cleanup) in the background.
-          logout().catch(() => {});
-        },
-      },
-    ]);
+    const doLogout = () => {
+      // Clear auth state synchronously before navigating.
+      useAuthStore.setState({ user: null, isAuthenticated: false, pending2FA: null, error: null });
+      // Navigate immediately — layout guards will now see isAuthenticated: false.
+      router.replace('/(auth)/login');
+      // Full async cleanup (token revocation, store cleanup) in the background.
+      logout().catch(() => {});
+    };
+
+    if (Platform.OS === 'web') {
+      // Alert.alert callbacks are unreliable on Expo Web — use browser confirm.
+      // eslint-disable-next-line no-alert
+      if (window.confirm('Sign out of admin?')) doLogout();
+    } else {
+      Alert.alert('Logout', 'Sign out of admin?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: doLogout },
+      ]);
+    }
   }, [router, logout]);
 
   const handleStatus = useCallback((s: string) => {
