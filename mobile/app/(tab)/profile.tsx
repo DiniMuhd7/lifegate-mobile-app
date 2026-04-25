@@ -84,11 +84,11 @@ export default function PatientProfileScreen() {
     return a;
   }, [user?.dob]);
 
-  // Prefer the backend-synced wallet balance (includes ALL sources: check-ins,
-  // surveys, offers, explore, and referrals). Fall back to the local sum while
-  // the initial sync is still in-flight.
+  // walletBalance is always kept up-to-date by addCoins (called immediately on
+  // each earn event) and reconciled upward against the backend by syncFromBackend.
+  // It is the single source of truth for the displayed total — no per-store sum needed.
   const localTotal = checkinCoins + offersCoins + exploreCoins + surveyCoins;
-  const totalLifecoins = walletSynced ? walletBalance : localTotal;
+  const totalLifecoins = walletBalance > 0 ? walletBalance : (walletSynced ? 0 : localTotal);
 
   // criticalHealthFields folded in — one useMemo instead of two passes.
   const missingCritical = useMemo(() => {

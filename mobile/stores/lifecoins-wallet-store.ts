@@ -102,10 +102,11 @@ export const useLifecoinsWalletStore = create<LifecoinsWalletState>((set, get) =
 
   syncFromBackend: async () => {
     // Load persisted data first so the UI has something to show immediately.
+    let cached: PersistedWalletData | null = null;
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const cached: PersistedWalletData = JSON.parse(raw);
+        cached = JSON.parse(raw) as PersistedWalletData;
         set({ ...cached });
       }
     } catch {
@@ -122,9 +123,31 @@ export const useLifecoinsWalletStore = create<LifecoinsWalletState>((set, get) =
       ]);
 
       if (balRes.data.success && txRes.data.success) {
-        const { balance, totalEarned, nairaPerCoin } = balRes.data.data;
-        const transactions = txRes.data.data ?? [];
-        const next: PersistedWalletData = { balance, totalEarned, nairaPerCoin, transactions };
+        const { balance: serverBalance, totalEarned: serverEarned, nairaPerCoin } = balRes.data.data;
+        const serverTxs = txRes.data.data ?? [];
+
+        // If the local balance is HIGHER than the server balance it means locally-
+        // earned coins haven't been persisted to the backend yet (network lag or
+        // fire-and-forget race). Keep the higher value so the UI never jumps down.
+        const localBalance  = cached?.balance    ?? get().balance;
+        const localEarned   = cached?.totalEarned ?? get().totalEarned;
+        const reconciledBalance  = Math.max(localBalance,  serverBalance);
+        const reconciledEarned   = Math.max(localEarned,   serverEarned);
+
+        // Merge: server transactions are authoritative; preserve any local-only
+        // entries (those with id starting "local-") that don't have a server copy yet.
+        const serverIds = new Set(serverTxs.map((t) => t.id));
+        const localOnly = (cached?.transactions ?? []).filter(
+          (t) => t.id.startsWith('local-') && !serverIds.has(t.id),
+        );
+        const mergedTxs = [...localOnly, ...serverTxs].slice(0, 200);
+
+        const next: PersistedWalletData = {
+          balance: reconciledBalance,
+          totalEarned: reconciledEarned,
+          nairaPerCoin,
+          transactions: mergedTxs,
+        };
         set({ ...next, loading: false, synced: true });
         await persist(next);
       } else {
