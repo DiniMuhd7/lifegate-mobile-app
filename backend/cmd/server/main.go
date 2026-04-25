@@ -112,6 +112,11 @@ func main() {
 	natsClient := natsclient.Connect(cfg.NatsURL)
 	defer natsClient.Close()
 
+	// Clear any accumulated login rate-limit counters for the admin account so
+	// a server redeploy always gives the admin a clean slate.
+	_ = redisClient.Del(context.Background(), "login:attempts:"+adminEmail)
+	log.Printf("[startup] cleared login rate-limit for %s", adminEmail)
+
 	// AI provider
 	aiProvider := ai.NewProvider(cfg)
 	log.Printf("AI provider: %s", aiProvider.Name())
