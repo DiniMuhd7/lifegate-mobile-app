@@ -516,6 +516,26 @@ export default function AdminDashboardScreen() {
     fetchCases({ status: statusFilter, urgency: urgencyFilter, search, page: 1, ...extra });
   }, [fetchCases, statusFilter, urgencyFilter, search]);
 
+  // Reliable logout: clear auth state synchronously first so layout guards
+  // don't redirect back to admin, then navigate, then let full async cleanup run.
+  const handleLogout = useCallback(() => {
+    Alert.alert('Logout', 'Sign out of admin?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          // Clear auth state synchronously before navigating.
+          useAuthStore.setState({ user: null, isAuthenticated: false, pending2FA: null, error: null });
+          // Navigate immediately — layout guards will now see isAuthenticated: false.
+          router.replace('/(auth)/login');
+          // Full async cleanup (token revocation, store cleanup) in the background.
+          logout().catch(() => {});
+        },
+      },
+    ]);
+  }, [router, logout]);
+
   const handleStatus = useCallback((s: string) => {
     setStatusFilter(s);
     applyFilters({ status: s });
@@ -1146,13 +1166,7 @@ export default function AdminDashboardScreen() {
             <Text className="text-white/70 text-xs mt-0.5">{user?.name ?? ''}</Text>
           </View>
           <TouchableOpacity
-            onPress={() => Alert.alert('Logout', 'Sign out of admin?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Logout', style: 'destructive', onPress: async () => {
-                await logout();
-                router.replace('/(auth)/login');
-              }},
-            ])}
+            onPress={handleLogout}
             className="w-9 h-9 rounded-full bg-white/15 items-center justify-center">
             <Ionicons name="log-out-outline" size={18} color="#fff" />
           </TouchableOpacity>
