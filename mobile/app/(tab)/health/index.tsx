@@ -741,7 +741,7 @@ export default function HealthDashboardScreen() {
       >
         {/* Left: LifeGate logo */}
         <TouchableOpacity
-          onPress={() => router.replace('/(tab)/chatScreen' as never)}
+          onPress={() => router.replace('/(tab)/health' as never)}
           activeOpacity={0.7}
           style={{ padding: 4 }}
         >

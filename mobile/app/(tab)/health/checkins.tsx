@@ -40,7 +40,6 @@ const SLOT_ICONS: Record<number, string> = {
   1: 'sunny-outline',
   2: 'partly-sunny-outline',
   3: 'restaurant-outline',
-  4: 'cafe-outline',
   5: 'moon-outline',
   6: 'bed-outline',
 };

@@ -17,7 +17,6 @@ export interface HourlySlot {
 const SLOT_SCHEDULE: Omit<HourlySlot, 'claimedDate'>[] = [
   { id: 1, label: 'Morning',   unlockHour: 6,  coins: 1 },
   { id: 3, label: 'Noon',      unlockHour: 12, coins: 1 },
-  { id: 4, label: 'Afternoon', unlockHour: 15, coins: 1 },
   { id: 5, label: 'Evening',   unlockHour: 18, coins: 1 },
   { id: 6, label: 'Night',     unlockHour: 21, coins: 1 },
 ];
@@ -143,24 +142,6 @@ export function getSlotQuestions(
           id: 'new_symptoms',
           text: 'Any new or worsening symptoms since this morning?',
           type: 'yesno',
-        },
-      ];
-    }
-    case 4: { // Afternoon
-      return [
-        {
-          id: 'fatigue',
-          text: 'How fatigued are you this afternoon?',
-          type: 'scale',
-          scaleMin: 1, scaleMax: 5,
-          scaleLabels: ['No fatigue', 'Extremely tired'],
-        },
-        symptomQ,
-        {
-          id: 'activity',
-          text: 'Physical activity level today?',
-          type: 'choice',
-          options: ['Resting', 'Light walking', 'Moderate activity', 'Very active'],
         },
       ];
     }
