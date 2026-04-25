@@ -68,7 +68,7 @@ export default function LoginScreen() {
             params: { email: pending2FA.email, mode: 'physician2fa' },
           });
         } else if (user?.role === 'professional') {
-          router.replace('/(prof-tab)/consultation');
+          router.replace('/(prof-tab)/review');
         } else {
           router.replace('/(tab)/health');
         }

@@ -38,7 +38,7 @@ export default function AdminTabLayout() {
       router.replace('/(auth)/login');
     } else if (user?.role !== 'admin') {
       if (user?.role === 'professional') {
-        router.replace('/(prof-tab)/consultation');
+        router.replace('/(prof-tab)/review');
       } else {
         router.replace('/(tab)/chatScreen');
       }

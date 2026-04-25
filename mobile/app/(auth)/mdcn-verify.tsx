@@ -27,7 +27,7 @@ export default function MdcnVerifyScreen() {
   // If already verified, skip straight to dashboard
   useEffect(() => {
     if (user?.mdcn_verified) {
-      router.replace('/(prof-tab)/consultation');
+      router.replace('/(prof-tab)/review');
     }
   }, [user?.mdcn_verified]);
 
@@ -37,11 +37,11 @@ export default function MdcnVerifyScreen() {
     setConfirming(false);
     setConfirmed(true);
     // Brief success flash then navigate
-    setTimeout(() => router.replace('/(prof-tab)/consultation'), 1200);
+    setTimeout(() => router.replace('/(prof-tab)/review'), 1200);
   };
 
   const handleSkip = () => {
-    router.replace('/(prof-tab)/consultation');
+    router.replace('/(prof-tab)/review');
   };
 
   // ── Web platform fallback ─────────────────────────────────────────────────

@@ -46,7 +46,7 @@ export default function SplashScreen() {
             if (user?.role === 'admin') {
               router.replace('/(admin-tab)/dashboard');
             } else if (user?.role === 'professional') {
-              router.replace('/(prof-tab)/consultation');
+              router.replace('/(prof-tab)/review');
             } else {
               router.replace('/(tab)/health');
             }
