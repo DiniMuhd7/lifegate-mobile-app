@@ -652,13 +652,22 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 
 	// Web clients cannot capture flwTxId from the deep-link redirect.
 	// Look it up via Flutterwave's filter API so verification still succeeds.
+	lookupdFailed := false
 	if !verified && flwTxID == "" {
 		lookuped, err := s.flwGetIDByTxRef(txRef)
 		if err == nil {
 			flwTxID = lookuped
+		} else {
+			// Flutterwave hasn't indexed the transaction yet (timing).
+			// Do NOT mark as failed — leave as pending so the client can retry
+			// and the webhook can credit later.
+			lookupdFailed = true
 		}
-		// If the lookup also fails, verification will fall through to "failed" —
-		// no change in behaviour from before this fix.
+	}
+
+	// If we couldn't find the transaction in Flutterwave at all, return pending.
+	if lookupdFailed {
+		return &pt, nil // pt.Status is already "pending"
 	}
 
 	if !verified && flwTxID != "" {

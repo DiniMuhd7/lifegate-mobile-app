@@ -89,23 +89,40 @@ export default function SubscriptionScreen() {
   const handleWebVerify = useCallback(async () => {
     if (!activeTxRef) return;
     setVerifying(true);
-    try {
-      const tx = await verifyPayment(activeTxRef, '');
-      setShowVerifyPrompt(false);
-      clearPaymentLink();
-      if (tx.status === 'success') {
-        router.push({
-          pathname: '/(tab)/settings/checkOutScreen',
-          params: {
-            txRef: tx.txRef,
-            amount: String(tx.amount),
-            creditsGranted: String(tx.creditsGranted),
-            createdAt: tx.createdAt,
-          },
-        });
-        return;
+
+    // Capture txRef now — the store clears activeTxRef on success.
+    const txRef = activeTxRef;
+
+    // Give Flutterwave 4 seconds to process before the first check,
+    // then retry up to 3 more times with 5-second gaps.
+    const delays = [4000, 5000, 5000, 5000];
+
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+      try {
+        const tx = await verifyPayment(txRef, '');
+        if (tx.status === 'success') {
+          setShowVerifyPrompt(false);
+          clearPaymentLink();
+          router.push({
+            pathname: '/(tab)/settings/checkOutScreen',
+            params: {
+              txRef: tx.txRef,
+              amount: String(tx.amount),
+              creditsGranted: String(tx.creditsGranted),
+              createdAt: tx.createdAt,
+            },
+          });
+          return;
+        }
+        // status === 'pending' → Flutterwave hasn't confirmed yet, keep retrying
+        // status === 'failed'  → payment genuinely declined, stop retrying
+        if (tx.status === 'failed') break;
+      } catch (_) {
+        // Network error — keep retrying until attempts exhausted
       }
-    } catch (_) {}
+    }
+
     setVerifying(false);
     setShowVerifyPrompt(false);
     clearPaymentLink();
@@ -416,7 +433,10 @@ export default function SubscriptionScreen() {
                 disabled={verifying}
                 className={`rounded-xl py-4 items-center mb-3 ${verifying ? 'bg-gray-300' : 'bg-[#0EA5A4]'}`}>
                 {verifying ? (
-                  <ActivityIndicator color="white" size="small" />
+                  <View className="items-center gap-1.5">
+                    <ActivityIndicator color="white" size="small" />
+                    <Text className="text-xs text-white/80">Verifying with Flutterwave…</Text>
+                  </View>
                 ) : (
                   <Text className="text-base font-semibold text-white">I've Completed Payment</Text>
                 )}

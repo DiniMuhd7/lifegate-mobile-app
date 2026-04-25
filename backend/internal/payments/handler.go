@@ -139,6 +139,16 @@ func (h *Handler) VerifyPayment(c *gin.Context) {
 		return
 	}
 
+	if pt.Status == "pending" {
+		// Transaction not yet confirmed by Flutterwave — client should retry.
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "Payment is still processing. Please wait a moment and try again.",
+			"data":    pt,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Payment successful. Credits added to your account.",

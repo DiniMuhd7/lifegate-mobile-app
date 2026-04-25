@@ -49,14 +49,27 @@ export const PaymentService = {
   /**
    * Verify a completed Flutterwave payment and credit the user.
    * POST /payments/verify
+   *
+   * Returns the transaction regardless of status (success | pending | failed).
+   * HTTP 402 (failed) is caught so callers always get transaction data rather
+   * than a thrown error — callers are responsible for inspecting tx.status.
    */
   async verifyPayment(txRef: string, flwTxId: string): Promise<PaymentTransaction> {
-    const res = await api.post<{ success: boolean; data: PaymentTransaction }>(
-      '/payments/verify',
-      { txRef, flwTxId }
-    );
-    // Return the transaction regardless of status — caller decides what to show.
-    return res.data.data;
+    try {
+      const res = await api.post<{ success: boolean; data: PaymentTransaction }>(
+        '/payments/verify',
+        { txRef, flwTxId }
+      );
+      return res.data.data;
+    } catch (err: unknown) {
+      // Backend returns HTTP 402 with transaction data when the payment failed.
+      // Extract it so callers can inspect status instead of always throwing.
+      const axiosErr = err as { response?: { data?: { data?: PaymentTransaction } } };
+      if (axiosErr?.response?.data?.data) {
+        return axiosErr.response.data.data;
+      }
+      throw err;
+    }
   },
 
   /**
