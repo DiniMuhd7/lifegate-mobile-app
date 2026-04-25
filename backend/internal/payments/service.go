@@ -420,53 +420,12 @@ func (s *Service) GrantTrialCredits(userID string) error {
 // ReferralBonus is the number of credits awarded to a referrer for each successful referral.
 const ReferralBonus = 5
 
-// GrantReferralBonus credits ReferralBonus to the referrer's wallet and records the
-// transaction. It is idempotent via the txRef (format "REF-<referrerShort>-<referredShort>").
-// It writes to both the diagnosis-credits ledger (payment_transactions / credits) AND
-// the Lifecoins wallet (lifecoins_wallet / lifecoins_transactions) so referral earnings
-// appear in the patient's Lifecoins balance.
+// GrantReferralBonus credits ReferralBonus Lifecoins to the referrer's wallet.
+// Idempotency is guaranteed upstream by referral.Service.RecordReferral which
+// uses ON CONFLICT (referred_id) DO NOTHING, so this is called at most once per
+// unique referral pair.
 func (s *Service) GrantReferralBonus(referrerID, txRef string) error {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	var inserted bool
-	err = tx.QueryRow(
-		`INSERT INTO payment_transactions
-		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
-		 VALUES ($1::uuid, $2, 0, $3, 'success', 'referral')
-		 ON CONFLICT (tx_ref) DO NOTHING
-		 RETURNING true`,
-		referrerID, txRef, ReferralBonus,
-	).Scan(&inserted)
-	if err == sql.ErrNoRows {
-		return tx.Commit() // already granted
-	}
-	if err != nil {
-		return err
-	}
-
-	if _, err := tx.Exec(
-		`INSERT INTO credits (user_id, balance, updated_at)
-		 VALUES ($1::uuid, $2, NOW())
-		 ON CONFLICT (user_id)
-		 DO UPDATE SET balance = credits.balance + EXCLUDED.balance, updated_at = NOW()`,
-		referrerID, ReferralBonus,
-	); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-
-	// Also credit the Lifecoins wallet so referral earnings appear in the
-	// patient's total Lifecoins balance alongside check-ins, surveys, etc.
-	// This call is best-effort: if it fails the credits grant above still stands.
-	_ = s.AddLifecoins(referrerID, "referral", "Referral bonus", ReferralBonus)
-	return nil
+	return s.AddLifecoins(referrerID, "referral", "Referral bonus — "+txRef, ReferralBonus)
 }
 
 // DeductCredit atomically deducts 1 credit and logs it. Returns false if balance is 0.
