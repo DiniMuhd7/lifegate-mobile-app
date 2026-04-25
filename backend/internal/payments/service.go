@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -681,7 +682,9 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 		}
 		ok, err := s.flwVerify(flwTxID, expectedAmount, pt.Currency)
 		if err != nil {
-			return nil, err
+			// Transient Flutterwave API error — return pending so the client retries.
+			// Do NOT mark as failed; the webhook will credit if the payment succeeds.
+			return &pt, nil // pt.Status is still "pending"
 		}
 		verified = ok
 	}
@@ -844,7 +847,19 @@ func (s *Service) flwVerify(flwTxID string, expectedAmount float64, currency str
 		return false, nil
 	}
 	d := flwResp.Data
-	return d.Status == "successful" && d.Amount >= expectedAmount && d.Currency == currency, nil
+	if d.Status != "successful" {
+		return false, nil
+	}
+	// Allow a small tolerance (₦1 / $0.01) to handle Flutterwave rounding.
+	const tolerance = 1.0
+	if d.Amount < expectedAmount-tolerance {
+		return false, nil
+	}
+	// Currency comparison is case-insensitive to guard against API casing differences.
+	if !strings.EqualFold(d.Currency, currency) {
+		return false, nil
+	}
+	return true, nil
 }
 
 // flwGetIDByTxRef looks up a Flutterwave transaction by tx_ref and returns

@@ -74,17 +74,25 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
   },
 
   verifyPayment: async (txRef: string, flwTxId: string) => {
-    set({ paymentLoading: true, loading: true, error: null });
+    set({ paymentLoading: true, loading: true });
     try {
       const tx = await PaymentService.verifyPayment(txRef, flwTxId);
       if (tx.status === 'success') {
+        // Only clear the active payment link/ref once we know it succeeded.
+        set({ paymentLoading: false, loading: false, paymentLink: null, activeTxRef: null });
         await get().fetchBalance();
+      } else {
+        // pending or failed — leave paymentLink/activeTxRef intact so the
+        // caller's retry loop can keep calling without losing the reference.
+        set({ paymentLoading: false, loading: false });
       }
-      set({ paymentLoading: false, loading: false, paymentLink: null, activeTxRef: null });
       return tx;
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Failed to verify payment';
-      set({ error: msg, paymentLoading: false, loading: false });
+      // Don't set the global error banner here — the caller (handleWebVerify)
+      // manages its own retry loop and will show the failure screen if all
+      // retries are exhausted. Setting error here would show a red banner
+      // mid-retry and confuse the user.
+      set({ paymentLoading: false, loading: false });
       throw e;
     }
   },

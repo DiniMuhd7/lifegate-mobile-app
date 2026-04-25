@@ -52,6 +52,8 @@ export default function SubscriptionScreen() {
   // Web-only: shown after the payment tab is opened so the user can confirm
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  // 0 = not started, 1–7 = attempt in progress
+  const [verifyAttempt, setVerifyAttempt] = useState(0);
 
   useEffect(() => {
     fetchBalance();
@@ -89,21 +91,25 @@ export default function SubscriptionScreen() {
   const handleWebVerify = useCallback(async () => {
     if (!activeTxRef) return;
     setVerifying(true);
+    setVerifyAttempt(0);
 
-    // Capture txRef now — the store clears activeTxRef on success.
+    // Capture txRef locally — store clears it only on success, but we hold
+    // the reference here so the retry loop is independent of store state.
     const txRef = activeTxRef;
 
-    // Give Flutterwave 4 seconds to process before the first check,
-    // then retry up to 3 more times with 5-second gaps.
-    const delays = [4000, 5000, 5000, 5000];
+    // Retry schedule: wait before each attempt (ms).
+    // Total window ~60 s — covers 3DS / bank OTP flows.
+    const delays = [4000, 6000, 8000, 10000, 10000, 10000, 12000];
 
     for (let attempt = 0; attempt < delays.length; attempt++) {
+      setVerifyAttempt(attempt + 1);
       await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
       try {
         const tx = await verifyPayment(txRef, '');
         if (tx.status === 'success') {
           setShowVerifyPrompt(false);
-          clearPaymentLink();
+          setVerifying(false);
+          setVerifyAttempt(0);
           router.push({
             pathname: '/(tab)/settings/checkOutScreen',
             params: {
@@ -115,15 +121,16 @@ export default function SubscriptionScreen() {
           });
           return;
         }
-        // status === 'pending' → Flutterwave hasn't confirmed yet, keep retrying
-        // status === 'failed'  → payment genuinely declined, stop retrying
+        // 'pending' → Flutterwave hasn't confirmed yet, keep retrying.
+        // 'failed'  → payment genuinely declined by bank/card, stop immediately.
         if (tx.status === 'failed') break;
       } catch (_) {
-        // Network error — keep retrying until attempts exhausted
+        // Network / API error — keep retrying until attempts exhausted.
       }
     }
 
     setVerifying(false);
+    setVerifyAttempt(0);
     setShowVerifyPrompt(false);
     clearPaymentLink();
     router.push({
@@ -431,11 +438,15 @@ export default function SubscriptionScreen() {
               <Pressable
                 onPress={handleWebVerify}
                 disabled={verifying}
-                className={`rounded-xl py-4 items-center mb-3 ${verifying ? 'bg-gray-300' : 'bg-[#0EA5A4]'}`}>
+                className={`rounded-xl py-4 items-center mb-3 ${verifying ? 'bg-[#0EA5A4]/70' : 'bg-[#0EA5A4]'}`}>
                 {verifying ? (
                   <View className="items-center gap-1.5">
                     <ActivityIndicator color="white" size="small" />
-                    <Text className="text-xs text-white/80">Verifying with Flutterwave…</Text>
+                    <Text className="text-xs text-white/90">
+                      {verifyAttempt > 0
+                        ? `Checking with Flutterwave (${verifyAttempt} of 7)…`
+                        : 'Preparing…'}
+                    </Text>
                   </View>
                 ) : (
                   <Text className="text-base font-semibold text-white">I've Completed Payment</Text>
@@ -443,10 +454,13 @@ export default function SubscriptionScreen() {
               </Pressable>
               <Pressable
                 onPress={() => {
+                  if (verifying) return; // block cancel mid-retry
                   setShowVerifyPrompt(false);
                   clearPaymentLink();
                 }}
-                className="rounded-xl py-4 items-center border border-gray-200">
+                className={`rounded-xl py-4 items-center border ${
+                  verifying ? 'border-gray-100 opacity-40' : 'border-gray-200'
+                }`}>
                 <Text className="text-base font-semibold text-gray-600">Cancel</Text>
               </Pressable>
             </View>
