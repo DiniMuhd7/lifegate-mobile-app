@@ -351,19 +351,19 @@ export default function LifecoinsApprovalsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* Header */}
       <LinearGradient
-        colors={['#d97706', '#b45309']}
+        colors={['#0AADA2', '#07827A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}
+        style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
               width: 36,
               height: 36,
               borderRadius: 18,
-              backgroundColor: 'rgba(255,255,255,0.2)',
+              backgroundColor: 'rgba(255,255,255,0.18)',
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -371,10 +371,10 @@ export default function LifecoinsApprovalsScreen() {
             <Ionicons name="arrow-back" size={18} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff' }}>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#fff' }}>
               Lifecoins Approvals
             </Text>
-            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 1 }}>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
               {pendingRedemptions.length} request{pendingRedemptions.length !== 1 ? 's' : ''} pending
             </Text>
           </View>

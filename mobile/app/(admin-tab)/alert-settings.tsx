@@ -170,7 +170,7 @@ export default function AlertSettingsScreen() {
     <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
       <LinearGradient
-        colors={['#0AADA2', '#043B3C']}
+        colors={['#0AADA2', '#07827A']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         className="px-5 pt-4 pb-5">

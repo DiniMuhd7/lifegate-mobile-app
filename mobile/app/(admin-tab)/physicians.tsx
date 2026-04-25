@@ -27,6 +27,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAdminStore } from '../../stores/admin-store';
 import type { PhysicianRow, CreatePhysicianInput } from '../../types/admin-types';
 
@@ -220,7 +221,7 @@ function CreatePhysicianModal({
             <TouchableOpacity
               onPress={handleCreate}
               disabled={saving}
-              className="bg-indigo-600 rounded-xl px-4 py-1.5"
+              style={{ backgroundColor: '#0AADA2', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 6 }}
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -306,7 +307,7 @@ export default function AdminPhysiciansScreen() {
   if (loading && physicians.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-slate-50">
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#0AADA2" />
       </SafeAreaView>
     );
   }
@@ -314,28 +315,43 @@ export default function AdminPhysiciansScreen() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       {/* Header */}
-      <View className="flex-row items-center px-4 pt-4 pb-2">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <Ionicons name="arrow-back" size={22} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-gray-900 flex-1">Physicians</Text>
-        <TouchableOpacity
-          onPress={handleFlagCheck}
-          className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 mr-2"
-        >
-          <Text className="text-amber-700 text-xs font-semibold">Flag Check</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setShowCreate(true)}
-          className="w-9 h-9 rounded-full bg-indigo-600 items-center justify-center"
-        >
-          <Ionicons name="add" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <LinearGradient
+        colors={['#0AADA2', '#07827A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
+          >
+            <Ionicons name="arrow-back" size={18} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Physicians</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 1 }}>
+              {physicians.length} registered
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleFlagCheck}
+            style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}
+          >
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Flag Check</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowCreate(true)}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="add" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
       {/* Search */}
-      <View className="px-4 pb-2">
-        <View className="flex-row items-center bg-white rounded-2xl px-3 py-2 border border-gray-100">
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+        <View className="flex-row items-center bg-white rounded-2xl px-3 py-2" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6 }}>
           <Ionicons name="search" size={16} color="#9ca3af" />
           <TextInput
             className="flex-1 ml-2 text-sm text-gray-800"
@@ -353,29 +369,31 @@ export default function AdminPhysiciansScreen() {
       </View>
 
       {/* Filter tabs */}
-      <View className="flex-row px-4 mb-3 gap-2">
-        {FILTER_TABS.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            onPress={() => setFilterStatus(tab.key)}
-            className={`px-3 py-1.5 rounded-full border ${
-              filterStatus === tab.key
-                ? 'bg-indigo-600 border-indigo-600'
-                : 'bg-white border-gray-200'
-            }`}
-          >
-            <Text
-              className={`text-xs font-semibold ${
-                filterStatus === tab.key ? 'text-white' : 'text-gray-600'
-              }`}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 }}>
+        {FILTER_TABS.map((tab) => {
+          const isActive = filterStatus === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setFilterStatus(tab.key)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: isActive ? '#0AADA2' : '#fff',
+                borderWidth: 1,
+                borderColor: isActive ? '#0AADA2' : '#e5e7eb',
+              }}
             >
-              {tab.label}
-              {tab.key === 'flagged' && physicians.filter((p) => p.flagged).length > 0
-                ? ` (${physicians.filter((p) => p.flagged).length})`
-                : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text style={{ fontSize: 12, fontWeight: '600', color: isActive ? '#fff' : '#6b7280' }}>
+                {tab.label}
+                {tab.key === 'flagged' && physicians.filter((p) => p.flagged).length > 0
+                  ? ` (${physicians.filter((p) => p.flagged).length})`
+                  : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Summary line */}
@@ -401,7 +419,11 @@ export default function AdminPhysiciansScreen() {
               onPress={() => router.push(`/(admin-tab)/physician-detail?id=${item.id}`)}
             />
           )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0AADA2" />}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           ListEmptyComponent={
             <View className="items-center mt-16">
               <Ionicons name="people-outline" size={48} color="#d1d5db" />

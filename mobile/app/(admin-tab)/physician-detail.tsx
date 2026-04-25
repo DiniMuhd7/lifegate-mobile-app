@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAdminStore } from '../../stores/admin-store';
 import type { PhysicianCaseHistory, UpdatePhysicianInput } from '../../types/admin-types';
 
@@ -163,7 +164,7 @@ function MDCNOverridePanel({
   return (
     <View className="bg-white rounded-2xl p-4 mb-3"
       style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}>
-      <SectionHeader title="MDCN Verification" icon="shield-checkmark-outline" color="#6366f1" />
+      <SectionHeader title="MDCN Verification" icon="shield-checkmark-outline" color="#0AADA2" />
 
       <View className="flex-row items-center mb-3">
         {badge()}
@@ -269,7 +270,7 @@ function EditPhysicianModal({
             <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              className="bg-indigo-600 rounded-xl px-4 py-1.5"
+              style={{ backgroundColor: '#0AADA2', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 6 }}
             >
               {saving
                 ? <ActivityIndicator size="small" color="#fff" />
@@ -329,7 +330,7 @@ export default function PhysicianDetailScreen() {
   if (loading || !physician) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-slate-50">
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#0AADA2" />
       </SafeAreaView>
     );
   }
@@ -401,20 +402,41 @@ export default function PhysicianDetailScreen() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
       {/* Header */}
-      <View className="flex-row items-center px-4 py-3">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <Ionicons name="arrow-back" size={22} color="#374151" />
-        </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900 flex-1" numberOfLines={1}>
-          {physician.name}
-        </Text>
-        <TouchableOpacity onPress={() => setShowEdit(true)} className="mr-3">
-          <Ionicons name="pencil-outline" size={20} color="#6366f1" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={20} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
+      <LinearGradient
+        colors={['#0AADA2', '#07827A']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20 }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}
+          >
+            <Ionicons name="arrow-back" size={18} color="#fff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }} numberOfLines={1}>
+              {physician.name}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 1 }}>
+              {physician.specialization || 'Physician'} · {isSuspended ? 'Suspended' : 'Active'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => setShowEdit(true)}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}
+          >
+            <Ionicons name="pencil-outline" size={18} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDelete}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(239,68,68,0.3)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="trash-outline" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
         {/* Status hero card */}
@@ -440,8 +462,8 @@ export default function PhysicianDetailScreen() {
 
           {/* Name / email */}
           <View className="flex-row items-start">
-            <View className="w-12 h-12 rounded-full bg-indigo-100 items-center justify-center mr-3">
-              <Text className="text-xl font-bold text-indigo-600">
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e6f7f6', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: '#0AADA2' }}>
                 {physician.name.charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -449,7 +471,7 @@ export default function PhysicianDetailScreen() {
               <Text className="text-lg font-bold text-gray-900">{physician.name}</Text>
               <Text className="text-sm text-gray-500">{physician.email}</Text>
               {physician.specialization ? (
-                <Text className="text-xs text-indigo-600 mt-0.5">{physician.specialization}</Text>
+                <Text style={{ fontSize: 12, color: '#0AADA2', marginTop: 2 }}>{physician.specialization}</Text>
               ) : null}
             </View>
           </View>
@@ -524,7 +546,7 @@ export default function PhysicianDetailScreen() {
         {/* Account details */}
         <View className="bg-white rounded-2xl p-4 mb-3"
           style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}>
-          <SectionHeader title="Account Details" icon="person-outline" color="#6366f1" />
+          <SectionHeader title="Account Details" icon="person-outline" color="#0AADA2" />
           <InfoRow label="Phone"            value={physician.phone} />
           <InfoRow label="Date of Birth"    value={physician.dob} />
           <InfoRow label="Gender"           value={physician.gender} />
@@ -538,7 +560,7 @@ export default function PhysicianDetailScreen() {
         {/* Suspend / Reinstate action */}
         <View className="bg-white rounded-2xl p-4 mb-3"
           style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}>
-          <SectionHeader title="Account Actions" icon="settings-outline" color="#6366f1" />
+          <SectionHeader title="Account Actions" icon="settings-outline" color="#0AADA2" />
 
           {isSuspended ? (
             <TouchableOpacity
@@ -570,7 +592,7 @@ export default function PhysicianDetailScreen() {
         {/* Case history */}
         <View className="bg-white rounded-2xl p-4 mb-6"
           style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}>
-          <SectionHeader title="Case History" icon="folder-open-outline" color="#6366f1" />
+          <SectionHeader title="Case History" icon="folder-open-outline" color="#0AADA2" />
           {physician.recentCases.length === 0 ? (
             <Text className="text-sm text-gray-400 text-center py-4">No cases yet</Text>
           ) : (
