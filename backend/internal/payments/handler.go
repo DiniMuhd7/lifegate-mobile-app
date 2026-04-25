@@ -72,6 +72,7 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 	var body struct {
 		BundleID string `json:"bundleId" binding:"required"`
 		Name     string `json:"name"`
+		Currency string `json:"currency"` // "NGN" or "USD"; defaults to "NGN"
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
@@ -83,7 +84,7 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 		name = "LifeGate User"
 	}
 
-	txRef, link, err := h.svc.InitiatePayment(uid, emailStr, name, body.BundleID)
+	txRef, link, err := h.svc.InitiatePayment(uid, emailStr, name, body.BundleID, body.Currency)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return

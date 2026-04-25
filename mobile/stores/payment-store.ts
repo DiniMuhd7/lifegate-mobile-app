@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { PaymentService } from 'services/payment-service';
-import type { CreditBalance, CreditBundle, PaymentTransaction } from 'types/payment-types';
+import type { CreditBalance, CreditBundle, PaymentCurrency, PaymentTransaction } from 'types/payment-types';
 
 interface PaymentState {
   balance: CreditBalance | null;
@@ -20,7 +20,7 @@ interface PaymentState {
 
   fetchBalance: () => Promise<void>;
   fetchBundles: () => Promise<void>;
-  initiatePayment: (bundleId: string, name?: string) => Promise<void>;
+  initiatePayment: (bundleId: string, name?: string, currency?: PaymentCurrency) => Promise<void>;
   verifyPayment: (txRef: string, flwTxId: string) => Promise<PaymentTransaction>;
   fetchTransactions: (limit?: number) => Promise<void>;
   clearError: () => void;
@@ -62,10 +62,10 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
     }
   },
 
-  initiatePayment: async (bundleId: string, name?: string) => {
+  initiatePayment: async (bundleId: string, name?: string, currency: PaymentCurrency = 'NGN') => {
     set({ paymentLoading: true, loading: true, error: null, paymentLink: null, activeTxRef: null });
     try {
-      const res = await PaymentService.initiatePayment(bundleId, name);
+      const res = await PaymentService.initiatePayment(bundleId, name, currency);
       set({ paymentLink: res.paymentLink, activeTxRef: res.txRef, paymentLoading: false, loading: false });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to initiate payment';

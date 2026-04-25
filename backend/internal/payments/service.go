@@ -9,24 +9,74 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
-// Credit bundles: bundleID → {amount in kobo, credits granted}
-var Bundles = map[string]Bundle{
-	"2000":  {ID: "2000", AmountNaira: 2000, Credits: 5, Label: "₦2,000 — 5 Credits"},
-	"5000":  {ID: "5000", AmountNaira: 5000, Credits: 15, Label: "₦5,000 — 15 Credits"},
-	"10000": {ID: "10000", AmountNaira: 10000, Credits: 40, Label: "₦10,000 — 40 Credits"},
+// bundleBase defines credit tiers with fixed USD prices.
+// NGN amounts are computed at request time from the live exchange rate.
+var bundleBase = []struct {
+	id      string
+	usd     float64
+	credits int
+}{
+	{"2000", 5.00, 5},
+	{"5000", 12.00, 15},
+	{"10000", 22.00, 40},
+}
+
+// fallbackNGNPerUSD is used when the exchange-rate API is unreachable.
+const fallbackNGNPerUSD = 1600.0
+
+// erCacheDuration controls how often the exchange rate is refreshed.
+const erCacheDuration = 1 * time.Hour
+
+type erCache struct {
+	mu        sync.Mutex
+	rate      float64
+	fetchedAt time.Time
+}
+
+var ngnRateCache = &erCache{}
+
+// fetchLiveNGNRate calls the free open.er-api.com endpoint (no API key required)
+// and returns the number of NGN per 1 USD.
+func fetchLiveNGNRate() float64 {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://open.er-api.com/v6/latest/USD", nil)
+	if err != nil {
+		return fallbackNGNPerUSD
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fallbackNGNPerUSD
+	}
+	defer resp.Body.Close()
+	var data struct {
+		Rates map[string]float64 `json:"rates"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return fallbackNGNPerUSD
+	}
+	if r, ok := data.Rates["NGN"]; ok && r > 0 {
+		return r
+	}
+	return fallbackNGNPerUSD
 }
 
 type Bundle struct {
-	ID          string `json:"id"`
-	AmountNaira int    `json:"amountNaira"`
-	Credits     int    `json:"credits"`
-	Label       string `json:"label"`
+	ID          string  `json:"id"`
+	AmountNaira int     `json:"amountNaira"`
+	AmountUSD   float64 `json:"amountUSD"`
+	Credits     int     `json:"credits"`
+	Label       string  `json:"label"`
+	LabelUSD    string  `json:"labelUSD"`
 }
 
 // PaymentTransaction is the DB row shape.
@@ -36,6 +86,8 @@ type PaymentTransaction struct {
 	TxRef          string `json:"txRef"`
 	FlwTxID        string `json:"flwTxId,omitempty"`
 	Amount         int    `json:"amount"`
+	// Currency is "NGN" or "USD". Amount is in naira for NGN, in cents (×100) for USD.
+	Currency       string `json:"currency"`
 	CreditsGranted int    `json:"creditsGranted"`
 	Status         string `json:"status"`
 	BundleID       string `json:"bundleId"`
@@ -52,10 +104,10 @@ type CreditBalance struct {
 
 // flwInitiateRequest is the body sent to Flutterwave standard charge API.
 type flwInitiateRequest struct {
-	TxRef       string `json:"tx_ref"`
-	Amount      int    `json:"amount"`
-	Currency    string `json:"currency"`
-	RedirectURL string `json:"redirect_url"`
+	TxRef       string  `json:"tx_ref"`
+	Amount      float64 `json:"amount"`
+	Currency    string  `json:"currency"`
+	RedirectURL string  `json:"redirect_url"`
 	Customer    struct {
 		Email string `json:"email"`
 		Name  string `json:"name"`
@@ -78,11 +130,11 @@ type flwVerifyResponse struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 	Data    struct {
-		ID       int    `json:"id"`
-		TxRef    string `json:"tx_ref"`
-		Amount   int    `json:"amount"`
-		Currency string `json:"currency"`
-		Status   string `json:"status"` // "successful" | "failed" | "pending"
+		ID       int     `json:"id"`
+		TxRef    string  `json:"tx_ref"`
+		Amount   float64 `json:"amount"`
+		Currency string  `json:"currency"`
+		Status   string  `json:"status"` // "successful" | "failed" | "pending"
 	} `json:"data"`
 }
 
@@ -138,16 +190,55 @@ func NewService(db *sql.DB, secretKey, publicKey, redirectURL, webhookHash strin
 	}
 }
 
-// GetBundles returns all available credit bundles sorted by price ascending.
+// getLiveNGNRate returns the cached NGN/USD rate, refreshing it when stale.
+func (s *Service) getLiveNGNRate() float64 {
+	ngnRateCache.mu.Lock()
+	defer ngnRateCache.mu.Unlock()
+	if ngnRateCache.rate > 0 && time.Since(ngnRateCache.fetchedAt) < erCacheDuration {
+		return ngnRateCache.rate
+	}
+	rate := fetchLiveNGNRate()
+	ngnRateCache.rate = rate
+	ngnRateCache.fetchedAt = time.Now()
+	return rate
+}
+
+// GetBundles returns all credit bundles with live-rate NGN prices and fixed USD prices.
 func (s *Service) GetBundles() []Bundle {
-	out := make([]Bundle, 0, len(Bundles))
-	for _, b := range Bundles {
-		out = append(out, b)
+	rate := s.getLiveNGNRate()
+	out := make([]Bundle, 0, len(bundleBase))
+	for _, b := range bundleBase {
+		// Round NGN to nearest ₦100 for clean display.
+		ngnAmount := int(math.Round(b.usd*rate/100) * 100)
+		if ngnAmount < 100 {
+			ngnAmount = 100
+		}
+		out = append(out, Bundle{
+			ID:          b.id,
+			AmountNaira: ngnAmount,
+			AmountUSD:   b.usd,
+			Credits:     b.credits,
+			Label:       fmt.Sprintf("₦%s — %d Credits", formatNaira(ngnAmount), b.credits),
+			LabelUSD:    fmt.Sprintf("$%.2f — %d Credits", b.usd, b.credits),
+		})
 	}
 	sort.Slice(out, func(i, j int) bool {
-		return out[i].AmountNaira < out[j].AmountNaira
+		return out[i].Credits < out[j].Credits
 	})
 	return out
+}
+
+// formatNaira formats an integer naira amount with comma separators.
+func formatNaira(n int) string {
+	s := strconv.Itoa(n)
+	result := ""
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result += ","
+		}
+		result += string(c)
+	}
+	return result
 }
 
 // GetCreditBalance fetches a user's wallet balance (creates row if absent).
@@ -403,20 +494,44 @@ func (s *Service) DeductCredit(userID, diagnosisID string) (bool, error) {
 }
 
 // InitiatePayment creates a pending transaction and returns a Flutterwave payment link.
-func (s *Service) InitiatePayment(userID, email, name, bundleID string) (string, string, error) {
-	bundle, ok := Bundles[bundleID]
-	if !ok {
+// currency must be "NGN" or "USD"; it defaults to "NGN" when empty.
+func (s *Service) InitiatePayment(userID, email, name, bundleID, currency string) (string, string, error) {
+	if currency != "USD" {
+		currency = "NGN"
+	}
+
+	// Resolve live bundle to get current NGN/USD amounts.
+	var bundle *Bundle
+	for _, b := range s.GetBundles() {
+		b := b
+		if b.ID == bundleID {
+			bundle = &b
+			break
+		}
+	}
+	if bundle == nil {
 		return "", "", fmt.Errorf("unknown bundle: %s", bundleID)
 	}
 
 	txRef := fmt.Sprintf("LG-%s-%d", userID[:8], time.Now().UnixMilli())
 
+	// amount field stores naira for NGN payments, cents (USD×100) for USD payments.
+	var chargeAmount float64
+	var dbAmount int
+	if currency == "USD" {
+		chargeAmount = bundle.AmountUSD
+		dbAmount = int(bundle.AmountUSD * 100) // store as cents
+	} else {
+		chargeAmount = float64(bundle.AmountNaira)
+		dbAmount = bundle.AmountNaira
+	}
+
 	// Persist pending transaction.
 	if _, err := s.db.Exec(
 		`INSERT INTO payment_transactions
-		   (user_id, tx_ref, amount, credits_granted, status, bundle_id)
-		 VALUES ($1::uuid, $2, $3, $4, 'pending', $5)`,
-		userID, txRef, bundle.AmountNaira, bundle.Credits, bundleID,
+		   (user_id, tx_ref, amount, credits_granted, status, bundle_id, currency)
+		 VALUES ($1::uuid, $2, $3, $4, 'pending', $5, $6)`,
+		userID, txRef, dbAmount, bundle.Credits, bundleID, currency,
 	); err != nil {
 		return "", "", err
 	}
@@ -427,16 +542,23 @@ func (s *Service) InitiatePayment(userID, email, name, bundleID string) (string,
 		return txRef, devLink, nil
 	}
 
+	var label string
+	if currency == "USD" {
+		label = bundle.LabelUSD
+	} else {
+		label = bundle.Label
+	}
+
 	reqBody := flwInitiateRequest{
 		TxRef:       txRef,
-		Amount:      bundle.AmountNaira,
-		Currency:    "NGN",
+		Amount:      chargeAmount,
+		Currency:    currency,
 		RedirectURL: s.redirectURL,
 	}
 	reqBody.Customer.Email = email
 	reqBody.Customer.Name = name
 	reqBody.Customizations.Title = "LifeGate Credits"
-	reqBody.Customizations.Description = bundle.Label
+	reqBody.Customizations.Description = label
 
 	link, err := s.flwInitiate(reqBody)
 	if err != nil {
@@ -508,11 +630,11 @@ func (s *Service) ProcessWebhook(payload WebhookPayload, hashHeader string) erro
 func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransaction, error) {
 	var pt PaymentTransaction
 	err := s.db.QueryRow(
-		`SELECT id, user_id, tx_ref, amount, credits_granted, status, bundle_id,
+		`SELECT id, user_id, tx_ref, amount, COALESCE(currency,'NGN'), credits_granted, status, bundle_id,
 		        created_at::text, updated_at::text
 		 FROM payment_transactions WHERE tx_ref = $1 AND user_id = $2::uuid`,
 		txRef, userID,
-	).Scan(&pt.ID, &pt.UserID, &pt.TxRef, &pt.Amount, &pt.CreditsGranted,
+	).Scan(&pt.ID, &pt.UserID, &pt.TxRef, &pt.Amount, &pt.Currency, &pt.CreditsGranted,
 		&pt.Status, &pt.BundleID, &pt.CreatedAt, &pt.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("transaction not found")
@@ -540,7 +662,15 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 	}
 
 	if !verified && flwTxID != "" {
-		ok, err := s.flwVerify(flwTxID, pt.Amount)
+		// Convert DB amount to the float value Flutterwave expects.
+		// NGN: whole naira. USD: amount is stored as cents, convert back to dollars.
+		var expectedAmount float64
+		if pt.Currency == "USD" {
+			expectedAmount = float64(pt.Amount) / 100.0
+		} else {
+			expectedAmount = float64(pt.Amount)
+		}
+		ok, err := s.flwVerify(flwTxID, expectedAmount, pt.Currency)
 		if err != nil {
 			return nil, err
 		}
@@ -602,7 +732,7 @@ func (s *Service) GetTransactions(userID string, limit int) ([]PaymentTransactio
 	}
 	rows, err := s.db.Query(
 		`SELECT id, user_id, tx_ref, COALESCE(flw_tx_id,''), amount,
-		        credits_granted, status, bundle_id,
+		        COALESCE(currency,'NGN'), credits_granted, status, bundle_id,
 		        created_at::text, updated_at::text
 		 FROM payment_transactions
 		 WHERE user_id = $1::uuid
@@ -619,7 +749,7 @@ func (s *Service) GetTransactions(userID string, limit int) ([]PaymentTransactio
 	for rows.Next() {
 		var pt PaymentTransaction
 		if err := rows.Scan(&pt.ID, &pt.UserID, &pt.TxRef, &pt.FlwTxID,
-			&pt.Amount, &pt.CreditsGranted, &pt.Status, &pt.BundleID,
+			&pt.Amount, &pt.Currency, &pt.CreditsGranted, &pt.Status, &pt.BundleID,
 			&pt.CreatedAt, &pt.UpdatedAt); err != nil {
 			continue
 		}
@@ -680,7 +810,7 @@ func (s *Service) flwInitiate(req flwInitiateRequest) (string, error) {
 	return flwResp.Data.Link, nil
 }
 
-func (s *Service) flwVerify(flwTxID string, expectedAmount int) (bool, error) {
+func (s *Service) flwVerify(flwTxID string, expectedAmount float64, currency string) (bool, error) {
 	httpReq, err := http.NewRequestWithContext(
 		context.Background(), http.MethodGet,
 		flwBaseURL+"/transactions/"+flwTxID+"/verify", nil,
@@ -705,7 +835,7 @@ func (s *Service) flwVerify(flwTxID string, expectedAmount int) (bool, error) {
 		return false, nil
 	}
 	d := flwResp.Data
-	return d.Status == "successful" && d.Amount >= expectedAmount && d.Currency == "NGN", nil
+	return d.Status == "successful" && d.Amount >= expectedAmount && d.Currency == currency, nil
 }
 
 // flwGetIDByTxRef looks up a Flutterwave transaction by tx_ref and returns

@@ -19,7 +19,7 @@ const isWeb = Platform.OS === 'web';
 const WebView = isWeb ? null : require('react-native-webview').default;
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
-import type { CreditBundle } from 'types/payment-types';
+import type { CreditBundle, PaymentCurrency } from 'types/payment-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,6 +46,7 @@ export default function SubscriptionScreen() {
   } = usePaymentStore();
 
   const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
+  const [currency, setCurrency] = useState<PaymentCurrency>('NGN');
   const [showWebView, setShowWebView] = useState(false);
   const [cancelledMsg, setCancelledMsg] = useState(false);
   // Web-only: shown after the payment tab is opened so the user can confirm
@@ -81,8 +82,8 @@ export default function SubscriptionScreen() {
 
   const handleBuyCredits = useCallback(() => {
     if (!selectedBundle) return;
-    initiatePayment(selectedBundle, user?.name ?? undefined);
-  }, [selectedBundle, user?.name, initiatePayment]);
+    initiatePayment(selectedBundle, user?.name ?? undefined, currency);
+  }, [selectedBundle, user?.name, currency, initiatePayment]);
 
   // Web path: user pressed "I've paid" after completing payment in the browser tab.
   const handleWebVerify = useCallback(async () => {
@@ -164,9 +165,9 @@ export default function SubscriptionScreen() {
   const displayBundles: CreditBundle[] = bundles.length
     ? bundles
     : [
-        { id: '2000', amountNaira: 2000, credits: 5, label: '₦2,000 — 5 Credits' },
-        { id: '5000', amountNaira: 5000, credits: 15, label: '₦5,000 — 15 Credits' },
-        { id: '10000', amountNaira: 10000, credits: 40, label: '₦10,000 — 40 Credits' },
+        { id: '2000',  amountNaira: 8000,  amountUSD: 5.00,  credits: 5,  label: '₦8,000 — 5 Credits',   labelUSD: '$5.00 — 5 Credits' },
+        { id: '5000',  amountNaira: 19200, amountUSD: 12.00, credits: 15, label: '₦19,200 — 15 Credits',  labelUSD: '$12.00 — 15 Credits' },
+        { id: '10000', amountNaira: 35200, amountUSD: 22.00, credits: 40, label: '₦35,200 — 40 Credits',  labelUSD: '$22.00 — 40 Credits' },
       ];
 
   const selectedBundleData = displayBundles.find((bundle) => bundle.id === selectedBundle);
@@ -244,6 +245,35 @@ export default function SubscriptionScreen() {
           </View>
 
           <Text className="mb-3 text-base font-semibold text-gray-900">Choose a Credit Package</Text>
+
+          {/* Currency toggle */}
+          <View className="mb-4 flex-row rounded-xl overflow-hidden border border-[#D4ECEB] bg-white">
+            <Pressable
+              onPress={() => setCurrency('NGN')}
+              className={`flex-1 py-2.5 items-center ${
+                currency === 'NGN' ? 'bg-[#0EA5A4]' : 'bg-white'
+              }`}>
+              <Text
+                className={`text-sm font-semibold ${
+                  currency === 'NGN' ? 'text-white' : 'text-gray-600'
+                }`}>
+                Pay in ₦ NGN
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setCurrency('USD')}
+              className={`flex-1 py-2.5 items-center ${
+                currency === 'USD' ? 'bg-[#0EA5A4]' : 'bg-white'
+              }`}>
+              <Text
+                className={`text-sm font-semibold ${
+                  currency === 'USD' ? 'text-white' : 'text-gray-600'
+                }`}>
+                Pay in $ USD
+              </Text>
+            </Pressable>
+          </View>
+
           {displayBundles.map((bundle, idx) => {
             const selected = selectedBundle === bundle.id;
             const bonus = idx === displayBundles.length - 1;
@@ -255,7 +285,11 @@ export default function SubscriptionScreen() {
                   selected ? 'border-[#0EA5A4]' : 'border-[#DCEEEE]'
                 }`}>
                 <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-xl font-black text-gray-900">₦{bundle.amountNaira.toLocaleString()}</Text>
+                  <Text className="text-xl font-black text-gray-900">
+                    {currency === 'USD'
+                      ? `$${bundle.amountUSD.toFixed(2)}`
+                      : `₦${bundle.amountNaira.toLocaleString()}`}
+                  </Text>
                   {bonus ? (
                     <View className="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0]">
                       <Text className="text-[11px] font-semibold text-[#047857]">Best value</Text>
@@ -283,8 +317,17 @@ export default function SubscriptionScreen() {
             <View className="mb-3 rounded-xl bg-[#EEF8F8] border border-[#D4ECEB] px-4 py-3">
               <Text className="text-sm text-gray-700">
                 You selected <Text className="font-bold">{selectedBundleData.credits} credits</Text> for{' '}
-                <Text className="font-bold">₦{selectedBundleData.amountNaira.toLocaleString()}</Text>.
+                <Text className="font-bold">
+                  {currency === 'USD'
+                    ? `$${selectedBundleData.amountUSD.toFixed(2)}`
+                    : `₦${selectedBundleData.amountNaira.toLocaleString()}`}
+                </Text>.
               </Text>
+              {currency === 'NGN' && (
+                <Text className="text-xs text-gray-400 mt-1">
+                  NGN price reflects today's exchange rate.
+                </Text>
+              )}
             </View>
           ) : null}
 

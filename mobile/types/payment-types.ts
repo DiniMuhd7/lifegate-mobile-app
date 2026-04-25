@@ -1,10 +1,14 @@
 // Types for Payments & Credits feature
 
+export type PaymentCurrency = 'NGN' | 'USD';
+
 export interface CreditBundle {
   id: string;
   amountNaira: number;
+  amountUSD: number;
   credits: number;
   label: string;
+  labelUSD: string;
 }
 
 export type PaymentStatus = 'pending' | 'success' | 'failed';
@@ -15,6 +19,7 @@ export interface PaymentTransaction {
   txRef: string;
   flwTxId?: string;
   amount: number;
+  currency: PaymentCurrency;
   creditsGranted: number;
   status: PaymentStatus;
   bundleId: string;

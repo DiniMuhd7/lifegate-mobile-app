@@ -79,12 +79,16 @@ services:
         value: claude-opus-4-5
 
       # Payments — Flutterwave
+      # Configure webhook URL in Flutterwave dashboard → Settings → Webhooks:
+      #   https://lifegate-backend.onrender.com/api/payments/webhook
       - key: FLW_SECRET_KEY
         sync: false            # secret — get from dashboard.flutterwave.com
       - key: FLW_PUBLIC_KEY
         sync: false
       - key: FLW_REDIRECT_URL
         value: lifegate://payment/callback
+      - key: FLW_WEBHOOK_HASH
+        sync: false            # secret hash set in Flutterwave dashboard → Settings → Webhooks
 
       # Email — Resend (https://resend.com)
       # Requires the sender domain to be verified in the Resend dashboard.

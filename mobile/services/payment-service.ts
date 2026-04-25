@@ -3,6 +3,7 @@ import type {
   CreditBalance,
   CreditBundle,
   InitiatePaymentResponse,
+  PaymentCurrency,
   PaymentTransaction,
   TransactionLogResponse,
 } from 'types/payment-types';
@@ -32,10 +33,14 @@ export const PaymentService = {
    * Initiate a Flutterwave payment for a bundle.
    * POST /payments/initiate
    */
-  async initiatePayment(bundleId: string, name?: string): Promise<InitiatePaymentResponse> {
+  async initiatePayment(
+    bundleId: string,
+    name?: string,
+    currency: PaymentCurrency = 'NGN'
+  ): Promise<InitiatePaymentResponse> {
     const res = await api.post<{ success: boolean; data: InitiatePaymentResponse }>(
       '/payments/initiate',
-      { bundleId, name }
+      { bundleId, name, currency }
     );
     if (!res.data.success) throw new Error('Failed to initiate payment');
     return res.data.data;

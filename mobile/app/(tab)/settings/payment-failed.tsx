@@ -3,9 +3,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 
 const BUNDLE_LABELS: Record<string, string> = {
-  '2000': '₦2,000 — 5 Credits',
-  '5000': '₦5,000 — 15 Credits',
-  '10000': '₦10,000 — 40 Credits',
+  '2000': '5 Credits',
+  '5000': '15 Credits',
+  '10000': '40 Credits',
 };
 
 export default function PaymentFailedScreen() {
