@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	docs "github.com/DiniMuhd7/lifegate-mobile-app/backend/docs"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/admin"
@@ -88,6 +89,23 @@ func main() {
 	// Run any pending migrations automatically on startup.
 	if err := db.RunMigrations(database, migrations.FS); err != nil {
 		log.Fatalf("FATAL: database migration failed: %v", err)
+	}
+
+	// Ensure the default admin account always exists (idempotent upsert).
+	// The env vars ADMIN_EMAIL / ADMIN_PASSWORD_HASH let ops teams rotate
+	// credentials without a code change; they fall back to the seeded defaults.
+	adminEmail := getEnvOrDefault("ADMIN_EMAIL", "lifegatebydshub@gmail.com")
+	adminHash := getEnvOrDefault("ADMIN_PASSWORD_HASH",
+		"$2a$10$0Bls.oNWpa1IAsPlHgIpE.72xyxC7lf/8FREMrQ8zuEM6KOgR71ya")
+	if _, err := database.Exec(
+		`INSERT INTO users (name, email, password_hash, role)
+		 VALUES ('LifeGate Admin', $1, $2, 'admin')
+		 ON CONFLICT (email) DO UPDATE SET role = 'admin'`,
+		adminEmail, adminHash,
+	); err != nil {
+		log.Printf("[startup] warn: could not ensure admin user: %v", err)
+	} else {
+		log.Printf("[startup] admin account ready: %s", adminEmail)
 	}
 
 	redisClient := redisclient.Connect(cfg.RedisURL)
@@ -607,4 +625,12 @@ func main() {
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+// getEnvOrDefault returns the value of an environment variable or a fallback.
+func getEnvOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

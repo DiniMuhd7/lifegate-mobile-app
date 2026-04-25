@@ -69,6 +69,8 @@ export default function LoginScreen() {
           });
         } else if (user?.role === 'professional') {
           router.replace('/(prof-tab)/review');
+        } else if (user?.role === 'admin') {
+          router.replace('/(admin-tab)/dashboard');
         } else {
           router.replace('/(tab)/health');
         }
