@@ -152,4 +152,20 @@ export const AdminService = {
   async updateAlertThreshold(key: string, value: number, enabled: boolean): Promise<void> {
     await api.patch(`/admin/settings/alerts/${key}`, { value, enabled });
   },
+
+  // ── Lifecoins Redemption Approvals ────────────────────────────────────────
+
+  async getPendingRedemptions(): Promise<import('../types/admin-types').LifecoinRedemptionRequest[]> {
+    const { data } = await api.get('/admin/lifecoins/redemptions');
+    return data.data as import('../types/admin-types').LifecoinRedemptionRequest[];
+  },
+
+  async approveRedemption(id: string): Promise<import('../types/admin-types').LifecoinRedemptionRequest> {
+    const { data } = await api.post(`/admin/lifecoins/redemptions/${id}/approve`);
+    return data.data as import('../types/admin-types').LifecoinRedemptionRequest;
+  },
+
+  async rejectRedemption(id: string, note?: string): Promise<void> {
+    await api.post(`/admin/lifecoins/redemptions/${id}/reject`, { note: note ?? '' });
+  },
 };

@@ -1,19 +1,28 @@
 package payments
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
 	"github.com/gin-gonic/gin"
 )
 
 // Handler exposes payment and credits HTTP endpoints.
 type Handler struct {
-	svc *Service
+	svc      *Service
+	pushSvc  *notifications.Service
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetPushNotifier wires in the push notification service so the handler can
+// notify patients when their redemption request is approved or rejected.
+func (h *Handler) SetPushNotifier(push *notifications.Service) {
+	h.pushSvc = push
 }
 
 // GetBundles returns all available credit bundle options.
@@ -358,4 +367,111 @@ func (h *Handler) Webhook(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// GetPendingRedemptions lists all Lifecoin redemption requests awaiting admin approval.
+//
+// @Summary      List pending Lifecoin redemptions
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/lifecoins/redemptions [get]
+func (h *Handler) GetPendingRedemptions(c *gin.Context) {
+	redemptions, err := h.svc.GetPendingRedemptions()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if redemptions == nil {
+		redemptions = []PendingRedemption{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": redemptions})
+}
+
+// ApproveRedemption approves a pending Lifecoin redemption: deducts coins, fires FLW transfer, and notifies the patient.
+//
+// @Summary      Approve a Lifecoin redemption
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Transaction ID"
+// @Success      200  {object}  object{success=bool,message=string,data=object}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Router       /admin/lifecoins/redemptions/{id}/approve [post]
+func (h *Handler) ApproveRedemption(c *gin.Context) {
+	adminID, _ := c.Get("userID")
+	uid, _ := adminID.(string)
+	txID := c.Param("id")
+
+	result, err := h.svc.ApproveRedemption(uid, txID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	if h.pushSvc != nil && result.UserID != "" {
+		h.pushSvc.SendToUser(
+			c.Request.Context(), result.UserID,
+			"Redemption Approved 🎉",
+			fmt.Sprintf(
+				"Your %d Lifecoins redemption of \u20a6%d to %s has been approved and is being processed.",
+				result.Coins, result.NairaAmount, result.HealthFirmName,
+			),
+			map[string]string{"action": "lifecoins_approved", "txId": txID},
+		)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Redemption approved and transfer initiated.",
+		"data":    result,
+	})
+}
+
+// RejectRedemption rejects a pending Lifecoin redemption request and notifies the patient.
+//
+// @Summary      Reject a Lifecoin redemption
+// @Tags         admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id    path  string                  true  "Transaction ID"
+// @Param        body  body  object{note=string}     false "Optional rejection reason"
+// @Success      200   {object}  object{success=bool,message=string}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /admin/lifecoins/redemptions/{id}/reject [post]
+func (h *Handler) RejectRedemption(c *gin.Context) {
+	adminID, _ := c.Get("userID")
+	uid, _ := adminID.(string)
+	txID := c.Param("id")
+
+	var body struct {
+		Note string `json:"note"`
+	}
+	_ = c.ShouldBindJSON(&body)
+
+	// Fetch user ID before rejection so we can send the push notification.
+	patientID, _ := h.svc.GetUserIDForRedemption(txID)
+
+	if err := h.svc.RejectRedemption(uid, txID, body.Note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	if h.pushSvc != nil && patientID != "" {
+		msg := "Your Lifecoins redemption request was not approved."
+		if body.Note != "" {
+			msg += " Reason: " + body.Note
+		}
+		h.pushSvc.SendToUser(
+			c.Request.Context(), patientID,
+			"Redemption Update",
+			msg,
+			map[string]string{"action": "lifecoins_rejected", "txId": txID},
+		)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Redemption rejected."})
 }

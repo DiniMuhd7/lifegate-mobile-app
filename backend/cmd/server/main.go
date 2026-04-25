@@ -198,6 +198,7 @@ func main() {
 		cfg.FlutterwaveWebhookHash,
 	)
 	paymentsHandler := payments.NewHandler(paymentsSvc)
+	paymentsHandler.SetPushNotifier(pushSvc)
 	referralSvc := referral.NewService(database)
 	referralSvc.SetCreditGranter(paymentsSvc)
 	referralHandler := referral.NewHandler(referralSvc)
@@ -509,6 +510,11 @@ func main() {
 		// Alert threshold configuration
 		adminGroup.GET("/settings/alerts", adminHandler.GetAlertThresholds)
 		adminGroup.PATCH("/settings/alerts/:key", adminHandler.UpdateAlertThreshold)
+
+		// Lifecoins redemption approval queue
+		adminGroup.GET("/lifecoins/redemptions", paymentsHandler.GetPendingRedemptions)
+		adminGroup.POST("/lifecoins/redemptions/:id/approve", paymentsHandler.ApproveRedemption)
+		adminGroup.POST("/lifecoins/redemptions/:id/reject", paymentsHandler.RejectRedemption)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)

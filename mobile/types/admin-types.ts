@@ -226,3 +226,19 @@ export type AlertThreshold = {
   updatedAt: string;
   updatedBy?: string;
 };
+
+export type LifecoinRedemptionRequest = {
+  id: string;
+  userId: string;
+  patientName: string;
+  patientEmail: string;
+  coins: number;
+  nairaAmount: number;
+  healthFirmName: string;
+  accountNumber: string;
+  bankCode: string;
+  bankName: string;
+  transferStatus: string;
+  adminNote?: string;
+  createdAt: string;
+};

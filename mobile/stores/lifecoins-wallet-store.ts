@@ -42,7 +42,8 @@ export interface LifecoinTx {
   healthFirmName?: string;
   accountNumber?: string;
   bankName?: string;
-  transferStatus: 'pending' | 'processing' | 'success' | 'failed';
+  transferStatus: 'pending' | 'processing' | 'success' | 'failed' | 'pending_approval' | 'rejected';
+  adminNote?: string;
   createdAt: string;
 }
 

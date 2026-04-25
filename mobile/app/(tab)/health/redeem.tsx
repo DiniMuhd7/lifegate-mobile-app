@@ -74,41 +74,60 @@ function formatDate(iso: string): string {
 
 // ── Transaction History Item ──────────────────────────────────────────────────
 
+const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  success:          { color: '#16a34a', label: 'Paid' },
+  failed:           { color: '#dc2626', label: 'Failed' },
+  pending_approval: { color: '#d97706', label: 'Awaiting Review' },
+  rejected:         { color: '#dc2626', label: 'Rejected' },
+  processing:       { color: '#2563eb', label: 'Processing' },
+  pending:          { color: '#6b7280', label: 'Pending' },
+};
+
 function TxItem({ tx }: { tx: LifecoinTx }) {
   const isEarn = tx.type === 'earn';
-  const statusColor = tx.transferStatus === 'success' ? '#16a34a'
-    : tx.transferStatus === 'failed' ? '#dc2626'
-    : '#d97706';
+  const cfg = STATUS_CONFIG[tx.transferStatus ?? ''] ?? { color: '#6b7280', label: tx.transferStatus ?? '' };
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 }}>
-      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isEarn ? '#dcfce7' : '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons
-          name={isEarn ? 'add-circle-outline' : 'arrow-up-circle-outline'}
-          size={20}
-          color={isEarn ? '#16a34a' : '#d97706'}
-        />
+    <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: isEarn ? '#dcfce7' : '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons
+            name={isEarn ? 'add-circle-outline' : 'arrow-up-circle-outline'}
+            size={20}
+            color={isEarn ? '#16a34a' : '#d97706'}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
+            {tx.description}
+          </Text>
+          {tx.healthFirmName && (
+            <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>→ {tx.healthFirmName}</Text>
+          )}
+          <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{formatDate(tx.createdAt)}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 3 }}>
+          <Text style={{ fontSize: 14, fontWeight: '800', color: isEarn ? '#16a34a' : '#d97706' }}>
+            {isEarn ? '+' : '-'}{tx.coins} LC
+          </Text>
+          {!isEarn && (
+            <View style={{ backgroundColor: cfg.color + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: cfg.color }}>
+                {cfg.label}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }} numberOfLines={1}>
-          {tx.description}
-        </Text>
-        {tx.healthFirmName && (
-          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>→ {tx.healthFirmName}</Text>
-        )}
-        <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{formatDate(tx.createdAt)}</Text>
-      </View>
-      <View style={{ alignItems: 'flex-end', gap: 3 }}>
-        <Text style={{ fontSize: 14, fontWeight: '800', color: isEarn ? '#16a34a' : '#d97706' }}>
-          {isEarn ? '+' : '-'}{tx.coins} LC
-        </Text>
-        {!isEarn && (
-          <View style={{ backgroundColor: statusColor + '22', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: statusColor, textTransform: 'capitalize' }}>
-              {tx.transferStatus}
-            </Text>
-          </View>
-        )}
-      </View>
+      {tx.transferStatus === 'rejected' && tx.adminNote && (
+        <View style={{ marginLeft: 48, backgroundColor: '#fef2f2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+          <Text style={{ fontSize: 11, color: '#991b1b' }}>Reason: {tx.adminNote}</Text>
+        </View>
+      )}
+      {tx.transferStatus === 'pending_approval' && (
+        <View style={{ marginLeft: 48, backgroundColor: '#fffbeb', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+          <Text style={{ fontSize: 11, color: '#92400e' }}>Your request is being reviewed by an admin.</Text>
+        </View>
+      )}
     </View>
   );
 }

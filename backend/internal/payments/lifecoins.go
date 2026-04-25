@@ -149,14 +149,32 @@ func (s *Service) AddLifecoins(userID, source, description string, coins int) er
 	return tx.Commit()
 }
 
-// RedeemLifecoins deducts coins from the wallet and initiates a Flutterwave
-// transfer to the health firm's bank account (health insurance waiver).
+// PendingRedemption is the shape returned for the admin approval queue.
+type PendingRedemption struct {
+	ID             string  `json:"id"`
+	UserID         string  `json:"userId"`
+	PatientName    string  `json:"patientName"`
+	PatientEmail   string  `json:"patientEmail"`
+	Coins          int     `json:"coins"`
+	NairaAmount    int     `json:"nairaAmount"`
+	HealthFirmName string  `json:"healthFirmName"`
+	AccountNumber  string  `json:"accountNumber"`
+	BankCode       string  `json:"bankCode"`
+	BankName       string  `json:"bankName"`
+	TransferStatus string  `json:"transferStatus"`
+	AdminNote      *string `json:"adminNote,omitempty"`
+	CreatedAt      string  `json:"createdAt"`
+}
+
+// RedeemLifecoins reserves coins for admin review.
+// Coins are NOT deducted yet — they are only deducted upon admin approval.
+// The transaction is created with transfer_status = 'pending_approval'.
 func (s *Service) RedeemLifecoins(userID string, req LifecoinRedeemRequest) (*LifecoinTransaction, error) {
 	if err := s.ensureLifecoinWallet(userID); err != nil {
 		return nil, err
 	}
 
-	// 1. Check balance.
+	// 1. Check balance (coins must be available to submit the request).
 	var balance int
 	if err := s.db.QueryRow(
 		`SELECT balance FROM lifecoins_wallet WHERE user_id = $1::uuid`,
@@ -176,7 +194,8 @@ func (s *Service) RedeemLifecoins(userID string, req LifecoinRedeemRequest) (*Li
 		nairaAmount = 100
 	}
 
-	// 2. Create pending transaction row first so we have an ID.
+	// 2. Create transaction with pending_approval status.
+	// Coins are NOT deducted — the wallet balance is unchanged until an admin approves.
 	txRef := fmt.Sprintf("LC-REDEEM-%s-%d", userID[:8], time.Now().UnixNano())
 	var txID string
 	err := s.db.QueryRow(
@@ -186,7 +205,7 @@ func (s *Service) RedeemLifecoins(userID string, req LifecoinRedeemRequest) (*Li
 		  flw_transfer_ref, transfer_status)
 		 VALUES ($1::uuid, 'redeem', 'redeem', $2, $3,
 		         'Health waiver — ' || $4,
-		         $4, $5, $6, $7, $8, 'processing')
+		         $4, $5, $6, $7, $8, 'pending_approval')
 		 RETURNING id::text`,
 		userID, req.Coins, nairaAmount,
 		req.HealthFirmName, req.AccountNumber, req.BankCode, req.BankName,
@@ -195,23 +214,6 @@ func (s *Service) RedeemLifecoins(userID string, req LifecoinRedeemRequest) (*Li
 	if err != nil {
 		return nil, fmt.Errorf("failed to record transaction: %w", err)
 	}
-
-	// 3. Deduct from wallet immediately (optimistic; reversed if transfer fails).
-	if _, err := s.db.Exec(
-		`UPDATE lifecoins_wallet SET balance = balance - $2, updated_at = NOW()
-		 WHERE user_id = $1::uuid`,
-		userID, req.Coins,
-	); err != nil {
-		// Best-effort: mark tx as failed but don't leave balance inconsistent.
-		_, _ = s.db.Exec(
-			`UPDATE lifecoins_transactions SET transfer_status = 'failed' WHERE id = $1::uuid`,
-			txID,
-		)
-		return nil, fmt.Errorf("failed to deduct coins: %w", err)
-	}
-
-	// 4. Initiate Flutterwave transfer (fire-and-forget; status updated via webhook or polling).
-	go s.initiateFlwTransfer(txID, userID, req, nairaAmount, txRef)
 
 	return &LifecoinTransaction{
 		ID:             txID,
@@ -223,9 +225,157 @@ func (s *Service) RedeemLifecoins(userID string, req LifecoinRedeemRequest) (*Li
 		HealthFirmName: &req.HealthFirmName,
 		AccountNumber:  &req.AccountNumber,
 		BankName:       &req.BankName,
-		TransferStatus: "processing",
+		TransferStatus: "pending_approval",
 		CreatedAt:      time.Now().UTC().Format(time.RFC3339),
 	}, nil
+}
+
+// GetPendingRedemptions returns all redemption requests awaiting admin approval.
+func (s *Service) GetPendingRedemptions() ([]PendingRedemption, error) {
+	rows, err := s.db.Query(
+		`SELECT lt.id::text, lt.user_id::text,
+		        COALESCE(u.name, ''), COALESCE(u.email, ''),
+		        lt.coins, lt.naira_amount,
+		        COALESCE(lt.health_firm_name, ''),
+		        COALESCE(lt.account_number, ''),
+		        COALESCE(lt.bank_code, ''),
+		        COALESCE(lt.bank_name, ''),
+		        lt.transfer_status,
+		        lt.admin_note,
+		        lt.created_at::text
+		 FROM lifecoins_transactions lt
+		 JOIN users u ON u.id = lt.user_id
+		 WHERE lt.transfer_status = 'pending_approval'
+		 ORDER BY lt.created_at ASC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []PendingRedemption
+	for rows.Next() {
+		var r PendingRedemption
+		if err := rows.Scan(
+			&r.ID, &r.UserID, &r.PatientName, &r.PatientEmail,
+			&r.Coins, &r.NairaAmount,
+			&r.HealthFirmName, &r.AccountNumber, &r.BankCode, &r.BankName,
+			&r.TransferStatus, &r.AdminNote, &r.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// ApproveRedemption approves a pending redemption: deducts coins, fires FLW transfer.
+// adminID is stored for the audit trail.
+func (s *Service) ApproveRedemption(adminID, txID string) (*PendingRedemption, error) {
+	// Load the pending redemption.
+	var r PendingRedemption
+	err := s.db.QueryRow(
+		`SELECT lt.id::text, lt.user_id::text,
+		        COALESCE(u.name, ''), COALESCE(u.email, ''),
+		        lt.coins, lt.naira_amount,
+		        COALESCE(lt.health_firm_name, ''),
+		        COALESCE(lt.account_number, ''),
+		        COALESCE(lt.bank_code, ''),
+		        COALESCE(lt.bank_name, ''),
+		        lt.transfer_status,
+		        lt.flw_transfer_ref
+		 FROM lifecoins_transactions lt
+		 JOIN users u ON u.id = lt.user_id
+		 WHERE lt.id = $1::uuid AND lt.transfer_status = 'pending_approval'`,
+		txID,
+	).Scan(
+		&r.ID, &r.UserID, &r.PatientName, &r.PatientEmail,
+		&r.Coins, &r.NairaAmount,
+		&r.HealthFirmName, &r.AccountNumber, &r.BankCode, &r.BankName,
+		&r.TransferStatus, new(string),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("redemption not found or not pending: %w", err)
+	}
+
+	// Deduct coins from the wallet.
+	result, err := s.db.Exec(
+		`UPDATE lifecoins_wallet
+		 SET balance = balance - $2, updated_at = NOW()
+		 WHERE user_id = $1::uuid AND balance >= $2`,
+		r.UserID, r.Coins,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deduct coins: %w", err)
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		// Mark as failed — patient no longer has enough coins.
+		_, _ = s.db.Exec(
+			`UPDATE lifecoins_transactions
+			 SET transfer_status = 'failed', reviewed_by = $2::uuid, reviewed_at = NOW(),
+			     admin_note = 'Insufficient balance at time of approval'
+			 WHERE id = $1::uuid`,
+			txID, adminID,
+		)
+		return nil, fmt.Errorf("insufficient balance: patient's coins may have changed")
+	}
+
+	// Mark as processing and record admin.
+	_, err = s.db.Exec(
+		`UPDATE lifecoins_transactions
+		 SET transfer_status = 'processing', reviewed_by = $2::uuid, reviewed_at = NOW()
+		 WHERE id = $1::uuid`,
+		txID, adminID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fire Flutterwave transfer asynchronously.
+	req := LifecoinRedeemRequest{
+		Coins:          r.Coins,
+		HealthFirmName: r.HealthFirmName,
+		AccountNumber:  r.AccountNumber,
+		BankCode:       r.BankCode,
+		BankName:       r.BankName,
+	}
+	txRef := fmt.Sprintf("LC-REDEEM-%s-%d", r.UserID[:8], time.Now().UnixNano())
+	go s.initiateFlwTransfer(txID, r.UserID, req, r.NairaAmount, txRef)
+
+	r.TransferStatus = "processing"
+	return &r, nil
+}
+
+// RejectRedemption rejects a pending redemption. Coins are not deducted.
+// adminID and note are recorded for the audit trail.
+func (s *Service) RejectRedemption(adminID, txID, note string) error {
+	result, err := s.db.Exec(
+		`UPDATE lifecoins_transactions
+		 SET transfer_status = 'rejected',
+		     reviewed_by = $2::uuid,
+		     reviewed_at = NOW(),
+		     admin_note  = $3
+		 WHERE id = $1::uuid AND transfer_status = 'pending_approval'`,
+		txID, adminID, note,
+	)
+	if err != nil {
+		return err
+	}
+	if n, _ := result.RowsAffected(); n == 0 {
+		return fmt.Errorf("redemption not found or already reviewed")
+	}
+	return nil
+}
+
+// GetUserIDForRedemption returns the user_id for a redemption transaction.
+// Used by the handler to send a push notification to the patient.
+func (s *Service) GetUserIDForRedemption(txID string) (string, error) {
+	var uid string
+	err := s.db.QueryRow(
+		`SELECT user_id::text FROM lifecoins_transactions WHERE id = $1::uuid`,
+		txID,
+	).Scan(&uid)
+	return uid, err
 }
 
 // initiateFlwTransfer calls the Flutterwave Transfers API and updates the

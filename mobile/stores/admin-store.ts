@@ -16,6 +16,7 @@ import type {
   AdminTransactionRow,
   NDPASnapshot,
   AlertThreshold,
+  LifecoinRedemptionRequest,
 } from '../types/admin-types';
 
 type AdminState = {
@@ -39,6 +40,8 @@ type AdminState = {
   transactionsTotal: number;
   ndpaSnapshots: NDPASnapshot[];
   alertThresholds: AlertThreshold[];
+  pendingRedemptions: LifecoinRedemptionRequest[];
+  redemptionsLoading: boolean;
 
   // Filters
   filters: AdminCaseFilters;
@@ -77,6 +80,9 @@ type AdminState = {
   generateNDPASnapshot: () => Promise<NDPASnapshot>;
   fetchAlertThresholds: () => Promise<void>;
   updateAlertThreshold: (key: string, value: number, enabled: boolean) => Promise<void>;
+  fetchPendingRedemptions: () => Promise<void>;
+  approveRedemption: (id: string) => Promise<void>;
+  rejectRedemption: (id: string, note?: string) => Promise<void>;
   fetchAll: () => Promise<void>;
   setFilters: (f: Partial<AdminCaseFilters>) => void;
   clearError: () => void;
@@ -101,6 +107,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   transactionsTotal: 0,
   ndpaSnapshots: [],
   alertThresholds: [],
+  pendingRedemptions: [],
+  redemptionsLoading: false,
   filters: { status: '', urgency: '', search: '', page: 1, pageSize: 20 },
   loading: false,
   refreshing: false,
@@ -299,6 +307,30 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       alertThresholds: s.alertThresholds.map((t) =>
         t.key === key ? { ...t, value, enabled } : t
       ),
+    }));
+  },
+
+  fetchPendingRedemptions: async () => {
+    set({ redemptionsLoading: true });
+    try {
+      const pendingRedemptions = await AdminService.getPendingRedemptions();
+      set({ pendingRedemptions, redemptionsLoading: false });
+    } catch (e: any) {
+      set({ error: e?.message ?? 'Failed to load pending redemptions', redemptionsLoading: false });
+    }
+  },
+
+  approveRedemption: async (id: string) => {
+    await AdminService.approveRedemption(id);
+    set((s) => ({
+      pendingRedemptions: s.pendingRedemptions.filter((r) => r.id !== id),
+    }));
+  },
+
+  rejectRedemption: async (id: string, note?: string) => {
+    await AdminService.rejectRedemption(id, note);
+    set((s) => ({
+      pendingRedemptions: s.pendingRedemptions.filter((r) => r.id !== id),
     }));
   },
 
