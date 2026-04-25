@@ -100,7 +100,7 @@ func main() {
 	if _, err := database.Exec(
 		`INSERT INTO users (name, email, password_hash, role)
 		 VALUES ('LifeGate Admin', $1, $2, 'admin')
-		 ON CONFLICT (email) DO UPDATE SET role = 'admin'`,
+		 ON CONFLICT (email) DO UPDATE SET password_hash = $2, role = 'admin'`,
 		adminEmail, adminHash,
 	); err != nil {
 		log.Printf("[startup] warn: could not ensure admin user: %v", err)
