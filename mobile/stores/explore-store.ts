@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from 'services/api';
+import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
 const STORAGE_KEY = 'explore_store_v4';
 
@@ -406,6 +407,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
             cachedVideos: get().videos,
             lastVideoFetchDate: get().lastVideoFetchDate ?? null,
           } satisfies PersistedExploreData);
+          useLifecoinsWalletStore.getState().addCoins('explore', coinsEarned, 'Explore video reward');
         }
 
         return { alreadyDone: alreadyClaimed, coinsEarned, capReached };
@@ -441,6 +443,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       cachedVideos: get().videos,
       lastVideoFetchDate: get().lastVideoFetchDate ?? null,
     } satisfies PersistedExploreData);
+    useLifecoinsWalletStore.getState().addCoins('explore', video.coins, 'Explore video reward');
     return { alreadyDone: false, coinsEarned: video.coins, capReached: false };
   },
 

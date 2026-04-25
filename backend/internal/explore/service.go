@@ -9,16 +9,29 @@ import (
 // 10 videos × 8 categories = 80.
 const DailyVideoCap = 80
 
+// LifecoinsAdder is a minimal interface for awarding Lifecoins after a video watch.
+// Implemented by payments.Service — using an interface avoids an import cycle.
+type LifecoinsAdder interface {
+	AddLifecoins(userID, source, description string, coins int) error
+}
+
 // Service holds business logic for the explore feature.
 type Service struct {
 	repo      *Repository
 	refresher *Refresher
+	lifecoins LifecoinsAdder
 	// Ensures at most one on-demand refresh runs at a time.
 	refreshMu sync.Mutex
 }
 
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
+}
+
+// SetLifecoinsAdder wires the Lifecoins award service into the explore service
+// so that a successful video-claim also credits the user's wallet.
+func (s *Service) SetLifecoinsAdder(a LifecoinsAdder) {
+	s.lifecoins = a
 }
 
 // SetRefresher wires the YouTube refresher into the service so that ListVideos
@@ -64,6 +77,11 @@ func (s *Service) GetDailyRewardedIDs(userID string) ([]string, error) {
 }
 
 // ClaimReward records a reward and returns how many coins were earned.
+// On success it also credits the user's Lifecoins wallet (best-effort).
 func (s *Service) ClaimReward(userID, videoID string) (coinsEarned int, alreadyClaimed bool, capReached bool, err error) {
-	return s.repo.ClaimReward(userID, videoID, DailyVideoCap)
+	coinsEarned, alreadyClaimed, capReached, err = s.repo.ClaimReward(userID, videoID, DailyVideoCap)
+	if err == nil && !alreadyClaimed && !capReached && coinsEarned > 0 && s.lifecoins != nil {
+		_ = s.lifecoins.AddLifecoins(userID, "explore", "Explore video reward", coinsEarned)
+	}
+	return
 }

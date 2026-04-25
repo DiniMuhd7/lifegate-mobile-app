@@ -236,6 +236,7 @@ func main() {
 	// per category so we always land ≥10 videos in the 5–30 min range.
 	exploreRefresher := explore.NewRefresher(exploreRepo, cfg.YouTubeAPIKey, 10)
 	exploreSvc.SetRefresher(exploreRefresher)
+	exploreSvc.SetLifecoinsAdder(paymentsSvc)
 	go exploreRefresher.Start(context.Background())
 
 	// Grant trial credits to every new patient that registers.
