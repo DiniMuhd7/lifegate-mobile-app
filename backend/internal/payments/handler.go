@@ -332,6 +332,40 @@ func (h *Handler) SubmitCheckinAnswers(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
+// ClaimCheckinSlot awards Lifecoins for a completed daily check-in slot.
+// The claim is idempotent — claiming the same slot twice on the same day is a no-op.
+//
+// @Summary      Claim check-in slot coins
+// @Tags         lifecoins
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{slot_id=integer,coins=integer}  true  "Slot claim"
+// @Success      200   {object}  object{success=bool}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Router       /lifecoins/checkin [post]
+func (h *Handler) ClaimCheckinSlot(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	var body struct {
+		SlotID int `json:"slot_id" binding:"required"`
+		Coins  int `json:"coins"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if body.Coins <= 0 {
+		body.Coins = 1
+	}
+	if err := h.svc.ClaimCheckinSlot(uid, body.SlotID, body.Coins); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "could not claim slot"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
 // isInsufficientBalance returns true when the error message starts with "insufficient balance".
 func isInsufficientBalance(err error) bool {
 	if err == nil {

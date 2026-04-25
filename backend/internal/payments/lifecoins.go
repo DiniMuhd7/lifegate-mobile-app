@@ -2,6 +2,7 @@ package payments
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -476,6 +477,33 @@ func (s *Service) GetLifecoinTransactions(userID string, limit, offset int) ([]L
 		out = append(out, lt)
 	}
 	return out, rows.Err()
+}
+
+// ClaimCheckinSlot awards Lifecoins for a daily check-in slot.
+// It is idempotent: if the user already claimed this slot today (same
+// user_id + slot_id + claim_date) the second call is a no-op.
+func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int) error {
+	if coins <= 0 {
+		coins = 1
+	}
+	today := time.Now().UTC().Format("2006-01-02")
+
+	var claimed bool
+	err := s.db.QueryRow(
+		`INSERT INTO checkin_claims (user_id, slot_id, claim_date, coins)
+		 VALUES ($1::uuid, $2, $3::date, $4)
+		 ON CONFLICT (user_id, slot_id, claim_date) DO NOTHING
+		 RETURNING true`,
+		userID, slotID, today, coins,
+	).Scan(&claimed)
+	if err == sql.ErrNoRows {
+		return nil // already claimed today
+	}
+	if err != nil {
+		return err
+	}
+
+	return s.AddLifecoins(userID, "checkin", fmt.Sprintf("Daily check-in — slot %d", slotID), coins)
 }
 
 // SubmitCheckinAnswers persists a user's check-in answers for a slot.

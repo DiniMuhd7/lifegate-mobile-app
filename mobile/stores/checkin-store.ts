@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from 'services/api';
+import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
 const STORAGE_KEY = 'checkin_store_v1';
 
@@ -267,6 +269,13 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     };
     set(next);
     await persist(next);
+
+    // Update the wallet store immediately so the profile total reflects the new coins.
+    useLifecoinsWalletStore.getState().addCoins('checkin', slot.coins, 'Daily check-in bonus');
+
+    // Persist to backend (best-effort — local state is the source of truth for slot locking).
+    api.post('/lifecoins/checkin', { slot_id: id, coins: slot.coins }).catch(() => {});
+
     return { success: true, coinsEarned: slot.coins };
   },
 }));

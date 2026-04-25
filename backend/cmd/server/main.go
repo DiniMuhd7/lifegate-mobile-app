@@ -434,6 +434,7 @@ func main() {
 		lifecoinsGroup.GET("/balance", paymentsHandler.GetLifecoinBalance)
 		lifecoinsGroup.GET("/transactions", paymentsHandler.GetLifecoinTransactions)
 		lifecoinsGroup.POST("/redeem", paymentsHandler.RedeemLifecoins)
+		lifecoinsGroup.POST("/checkin", paymentsHandler.ClaimCheckinSlot)
 	}
 	api.POST("/checkins/answers", middleware.Auth(cfg.JWTSecret), paymentsHandler.SubmitCheckinAnswers)
 
