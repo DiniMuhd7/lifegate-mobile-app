@@ -344,9 +344,9 @@ const ChatScreen: React.FC = () => {
     const isActive = item.id === activeConversationId;
     const meta = item.category ? HIST_CATEGORY_META[item.category] : null;
     return (
-      <TouchableOpacity
-        onPress={() => handleSelectHistory(item.id)}
-        activeOpacity={0.75}
+      // Outer View — not a Touchable, so the delete button is never nested inside
+      // a parent pressable. Fixes Android event-absorption on nested touchables.
+      <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -354,51 +354,60 @@ const ChatScreen: React.FC = () => {
           borderWidth: 1,
           borderColor: isActive ? '#99f6e4' : '#e2e8f0',
           borderRadius: 12,
-          padding: 12,
           marginBottom: 8,
+          overflow: 'hidden',
         }}
       >
-        <View
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 17,
-            backgroundColor: isActive ? '#ccfbf1' : '#e2e8f0',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 10,
-          }}
+        {/* Tappable content area (select conversation) */}
+        <TouchableOpacity
+          onPress={() => handleSelectHistory(item.id)}
+          activeOpacity={0.75}
+          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12 }}
         >
-          <Ionicons name="chatbubble-ellipses-outline" size={16} color={isActive ? '#0f766e' : '#64748b'} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text
-            numberOfLines={1}
-            style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#0f766e' : '#1e293b' }}
+          <View
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 17,
+              backgroundColor: isActive ? '#ccfbf1' : '#e2e8f0',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 10,
+            }}
           >
-            {formatHistoryTitle(item)}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-            <Text style={{ fontSize: 11, color: '#94a3b8' }}>
-              {formatHistoryDate(item.updatedAt)} · {item.messages.length} msg
-            </Text>
-            {meta && (
-              <View style={{ paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6, backgroundColor: meta.bg }}>
-                <Text style={{ fontSize: 9, fontWeight: '700', color: meta.color, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                  {meta.label}
-                </Text>
-              </View>
-            )}
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={isActive ? '#0f766e' : '#64748b'} />
           </View>
-        </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              numberOfLines={1}
+              style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#0f766e' : '#1e293b' }}
+            >
+              {formatHistoryTitle(item)}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+              <Text style={{ fontSize: 11, color: '#94a3b8' }}>
+                {formatHistoryDate(item.updatedAt)} · {item.messages.length} msg
+              </Text>
+              {meta && (
+                <View style={{ paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6, backgroundColor: meta.bg }}>
+                  <Text style={{ fontSize: 9, fontWeight: '700', color: meta.color, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                    {meta.label}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Delete button — sibling of the content touchable, never nested inside it */}
         <TouchableOpacity
           onPress={() => handleDeleteFromPanel(item.id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={{ padding: 4, marginLeft: 4 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ paddingHorizontal: 12, paddingVertical: 12 }}
         >
-          <Ionicons name="trash-outline" size={15} color="#ef4444" />
+          <Ionicons name="trash-outline" size={16} color="#ef4444" />
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     );
   };
   // ─────────────────────────────────────────────────────────────────────────
