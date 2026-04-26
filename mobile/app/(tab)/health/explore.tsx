@@ -475,14 +475,16 @@ function VideoPlayerModal({
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
-            <View style={{ flex: 1 }} pointerEvents="none">
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }} numberOfLines={1}>
-                {video.title}
-              </Text>
-              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>
-                {video.instructor}
-              </Text>
-            </View>
+            {!playerReady && (
+              <View style={{ flex: 1 }} pointerEvents="none">
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }} numberOfLines={1}>
+                  {video.title}
+                </Text>
+                <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 1 }}>
+                  {video.instructor}
+                </Text>
+              </View>
+            )}
             {/* YouTube has its own fullscreen button — no PiP overlay needed */}
           </View>
         </View>
