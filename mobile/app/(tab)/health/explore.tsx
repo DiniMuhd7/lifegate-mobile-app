@@ -258,7 +258,7 @@ function VideoPlayerModal({
   const [embedError, setEmbedError] = useState<number | null>(null);
   const [canClaim, setCanClaim] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const requiredSeconds = Math.ceil(video.durationSeconds / 2);
+  const requiredSeconds = Math.ceil(video.durationSeconds * 0.7);
   const [secondsLeft, setSecondsLeft] = useState(requiredSeconds);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef(requiredSeconds);

@@ -250,12 +250,12 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 		}
 		desc = strings.ReplaceAll(desc, "\n", " ")
 
-		// Coin tiers: 5 min=3, 10 min=4, 15 min+=5.
-		coins := 3
+		// Coin tiers: ~5 min = 1 LC, ~10 min = 3 LC, ~15–20 min = 5 LC.
+		coins := 1
 		if dur >= 900 {
 			coins = 5
 		} else if dur >= 600 {
-			coins = 4
+			coins = 3
 		}
 
 		out = append(out, Video{

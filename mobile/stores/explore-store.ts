@@ -183,11 +183,11 @@ function parseISO8601Duration(iso: string): number {
           parseInt(m[3] ?? '0');
 }
 
-/** Derive coin reward from duration: 5 min = 3, 10 min = 4, 15 min+ = 5 */
+/** Derive coin reward from duration: ~5 min = 1 LC, ~10 min = 3 LC, ~15–20 min = 5 LC */
 function coinsForDuration(seconds: number): number {
   if (seconds >= 900) return 5;
-  if (seconds >= 600) return 4;
-  return 3;
+  if (seconds >= 600) return 3;
+  return 1;
 }
 
 /**
