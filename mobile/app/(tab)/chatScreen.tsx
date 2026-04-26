@@ -888,8 +888,7 @@ const ChatScreen: React.FC = () => {
 
           {/* ── Chat History Slide Panel ──────────────────────────────────── */}
 
-          {/* Dim backdrop — covers only the area to the LEFT of the panel so it
-               never intercepts touches on the panel's buttons */}
+          {/* Dim backdrop — covers the full screen behind the panel */}
           {historyOpen && (
             <TouchableOpacity
               activeOpacity={1}
@@ -898,7 +897,7 @@ const ChatScreen: React.FC = () => {
                 position: 'absolute',
                 top: panelTop,
                 left: 0,
-                right: PANEL_WIDTH,
+                right: 0,
                 bottom: panelBottom,
                 backgroundColor: 'rgba(0,0,0,0.12)',
               }}
@@ -1021,7 +1020,7 @@ const ChatScreen: React.FC = () => {
               }}
             >
               <Ionicons
-                name={historyOpen ? 'chevron-forward' : 'time-outline'}
+                name={historyOpen ? 'chevron-forward' : 'chatbubbles-outline'}
                 size={14}
                 color="#fff"
               />
