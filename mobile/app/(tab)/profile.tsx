@@ -39,6 +39,7 @@ export default function PatientProfileScreen() {
   const walletBalance      = useLifecoinsWalletStore((s) => s.balance);
   const walletSynced       = useLifecoinsWalletStore((s) => s.synced);
   const syncWallet         = useLifecoinsWalletStore((s) => s.syncFromBackend);
+  const walletTransactions = useLifecoinsWalletStore((s) => s.transactions);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -89,6 +90,18 @@ export default function PatientProfileScreen() {
   // It is the single source of truth for the displayed total — no per-store sum needed.
   const localTotal = checkinCoins + offersCoins + exploreCoins + surveyCoins;
   const totalLifecoins = walletBalance > 0 ? walletBalance : (walletSynced ? 0 : localTotal);
+
+  // Per-source earned breakdowns shown beneath the grand total.
+  // Check-ins and Explore use their own persistent store accumulators (most
+  // accurate). Referrals are awarded server-side, so we derive them from the
+  // synced wallet transaction history.
+  const referralEarned = useMemo(
+    () =>
+      walletTransactions
+        .filter((t) => t.source === 'referral' && t.type === 'earn')
+        .reduce((sum, t) => sum + t.coins, 0),
+    [walletTransactions],
+  );
 
   // criticalHealthFields folded in — one useMemo instead of two passes.
   const missingCritical = useMemo(() => {
@@ -172,27 +185,55 @@ export default function PatientProfileScreen() {
               </View>
 
               {/* Lifecoins */}
-              <View className="flex-row items-center mb-4 bg-gradient-to-r rounded-2xl overflow-hidden" style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' }}>
-                {/* Left accent bar */}
-                <View style={{ width: 4, backgroundColor: '#F59E0B', alignSelf: 'stretch' }} />
-                <View className="flex-row items-center gap-3 px-4 py-3 flex-1">
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FDE68A' }}>
-                    <Ionicons name="heart-circle" size={22} color="#F59E0B" />
-                  </View>
-                  <View className="flex-1">
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400E', letterSpacing: 0.6, textTransform: 'uppercase' }}>Total Lifecoins</Text>
-                    <View className="flex-row items-baseline gap-1">
-                      <Text style={{ fontSize: 26, fontWeight: '900', color: '#B45309', lineHeight: 30 }}>{totalLifecoins}</Text>
-                      <Text style={{ fontSize: 11, fontWeight: '600', color: '#D97706' }}>coins</Text>
+              <View className="rounded-2xl overflow-hidden mb-4" style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' }}>
+                {/* Main row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {/* Left accent bar */}
+                  <View style={{ width: 4, backgroundColor: '#F59E0B', alignSelf: 'stretch' }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, flex: 1 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FDE68A' }}>
+                      <Ionicons name="heart-circle" size={22} color="#F59E0B" />
                     </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400E', letterSpacing: 0.6, textTransform: 'uppercase' }}>Total Lifecoins</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                        <Text style={{ fontSize: 26, fontWeight: '900', color: '#B45309', lineHeight: 30 }}>{totalLifecoins}</Text>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#D97706' }}>coins</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => router.push('/(tab)/health/redeem')}
+                      style={{ backgroundColor: '#F59E0B', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Redeem</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => router.push('/(tab)/health/redeem')}
-                    style={{ backgroundColor: '#F59E0B', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Redeem</Text>
-                  </TouchableOpacity>
+                </View>
+                {/* Source breakdown row */}
+                <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 12, gap: 0 }}>
+                  {[
+                    { label: 'Check-ins', value: checkinCoins, icon: 'checkmark-circle-outline' as const },
+                    { label: 'Explore',   value: exploreCoins,  icon: 'play-circle-outline' as const },
+                    { label: 'Referrals', value: referralEarned, icon: 'people-outline' as const },
+                  ].map((src, i, arr) => (
+                    <View
+                      key={src.label}
+                      style={{
+                        flex: 1,
+                        alignItems: 'center',
+                        borderRightWidth: i < arr.length - 1 ? 1 : 0,
+                        borderRightColor: '#FDE68A',
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                        <Ionicons name={src.icon} size={11} color="#D97706" />
+                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#B45309' }}>{src.value}</Text>
+                      </View>
+                      <Text style={{ fontSize: 9, fontWeight: '600', color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.4 }}>{src.label}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
 

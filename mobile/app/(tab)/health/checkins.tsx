@@ -19,7 +19,6 @@ import {
   CheckinAnswer,
 } from 'stores/checkin-store';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
-import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
 import api from 'services/api';
 
 function todayStr() {
@@ -47,8 +46,7 @@ const SLOT_ICONS: Record<number, string> = {
 };
 
 export default function CheckinsScreen() {
-  const { streak, slots, initialized, initialize, claimSlot } = useCheckinStore();
-  const walletBalance = useLifecoinsWalletStore((s) => s.balance);
+  const { streak, slots, initialized, initialize, claimSlot, lifecoins: checkinEarned } = useCheckinStore();
   const { diagnoses, fetchDiagnoses } = useDiagnosisStore();
 
   const latestDiagnosis = diagnoses[0] ?? null;
@@ -247,11 +245,11 @@ export default function CheckinsScreen() {
                   marginBottom: 4,
                 }}
               >
-                Lifecoins
+                Earned
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <Ionicons name="heart" size={18} color="#fbbf24" />
-                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fbbf24' }}>{walletBalance}</Text>
+                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fbbf24' }}>{checkinEarned}</Text>
               </View>
             </View>
 
