@@ -135,13 +135,18 @@ const ChatScreen: React.FC = () => {
   // ── Chat-history slide panel ──────────────────────────────────────────────
   const PANEL_WIDTH = Math.min(Dimensions.get('window').width * 0.78, 320);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Animates from PANEL_WIDTH (hidden, off-screen right) → 0 (fully visible).
+  // useNativeDriver MUST be false here: native-driver transforms don't update
+  // layout, so touch targets stay at the pre-animation off-screen position on
+  // Android. Animating the `right` style property (non-native) keeps both the
+  // visual position and the touch area in sync.
   const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
 
   const openHistory = useCallback(() => {
     setHistoryOpen(true);
     Animated.spring(slideAnim, {
       toValue: 0,
-      useNativeDriver: true,
+      useNativeDriver: false,
       bounciness: 4,
       speed: 14,
     }).start();
@@ -150,7 +155,7 @@ const ChatScreen: React.FC = () => {
   const closeHistory = useCallback(() => {
     Animated.spring(slideAnim, {
       toValue: PANEL_WIDTH,
-      useNativeDriver: true,
+      useNativeDriver: false,
       bounciness: 0,
       speed: 16,
     }).start(() => setHistoryOpen(false));
@@ -325,11 +330,34 @@ const ChatScreen: React.FC = () => {
     return new Date(timestamp).toLocaleDateString();
   };
 
+  const CATEGORY_TITLE: Record<ConversationCategory, string> = {
+    doctor_consultation: 'Doctor Consultation',
+    general_health: 'General Health',
+    eye_checkup: 'Eye Check-Up',
+    hearing_test: 'Hearing Test',
+    mental_health: 'Mental Health',
+  };
+
   const formatHistoryTitle = (conv: Conversation) => {
-    if (conv.title) return conv.title;
+    // Strip the auto-generated "Chat - ..." prefix from deriveConversationTitle
+    // so the list shows the actual content, not the redundant prefix.
+    const stripped = conv.title?.startsWith('Chat - ')
+      ? conv.title.slice(7).replace(/\.\.\.$/, '').trim()
+      : conv.title?.trim();
+
+    if (stripped) return stripped;
     if (conv.messages.length === 0) return 'New Conversation';
-    const first = conv.messages.find((m) => m.role === 'USER');
-    return first?.text.substring(0, 38) || 'Conversation';
+
+    const firstUser = conv.messages.find((m) => m.role === 'USER');
+    if (!firstUser) return conv.category ? CATEGORY_TITLE[conv.category] : 'Conversation';
+
+    // Starter-chip prompts are very long (>60 chars). Show the category label
+    // instead so the list stays readable.
+    if (firstUser.text.length > 60) {
+      return conv.category ? CATEGORY_TITLE[conv.category] : firstUser.text.substring(0, 36);
+    }
+
+    return firstUser.text.substring(0, 36);
   };
 
   const HIST_CATEGORY_META: Record<ConversationCategory, { label: string; color: string; bg: string }> = {
@@ -841,13 +869,12 @@ const ChatScreen: React.FC = () => {
             />
           )}
 
-          {/* Slide panel */}
+          {/* Slide panel — right position is animated so layout (and touch areas) update together */}
           <Animated.View
             style={{
               position: 'absolute',
               top: 0,
               bottom: 0,
-              right: 0,
               width: PANEL_WIDTH,
               backgroundColor: '#fff',
               shadowColor: '#000',
@@ -855,7 +882,12 @@ const ChatScreen: React.FC = () => {
               shadowOpacity: 0.18,
               shadowRadius: 12,
               elevation: 16,
-              transform: [{ translateX: slideAnim }],
+              // slideAnim: PANEL_WIDTH (hidden) → 0 (visible)
+              // Map to right: -PANEL_WIDTH (off-screen) → 0 (on-screen)
+              right: slideAnim.interpolate({
+                inputRange: [0, PANEL_WIDTH],
+                outputRange: [0, -PANEL_WIDTH],
+              }),
             }}
           >
             {/* Panel header */}
@@ -927,20 +959,17 @@ const ChatScreen: React.FC = () => {
             )}
           </Animated.View>
 
-          {/* Poke tab — always visible on the right edge, slides with the panel */}
+          {/* Poke tab — sticks to the left edge of the panel, right position tracks slideAnim */}
           <Animated.View
             style={{
               position: 'absolute',
               top: '45%',
-              right: 0,
-              transform: [
-                {
-                  translateX: slideAnim.interpolate({
-                    inputRange: [0, PANEL_WIDTH],
-                    outputRange: [-PANEL_WIDTH, 0],
-                  }),
-                },
-              ],
+              // When panel open (slideAnim=0): tab sits just left of the panel → right = PANEL_WIDTH
+              // When panel closed (slideAnim=PANEL_WIDTH): tab sits at screen edge → right = 0
+              right: slideAnim.interpolate({
+                inputRange: [0, PANEL_WIDTH],
+                outputRange: [PANEL_WIDTH, 0],
+              }),
             }}
             pointerEvents="box-none"
           >
