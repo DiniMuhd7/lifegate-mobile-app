@@ -890,11 +890,6 @@ const ChatScreen: React.FC = () => {
               backgroundColor: '#fff',
               borderTopLeftRadius: 20,
               borderBottomLeftRadius: 20,
-              shadowColor: '#000',
-              shadowOffset: { width: -4, height: 0 },
-              shadowOpacity: 0.15,
-              shadowRadius: 16,
-              elevation: 20,
               overflow: 'hidden',
               right: slideAnim.interpolate({
                 inputRange: [0, PANEL_WIDTH],
@@ -995,11 +990,6 @@ const ChatScreen: React.FC = () => {
                 borderBottomLeftRadius: 10,
                 alignItems: 'center',
                 justifyContent: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: -2, height: 0 },
-                shadowOpacity: 0.15,
-                shadowRadius: 6,
-                elevation: 8,
               }}
             >
               <Ionicons
