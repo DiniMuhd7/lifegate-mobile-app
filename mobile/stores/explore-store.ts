@@ -3,19 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from 'services/api';
 import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
-const STORAGE_KEY = 'explore_store_v4';
+const STORAGE_KEY = 'explore_store_v5';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export type VideoCategory =
-  | 'Nutrition'
-  | 'Mental Health'
-  | 'Fitness'
-  | 'Prevention'
-  | 'Medication'
-  | 'Maternal Health'
-  | 'Public Health'
-  | 'Primary Care';
+// VideoCategory is an open string so the pool can grow without touching
+// every consumer.  The concrete values are enumerated in ALL_CATEGORIES.
+export type VideoCategory = string;
 
 export interface ExploreVideo {
   id: string;
@@ -38,37 +32,147 @@ export interface VideoProgress {
 // ── Daily cap ─────────────────────────────────────────────────────────────
 
 // Default cap — overridden by whatever the server returns.
-// 10 videos per category × 8 categories = 80.
-export const DAILY_VIDEO_CAP = 80;
+// 10 videos per category × 16 categories = 160.
+export const DAILY_VIDEO_CAP = 160;
 
 // ── YouTube Data API ──────────────────────────────────────────────────────
 
 const YT_API_KEY = process.env.EXPO_PUBLIC_YOUTUBE_API_KEY ?? '';
 const YT_RESULTS_PER_CAT = 10; // videos fetched per category per day
 
-/** Search queries for each health category — mirrors backend/internal/explore/refresher.go */
-const CATEGORY_QUERIES: Record<VideoCategory, string> = {
-  Nutrition:         'healthy nutrition diet tips science education',
-  'Mental Health':   'mental health stress anxiety wellness education',
-  Fitness:           'exercise workout fitness health benefits',
-  Prevention:        'disease prevention health screening checkup',
-  Medication:        'medication safety how medicines work pharmacy',
-  'Maternal Health': 'maternal health pregnancy antenatal care mother',
-  'Public Health':   'public health community disease prevention epidemiology',
-  'Primary Care':    'primary care family doctor general practitioner checkup',
+// ── Category pool ─────────────────────────────────────────────────────────
+// Mirrors backend/internal/explore/refresher.go.  All 16 categories are
+// fetched daily; the mobile client re-orders them per user context.
+
+/** YouTube search queries for each health category. */
+const CATEGORY_QUERIES: Record<string, string> = {
+  // Platform pillars
+  Nutrition:           'healthy nutrition diet tips science education',
+  'Mental Health':     'mental health stress anxiety wellness education',
+  Fitness:             'exercise workout fitness health benefits',
+  Prevention:          'disease prevention health screening checkup',
+  Medication:          'medication safety how medicines work pharmacy',
+  'Public Health':     'public health community disease prevention epidemiology',
+  'Primary Care':      'primary care family doctor general practitioner checkup',
+  // Condition-specific / demographic
+  'Maternal Health':   'maternal health pregnancy antenatal care mother',
+  Cardiology:          'heart health cardiovascular disease blood pressure hypertension',
+  Diabetes:            'diabetes management blood sugar insulin type 2 diabetes',
+  'Chronic Disease':   'chronic disease management long-term condition lifestyle',
+  Pediatrics:          'child health pediatric care child development vaccination',
+  "Women's Health":    "women health gynecology hormonal health PCOS menstrual",
+  "Men's Health":      'men health prostate testosterone sexual health men wellness',
+  'Sleep & Recovery':  'sleep health insomnia sleep disorders recovery rest',
+  Dermatology:         'skin health dermatology eczema acne skincare',
 };
 
-/** Display metadata per category */
-const CATEGORY_META: Record<VideoCategory, { color: string; icon: string }> = {
-  Nutrition:         { color: '#f59e0b', icon: 'nutrition-outline' },
-  'Mental Health':   { color: '#8b5cf6', icon: 'happy-outline' },
-  Fitness:           { color: '#10b981', icon: 'barbell-outline' },
-  Prevention:        { color: '#0284c7', icon: 'shield-checkmark-outline' },
-  Medication:        { color: '#059669', icon: 'medkit-outline' },
-  'Maternal Health': { color: '#db2777', icon: 'rose-outline' },
-  'Public Health':   { color: '#0891b2', icon: 'earth-outline' },
-  'Primary Care':    { color: '#16a34a', icon: 'home-outline' },
+/**
+ * Display metadata (colour + icon) for every category.
+ * Exported so the explore screen and other consumers can resolve metadata
+ * for any category string without importing a separate lookup.
+ */
+export const CATEGORY_META: Record<string, { color: string; icon: string }> = {
+  // Platform pillars
+  Nutrition:           { color: '#f59e0b', icon: 'nutrition-outline' },
+  'Mental Health':     { color: '#8b5cf6', icon: 'happy-outline' },
+  Fitness:             { color: '#10b981', icon: 'barbell-outline' },
+  Prevention:          { color: '#0284c7', icon: 'shield-checkmark-outline' },
+  Medication:          { color: '#059669', icon: 'medkit-outline' },
+  'Public Health':     { color: '#0891b2', icon: 'earth-outline' },
+  'Primary Care':      { color: '#16a34a', icon: 'home-outline' },
+  // Condition-specific / demographic
+  'Maternal Health':   { color: '#db2777', icon: 'rose-outline' },
+  Cardiology:          { color: '#ef4444', icon: 'heart-outline' },
+  Diabetes:            { color: '#f97316', icon: 'fitness-outline' },
+  'Chronic Disease':   { color: '#dc2626', icon: 'pulse-outline' },
+  Pediatrics:          { color: '#06b6d4', icon: 'people-outline' },
+  "Women's Health":    { color: '#ec4899', icon: 'female-outline' },
+  "Men's Health":      { color: '#3b82f6', icon: 'male-outline' },
+  'Sleep & Recovery':  { color: '#6366f1', icon: 'moon-outline' },
+  Dermatology:         { color: '#84cc16', icon: 'color-palette-outline' },
 };
+
+/** Ordered list of all available categories (used as filter pills). */
+export const ALL_CATEGORIES: string[] = Object.keys(CATEGORY_META);
+
+// ── User-context category derivation ──────────────────────────────────────
+
+/** Platform pillars shown for every user regardless of health profile. */
+const PILLAR_CATEGORIES = ['Primary Care', 'Prevention', 'Mental Health', 'Nutrition', 'Fitness'];
+
+/** Maps text patterns found in user health context to a category. */
+const CONDITION_CATEGORY_MAP: Array<{ pattern: RegExp; category: string }> = [
+  { pattern: /cardio|heart|hypertension|blood.?pressure|cardiac|coronary/i, category: 'Cardiology' },
+  { pattern: /diabet|glucose|insulin|blood.?sugar/i,                        category: 'Diabetes' },
+  { pattern: /anxiety|depress|mental|stress|psychiatr|bipolar/i,            category: 'Mental Health' },
+  { pattern: /sleep|insomnia|fatigue|tired/i,                               category: 'Sleep & Recovery' },
+  { pattern: /skin|dermat|eczema|acne|rash|psoriasis/i,                     category: 'Dermatology' },
+  { pattern: /pregnan|antenatal|maternal|prenatal|postpartum/i,             category: 'Maternal Health' },
+  { pattern: /child|pediatr|infant|toddler|newborn/i,                       category: 'Pediatrics' },
+  { pattern: /pcos|gynecol|menstrual|menopause|hormonal/i,                  category: "Women's Health" },
+  { pattern: /prostate|testosterone|erectile/i,                             category: "Men's Health" },
+  { pattern: /nutrition|vitamin|anemia|iron|deficien|malnouris/i,           category: 'Nutrition' },
+  { pattern: /chronic|long.?term|ongoing|persistent/i,                      category: 'Chronic Disease' },
+  { pattern: /malaria|typhoid|infectious|epidemic|vaccin/i,                 category: 'Public Health' },
+  { pattern: /medic|drug|pharmacol|prescription|dosage/i,                   category: 'Medication' },
+  { pattern: /fitness|exercise|obesity|overweight|sedentary/i,              category: 'Fitness' },
+];
+
+/**
+ * Returns a personalised category order for the explore screen.
+ *
+ * Priority:
+ *   1. Platform pillars (Primary Care, Prevention, Mental Health, Nutrition, Fitness)
+ *   2. Gender-specific categories
+ *   3. Categories matched from the user's medical history, current medications,
+ *      health history, allergies, and diagnosed conditions
+ *   4. Remaining categories from the full pool
+ *
+ * The caller supplies `diagnosedConditions` — typically the `condition` field
+ * from each DiagnosisDetail in the patient's health timeline.
+ */
+export function deriveUserCategories(
+  user: {
+    gender?: string;
+    medical_history?: string | null;
+    current_medications?: string | null;
+    health_history?: string | null;
+    allergies?: string | null;
+  } | null,
+  diagnosedConditions: string[] = [],
+): string[] {
+  const ranked = new Set<string>(PILLAR_CATEGORIES);
+
+  // Gender-based additions
+  const gender = (user?.gender ?? '').toLowerCase();
+  if (gender === 'female' || gender === 'f') {
+    ranked.add('Maternal Health');
+    ranked.add("Women's Health");
+  } else if (gender === 'male' || gender === 'm') {
+    ranked.add("Men's Health");
+  }
+
+  // Add Medication when the user is actively on medications
+  if (user?.current_medications) ranked.add('Medication');
+
+  // Keyword-match across the user's full health text corpus
+  const corpus = [
+    user?.medical_history ?? '',
+    user?.current_medications ?? '',
+    user?.health_history ?? '',
+    user?.allergies ?? '',
+    ...diagnosedConditions,
+  ].join(' ');
+
+  for (const { pattern, category } of CONDITION_CATEGORY_MAP) {
+    if (pattern.test(corpus)) ranked.add(category);
+  }
+
+  // Append every remaining category so all are still accessible
+  for (const cat of ALL_CATEGORIES) ranked.add(cat);
+
+  return Array.from(ranked);
+}
 
 /** Parse ISO 8601 durations like PT4M13S → seconds */
 function parseISO8601Duration(iso: string): number {
@@ -92,7 +196,7 @@ function coinsForDuration(seconds: number): number {
  * resolves exact durations via videos.list, and returns ExploreVideo[]
  * ready for the store. Returns null if the API key is absent or any call fails.
  */
-async function fetchCategoryVideos(category: VideoCategory): Promise<ExploreVideo[]> {
+async function fetchCategoryVideos(category: string): Promise<ExploreVideo[]> {
   const query = encodeURIComponent(CATEGORY_QUERIES[category]);
   const searchUrl =
     `https://www.googleapis.com/youtube/v3/search` +
@@ -161,7 +265,7 @@ async function fetchCategoryVideos(category: VideoCategory): Promise<ExploreVide
 async function fetchFromYouTube(): Promise<ExploreVideo[] | null> {
   if (!YT_API_KEY) return null;
 
-  const categories = Object.keys(CATEGORY_QUERIES) as VideoCategory[];
+  const categories = Object.keys(CATEGORY_QUERIES);
 
   // Fetch all categories in parallel — reduces wait from ~16 sequential
   // network calls to the latency of the single slowest category.
@@ -263,6 +367,8 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
   progress: [],
   lastWatchDate: null,
   dailyWatchedCount: 0,
+  cachedVideos: [],
+  lastVideoFetchDate: null,
   initialized: false,
   videos: [],
   dailyCap: DAILY_VIDEO_CAP,

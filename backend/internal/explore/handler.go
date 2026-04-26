@@ -1,6 +1,7 @@
 package explore
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -81,6 +82,12 @@ func (h *Handler) ClaimReward(c *gin.Context) {
 	uid, _ := userID.(string)
 
 	coins, alreadyClaimed, capReached, err := h.svc.ClaimReward(uid, req.VideoID)
+	if err == sql.ErrNoRows {
+		// Video not found in the backend catalogue — the client will fall back
+		// to its offline reward path which uses locally-stored coin values.
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "video not found in catalogue"})
+		return
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to record reward"})
 		return

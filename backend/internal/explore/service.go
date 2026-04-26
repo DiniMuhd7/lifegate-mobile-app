@@ -6,8 +6,8 @@ import (
 )
 
 // DailyVideoCap is the total number of videos a user can claim rewards for per day.
-// 10 videos × 8 categories = 80.
-const DailyVideoCap = 80
+// 10 videos × 16 categories = 160.
+const DailyVideoCap = 160
 
 // LifecoinsAdder is a minimal interface for awarding Lifecoins after a video watch.
 // Implemented by payments.Service — using an interface avoids an import cycle.

@@ -22,32 +22,12 @@ import {
   VideoCategory,
   DAILY_VIDEO_CAP,
   getDailyShuffledVideos,
+  CATEGORY_META,
+  ALL_CATEGORIES,
+  deriveUserCategories,
 } from 'stores/explore-store';
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const CATEGORIES: Array<VideoCategory | 'All'> = [
-  'All',
-  'Prevention',
-  'Nutrition',
-  'Fitness',
-  'Mental Health',
-  'Medication',
-  'Maternal Health',
-  'Public Health',
-  'Primary Care',
-];
-
-const CAT_META: Record<VideoCategory, { icon: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  Prevention:        { icon: 'shield-checkmark-outline', color: '#0284c7', bg: '#eff6ff' },
-  Nutrition:         { icon: 'nutrition-outline',         color: '#b45309', bg: '#fef3c7' },
-  Fitness:           { icon: 'barbell-outline',            color: '#15803d', bg: '#f0fdf4' },
-  'Mental Health':   { icon: 'happy-outline',              color: '#7c3aed', bg: '#fdf4ff' },
-  Medication:        { icon: 'medkit-outline',             color: '#059669', bg: '#ecfdf5' },
-  'Maternal Health': { icon: 'rose-outline',               color: '#db2777', bg: '#fdf2f8' },
-  'Public Health':   { icon: 'earth-outline',              color: '#0891b2', bg: '#ecfeff' },
-  'Primary Care':    { icon: 'home-outline',               color: '#16a34a', bg: '#f0fdf4' },
-};
+import { useAuthStore } from 'stores/auth-store';
+import { usePatientHealthStore } from 'stores/health-store';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,7 +60,7 @@ const VideoCard = React.memo(function VideoCard({
   rewarded: boolean;
   onWatch: () => void;
 }) {
-  const meta = CAT_META[video.category];
+  const meta = CATEGORY_META[video.category];
   const requiredWatch = Math.ceil(video.durationSeconds / 2);
   const watchLabel = requiredWatch >= 60
     ? `Watch ${Math.ceil(requiredWatch / 60)}m to unlock`
@@ -144,7 +124,7 @@ const VideoCard = React.memo(function VideoCard({
             borderColor: 'rgba(255,255,255,0.12)',
           }}
         >
-          <Ionicons name={meta.icon} size={11} color={meta.color} />
+          <Ionicons name={(meta?.icon ?? 'play-circle-outline') as keyof typeof Ionicons.glyphMap} size={11} color={meta?.color ?? '#059669'} />
           <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{video.category}</Text>
         </View>
 
@@ -631,10 +611,20 @@ export default function ExploreScreen() {
   const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap, lastVideoRefreshDate } =
     useExploreStore();
 
+  const user = useAuthStore((s) => s.user);
+  const patientTimeline = usePatientHealthStore((s) => s.patientTimeline);
+
+  // Derive personalised category order from user profile + diagnosed conditions.
+  // Memoised so it only recalculates when the user profile or timeline changes.
+  const categories = useMemo<string[]>(() => {
+    const diagnosedConditions = patientTimeline.map((e) => e.condition).filter(Boolean);
+    return ['All', ...deriveUserCategories(user, diagnosedConditions)];
+  }, [user, patientTimeline]);
+
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
-  const [activeCategory, setActiveCategory] = useState<VideoCategory | 'All'>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
@@ -829,9 +819,9 @@ export default function ExploreScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}
         style={{ flex: 1 }}
       >
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const isActive = activeCategory === cat;
-          const meta = cat !== 'All' ? CAT_META[cat as VideoCategory] : null;
+          const meta = cat !== 'All' ? CATEGORY_META[cat] : null;
           return (
             <Pressable
               key={cat}
@@ -852,7 +842,7 @@ export default function ExploreScreen() {
               })}
             >
               <Ionicons
-                name={meta ? meta.icon : 'grid-outline'}
+                name={(meta ? meta.icon : 'grid-outline') as keyof typeof Ionicons.glyphMap}
                 size={14}
                 color={isActive ? '#fff' : (meta ? meta.color : '#6ee7b7')}
               />
@@ -886,9 +876,9 @@ export default function ExploreScreen() {
           activeCategory !== 'All' ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 10, paddingHorizontal: 16 }}>
               <Ionicons
-                name={CAT_META[activeCategory as VideoCategory].icon}
+                name={(CATEGORY_META[activeCategory]?.icon ?? 'grid-outline') as keyof typeof Ionicons.glyphMap}
                 size={16}
-                color={CAT_META[activeCategory as VideoCategory].color}
+                color={CATEGORY_META[activeCategory]?.color ?? '#059669'}
               />
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>{activeCategory}</Text>
               <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>

@@ -12,17 +12,30 @@ import (
 	"time"
 )
 
-// categoryQuery maps each video category to the YouTube search query used to
+// categoryQuery maps each health category to the YouTube search query used to
 // find relevant health education videos.
+// Categories are drawn from the full Lifegate platform health domain so that
+// the catalogue covers primary care pillars as well as condition-specific areas
+// that can be personalised per user on the mobile client.
 var categoryQuery = map[string]string{
-	"Nutrition":       "healthy nutrition diet tips science education",
-	"Mental Health":   "mental health stress anxiety wellness education",
-	"Fitness":         "exercise workout fitness health benefits",
-	"Prevention":      "disease prevention health screening checkup",
-	"Medication":      "medication safety how medicines work pharmacy",
-	"Maternal Health": "maternal health pregnancy antenatal care mother",
-	"Public Health":   "public health community disease prevention epidemiology",
-	"Primary Care":    "primary care family doctor general practitioner checkup",
+	// ── Platform pillars (always present) ────────────────────────────────
+	"Nutrition":     "healthy nutrition diet tips science education",
+	"Mental Health": "mental health stress anxiety wellness education",
+	"Fitness":       "exercise workout fitness health benefits",
+	"Prevention":    "disease prevention health screening checkup",
+	"Medication":    "medication safety how medicines work pharmacy",
+	"Public Health": "public health community disease prevention epidemiology",
+	"Primary Care":  "primary care family doctor general practitioner checkup",
+	// ── Condition-specific / demographic areas ────────────────────────────
+	"Maternal Health":  "maternal health pregnancy antenatal care mother",
+	"Cardiology":       "heart health cardiovascular disease blood pressure hypertension",
+	"Diabetes":         "diabetes management blood sugar insulin type 2 diabetes",
+	"Chronic Disease":  "chronic disease management long-term condition lifestyle",
+	"Pediatrics":       "child health pediatric care child development vaccination",
+	"Women's Health":   "women health gynecology hormonal health PCOS menstrual",
+	"Men's Health":     "men health prostate testosterone sexual health men wellness",
+	"Sleep & Recovery": "sleep health insomnia sleep disorders recovery rest",
+	"Dermatology":      "skin health dermatology eczema acne skincare",
 }
 
 // categoryMeta carries the display metadata assigned to each category.
@@ -30,14 +43,24 @@ var categoryMeta = map[string]struct {
 	color string
 	icon  string
 }{
-	"Nutrition":       {"#f59e0b", "nutrition-outline"},
-	"Mental Health":   {"#8b5cf6", "happy-outline"},
-	"Fitness":         {"#10b981", "barbell-outline"},
-	"Prevention":      {"#0284c7", "shield-checkmark-outline"},
-	"Medication":      {"#059669", "medkit-outline"},
-	"Maternal Health": {"#db2777", "rose-outline"},
-	"Public Health":   {"#0891b2", "earth-outline"},
-	"Primary Care":    {"#16a34a", "home-outline"},
+	// ── Platform pillars ──────────────────────────────────────────────────
+	"Nutrition":     {"#f59e0b", "nutrition-outline"},
+	"Mental Health": {"#8b5cf6", "happy-outline"},
+	"Fitness":       {"#10b981", "barbell-outline"},
+	"Prevention":    {"#0284c7", "shield-checkmark-outline"},
+	"Medication":    {"#059669", "medkit-outline"},
+	"Public Health": {"#0891b2", "earth-outline"},
+	"Primary Care":  {"#16a34a", "home-outline"},
+	// ── Condition-specific / demographic areas ────────────────────────────
+	"Maternal Health":  {"#db2777", "rose-outline"},
+	"Cardiology":       {"#ef4444", "heart-outline"},
+	"Diabetes":         {"#f97316", "fitness-outline"},
+	"Chronic Disease":  {"#dc2626", "pulse-outline"},
+	"Pediatrics":       {"#06b6d4", "people-outline"},
+	"Women's Health":   {"#ec4899", "female-outline"},
+	"Men's Health":     {"#3b82f6", "male-outline"},
+	"Sleep & Recovery": {"#6366f1", "moon-outline"},
+	"Dermatology":      {"#84cc16", "color-palette-outline"},
 }
 
 // ytSearchItem represents a single result from the YouTube search API.

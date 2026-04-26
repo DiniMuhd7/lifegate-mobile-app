@@ -141,7 +141,10 @@ func (r *Repository) ClaimReward(userID, videoID string, dailyCap int) (int, boo
 	var coins int
 	err = r.db.QueryRow(`SELECT coins FROM explore_videos WHERE id=$1`, videoID).Scan(&coins)
 	if err == sql.ErrNoRows {
-		return 0, false, false, nil
+		// Video not in the backend catalogue (e.g. frontend fetched directly
+		// from YouTube). Return the sentinel so the handler can 404 and the
+		// mobile client falls back to its offline reward path.
+		return 0, false, false, sql.ErrNoRows
 	}
 	if err != nil {
 		return 0, false, false, err
