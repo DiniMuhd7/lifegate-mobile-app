@@ -12,7 +12,6 @@ import {
   Animated,
   Dimensions,
   FlatList,
-  Alert,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -189,26 +188,15 @@ const ChatScreen: React.FC = () => {
   }, [createConversation, setActiveConversation]);
 
   const handleDeleteFromPanel = useCallback((convId: string) => {
-    Alert.alert(
-      'Delete Conversation',
-      'Are you sure you want to delete this conversation?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteConversation(convId);
-            // After deletion, if no conversations remain or none is active,
-            // reset to the welcome screen so the app is never left in a broken state.
-            const remaining = useChatStore.getState().conversations;
-            if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
-              goToWelcome();
-            }
-          },
-        },
-      ],
-    );
+    // Delete immediately — no confirmation dialog. Async Alert callbacks
+    // on Android can delay the state update causing the item to appear to
+    // linger in the list after deletion.
+    deleteConversation(convId);
+    // If no conversations remain or no active one is set, reset to welcome.
+    const remaining = useChatStore.getState().conversations;
+    if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
+      goToWelcome();
+    }
   }, [deleteConversation, goToWelcome]);
   // ─────────────────────────────────────────────────────────────────────────
   // Reset to the welcome screen every time this screen gains focus so that
@@ -985,6 +973,7 @@ const ChatScreen: React.FC = () => {
                 data={conversations}
                 keyExtractor={(item) => item.id}
                 renderItem={renderHistoryItem}
+                extraData={conversations}
                 contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
               />
