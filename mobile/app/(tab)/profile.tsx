@@ -32,14 +32,15 @@ export default function PatientProfileScreen() {
   const error              = useProfileStore((s) => s.error);
   const patientTimeline    = useHealthStore((s) => s.patientTimeline);
   const fetchPatientTimeline = useHealthStore((s) => s.fetchPatientTimeline);
-  const checkinCoins       = useCheckinStore((s) => s.lifecoins);
-  const offersCoins        = useOffersStore((s) => s.lifecoins);
-  const exploreCoins       = useExploreStore((s) => s.lifecoins);
-  const surveyCoins        = useSurveyStore((s) => s.totalCoinsEarned);
-  const walletBalance      = useLifecoinsWalletStore((s) => s.balance);
-  const walletSynced       = useLifecoinsWalletStore((s) => s.synced);
-  const syncWallet         = useLifecoinsWalletStore((s) => s.syncFromBackend);
-  const walletTransactions = useLifecoinsWalletStore((s) => s.transactions);
+  const checkinCoins        = useCheckinStore((s) => s.lifecoins);
+  const checkinInitialized  = useCheckinStore((s) => s.initialized);
+  const initializeCheckin   = useCheckinStore((s) => s.initialize);
+  const offersCoins         = useOffersStore((s) => s.lifecoins);
+  const exploreCoins        = useExploreStore((s) => s.lifecoins);
+  const surveyCoins         = useSurveyStore((s) => s.totalCoinsEarned);
+  const walletBalance       = useLifecoinsWalletStore((s) => s.balance);
+  const syncWallet          = useLifecoinsWalletStore((s) => s.syncFromBackend);
+  const walletTransactions  = useLifecoinsWalletStore((s) => s.transactions);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -47,7 +48,10 @@ export default function PatientProfileScreen() {
     getProfile();
     fetchPatientTimeline();
     syncWallet();
-  }, [getProfile, fetchPatientTimeline, syncWallet]);
+    // Ensure checkin store is loaded from storage even if the user hasn't
+    // visited the Check-ins screen yet in this session.
+    if (!checkinInitialized) initializeCheckin();
+  }, [getProfile, fetchPatientTimeline, syncWallet, checkinInitialized, initializeCheckin]);
 
   // ── Derived values — memoized before early returns (Rules of Hooks) ─────────
   const profileCompletion = useMemo(() => {
@@ -85,11 +89,14 @@ export default function PatientProfileScreen() {
     return a;
   }, [user?.dob]);
 
-  // walletBalance is always kept up-to-date by addCoins (called immediately on
-  // each earn event) and reconciled upward against the backend by syncFromBackend.
-  // It is the single source of truth for the displayed total — no per-store sum needed.
+  // localTotal is the sum of all per-source persistent accumulators.
+  // It serves as a reliable fallback when the wallet hasn't synced with the
+  // backend yet (e.g. fire-and-forget earn API call still in-flight).
   const localTotal = checkinCoins + offersCoins + exploreCoins + surveyCoins;
-  const totalLifecoins = walletBalance > 0 ? walletBalance : (walletSynced ? 0 : localTotal);
+  // Use walletBalance when it is positive (it is kept consistent by addCoins and
+  // reconciled downward by redeemCoins). Fall back to localTotal so that coins
+  // earned locally but not yet credited server-side are always visible.
+  const totalLifecoins = walletBalance > 0 ? walletBalance : localTotal;
 
   // Per-source earned breakdowns shown beneath the grand total.
   // Check-ins and Explore use their own persistent store accumulators (most
