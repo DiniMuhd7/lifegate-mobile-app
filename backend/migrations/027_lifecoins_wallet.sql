@@ -3,7 +3,7 @@
 -- They can be redeemed as a health-insurance waiver: a Naira disbursement is
 -- sent to a pharmacy/health-firm bank account to cover prescription costs.
 
--- Naira value per Lifecoin (50 NGN per coin).
+-- Naira value per Lifecoin (5 NGN per coin).
 -- Kept as a config row so it can be updated without a new migration.
 CREATE TABLE IF NOT EXISTS lifecoins_config (
     key   TEXT PRIMARY KEY,
