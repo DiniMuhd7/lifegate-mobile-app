@@ -101,6 +101,14 @@ export const useLifecoinsWalletStore = create<LifecoinsWalletState>((set, get) =
   synced: false,
 
   syncFromBackend: async () => {
+    // Snapshot the current in-memory balance BEFORE we potentially overwrite it
+    // with the AsyncStorage cache. addCoins() updates the store synchronously but
+    // persists to AsyncStorage asynchronously, so if syncFromBackend runs before
+    // the persist completes the storage snapshot will be stale. Keeping this
+    // snapshot lets us use Math.max(inMemory, cached, server) during reconciliation.
+    const inMemoryBalance  = get().balance;
+    const inMemoryEarned   = get().totalEarned;
+
     // Load persisted data first so the UI has something to show immediately.
     let cached: PersistedWalletData | null = null;
     try {
@@ -128,9 +136,10 @@ export const useLifecoinsWalletStore = create<LifecoinsWalletState>((set, get) =
 
         // If the local balance is HIGHER than the server balance it means locally-
         // earned coins haven't been persisted to the backend yet (network lag or
-        // fire-and-forget race). Keep the higher value so the UI never jumps down.
-        const localBalance  = cached?.balance    ?? get().balance;
-        const localEarned   = cached?.totalEarned ?? get().totalEarned;
+        // fire-and-forget race). Compare all three sources — in-memory (most current),
+        // AsyncStorage cache, and server — and keep the highest to avoid jumps.
+        const localBalance  = Math.max(inMemoryBalance,  cached?.balance    ?? 0);
+        const localEarned   = Math.max(inMemoryEarned,   cached?.totalEarned ?? 0);
         const reconciledBalance  = Math.max(localBalance,  serverBalance);
         const reconciledEarned   = Math.max(localEarned,   serverEarned);
 

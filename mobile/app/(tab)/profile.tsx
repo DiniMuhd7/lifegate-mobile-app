@@ -166,9 +166,6 @@ export default function PatientProfileScreen() {
                   <View className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-[#10B981] border-2 border-white" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-xs font-semibold uppercase tracking-wide text-[#0EA5A4]">
-                    Welcome back
-                  </Text>
                   <Text className="text-2xl font-black text-gray-900">{firstName}</Text>
                   <View className="flex-row items-center gap-3 mt-0.5">
                     {age !== null && (
@@ -209,31 +206,6 @@ export default function PatientProfileScreen() {
                       <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Redeem</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-                {/* Source breakdown row */}
-                <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingBottom: 12, gap: 0 }}>
-                  {[
-                    { label: 'Check-ins', value: checkinCoins, icon: 'checkmark-circle-outline' as const },
-                    { label: 'Explore',   value: exploreCoins,  icon: 'play-circle-outline' as const },
-                    { label: 'Referrals', value: referralEarned, icon: 'people-outline' as const },
-                  ].map((src, i, arr) => (
-                    <View
-                      key={src.label}
-                      style={{
-                        flex: 1,
-                        alignItems: 'center',
-                        borderRightWidth: i < arr.length - 1 ? 1 : 0,
-                        borderRightColor: '#FDE68A',
-                        paddingVertical: 4,
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                        <Ionicons name={src.icon} size={11} color="#D97706" />
-                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#B45309' }}>{src.value}</Text>
-                      </View>
-                      <Text style={{ fontSize: 9, fontWeight: '600', color: '#92400E', textTransform: 'uppercase', letterSpacing: 0.4 }}>{src.label}</Text>
-                    </View>
-                  ))}
                 </View>
               </View>
 
