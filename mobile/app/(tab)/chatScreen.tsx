@@ -13,6 +13,7 @@ import {
   Dimensions,
   FlatList,
   Alert,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -175,16 +176,9 @@ const ChatScreen: React.FC = () => {
     closeHistory();
   }, [createConversation, closeHistory]);
 
-  const handleDeleteFromPanel = useCallback((convId: string) => {
-    Alert.alert('Delete Conversation', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteConversation(convId) },
-    ]);
-  }, [deleteConversation]);
-  // ─────────────────────────────────────────────────────────────────────────
-
   // Returns to the welcome screen. Reuses an existing empty conversation rather
   // than creating a new one on every back press (avoids accumulating blank convs).
+  // Defined here (before handleDeleteFromPanel) so it is in scope for the dep array.
   const goToWelcome = useCallback(() => {
     const empty = useChatStore.getState().conversations.find((c) => c.messages.length === 0);
     if (empty) {
@@ -194,6 +188,29 @@ const ChatScreen: React.FC = () => {
     }
   }, [createConversation, setActiveConversation]);
 
+  const handleDeleteFromPanel = useCallback((convId: string) => {
+    Alert.alert(
+      'Delete Conversation',
+      'Are you sure you want to delete this conversation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteConversation(convId);
+            // After deletion, if no conversations remain or none is active,
+            // reset to the welcome screen so the app is never left in a broken state.
+            const remaining = useChatStore.getState().conversations;
+            if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
+              goToWelcome();
+            }
+          },
+        },
+      ],
+    );
+  }, [deleteConversation, goToWelcome]);
+  // ─────────────────────────────────────────────────────────────────────────
   // Reset to the welcome screen every time this screen gains focus so that
   // navigating back (hardware back button or drawer) never shows stale old
   // session history. Guarded against deep-link resumes and mid-init state.
@@ -372,12 +389,16 @@ const ChatScreen: React.FC = () => {
     mental_health:       { label: 'Mental', color: '#be185d', bg: '#fdf2f8' },
   };
 
-  const renderHistoryItem = ({ item }: { item: Conversation }) => {
+  // Memoised so FlatList doesn't re-render all items on unrelated state changes
+  // (e.g. isThinking, processingPhase). Deps include only what the row actually uses.
+  const renderHistoryItem = useCallback(({ item }: { item: Conversation }) => {
     const isActive = item.id === activeConversationId;
     const meta = item.category ? HIST_CATEGORY_META[item.category] : null;
     return (
-      // Outer View — not a Touchable, so the delete button is never nested inside
-      // a parent pressable. Fixes Android event-absorption on nested touchables.
+      // Plain View wrapper — NOT a Touchable — so the delete Pressable is never
+      // nested inside a parent pressable (avoids Android event absorption).
+      // overflow:'hidden' intentionally omitted: on Android it clips child touch
+      // events, making buttons inside the row unresponsive.
       <View
         style={{
           flexDirection: 'row',
@@ -387,13 +408,12 @@ const ChatScreen: React.FC = () => {
           borderColor: isActive ? '#99f6e4' : '#e2e8f0',
           borderRadius: 12,
           marginBottom: 8,
-          overflow: 'hidden',
         }}
       >
         {/* Tappable content area (select conversation) */}
-        <TouchableOpacity
+        <Pressable
           onPress={() => handleSelectHistory(item.id)}
-          activeOpacity={0.75}
+          android_ripple={{ color: '#ccfbf1', borderless: false }}
           style={{ flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12 }}
         >
           <View
@@ -429,19 +449,25 @@ const ChatScreen: React.FC = () => {
               )}
             </View>
           </View>
-        </TouchableOpacity>
+        </Pressable>
 
-        {/* Delete button — sibling of the content touchable, never nested inside it */}
-        <TouchableOpacity
+        {/* Delete button — sibling of the content Pressable, fully independent touch target */}
+        <Pressable
           onPress={() => handleDeleteFromPanel(item.id)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={{ paddingHorizontal: 12, paddingVertical: 12 }}
+          android_ripple={{ color: '#fee2e2', borderless: false }}
+          style={({ pressed }) => ({
+            paddingHorizontal: 14,
+            paddingVertical: 14,
+            opacity: pressed ? 0.6 : 1,
+          })}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="trash-outline" size={16} color="#ef4444" />
-        </TouchableOpacity>
+          <Ionicons name="trash-outline" size={17} color="#ef4444" />
+        </Pressable>
       </View>
     );
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId, handleSelectHistory, handleDeleteFromPanel]);
   // ─────────────────────────────────────────────────────────────────────────
 
   const headerSubtitle = activeMode
