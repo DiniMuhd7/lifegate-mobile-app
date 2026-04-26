@@ -12,6 +12,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Alert,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -188,15 +189,25 @@ const ChatScreen: React.FC = () => {
   }, [createConversation, setActiveConversation]);
 
   const handleDeleteFromPanel = useCallback((convId: string) => {
-    // Delete immediately — no confirmation dialog. Async Alert callbacks
-    // on Android can delay the state update causing the item to appear to
-    // linger in the list after deletion.
-    deleteConversation(convId);
-    // If no conversations remain or no active one is set, reset to welcome.
-    const remaining = useChatStore.getState().conversations;
-    if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
-      goToWelcome();
-    }
+    Alert.alert(
+      'Delete Conversation',
+      'Are you sure you want to delete this conversation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteConversation(convId);
+            // If no conversations remain or no active one is set, reset to welcome.
+            const remaining = useChatStore.getState().conversations;
+            if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
+              goToWelcome();
+            }
+          },
+        },
+      ],
+    );
   }, [deleteConversation, goToWelcome]);
   // ─────────────────────────────────────────────────────────────────────────
   // Reset to the welcome screen every time this screen gains focus so that
