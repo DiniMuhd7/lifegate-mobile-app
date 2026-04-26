@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -87,9 +88,14 @@ type ytVideoDetails struct {
 // catalogue. It keeps the most recent 3 videos per category active and marks
 // older entries as inactive.
 type Refresher struct {
-	repo      *Repository
-	apiKey    string
+	repo         *Repository
+	apiKey       string
 	videosPerCat int
+	// lastRunDate guards against re-running on the same calendar day.
+	// Render restarts the server on every deploy; without this guard each
+	// deploy would consume YouTube API quota unnecessarily.
+	lastRunDate string
+	runMu       sync.Mutex
 }
 
 // NewRefresher creates a Refresher. videosPerCat controls how many fresh
@@ -139,10 +145,22 @@ func (r *Refresher) RunOnce(ctx context.Context) {
 }
 
 // run performs a single refresh cycle across all categories.
+// It is a no-op if it has already run today, preventing quota wastage on
+// server restarts or redeploys that can happen multiple times per day.
 func (r *Refresher) run(ctx context.Context) {
+	today := time.Now().UTC().Format("2006-01-02")
+
+	r.runMu.Lock()
+	if r.lastRunDate == today {
+		r.runMu.Unlock()
+		log.Println("[explore/refresher] Already refreshed today — skipping.")
+		return
+	}
+	r.lastRunDate = today
+	r.runMu.Unlock()
+
 	log.Println("[explore/refresher] Starting daily YouTube video refresh…")
 
-	today := time.Now().UTC().Format("2006-01-02")
 	sortBase := int(time.Now().Unix()) // unique offset per run
 
 	for cat, query := range categoryQuery {

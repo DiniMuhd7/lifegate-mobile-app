@@ -325,40 +325,52 @@ async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, cachedVideos: videos, lastVideoFetchDate: fetchDate }));
 }
 
-/** Fetch videos + today's rewarded IDs. Tries YouTube Data API first, falls back to backend. */
+/**
+ * Fetch videos + today's rewarded IDs.
+ *
+ * Priority:
+ *   1. Backend /explore/videos — the authoritative catalogue populated by the
+ *      server's daily YouTube refresher. Using the backend as primary avoids
+ *      consuming the shared YouTube API quota from every client session.
+ *   2. YouTube Data API (client-side) — emergency fallback used only when the
+ *      backend returns an empty catalogue (e.g. first deploy before the
+ *      refresher has run). This preserves quota for the backend refresher and
+ *      ensures all 16 categories are populated consistently for every user.
+ */
 async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number } | null> {
-  // ── 1. Try YouTube Data API directly ─────────────────────────────────────
-  const ytVideos = await fetchFromYouTube();
-
-  // ── 2. Fetch rewards from backend regardless of video source ──────────────
-  let rewardedIds: string[] = [];
-  let dailyCap = DAILY_VIDEO_CAP;
-
+  // ── 1. Primary: backend catalogue ────────────────────────────────────────
   try {
     const res = await api.get<{
       success: boolean;
       data: { videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number };
     }>('/explore/videos');
+
     if (res.data.success) {
-      rewardedIds = res.data.data.rewardedIds ?? [];
-      dailyCap = res.data.data.dailyCap ?? DAILY_VIDEO_CAP;
-      // If YouTube fetch failed or key not set, use backend videos as fallback
-      if (!ytVideos) {
-        const backendVideos = Array.isArray(res.data.data.videos) && res.data.data.videos.length > 0
-          ? res.data.data.videos
+      const rewardedIds   = res.data.data.rewardedIds ?? [];
+      const dailyCap      = res.data.data.dailyCap    ?? DAILY_VIDEO_CAP;
+      const backendVideos =
+        Array.isArray(res.data.data.videos) && res.data.data.videos.length > 0
+          ? (res.data.data.videos as ExploreVideo[])
           : null;
-        if (!backendVideos) return null;
+
+      if (backendVideos) {
         return { videos: backendVideos, rewardedIds, dailyCap };
       }
+
+      // Backend reachable but catalogue is empty (refresher hasn't run yet).
+      // Fall back to a direct YouTube fetch so the screen isn't empty.
+      const ytVideos = await fetchFromYouTube();
+      if (ytVideos) return { videos: ytVideos, rewardedIds, dailyCap };
+      return null;
     }
   } catch {
-    // Backend unreachable — if YouTube gave us videos, still return them
+    // Backend unreachable — try YouTube so the screen isn't left empty.
+    const ytVideos = await fetchFromYouTube();
     if (ytVideos) return { videos: ytVideos, rewardedIds: [], dailyCap: DAILY_VIDEO_CAP };
     return null;
   }
 
-  if (!ytVideos) return null;
-  return { videos: ytVideos, rewardedIds, dailyCap };
+  return null;
 }
 
 export const useExploreStore = create<ExploreState>((set, get) => ({

@@ -733,7 +733,7 @@ export default function ExploreScreen() {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => router.replace('/(tab)/health')}
             style={({ pressed }) => ({
               opacity: pressed ? 0.7 : 1,
               width: 36,
