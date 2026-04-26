@@ -888,7 +888,23 @@ const ChatScreen: React.FC = () => {
 
           {/* ── Chat History Slide Panel ──────────────────────────────────── */}
 
-          {/* Dim backdrop — covers the full screen behind the panel */}
+          {/* Dim backdrop — full-screen visual overlay (non-interactive so it never
+               intercepts touches on the panel's buttons) */}
+          {historyOpen && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: panelTop,
+                left: 0,
+                right: 0,
+                bottom: panelBottom,
+                backgroundColor: 'rgba(0,0,0,0.18)',
+              }}
+            />
+          )}
+          {/* Tap-to-close area — covers only the region to the LEFT of the panel
+               so it never intercepts touches on the panel's buttons */}
           {historyOpen && (
             <TouchableOpacity
               activeOpacity={1}
@@ -897,9 +913,8 @@ const ChatScreen: React.FC = () => {
                 position: 'absolute',
                 top: panelTop,
                 left: 0,
-                right: 0,
+                right: PANEL_WIDTH,
                 bottom: panelBottom,
-                backgroundColor: 'rgba(0,0,0,0.12)',
               }}
             />
           )}
