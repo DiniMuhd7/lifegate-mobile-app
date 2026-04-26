@@ -769,17 +769,17 @@ func (r *Repository) UpdateAIOutput(
 		    urgency                = $4,
 		    physician_notes        = $6,
 		    physician_health_tips  = CASE WHEN $8 <> '' THEN $8 ELSE physician_health_tips END,
-		    has_prescription    = CASE WHEN $7::text IS NOT NULL THEN TRUE ELSE has_prescription END,
-		    physician_ai_output = CASE WHEN $7::text IS NOT NULL
+		    has_prescription    = CASE WHEN $7::character varying IS NOT NULL THEN TRUE ELSE has_prescription END,
+		    physician_ai_output = CASE WHEN $7::character varying IS NOT NULL
 		                               THEN $7::jsonb
 		                               ELSE physician_ai_output END,
 		    ai_response = jsonb_set(
 		      jsonb_set(
 		        jsonb_set(
 		          COALESCE(ai_response, '{}'),
-		          '{diagnosis,condition}', to_jsonb($3::text), true
+		          '{diagnosis,condition}', to_jsonb($3::character varying), true
 		        ),
-		        '{diagnosis,urgency}', to_jsonb($4::text), true
+		        '{diagnosis,urgency}', to_jsonb($4::character varying), true
 		      ),
 		      '{diagnosis,confidence}', to_jsonb($5::int), true
 		    ),
