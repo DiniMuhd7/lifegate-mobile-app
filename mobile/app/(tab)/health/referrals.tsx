@@ -264,7 +264,7 @@ export default function ReferralsScreen() {
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {[
             { label: 'Referrals', value: totalReferrals, icon: 'people-outline' as const, color: '#fca5a5' },
-            { label: 'Lifecoins', value: totalLifecoins, icon: 'heart' as const, color: '#fbbf24' },
+            { label: 'Earned', value: totalLifecoins, icon: 'heart' as const, color: '#fbbf24' },
             { label: 'Next Tier', value: nextTier ? `${toNextTier} more` : '🏆 Max', icon: 'ribbon-outline' as const, color: '#a5b4fc' },
           ].map((s) => (
             <View
