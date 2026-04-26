@@ -128,6 +128,10 @@ const ChatScreen: React.FC = () => {
   const showWelcomeRef = useRef(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  // Panel layout anchors — measured via onLayout so the panel sits exactly
+  // between the action-bar header and the chat input bar.
+  const [panelTop, setPanelTop] = useState(0);
+  const [panelBottom, setPanelBottom] = useState(0);
   // Track which userId was last used to initialize the chat store so that
   // switching accounts always loads the correct user's conversation history.
   const initializedForUserId = useRef<string | null>(null);
@@ -458,6 +462,7 @@ const ChatScreen: React.FC = () => {
           >
             {/* ── Header ── */}
             <View
+              onLayout={(e) => setPanelTop(e.nativeEvent.layout.height)}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -833,6 +838,7 @@ const ChatScreen: React.FC = () => {
               </View>
             )}
 
+            <View onLayout={(e) => setPanelBottom(e.nativeEvent.layout.height)}>
             {/* Professional disclaimer */}
             <Text
               style={{
@@ -852,38 +858,44 @@ const ChatScreen: React.FC = () => {
               disabled={isThinking || isConnected === false}
               placeholder="Describe your symptoms..."
             />
+            </View>
           </KeyboardAvoidingView>
 
           {/* ── Chat History Slide Panel ──────────────────────────────────── */}
 
-          {/* Dim backdrop — only mounted while panel is open */}
+          {/* Dim backdrop — constrained to the same bounds as the panel */}
           {historyOpen && (
             <TouchableOpacity
               activeOpacity={1}
               onPress={closeHistory}
               style={{
                 position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
+                top: panelTop,
+                left: 0,
+                right: 0,
+                bottom: panelBottom,
                 backgroundColor: 'rgba(0,0,0,0.35)',
+                borderRadius: 16,
               }}
             />
           )}
 
-          {/* Slide panel — right position is animated so layout (and touch areas) update together */}
+          {/* Slide panel — floats between header and input bar, rounded left corners */}
           <Animated.View
             style={{
               position: 'absolute',
-              top: 0,
-              bottom: 0,
+              top: panelTop + 8,
+              bottom: panelBottom + 8,
               width: PANEL_WIDTH,
               backgroundColor: '#fff',
+              borderTopLeftRadius: 20,
+              borderBottomLeftRadius: 20,
               shadowColor: '#000',
-              shadowOffset: { width: -3, height: 0 },
-              shadowOpacity: 0.18,
-              shadowRadius: 12,
-              elevation: 16,
-              // slideAnim: PANEL_WIDTH (hidden) → 0 (visible)
-              // Map to right: -PANEL_WIDTH (off-screen) → 0 (on-screen)
+              shadowOffset: { width: -4, height: 0 },
+              shadowOpacity: 0.15,
+              shadowRadius: 16,
+              elevation: 20,
+              overflow: 'hidden',
               right: slideAnim.interpolate({
                 inputRange: [0, PANEL_WIDTH],
                 outputRange: [0, -PANEL_WIDTH],
@@ -896,11 +908,11 @@ const ChatScreen: React.FC = () => {
                 flexDirection: 'row',
                 alignItems: 'center',
                 paddingHorizontal: 16,
-                paddingTop: 18,
+                paddingTop: 16,
                 paddingBottom: 14,
                 borderBottomWidth: 1,
                 borderBottomColor: '#e2e8f0',
-                backgroundColor: '#f8fafc',
+                backgroundColor: '#f0fdf9',
               }}
             >
               <View style={{ flex: 1 }}>
@@ -959,13 +971,12 @@ const ChatScreen: React.FC = () => {
             )}
           </Animated.View>
 
-          {/* Poke tab — sticks to the left edge of the panel, right position tracks slideAnim */}
+          {/* Poke tab — vertically centred within the panel's visible range */}
           <Animated.View
             style={{
               position: 'absolute',
-              top: '45%',
-              // When panel open (slideAnim=0): tab sits just left of the panel → right = PANEL_WIDTH
-              // When panel closed (slideAnim=PANEL_WIDTH): tab sits at screen edge → right = 0
+              // Centre tab vertically in the panel's range (header bottom → input top)
+              top: panelTop + 8 + ((Dimensions.get('window').height - panelTop - panelBottom - 16) * 0.42),
               right: slideAnim.interpolate({
                 inputRange: [0, PANEL_WIDTH],
                 outputRange: [PANEL_WIDTH, 0],
