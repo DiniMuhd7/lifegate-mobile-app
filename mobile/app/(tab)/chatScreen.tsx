@@ -875,7 +875,6 @@ const ChatScreen: React.FC = () => {
                 right: 0,
                 bottom: panelBottom,
                 backgroundColor: 'rgba(0,0,0,0.35)',
-                borderRadius: 16,
               }}
             />
           )}
