@@ -888,7 +888,8 @@ const ChatScreen: React.FC = () => {
 
           {/* ── Chat History Slide Panel ──────────────────────────────────── */}
 
-          {/* Dim backdrop — constrained to the same bounds as the panel */}
+          {/* Dim backdrop — covers only the area to the LEFT of the panel so it
+               never intercepts touches on the panel's buttons */}
           {historyOpen && (
             <TouchableOpacity
               activeOpacity={1}
@@ -897,20 +898,22 @@ const ChatScreen: React.FC = () => {
                 position: 'absolute',
                 top: panelTop,
                 left: 0,
-                right: 0,
+                right: PANEL_WIDTH,
                 bottom: panelBottom,
                 backgroundColor: 'rgba(0,0,0,0.12)',
               }}
             />
           )}
 
-          {/* Slide panel — floats between header and input bar, rounded left corners */}
+          {/* Slide panel — explicit zIndex ensures Android routes touches here
+               before the backdrop TouchableOpacity */}
           <Animated.View
             style={{
               position: 'absolute',
               top: panelTop + 8,
               bottom: panelBottom + 8,
               width: PANEL_WIDTH,
+              zIndex: 10,
               backgroundColor: '#fff',
               borderTopLeftRadius: 20,
               borderBottomLeftRadius: 20,
