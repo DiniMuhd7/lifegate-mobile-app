@@ -369,15 +369,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       const conversations = await PersistenceManager.loadConversations(userId);
-      const activeConversationId = conversations[0]?.id ?? null;
+      // Always activate an empty (fresh) conversation rather than the most-recent
+      // one which contains old message history. Old conversations remain in the
+      // store and are accessible via the ConversationDrawer.
+      const emptyConv = conversations.find((c) => c.messages.length === 0);
 
       set({
         conversations,
-        activeConversationId,
+        activeConversationId: emptyConv?.id ?? null,
         isInitializing: false,
       });
 
-      if (conversations.length === 0) {
+      if (!emptyConv) {
+        // No clean slot exists — create one so the welcome screen always shows.
         get().createConversation();
       }
     } catch (error) {

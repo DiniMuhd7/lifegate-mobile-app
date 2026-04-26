@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
 
 import { useLocalSearchParams } from 'expo-router';
@@ -137,6 +137,17 @@ const ChatScreen: React.FC = () => {
       createConversation();
     }
   }, [createConversation, setActiveConversation]);
+
+  // Reset to the welcome screen every time this screen gains focus so that
+  // navigating back (hardware back button or drawer) never shows stale old
+  // session history. Guarded against deep-link resumes and mid-init state.
+  useFocusEffect(
+    useCallback(() => {
+      if (!resumeConversationId && !isInitializing) {
+        goToWelcome();
+      }
+    }, [goToWelcome, resumeConversationId, isInitializing])
+  );
 
   // Hardware back button (Android) — mirrors the back arrow behaviour
   useEffect(() => {
