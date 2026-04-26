@@ -136,11 +136,15 @@ function TxItem({ tx }: { tx: LifecoinTx }) {
 
 export default function RedeemScreen() {
   // Aggregate local coins from all four activity stores (offline-first total)
-  const checkinCoins = useCheckinStore((s) => s.lifecoins);
-  const offersCoins  = useOffersStore((s) => s.lifecoins);
-  const exploreCoins = useExploreStore((s) => s.lifecoins);
-  const surveyCoins  = useSurveyStore((s) => s.totalCoinsEarned);
-  const localTotal   = checkinCoins + offersCoins + exploreCoins + surveyCoins;
+  const checkinCoins        = useCheckinStore((s) => s.lifecoins);
+  const checkinInitialized  = useCheckinStore((s) => s.initialized);
+  const initializeCheckin   = useCheckinStore((s) => s.initialize);
+  const offersCoins         = useOffersStore((s) => s.lifecoins);
+  const exploreCoins        = useExploreStore((s) => s.lifecoins);
+  const exploreInitialized  = useExploreStore((s) => s.initialized);
+  const initializeExplore   = useExploreStore((s) => s.initialize);
+  const surveyCoins         = useSurveyStore((s) => s.totalCoinsEarned);
+  const localTotal          = checkinCoins + offersCoins + exploreCoins + surveyCoins;
 
   // Wallet store (synced to backend)
   const {
@@ -149,13 +153,14 @@ export default function RedeemScreen() {
     nairaPerCoin,
     transactions,
     loading,
-    synced,
     syncFromBackend,
     redeemCoins,
   } = useLifecoinsWalletStore();
 
-  // Use synced balance if available, otherwise fall back to local aggregate.
-  const displayBalance = synced ? walletBalance : localTotal;
+  // Always take the higher of walletBalance and localTotal so coins not yet
+  // credited server-side are always visible, and post-redemption deductions
+  // from walletBalance are always respected.
+  const displayBalance = Math.max(walletBalance, localTotal);
   const nairaPer = nairaPerCoin || DEFAULT_NAIRA_PER_COIN;
 
   // ── Form state ──────────────────────────────────────────────────────────────
@@ -178,7 +183,9 @@ export default function RedeemScreen() {
 
   useEffect(() => {
     syncFromBackend();
-  }, [syncFromBackend]);
+    if (!checkinInitialized) initializeCheckin();
+    if (!exploreInitialized) initializeExplore();
+  }, [syncFromBackend, checkinInitialized, initializeCheckin, exploreInitialized, initializeExplore]);
 
   const handleSetMax = useCallback(() => {
     setCoinsInput(String(displayBalance));
@@ -271,13 +278,13 @@ export default function RedeemScreen() {
               </View>
               <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, padding: 14, alignItems: 'center' }}>
                 <Ionicons name="trophy-outline" size={22} color="#fff" />
-                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 4 }}>{synced ? totalEarned : localTotal}</Text>
+                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 4 }}>{Math.max(totalEarned, localTotal)}</Text>
                 <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>Total Earned</Text>
               </View>
             </View>
           </LinearGradient>
 
-          {loading && !synced && (
+          {loading && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 10 }}>
               <ActivityIndicator size="small" color="#F59E0B" />
               <Text style={{ fontSize: 12, color: '#6b7280' }}>Syncing wallet…</Text>
