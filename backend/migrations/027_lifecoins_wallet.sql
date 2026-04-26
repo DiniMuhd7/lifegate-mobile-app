@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS lifecoins_config (
 );
 
 INSERT INTO lifecoins_config (key, value)
-VALUES ('naira_per_coin', '50')
+VALUES ('naira_per_coin', '5')
 ON CONFLICT (key) DO NOTHING;
 
 -- Per-user balance & lifetime stats.

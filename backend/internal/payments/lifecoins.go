@@ -13,7 +13,7 @@ import (
 // NairaPer Coin is the default Naira value for one Lifecoin.
 // The live value is read from the lifecoins_config table; this constant is the
 // hard fallback if the DB row is missing.
-const defaultNairaPerCoin = 50
+const defaultNairaPerCoin = 5
 
 // LifecoinTransaction represents one row from lifecoins_transactions.
 type LifecoinTransaction struct {

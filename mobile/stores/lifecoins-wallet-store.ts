@@ -18,7 +18,7 @@ const STORAGE_KEY = 'lifecoins_wallet_v1';
 
 // ── Naira conversion ──────────────────────────────────────────────────────────
 // Fetched from backend on hydration; falls back to local default while offline.
-export const DEFAULT_NAIRA_PER_COIN = 50;
+export const DEFAULT_NAIRA_PER_COIN = 5;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
