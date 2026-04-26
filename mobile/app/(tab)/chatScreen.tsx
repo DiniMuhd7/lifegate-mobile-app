@@ -9,6 +9,10 @@ import {
   ScrollView,
   ActivityIndicator,
   BackHandler,
+  Animated,
+  Dimensions,
+  FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +30,7 @@ import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
 
 import { TypingIndicator } from 'components/TypingIndicator';
-import type { ConversationCategory, SessionMode } from 'types/chat-types';
+import type { Conversation, ConversationCategory, SessionMode } from 'types/chat-types';
 
 const MODE_LABELS: Record<SessionMode, string> = {
   general_health: 'General Health',
@@ -107,6 +111,7 @@ const ChatScreen: React.FC = () => {
   const clearError = useChatStore((state) => state.clearError);
   const clearEscalationNotice = useChatStore((state) => state.clearEscalationNotice);
   const initializeChat = useChatStore((state) => state.initializeChat);
+  const deleteConversation = useChatStore((state) => state.deleteConversation);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeConversationId) || null,
@@ -126,6 +131,48 @@ const ChatScreen: React.FC = () => {
   // Track which userId was last used to initialize the chat store so that
   // switching accounts always loads the correct user's conversation history.
   const initializedForUserId = useRef<string | null>(null);
+
+  // ── Chat-history slide panel ──────────────────────────────────────────────
+  const PANEL_WIDTH = Math.min(Dimensions.get('window').width * 0.78, 320);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const slideAnim = useRef(new Animated.Value(PANEL_WIDTH)).current;
+
+  const openHistory = useCallback(() => {
+    setHistoryOpen(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 4,
+      speed: 14,
+    }).start();
+  }, [slideAnim]);
+
+  const closeHistory = useCallback(() => {
+    Animated.spring(slideAnim, {
+      toValue: PANEL_WIDTH,
+      useNativeDriver: true,
+      bounciness: 0,
+      speed: 16,
+    }).start(() => setHistoryOpen(false));
+  }, [slideAnim, PANEL_WIDTH]);
+
+  const handleSelectHistory = useCallback((convId: string) => {
+    setActiveConversation(convId);
+    closeHistory();
+  }, [setActiveConversation, closeHistory]);
+
+  const handleNewChatFromPanel = useCallback(() => {
+    createConversation();
+    closeHistory();
+  }, [createConversation, closeHistory]);
+
+  const handleDeleteFromPanel = useCallback((convId: string) => {
+    Alert.alert('Delete Conversation', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteConversation(convId) },
+    ]);
+  }, [deleteConversation]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Returns to the welcome screen. Reuses an existing empty conversation rather
   // than creating a new one on every back press (avoids accumulating blank convs).
@@ -266,6 +313,96 @@ const ChatScreen: React.FC = () => {
     createConversation();
   }, [createConversation]);
 
+  // ── History panel helpers ─────────────────────────────────────────────────
+  const formatHistoryDate = (timestamp: number) => {
+    const diff = Date.now() - timestamp;
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 60) return `${mins}m ago`;
+    if (hrs < 24) return `${hrs}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return new Date(timestamp).toLocaleDateString();
+  };
+
+  const formatHistoryTitle = (conv: Conversation) => {
+    if (conv.title) return conv.title;
+    if (conv.messages.length === 0) return 'New Conversation';
+    const first = conv.messages.find((m) => m.role === 'USER');
+    return first?.text.substring(0, 38) || 'Conversation';
+  };
+
+  const HIST_CATEGORY_META: Record<ConversationCategory, { label: string; color: string; bg: string }> = {
+    doctor_consultation: { label: 'Doctor', color: '#0f766e', bg: '#f0fdfa' },
+    general_health:      { label: 'General', color: '#0891b2', bg: '#f0f9ff' },
+    eye_checkup:         { label: 'Eye', color: '#7c3aed', bg: '#faf5ff' },
+    hearing_test:        { label: 'Hearing', color: '#b45309', bg: '#fffbeb' },
+    mental_health:       { label: 'Mental', color: '#be185d', bg: '#fdf2f8' },
+  };
+
+  const renderHistoryItem = ({ item }: { item: Conversation }) => {
+    const isActive = item.id === activeConversationId;
+    const meta = item.category ? HIST_CATEGORY_META[item.category] : null;
+    return (
+      <TouchableOpacity
+        onPress={() => handleSelectHistory(item.id)}
+        activeOpacity={0.75}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: isActive ? '#f0fdfa' : '#f8fafc',
+          borderWidth: 1,
+          borderColor: isActive ? '#99f6e4' : '#e2e8f0',
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 8,
+        }}
+      >
+        <View
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            backgroundColor: isActive ? '#ccfbf1' : '#e2e8f0',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 10,
+          }}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color={isActive ? '#0f766e' : '#64748b'} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            numberOfLines={1}
+            style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#0f766e' : '#1e293b' }}
+          >
+            {formatHistoryTitle(item)}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+            <Text style={{ fontSize: 11, color: '#94a3b8' }}>
+              {formatHistoryDate(item.updatedAt)} · {item.messages.length} msg
+            </Text>
+            {meta && (
+              <View style={{ paddingHorizontal: 5, paddingVertical: 1, borderRadius: 6, backgroundColor: meta.bg }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: meta.color, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  {meta.label}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+        <TouchableOpacity
+          onPress={() => handleDeleteFromPanel(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{ padding: 4, marginLeft: 4 }}
+        >
+          <Ionicons name="trash-outline" size={15} color="#ef4444" />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const headerSubtitle = activeMode
     ? MODE_LABELS[activeMode]
     : activeCategory
@@ -276,9 +413,9 @@ const ChatScreen: React.FC = () => {
     <>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
       <Background>
-        <SafeAreaView className="flex-1">
+        <SafeAreaView style={{ flex: 1 }}>
           <KeyboardAvoidingView
-            className="flex-1"
+            style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
           >
@@ -326,8 +463,15 @@ const ChatScreen: React.FC = () => {
 
               </View>
 
-              {/* Right: Settings */}
+              {/* Right: History + Settings */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <TouchableOpacity
+                  onPress={openHistory}
+                  activeOpacity={0.7}
+                  style={{ padding: 6 }}
+                >
+                  <Ionicons name="time-outline" size={24} color="#0f766e" />
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => router.replace('/(tab)/settings')}
                   activeOpacity={0.7}
@@ -672,6 +816,152 @@ const ChatScreen: React.FC = () => {
               placeholder="Describe your symptoms..."
             />
           </KeyboardAvoidingView>
+
+          {/* ── Chat History Slide Panel ──────────────────────────────────── */}
+
+          {/* Dim backdrop — only mounted while panel is open */}
+          {historyOpen && (
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={closeHistory}
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.35)',
+              }}
+            />
+          )}
+
+          {/* Slide panel */}
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              right: 0,
+              width: PANEL_WIDTH,
+              backgroundColor: '#fff',
+              shadowColor: '#000',
+              shadowOffset: { width: -3, height: 0 },
+              shadowOpacity: 0.18,
+              shadowRadius: 12,
+              elevation: 16,
+              transform: [{ translateX: slideAnim }],
+            }}
+          >
+            {/* Panel header */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingTop: 18,
+                paddingBottom: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: '#e2e8f0',
+                backgroundColor: '#f8fafc',
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#0f766e', letterSpacing: -0.3 }}>
+                  Chat History
+                </Text>
+                <Text style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                  {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={closeHistory}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={{ padding: 4 }}
+              >
+                <Ionicons name="close" size={22} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            {/* New chat button */}
+            <TouchableOpacity
+              onPress={handleNewChatFromPanel}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                margin: 12,
+                marginBottom: 8,
+                backgroundColor: '#0AADA2',
+                borderRadius: 12,
+                paddingVertical: 11,
+                paddingHorizontal: 14,
+                gap: 8,
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>New Conversation</Text>
+            </TouchableOpacity>
+
+            {/* List */}
+            {conversations.length === 0 ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
+                <Ionicons name="chatbubble-outline" size={40} color="#cbd5e1" />
+                <Text style={{ color: '#94a3b8', textAlign: 'center', marginTop: 10, fontSize: 13 }}>
+                  No history yet. Start a new conversation!
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={conversations}
+                keyExtractor={(item) => item.id}
+                renderItem={renderHistoryItem}
+                contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 24 }}
+                showsVerticalScrollIndicator={false}
+              />
+            )}
+          </Animated.View>
+
+          {/* Poke tab — always visible on the right edge, slides with the panel */}
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: '45%',
+              right: 0,
+              transform: [
+                {
+                  translateX: slideAnim.interpolate({
+                    inputRange: [0, PANEL_WIDTH],
+                    outputRange: [-PANEL_WIDTH, 0],
+                  }),
+                },
+              ],
+            }}
+            pointerEvents="box-none"
+          >
+            <TouchableOpacity
+              onPress={historyOpen ? closeHistory : openHistory}
+              activeOpacity={0.85}
+              style={{
+                width: 28,
+                paddingVertical: 18,
+                backgroundColor: '#0AADA2',
+                borderTopLeftRadius: 10,
+                borderBottomLeftRadius: 10,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: -2, height: 0 },
+                shadowOpacity: 0.15,
+                shadowRadius: 6,
+                elevation: 8,
+              }}
+            >
+              <Ionicons
+                name={historyOpen ? 'chevron-forward' : 'time-outline'}
+                size={14}
+                color="#fff"
+              />
+            </TouchableOpacity>
+          </Animated.View>
+          {/* ─────────────────────────────────────────────────────────────── */}
+
         </SafeAreaView>
       </Background>
     </>
