@@ -37,6 +37,8 @@ export default function PatientProfileScreen() {
   const initializeCheckin   = useCheckinStore((s) => s.initialize);
   const offersCoins         = useOffersStore((s) => s.lifecoins);
   const exploreCoins        = useExploreStore((s) => s.lifecoins);
+  const exploreInitialized  = useExploreStore((s) => s.initialized);
+  const initializeExplore   = useExploreStore((s) => s.initialize);
   const surveyCoins         = useSurveyStore((s) => s.totalCoinsEarned);
   const walletBalance       = useLifecoinsWalletStore((s) => s.balance);
   const syncWallet          = useLifecoinsWalletStore((s) => s.syncFromBackend);
@@ -48,10 +50,11 @@ export default function PatientProfileScreen() {
     getProfile();
     fetchPatientTimeline();
     syncWallet();
-    // Ensure checkin store is loaded from storage even if the user hasn't
-    // visited the Check-ins screen yet in this session.
+    // Hydrate per-source stores so localTotal is accurate even if the user
+    // hasn't visited those screens yet in this session.
     if (!checkinInitialized) initializeCheckin();
-  }, [getProfile, fetchPatientTimeline, syncWallet, checkinInitialized, initializeCheckin]);
+    if (!exploreInitialized) initializeExplore();
+  }, [getProfile, fetchPatientTimeline, syncWallet, checkinInitialized, initializeCheckin, exploreInitialized, initializeExplore]);
 
   // ── Derived values — memoized before early returns (Rules of Hooks) ─────────
   const profileCompletion = useMemo(() => {
@@ -89,14 +92,12 @@ export default function PatientProfileScreen() {
     return a;
   }, [user?.dob]);
 
-  // localTotal is the sum of all per-source persistent accumulators.
-  // It serves as a reliable fallback when the wallet hasn't synced with the
-  // backend yet (e.g. fire-and-forget earn API call still in-flight).
+  // localTotal sums all per-source persistent accumulators.
   const localTotal = checkinCoins + offersCoins + exploreCoins + surveyCoins;
-  // Use walletBalance when it is positive (it is kept consistent by addCoins and
-  // reconciled downward by redeemCoins). Fall back to localTotal so that coins
-  // earned locally but not yet credited server-side are always visible.
-  const totalLifecoins = walletBalance > 0 ? walletBalance : localTotal;
+  // Always take the higher of walletBalance and localTotal so that:
+  // - walletBalance > localTotal: a redemption deducted but localTotal doesn't track that → use wallet
+  // - localTotal > walletBalance: wallet missed some coins (e.g. persist race) → use localTotal
+  const totalLifecoins = Math.max(walletBalance, localTotal);
 
   // Per-source earned breakdowns shown beneath the grand total.
   // Check-ins and Explore use their own persistent store accumulators (most

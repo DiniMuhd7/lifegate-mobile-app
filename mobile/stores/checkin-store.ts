@@ -268,7 +268,9 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
       slots: updatedSlots,
     };
     set(next);
-    await persist(next);
+    // Persist to AsyncStorage — wrapped so a storage failure never prevents
+    // the wallet from being updated (addCoins must always run).
+    try { await persist(next); } catch { /* non-fatal */ }
 
     // Update the wallet store immediately so the profile total reflects the new coins.
     useLifecoinsWalletStore.getState().addCoins('checkin', slot.coins, 'Daily check-in bonus');
