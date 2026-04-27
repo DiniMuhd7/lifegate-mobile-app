@@ -232,6 +232,17 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
           claimedDate: data.slots?.find((x) => x.id === s.id)?.claimedDate ?? null,
         }));
         set({ ...data, slots, initialized: true });
+
+        // Replay any locally-claimed slots to the server (best-effort, idempotent).
+        // This recovers coins that were claimed locally but whose server calls failed
+        // silently in a previous session (fire-and-forget bug, now fixed). The backend
+        // uses ON CONFLICT DO NOTHING so re-submitting is always safe.
+        const claimedSlots = slots.filter((s) => s.claimedDate !== null);
+        for (const slot of claimedSlots) {
+          api
+            .post('/lifecoins/checkin', { slot_id: slot.id, coins: slot.coins, claim_date: slot.claimedDate })
+            .catch(() => {});
+        }
       } else {
         set({ initialized: true });
       }

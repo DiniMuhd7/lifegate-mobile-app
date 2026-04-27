@@ -480,13 +480,16 @@ func (s *Service) GetLifecoinTransactions(userID string, limit, offset int) ([]L
 }
 
 // ClaimCheckinSlot awards Lifecoins for a daily check-in slot.
-// It is idempotent: if the user already claimed this slot today (same
-// user_id + slot_id + claim_date) the second call is a no-op.
-func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int) error {
+// It is idempotent: if the user already claimed this slot on the given date
+// (user_id + slot_id + claim_date) the second call is a no-op.
+// claimDate is optional (YYYY-MM-DD); if empty it defaults to today UTC.
+func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int, claimDate string) error {
 	if coins <= 0 {
 		coins = 1
 	}
-	today := time.Now().UTC().Format("2006-01-02")
+	if claimDate == "" {
+		claimDate = time.Now().UTC().Format("2006-01-02")
+	}
 
 	var claimed bool
 	err := s.db.QueryRow(
@@ -494,10 +497,10 @@ func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int) error {
 		 VALUES ($1::uuid, $2, $3::date, $4)
 		 ON CONFLICT (user_id, slot_id, claim_date) DO NOTHING
 		 RETURNING true`,
-		userID, slotID, today, coins,
+		userID, slotID, claimDate, coins,
 	).Scan(&claimed)
 	if err == sql.ErrNoRows {
-		return nil // already claimed today
+		return nil // already claimed for this date
 	}
 	if err != nil {
 		return err

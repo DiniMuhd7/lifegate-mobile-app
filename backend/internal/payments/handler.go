@@ -349,8 +349,9 @@ func (h *Handler) ClaimCheckinSlot(c *gin.Context) {
 	uid, _ := userID.(string)
 
 	var body struct {
-		SlotID int `json:"slot_id" binding:"required"`
-		Coins  int `json:"coins"`
+		SlotID    int    `json:"slot_id" binding:"required"`
+		Coins     int    `json:"coins"`
+		ClaimDate string `json:"claim_date"` // optional YYYY-MM-DD; defaults to today
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
@@ -359,7 +360,7 @@ func (h *Handler) ClaimCheckinSlot(c *gin.Context) {
 	if body.Coins <= 0 {
 		body.Coins = 1
 	}
-	if err := h.svc.ClaimCheckinSlot(uid, body.SlotID, body.Coins); err != nil {
+	if err := h.svc.ClaimCheckinSlot(uid, body.SlotID, body.Coins, body.ClaimDate); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "could not claim slot"})
 		return
 	}
