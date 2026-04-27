@@ -291,7 +291,7 @@ export default function RedeemScreen() {
               </View>
               <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 14, padding: 14, alignItems: 'center' }}>
                 <Ionicons name="trophy-outline" size={22} color="#fff" />
-                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 4 }}>{Math.max(totalEarned, localTotal)}</Text>
+                <Text style={{ fontSize: 24, fontWeight: '900', color: '#fff', marginTop: 4 }}>{synced ? totalEarned : Math.max(totalEarned, localTotal)}</Text>
                 <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: '600' }}>Total Earned</Text>
               </View>
             </View>
