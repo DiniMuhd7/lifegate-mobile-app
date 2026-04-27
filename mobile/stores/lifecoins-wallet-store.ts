@@ -16,6 +16,15 @@ import api from 'services/api';
 
 const STORAGE_KEY = 'lifecoins_wallet_v1';
 
+// All AsyncStorage keys owned by coin-earning stores — used by resetAllCoins.
+export const ALL_COIN_STORAGE_KEYS = [
+  STORAGE_KEY,
+  'checkin_store_v1',
+  'explore_store_v5',
+  'survey_store_v1',
+  'offers_store_v1',
+] as const;
+
 // ── Naira conversion ──────────────────────────────────────────────────────────
 // Fetched from backend on hydration; falls back to local default while offline.
 export const DEFAULT_NAIRA_PER_COIN = 10;
@@ -78,6 +87,9 @@ interface LifecoinsWalletState extends PersistedWalletData {
 
   /** Initiate health-insurance-waiver redemption. */
   redeemCoins: (payload: RedeemPayload) => Promise<{ success: boolean; message: string }>;
+
+  /** DEV-only: wipe all coin state from memory and AsyncStorage across all coin stores. */
+  resetAllCoins: () => Promise<void>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -257,5 +269,19 @@ export const useLifecoinsWalletStore = create<LifecoinsWalletState>((set, get) =
         'Network error. Please try again.';
       return { success: false, message };
     }
+  },
+
+  resetAllCoins: async () => {
+    // Clear all coin-related AsyncStorage keys across every contributing store.
+    await AsyncStorage.multiRemove([...ALL_COIN_STORAGE_KEYS]);
+    // Reset this store's in-memory state.
+    set({
+      balance: 0,
+      totalEarned: 0,
+      nairaPerCoin: DEFAULT_NAIRA_PER_COIN,
+      transactions: [],
+      loading: false,
+      synced: false,
+    });
   },
 }));
