@@ -275,8 +275,11 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     // Update the wallet store immediately so the profile total reflects the new coins.
     useLifecoinsWalletStore.getState().addCoins('checkin', slot.coins, 'Daily check-in bonus');
 
-    // Persist to backend (best-effort — local state is the source of truth for slot locking).
-    api.post('/lifecoins/checkin', { slot_id: id, coins: slot.coins }).catch(() => {});
+    // Persist to backend — awaited so the server wallet is up-to-date before the
+    // next syncFromBackend call. Errors are non-fatal; local state is authoritative.
+    try {
+      await api.post('/lifecoins/checkin', { slot_id: id, coins: slot.coins });
+    } catch { /* non-fatal */ }
 
     return { success: true, coinsEarned: slot.coins };
   },

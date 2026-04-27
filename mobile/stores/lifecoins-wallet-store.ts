@@ -157,6 +157,12 @@ export const useLifecoinsWalletStore = create<LifecoinsWalletState>((set, get) =
           nairaPerCoin,
           transactions: mergedTxs,
         };
+        // Any addCoins calls that arrived while the async API calls were in-flight
+        // will have updated the in-memory store; take the max to not lose them.
+        const liveBalance = get().balance;
+        const liveEarned  = get().totalEarned;
+        next.balance     = Math.max(next.balance, liveBalance);
+        next.totalEarned = Math.max(next.totalEarned, liveEarned);
         set({ ...next, loading: false, synced: true });
         await persist(next);
       } else {
