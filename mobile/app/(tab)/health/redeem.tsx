@@ -153,14 +153,23 @@ export default function RedeemScreen() {
     nairaPerCoin,
     transactions,
     loading,
+    synced,
     syncFromBackend,
     redeemCoins,
   } = useLifecoinsWalletStore();
 
-  // Always take the higher of walletBalance and localTotal so coins not yet
-  // credited server-side are always visible, and post-redemption deductions
-  // from walletBalance are always respected.
-  const displayBalance = Math.max(walletBalance, localTotal);
+  // Coins locked in pending admin-approval redemptions are not yet deducted
+  // on the server, so must be subtracted locally to avoid showing a stale balance.
+  const pendingRedemptionCoins = transactions
+    .filter((tx) => tx.type === 'redeem' && tx.transferStatus === 'pending_approval')
+    .reduce((sum, tx) => sum + tx.coins, 0);
+
+  // Before the first successful backend sync use localTotal as an offline-first
+  // estimate.  Once synced, walletBalance is authoritative — it includes coins
+  // from all sources (checkin, explore, offers, surveys all call addCoins now)
+  // and correctly reflects any approved redemption deductions.
+  const rawBalance    = synced ? walletBalance : Math.max(walletBalance, localTotal);
+  const displayBalance = Math.max(0, rawBalance - pendingRedemptionCoins);
   const nairaPer = nairaPerCoin || DEFAULT_NAIRA_PER_COIN;
 
   // ── Form state ──────────────────────────────────────────────────────────────

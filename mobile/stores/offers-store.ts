@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
 const STORAGE_KEY = 'offers_store_v1';
 
@@ -242,6 +243,7 @@ export const useOffersStore = create<OffersState>((set, get) => ({
     const newEarned = totalEarned + offer.coins;
     set({ offers: updated, lifecoins: newCoins, totalEarned: newEarned });
     await persist({ lifecoins: newCoins, totalEarned: newEarned, offers: updated });
+    useLifecoinsWalletStore.getState().addCoins('offer', offer.coins, `Offer: ${offer.title}`);
     return { alreadyDone: false, coinsEarned: offer.coins };
   },
 }));
