@@ -30,6 +30,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCheckinStore } from 'stores/checkin-store';
 import { useExploreStore } from 'stores/explore-store';
+import { useReferralStore } from 'stores/referral-store';
 import {
   useLifecoinsWalletStore,
   DEFAULT_NAIRA_PER_COIN,
@@ -141,7 +142,12 @@ export default function RedeemScreen() {
   const exploreCoins        = useExploreStore((s) => s.lifecoins);
   const exploreInitialized  = useExploreStore((s) => s.initialized);
   const initializeExplore   = useExploreStore((s) => s.initialize);
-  const localTotal          = checkinCoins + exploreCoins;
+  // Referral coins are credited server-side; bonusEarned from the last
+  // fetchStats() call is used as the offline estimate so they aren't
+  // invisible before the wallet sync completes.
+  const referralCoins       = useReferralStore((s) => s.stats?.bonusEarned ?? 0);
+  const fetchReferralStats  = useReferralStore((s) => s.fetchStats);
+  const localTotal          = checkinCoins + exploreCoins + referralCoins;
 
   // Wallet store (synced to backend)
   const {
@@ -189,9 +195,10 @@ export default function RedeemScreen() {
 
   useEffect(() => {
     syncFromBackend();
+    fetchReferralStats();
     if (!checkinInitialized) initializeCheckin();
     if (!exploreInitialized) initializeExplore();
-  }, [syncFromBackend, checkinInitialized, initializeCheckin, exploreInitialized, initializeExplore]);
+  }, [syncFromBackend, fetchReferralStats, checkinInitialized, initializeCheckin, exploreInitialized, initializeExplore]);
 
   const handleSetMax = useCallback(() => {
     setCoinsInput(String(displayBalance));
