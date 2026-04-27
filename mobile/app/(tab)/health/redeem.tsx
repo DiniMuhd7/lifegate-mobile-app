@@ -29,9 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCheckinStore } from 'stores/checkin-store';
-import { useOffersStore } from 'stores/offers-store';
 import { useExploreStore } from 'stores/explore-store';
-import { useSurveyStore } from 'stores/survey-store';
 import {
   useLifecoinsWalletStore,
   DEFAULT_NAIRA_PER_COIN,
@@ -135,16 +133,15 @@ function TxItem({ tx }: { tx: LifecoinTx }) {
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function RedeemScreen() {
-  // Aggregate local coins from all four activity stores (offline-first total)
+  // Aggregate local coins from active activity stores (offline-first total)
+  // Note: offers and surveys are excluded until those features are live.
   const checkinCoins        = useCheckinStore((s) => s.lifecoins);
   const checkinInitialized  = useCheckinStore((s) => s.initialized);
   const initializeCheckin   = useCheckinStore((s) => s.initialize);
-  const offersCoins         = useOffersStore((s) => s.lifecoins);
   const exploreCoins        = useExploreStore((s) => s.lifecoins);
   const exploreInitialized  = useExploreStore((s) => s.initialized);
   const initializeExplore   = useExploreStore((s) => s.initialize);
-  const surveyCoins         = useSurveyStore((s) => s.totalCoinsEarned);
-  const localTotal          = checkinCoins + offersCoins + exploreCoins + surveyCoins;
+  const localTotal          = checkinCoins + exploreCoins;
 
   // Wallet store (synced to backend)
   const {

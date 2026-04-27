@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
 const STORAGE_KEY = 'survey_store_v1';
 
@@ -218,7 +217,6 @@ export const useSurveyStore = create<SurveyState>((set, get) => ({
     };
     set(next);
     await persist(next);
-    useLifecoinsWalletStore.getState().addCoins('survey', survey.coins, `Survey: ${survey.title}`);
     return { coinsEarned: survey.coins };
   },
 }));
