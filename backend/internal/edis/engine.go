@@ -81,6 +81,11 @@ type EDISResponse struct {
 
 	// Escalated is true when General Mode has been automatically escalated to Clinical Mode.
 	Escalated bool `json:"escalated,omitempty"`
+
+	// ProfileUpdate carries health profile fields collected from the patient during
+	// this triage turn. Non-nil when the AI collected at least one missing field.
+	// The genai service persists these to the users table.
+	ProfileUpdate *ai.ProfileUpdate `json:"profileUpdate,omitempty"`
 }
 
 // ─── PatientContext ──────────────────────────────────────────────────────────
@@ -97,6 +102,10 @@ type PatientContext struct {
 	Allergies          string
 	MedicalHistory     string
 	CurrentMedications string
+	// MissingProfileFields lists health profile fields that are not yet on record
+	// for this patient. When non-empty, EDIS is instructed to collect them
+	// naturally during triage and return them in a ProfileUpdate response field.
+	MissingProfileFields []string
 }
 
 // ─── Engine ───────────────────────────────────────────────────────────────────
@@ -236,6 +245,29 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 	// are also irrelevant for these categories.
 	isSensorCategory := category == "eye_checkup" || category == "hearing_test"
 
+	// ── Mode gate — server-side enforcement of the MODE GATE HARD RULE ────────
+	// The system prompt forbids clinical fields (diagnosis, conditions, riskFlags,
+	// prescription, followUpPlan) when mode="general". A hallucinating model may
+	// violate this rule, so we strip those fields here as a hard safety net.
+	// Sensor categories bypass this gate — device measurements always yield a
+	// diagnosis regardless of mode.
+	if !isSensorCategory && raw.Mode == "general" {
+		if raw.Diagnosis != nil {
+			log.Printf("[EDIS] mode gate: diagnosis stripped for mode=general condition=%q", raw.Diagnosis.Condition)
+			raw.Diagnosis = nil
+		}
+		if len(raw.Conditions) > 0 {
+			log.Printf("[EDIS] mode gate: %d conditions stripped for mode=general", len(raw.Conditions))
+			raw.Conditions = nil
+		}
+		if len(raw.RiskFlags) > 0 {
+			log.Printf("[EDIS] mode gate: %d risk flags stripped for mode=general", len(raw.RiskFlags))
+			raw.RiskFlags = nil
+		}
+		raw.Prescription = nil
+		raw.FollowUpPlan = nil
+	}
+
 	// ── HPI gate — enforce triage-before-diagnosis server-side ────────────────
 	// Requires ALL five OLDCARTS fields before a diagnosis is released.
 	// The prompt allows onset+duration+severityScore to unlock diagnosis, but
@@ -330,7 +362,9 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 	if resp.Escalated || resp.LowConfidence {
 		raw.Mode = "clinical"
 	}
-
+	// ── Profile update pass-through ─────────────────────────────────
+	// Propagate any health profile fields collected from the patient this turn.
+	resp.ProfileUpdate = raw.ProfileUpdate
 	return resp
 }
 
@@ -400,7 +434,8 @@ func (e *Engine) Summarize(ctx context.Context, messages []ai.ChatMessage) (*ai.
 //  3. The known HPI state from previous turns (if available) — fixes Issue 5:
 //     without this, the AI must infer already-collected OLDCARTS fields from
 //     conversational prose and often re-asks or forgets them.
-//  4. The category-specific snippet
+//  4. The profile collection block when the patient's health profile is incomplete
+//  5. The category-specific snippet
 func buildEDISPrompt(category string, patient PatientContext, knownHPI *ai.SymptomProfile) string {
 	base := ai.HealthSystemPrompt
 	patientBlock := buildPatientContextBlock(patient)
@@ -409,6 +444,9 @@ func buildEDISPrompt(category string, patient PatientContext, knownHPI *ai.Sympt
 	}
 	if knownHPI != nil {
 		base = base + "\n\n" + buildHPIStateBlock(knownHPI)
+	}
+	if len(patient.MissingProfileFields) > 0 {
+		base = base + "\n\n" + buildProfileCollectionBlock(patient.MissingProfileFields)
 	}
 	if snippet, ok := ai.CategoryPromptSnippets[category]; ok {
 		return base + "\n\n" + snippet
@@ -514,8 +552,26 @@ func buildPatientContextBlock(p PatientContext) string {
 	return b.String()
 }
 
+// buildProfileCollectionBlock formats the list of missing health profile fields
+// into a structured block injected into the system prompt. EDIS uses this to
+// collect the fields naturally during triage and return them in 'profileUpdate'.
+func buildProfileCollectionBlock(missingFields []string) string {
+	if len(missingFields) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	b.WriteString("PATIENT PROFILE — MISSING FIELDS (collect naturally during this triage)\n")
+	b.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	for _, f := range missingFields {
+		fmt.Fprintf(&b, "  • %s\n", f)
+	}
+	b.WriteString("When the patient answers any of these, include the values in 'profileUpdate'.\n")
+	b.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	return b.String()
+}
+
 // synthesisUrgency maps a top-condition confidence score (and presence of investigations)
-// to an urgency level for a synthesised diagnosis.
 func synthesisUrgency(confidence int, investigations []ai.Investigation) string {
 	// If any URGENT or STAT test is recommended the case warrants at least MEDIUM urgency.
 	for _, inv := range investigations {

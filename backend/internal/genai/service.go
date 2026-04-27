@@ -82,15 +82,35 @@ func (s *Service) fetchPatientContext(userID string) edis.PatientContext {
 		return edis.PatientContext{}
 	}
 
+	// Determine which health profile fields are still missing so EDIS can
+	// collect them naturally during triage.
+	var missingFields []string
+	if bloodType.String == "" {
+		missingFields = append(missingFields, `blood type (e.g. O+, A-, B+, AB+; or 'Unknown')`)
+	}
+	if genotype.String == "" {
+		missingFields = append(missingFields, `genotype (e.g. AA, AS, SS, SC, AC; or 'Unknown')`)
+	}
+	if allergies.String == "" {
+		missingFields = append(missingFields, `known drug or food allergies (or 'None' if none)`)
+	}
+	if medicalHistory.String == "" {
+		missingFields = append(missingFields, `pre-existing medical conditions (or 'None' if none)`)
+	}
+	if currentMedications.String == "" {
+		missingFields = append(missingFields, `current medications (or 'None' if not currently taking any)`)
+	}
+
 	return edis.PatientContext{
-		Name:               name,
-		Age:                ageFromDOB(dob),
-		Gender:             gender,
-		BloodType:          bloodType.String,
-		Genotype:           genotype.String,
-		Allergies:          allergies.String,
-		MedicalHistory:     medicalHistory.String,
-		CurrentMedications: currentMedications.String,
+		Name:                 name,
+		Age:                  ageFromDOB(dob),
+		Gender:               gender,
+		BloodType:            bloodType.String,
+		Genotype:             genotype.String,
+		Allergies:            allergies.String,
+		MedicalHistory:       medicalHistory.String,
+		CurrentMedications:   currentMedications.String,
+		MissingProfileFields: missingFields,
 	}
 }
 
@@ -113,6 +133,89 @@ func ageFromDOB(dob string) int {
 		return 0
 	}
 	return years
+}
+
+// normalizeBloodType canonicalises a blood type string to one of the eight
+// accepted values (A+, A-, B+, B-, AB+, AB-, O+, O-). Returns empty string
+// if the input cannot be resolved.
+func normalizeBloodType(s string) string {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, "POSITIVE", "+")
+	s = strings.ReplaceAll(s, "NEGATIVE", "-")
+	s = strings.ReplaceAll(s, " ", "")
+	valid := map[string]bool{
+		"A+": true, "A-": true, "B+": true, "B-": true,
+		"AB+": true, "AB-": true, "O+": true, "O-": true,
+	}
+	if valid[s] {
+		return s
+	}
+	return ""
+}
+
+// normalizeGenotype canonicalises a genotype string to one of the five
+// accepted values (AA, AS, SS, SC, AC). Returns empty string if invalid.
+func normalizeGenotype(s string) string {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	valid := map[string]bool{"AA": true, "AS": true, "SS": true, "SC": true, "AC": true}
+	if valid[s] {
+		return s
+	}
+	return ""
+}
+
+// saveProfileUpdate persists any health profile fields collected by EDIS during
+// triage to the users table. Only non-empty, validated values are written.
+// This is a best-effort fire-and-continue — errors are logged but not returned.
+func (s *Service) saveProfileUpdate(ctx context.Context, userID string, u *ai.ProfileUpdate) bool {
+	if u == nil || userID == "" {
+		return false
+	}
+
+	var setClauses []string
+	var args []interface{}
+	args = append(args, userID) // $1 always = userID
+	argIdx := 2
+
+	if bt := normalizeBloodType(u.BloodType); bt != "" {
+		setClauses = append(setClauses, fmt.Sprintf("blood_type = $%d", argIdx))
+		args = append(args, bt)
+		argIdx++
+	}
+	if gt := normalizeGenotype(u.Genotype); gt != "" {
+		setClauses = append(setClauses, fmt.Sprintf("genotype = $%d", argIdx))
+		args = append(args, gt)
+		argIdx++
+	}
+	if al := strings.TrimSpace(u.Allergies); al != "" {
+		setClauses = append(setClauses, fmt.Sprintf("allergies = $%d", argIdx))
+		args = append(args, al)
+		argIdx++
+	}
+	if mh := strings.TrimSpace(u.MedicalHistory); mh != "" {
+		setClauses = append(setClauses, fmt.Sprintf("medical_history = $%d", argIdx))
+		args = append(args, mh)
+		argIdx++
+	}
+	if cm := strings.TrimSpace(u.CurrentMedications); cm != "" {
+		setClauses = append(setClauses, fmt.Sprintf("current_medications = $%d", argIdx))
+		args = append(args, cm)
+		// argIdx++ (not needed after last field)
+	}
+
+	if len(setClauses) == 0 {
+		return false
+	}
+
+	setClauses = append(setClauses, "updated_at = NOW()")
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $1::uuid", strings.Join(setClauses, ", "))
+	_, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		log.Printf("[EDIS] saveProfileUpdate failed (user=%s): %v", userID, err)
+		return false
+	}
+	log.Printf("[EDIS] saveProfileUpdate: persisted %d profile field(s) for user=%s", len(setClauses)-1, userID)
+	return true
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -186,6 +289,10 @@ type ChatResponse struct {
 	// (i.e. the new symptoms matched an existing Pending case for this user).
 	// The client uses this to present a "Continuing existing case" UI state.
 	IsExistingCase       bool                 `json:"isExistingCase,omitempty"`
+	// ProfileUpdated is true when EDIS collected and persisted one or more health
+	// profile fields from the patient during this triage turn. The client should
+	// refresh the user profile from the server when this is true.
+	ProfileUpdated       bool                 `json:"profileUpdated,omitempty"`
 }
 
 // FinalizeResult is the structured result of finalizing a session.
@@ -375,6 +482,10 @@ func (s *Service) Status() map[string]string {
 // the appropriate NATS events (ai.question.generated, early_flag.detected,
 // ai.session.escalated, ai.diagnosis.preliminary).
 func (s *Service) buildAndPublish(ctx context.Context, userID, message string, resp *edis.EDISResponse, start time.Time) (*ChatResponse, error) {
+	// Persist any health profile fields collected from the patient this turn.
+	// Done before building the response so ProfileUpdated reflects actual DB state.
+	profileUpdated := s.saveProfileUpdate(ctx, userID, resp.ProfileUpdate)
+
 	cr := &ChatResponse{
 		Text:                 resp.Text,
 		Diagnosis:            resp.Diagnosis,
@@ -389,6 +500,7 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message string, r
 		EscalationTrigger:    resp.EscalationTrigger,
 		LowConfidence:        resp.LowConfidence,
 		NeedsPhysicianReview: resp.NeedsPhysicianReview,
+		ProfileUpdated:       profileUpdated,
 	}
 
 	// Compute and expose the concrete follow-up date for the client so it can

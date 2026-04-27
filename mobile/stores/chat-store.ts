@@ -32,6 +32,7 @@ import { SessionService } from 'services/session-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
 import { scheduleFollowUp } from 'utils/followUpScheduler';
+import { useProfileStore } from 'stores/auth/profile-store';
 
 // Granular feedback phases shown during AI processing.
 export type ProcessingPhase = 'sending' | 'analyzing' | 'generating' | null;
@@ -593,6 +594,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
           aiResponse.followUpDate ?? undefined
         ).catch(() => {
           // Non-critical — silently skip if permissions are denied or scheduling fails.
+        });
+      }
+
+      // Refresh the user's health profile in the auth store when EDIS collected
+      // missing profile fields from the patient during this triage turn.
+      if (aiResponse.profileUpdated) {
+        useProfileStore.getState().getProfile().catch(() => {
+          // Best-effort — a failed refresh doesn't affect the chat session.
         });
       }
     } catch (error) {

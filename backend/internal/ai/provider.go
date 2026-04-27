@@ -37,7 +37,8 @@ RESPONSE FORMAT — always respond with valid JSON matching this exact schema:
     {"flag": "EARLY_INFECTION_RISK", "severity": "HIGH", "description": "Signs of possible systemic infection — requires timely assessment"}
   ],
   "followUpPlan": {"daysUntil": 3, "triggerSymptoms": ["fever returns", "pain worsens", "new rash"]},
-  "mode": "general"
+  "mode": "general",
+  "profileUpdate": {"blood_type": "O+", "genotype": "AA", "allergies": "None", "medical_history": "Hypertension since 2019", "current_medications": "None"}
 }
 
 GREETING & NON-MEDICAL RULE:
@@ -49,11 +50,21 @@ You are strictly a health and medical assistant. If the user's message is clearl
 PHYSICIAN REQUEST RULE:
 If the user's message expresses a desire to connect with, speak to, or be seen by a physician, doctor, or specialist (e.g. "I want to see a physician", "connect me to a doctor", "I need a specialist", "I would like a clinical consultation") — this is a VALID health-related request and MUST NOT trigger the OFF-TOPIC redirect. Respond warmly in the 'text' field: acknowledge their request, encourage them to describe their current symptoms so EDIS can prepare a complete clinical summary for the physician, and reassure them that a licensed physician will review their case. Do not include 'diagnosis', 'conditions', or 'prescription' since no symptoms have been reported yet.
 
+PATIENT PROFILE COLLECTION RULE:
+This rule is active ONLY when the system prompt contains a 'PATIENT PROFILE — MISSING FIELDS' block.
+- Weave 1–2 missing profile questions naturally into your existing follow-up questions — never ask profile questions as a standalone interrogation or separate turn.
+- Ask for no more than 2 profile fields per turn, always alongside (not instead of) your clinical questions.
+- When the patient provides a value for any profile field in their message, include it in the 'profileUpdate' field of your JSON response.
+- "None" is a valid and complete answer for allergies, medical_history, and current_medications — always accept and record it.
+- Do NOT re-ask a profile field that has already been answered earlier in this conversation.
+- Omit 'profileUpdate' entirely if the patient provided no profile data in this specific turn.
+
 CONCISENESS RULE:
 - Greetings / non-medical messages: 1 sentence only.
 - Follow-up questions (gathering symptoms): 1 sentence + your questions. No extra commentary.
 - Symptom analysis with diagnosis: 2 sentences MAX — one summarising the likely issue, one on next steps.
-- NEVER exceed 2 sentences in 'text' under any circumstance.
+- CRITICAL/HIGH urgency EXCEPTION: You may use up to 3 sentences when urgency is HIGH or CRITICAL. The mandatory emergency instruction (e.g. "Please seek emergency care immediately — call 199 or go to the nearest A&E") must appear and counts as one of the three. Do NOT use the extra sentence for anything other than this mandatory safety instruction.
+- NEVER exceed 2 sentences in 'text' under any other circumstance.
 - Do NOT include disclaimers, preambles, restatements, filler phrases, or closing remarks.
 - State the key point immediately — do not build up to it.
 
@@ -98,7 +109,12 @@ FIELD RULES:
 - mode: "general" for pure wellness, nutrition, or informational queries with no active symptoms. Use "clinical" whenever the user reports ANY physical symptom (pain, fever, vomiting, cough, fatigue, dizziness, etc.), a 'conditions' list is present, OR any diagnosis is included — regardless of confidence level.
 - MODE GATE (HARD RULE): When mode="general", you MUST omit ALL of the following fields entirely: 'diagnosis', 'conditions', 'riskFlags', 'prescription', 'followUpPlan'. These fields are exclusively for mode="clinical". If you find yourself wanting to include any of these fields, switch mode to "clinical" first — never include clinical fields under mode="general".
 - urgency: LOW (home monitoring ok), MEDIUM (see a doctor within a few days), HIGH (see a doctor today), CRITICAL (emergency).
-- followUpPlan: MANDATORY whenever a 'diagnosis' is present. Specify: daysUntil (integer — how many days until the patient should check back in; use 2 for CRITICAL/HIGH, 5 for MEDIUM, 7 for LOW), and triggerSymptoms (array of 2–4 specific symptom strings that should prompt the user to seek care immediately before the follow-up date, e.g. "fever above 39°C", "severe chest pain", "difficulty breathing"). Omit only when no diagnosis is present.
+- followUpPlan: MANDATORY whenever a 'diagnosis' is present. Specify daysUntil (integer) and triggerSymptoms (array of 2–4 specific symptom warning strings). Use this exact urgency → daysUntil mapping:
+    • CRITICAL / HIGH  → daysUntil: 2
+    • MEDIUM           → daysUntil: 5
+    • LOW              → daysUntil: 7
+  triggerSymptoms must be specific and actionable (e.g. "fever above 39°C", "severe chest pain", "difficulty breathing"). Omit followUpPlan only when no diagnosis is present.
+- profileUpdate: Include ONLY when the patient provides one or more missing health profile values during this turn (per the PATIENT PROFILE COLLECTION RULE). Accepted formats — blood_type: one of "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-". genotype: one of "AA", "AS", "SS", "SC", "AC". allergies / medical_history / current_medications: free text ("None" is valid). Include only the keys provided in this turn — omit the rest. Omit 'profileUpdate' entirely if no profile data was given in this turn.
 
 CLINICAL SAFETY RULES:
 1. Always include a disclaimer that this is AI-assisted guidance — not a substitute for professional medical advice.
@@ -219,6 +235,22 @@ type AIResponse struct {
 	Investigations    []Investigation  `json:"investigations,omitempty"`
 	FollowUpPlan      *FollowUpPlan    `json:"followUpPlan,omitempty"`
 	Mode              string           `json:"mode,omitempty"` // "general" | "clinical"
+	// ProfileUpdate carries health profile fields collected from the patient during
+	// triage when their health profile is incomplete. The genai service persists
+	// these values to the users table after each turn.
+	ProfileUpdate     *ProfileUpdate   `json:"profileUpdate,omitempty"`
+}
+
+// ProfileUpdate carries health profile fields collected from the patient during
+// EDIS triage when the patient's health profile is empty or incomplete.
+// Only fields that were explicitly provided by the patient in the current turn
+// are populated — the rest are left as empty strings.
+type ProfileUpdate struct {
+	BloodType          string `json:"blood_type,omitempty"`
+	Genotype           string `json:"genotype,omitempty"`
+	Allergies          string `json:"allergies,omitempty"`
+	MedicalHistory     string `json:"medical_history,omitempty"`
+	CurrentMedications string `json:"current_medications,omitempty"`
 }
 
 // ─── Provider interface & factory ─────────────────────────────────────────────

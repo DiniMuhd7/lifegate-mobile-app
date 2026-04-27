@@ -124,6 +124,9 @@ export type AIResponse = {
     triggerSymptoms: string[];
   };
   followUpDate?: string; // ISO-8601 date string
+  // True when EDIS collected and saved one or more health profile fields this turn.
+  // The client should refresh the user profile from the server when true.
+  profileUpdated?: boolean;
 };
 
 // Result returned from POST /chat/sessions/:id/finalize
