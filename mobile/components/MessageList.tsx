@@ -9,7 +9,9 @@ import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation, 
 export interface Message {
   id: string;
   text: string;
-  type: 'sent' | 'received';
+  type: 'sent' | 'received' | 'system';
+  /** Subtype for system messages — drives specialised rendering */
+  systemType?: string;
   timestamp?: string;
   status?: 'SENDING' | 'SENT' | 'FAILED';
   diagnosis?: Diagnosis;
@@ -31,6 +33,10 @@ interface MessageListProps {
   onRetry?: (messageId: string) => void;
   onFollowUp?: (question: string) => void;
   isTyping?: boolean;
+  /** Called when the patient confirms they want to proceed in Clinical Mode */
+  onConfirmClinical?: () => void;
+  /** Called when the patient opts to stay in General Mode */
+  onCancelClinical?: () => void;
 }
 
 const formatDividerDate = (ts: number): string => {
@@ -44,7 +50,14 @@ const formatDividerDate = (ts: number): string => {
   return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 };
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onFollowUp, isTyping }) => {
+export const MessageList: React.FC<MessageListProps> = ({
+  messages,
+  onRetry,
+  onFollowUp,
+  isTyping,
+  onConfirmClinical,
+  onCancelClinical,
+}) => {
   const flatRef = useRef<FlatList<ListItem>>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const isAtBottomRef = useRef(true);
@@ -133,6 +146,91 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onRetry, onF
       );
     }
     const { msg, msgIndex, isFirstInGroup, isLastInGroup } = item;
+
+    // ── System message rendering ─────────────────────────────────────────────
+    if (msg.type === 'system') {
+      const isConfirm = msg.systemType === 'CONFIRM_CLINICAL';
+      const isSuccess = msg.systemType === 'REFUND_SUCCESS';
+      const isDowngrade = msg.systemType === 'MODE_DOWNGRADE';
+
+      // Colour palette varies by type
+      const borderColor = isSuccess ? '#86efac' : isDowngrade ? '#fcd34d' : '#99f6e4';
+      const bgColor = isSuccess ? '#f0fdf4' : isDowngrade ? '#fffbeb' : '#f0fdfa';
+      const iconName: React.ComponentProps<typeof Ionicons>['name'] = isSuccess
+        ? 'checkmark-circle'
+        : isDowngrade
+          ? 'flash-outline'
+          : isConfirm
+            ? 'medical'
+            : 'information-circle-outline';
+      const iconColor = isSuccess ? '#16a34a' : isDowngrade ? '#b45309' : '#0f766e';
+      const textColor = isSuccess ? '#15803d' : isDowngrade ? '#78350f' : '#134e4a';
+
+      return (
+        <View
+          style={{
+            marginHorizontal: 16,
+            marginVertical: 6,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor,
+            backgroundColor: bgColor,
+            padding: 14,
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+            <Ionicons name={iconName} size={20} color={iconColor} style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontSize: 13, color: textColor, lineHeight: 20, fontWeight: '500' }}>
+              {msg.text}
+            </Text>
+          </View>
+
+          {/* Action buttons for the clinical confirmation prompt */}
+          {isConfirm && (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                onPress={onConfirmClinical}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: '#0AADA2',
+                  borderRadius: 10,
+                  paddingVertical: 10,
+                }}
+              >
+                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Continue in Clinical</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onCancelClinical}
+                activeOpacity={0.8}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: '#fff',
+                  borderWidth: 1,
+                  borderColor: '#cbd5e1',
+                  borderRadius: 10,
+                  paddingVertical: 10,
+                }}
+              >
+                <Ionicons name="arrow-back-circle-outline" size={16} color="#64748b" />
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>Stay in General</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      );
+    }
+    // ────────────────────────────────────────────────────────────────────────
     // Only animate bubbles that arrived after the initial mount snapshot.
     const isNew = msgIndex >= initialCountRef.current;
     return (

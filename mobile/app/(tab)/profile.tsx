@@ -17,6 +17,7 @@ import { useOffersStore } from 'stores/offers-store';
 import { useExploreStore } from 'stores/explore-store';
 import { useSurveyStore } from 'stores/survey-store';
 import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
+import { usePaymentStore } from 'stores/payment-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
 import { SeverityLineChart } from 'components/SeverityLineChart';
 import { PrimaryButton } from 'components/Button';
@@ -43,6 +44,8 @@ export default function PatientProfileScreen() {
   const walletBalance       = useLifecoinsWalletStore((s) => s.balance);
   const syncWallet          = useLifecoinsWalletStore((s) => s.syncFromBackend);
   const walletTransactions  = useLifecoinsWalletStore((s) => s.transactions);
+  const creditBalance       = usePaymentStore((s) => s.balance);
+  const fetchCreditBalance  = usePaymentStore((s) => s.fetchBalance);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -50,11 +53,12 @@ export default function PatientProfileScreen() {
     getProfile();
     fetchPatientTimeline();
     syncWallet();
+    fetchCreditBalance();
     // Hydrate per-source stores so localTotal is accurate even if the user
     // hasn't visited those screens yet in this session.
     if (!checkinInitialized) initializeCheckin();
     if (!exploreInitialized) initializeExplore();
-  }, [getProfile, fetchPatientTimeline, syncWallet, checkinInitialized, initializeCheckin, exploreInitialized, initializeExplore]);
+  }, [getProfile, fetchPatientTimeline, syncWallet, fetchCreditBalance, checkinInitialized, initializeCheckin, exploreInitialized, initializeExplore]);
 
   // ── Derived values — memoized before early returns (Rules of Hooks) ─────────
   const profileCompletion = useMemo(() => {
@@ -125,7 +129,7 @@ export default function PatientProfileScreen() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([getProfile(), fetchPatientTimeline(), syncWallet()]);
+    await Promise.all([getProfile(), fetchPatientTimeline(), syncWallet(), fetchCreditBalance()]);
     setIsRefreshing(false);
     if (!user) {
       Alert.alert('Failed to Refresh', error || 'Could not fetch your profile. Please try again.', [
@@ -189,32 +193,46 @@ export default function PatientProfileScreen() {
                 </View>
               </View>
 
-              {/* Lifecoins */}
-              <View className="rounded-2xl overflow-hidden mb-4" style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' }}>
-                {/* Main row */}
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {/* Left accent bar */}
-                  <View style={{ width: 4, backgroundColor: '#F59E0B', alignSelf: 'stretch' }} />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, flex: 1 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#FDE68A' }}>
-                      <Ionicons name="heart-circle" size={22} color="#F59E0B" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#92400E', letterSpacing: 0.6, textTransform: 'uppercase' }}>Total Lifecoins</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                        <Text style={{ fontSize: 26, fontWeight: '900', color: '#B45309', lineHeight: 30 }}>{totalLifecoins}</Text>
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#D97706' }}>coins</Text>
+              {/* Lifecoins & Diagnosis Credits — side-by-side row */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+
+                {/* — Lifecoins tile — */}
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', overflow: 'hidden' }}
+                  onPress={() => router.push('/(tab)/health/redeem')}
+                  activeOpacity={0.75}
+                >
+                  <View style={{ width: '100%', height: 3, backgroundColor: '#F59E0B' }} />
+                  <View style={{ paddingHorizontal: 10, paddingTop: 7, paddingBottom: 9 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#92400E', opacity: 0.7, marginBottom: 5 }}>Lifecoins</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="heart-circle" size={14} color="#F59E0B" />
                       </View>
+                      <Text style={{ flex: 1, fontSize: 18, fontWeight: '900', color: '#B45309' }}>{totalLifecoins}</Text>
+                      <Ionicons name="chevron-forward" size={13} color="#D97706" />
                     </View>
-                    <TouchableOpacity
-                      onPress={() => router.push('/(tab)/health/redeem')}
-                      style={{ backgroundColor: '#F59E0B', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff' }}>Redeem</Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
+                </TouchableOpacity>
+
+                {/* — Diagnosis Credits tile — */}
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: '#EFF6FF', borderRadius: 14, borderWidth: 1, borderColor: '#BFDBFE', overflow: 'hidden' }}
+                  onPress={() => router.push('/(tab)/settings/subscription')}
+                  activeOpacity={0.75}
+                >
+                  <View style={{ width: '100%', height: 3, backgroundColor: '#3B82F6' }} />
+                  <View style={{ paddingHorizontal: 10, paddingTop: 7, paddingBottom: 9 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#1E3A5F', opacity: 0.7, marginBottom: 5 }}>Dx Credits</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="medical" size={13} color="#3B82F6" />
+                      </View>
+                      <Text style={{ flex: 1, fontSize: 18, fontWeight: '900', color: '#1D4ED8' }}>{creditBalance?.balance ?? 0}</Text>
+                      <Ionicons name="chevron-forward" size={13} color="#2563EB" />
+                    </View>
+                  </View>
+                </TouchableOpacity>
               </View>
 
               {/* Completion bar */}

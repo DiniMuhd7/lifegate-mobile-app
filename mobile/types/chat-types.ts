@@ -7,7 +7,15 @@
  */
 
 // Message role types
-export type MessageRole = 'USER' | 'AI';
+export type MessageRole = 'USER' | 'AI' | 'SYSTEM';
+
+// System message subtypes for specialised in-chat prompts
+export type SystemMessageType =
+  | 'CONFIRM_CLINICAL'   // Clinical mode confirmation prompt with action buttons
+  | 'MODE_DOWNGRADE'     // Notifies patient they've been silently moved to General Mode
+  | 'REFUND_PENDING'     // AI failed — credit refund is processing
+  | 'REFUND_SUCCESS'     // Credit was successfully refunded
+  | 'INFO';              // Generic informational system message
 
 // Message status for optimistic UI
 // SENDING → SENT (server received) → READ (AI responded) | FAILED
@@ -69,6 +77,8 @@ export type Message = {
   id: string; // UUID-like identifier
   role: MessageRole;
   status: MessageStatus; // SENDING | SENT | FAILED
+  /** Subtype for SYSTEM messages — drives specialised rendering in the chat UI */
+  systemType?: SystemMessageType;
   text: string;
   timestamp: number; // Unix timestamp (ms)
   diagnosis?: Diagnosis; // Optional structured diagnosis from AI

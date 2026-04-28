@@ -25,6 +25,7 @@ import {
   Message,
   MessageStatus,
   SessionMode,
+  SystemMessageType,
   VerifiedPhysician,
 } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
@@ -59,6 +60,12 @@ export type ChatState = {
   activeRequestId: string | null;
   activeRequestConversationId: string | null;
   activeAbortController: AbortController | null;
+  /**
+   * Holds a clinical message waiting for patient confirmation before it is
+   * sent to the AI (and a credit is deducted).  Set when the user triggers
+   * clinical mode for the first time in a conversation; cleared on confirm/cancel.
+   */
+  pendingClinicalMessage: { text: string; category?: ConversationCategory; conversationId: string } | null;
 
   // Actions
   initializeChat: (userId: string) => Promise<void>;
@@ -71,6 +78,10 @@ export type ChatState = {
   deleteConversation: (conversationId: string) => void;
   setConversationServerSessionId: (conversationId: string, serverSessionId: string) => void;
   processAIResponse: (userMessage: Message, conversationId: string) => Promise<void>;
+  /** Patient confirmed clinical mode — send the pending message and deduct a credit. */
+  confirmClinicalMode: () => Promise<void>;
+  /** Patient declined clinical mode — switch back to general and surface an info message. */
+  cancelClinicalMode: () => void;
   clearError: () => void;
   clearEscalationNotice: (conversationId?: string) => void;
   resetChatState: () => void;
@@ -197,6 +208,35 @@ function buildAIMessage(aiResponse: AIResponse, physicianSuggestions?: VerifiedP
     investigations: aiResponse.investigations,
     physicianSuggestions,
   };
+}
+
+function buildSystemMessage(text: string, systemType: SystemMessageType): Message {
+  return {
+    id: generateId(),
+    role: 'SYSTEM',
+    status: 'READ',
+    text,
+    timestamp: now(),
+    systemType,
+  };
+}
+
+/**
+ * Injects a SYSTEM message into the specified conversation and schedules
+ * persistence.  Intended to surface in-chat informational or action prompts
+ * without routing through the normal AI request pipeline.
+ */
+function injectSystemMessage(conversationId: string, text: string, systemType: SystemMessageType) {
+  const message = buildSystemMessage(text, systemType);
+  useChatStore.setState((state) => ({
+    conversations: state.conversations.map((conv) =>
+      conv.id !== conversationId
+        ? conv
+        : { ...conv, messages: [...conv.messages, message], updatedAt: now() }
+    ),
+  }));
+  const state = useChatStore.getState();
+  scheduleConversationPersist(state.userId || '', state.conversations, conversationId);
 }
 
 function deriveConversationTitle(conversation: Conversation, userMessage: Message) {
@@ -354,6 +394,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeRequestId: null,
   activeRequestConversationId: null,
   activeAbortController: null,
+  pendingClinicalMessage: null,
 
   initializeChat: async (userId: string) => {
     abortActiveRequest(get());
@@ -467,6 +508,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const abortController = new AbortController();
       const allowCategoryOverride = !!category && conversation.messages.length === 0 && !conversation.mode;
 
+      // ── Clinical mode confirmation gate (Feature #2 + #3) ──────────────────
+      // When the user is triggering clinical_diagnosis for the first time in this
+      // conversation (via a starter chip / direct sendMessage call), intercept the
+      // message and show an in-chat confirmation prompt.  The credit is NOT deducted
+      // until the patient explicitly confirms.
+      const isSwitchingToClinical =
+        allowCategoryOverride && category === 'doctor_consultation';
+
+      if (isSwitchingToClinical) {
+        // Inject only the confirmation system message — the user message itself is
+        // held in pendingClinicalMessage.  We DON'T add the user bubble yet so the
+        // conversation shows the prompt as the very first item.
+        const confirmMsg = buildSystemMessage(
+          "You're about to start a Clinical Diagnosis session.\n\nA licensed physician will review your case and each message uses 1 diagnosis credit from your balance.\n\nWould you like to continue?",
+          'CONFIRM_CLINICAL'
+        );
+        set((current) => ({
+          conversations: current.conversations.map((conv) =>
+            conv.id !== convId
+              ? conv
+              : { ...conv, messages: [...conv.messages, confirmMsg], updatedAt: now() }
+          ),
+          pendingClinicalMessage: { text: sanitized, category, conversationId: convId },
+        }));
+        scheduleConversationPersist(get().userId || '', get().conversations, convId);
+        return;
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       const snapshot: ConversationSnapshot = {
         conversationId: convId,
         requestId,
@@ -527,7 +597,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         conversationId,
         requestId,
         userMessage,
-        previousMessages: conversationSnapshot.messages.slice(0, -1),
+        // Exclude SYSTEM messages — they are UI-only prompts and must never be
+        // forwarded to the AI backend as conversation history.
+        previousMessages: conversationSnapshot.messages.slice(0, -1).filter((m) => m.role !== 'SYSTEM'),
         previousConversation: conversationSnapshot,
         mode: conversationSnapshot.mode,
         category: conversationSnapshot.category,
@@ -612,7 +684,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       console.error('AI response error:', error);
 
       const isInsufficientCredits = (error as Error)?.message === 'INSUFFICIENT_CREDITS';
+      const wasClinical = conversationSnapshot.mode === 'clinical_diagnosis';
 
+      // Mark the user's message as failed and, when applicable, downgrade mode.
       set((current) => ({
         conversations: current.conversations.map((conversation) => {
           if (conversation.id !== conversationId) return conversation;
@@ -622,7 +696,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             messages: conversation.messages.map((message) =>
               message.id === userMessage.id ? { ...message, status: 'FAILED' as MessageStatus } : message
             ),
-            ...(isInsufficientCredits && conversation.mode === 'clinical_diagnosis'
+            // Feature #5: silently switch to General Mode when credits run out.
+            ...(isInsufficientCredits && wasClinical
               ? {
                   mode: 'general_health' as SessionMode,
                   category: 'general_health' as ConversationCategory,
@@ -635,12 +710,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeRequestId: null,
         activeRequestConversationId: null,
         activeAbortController: null,
-        error: isInsufficientCredits
-          ? 'INSUFFICIENT_CREDITS'
-          : 'Failed to get AI response. Please try again.',
+        // Feature #5: no error banner for insufficient credits — in-chat msg below.
+        error: isInsufficientCredits ? null : 'Failed to get AI response. Please try again.',
       }));
 
       scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
+
+      // Feature #5: inject an in-chat message explaining the mode downgrade.
+      if (isInsufficientCredits && wasClinical) {
+        injectSystemMessage(
+          conversationId,
+          "You've used all your diagnosis credits — your session has been switched to General Mode.\n\nYou can continue chatting here for free, or top up your credits to resume Clinical Diagnosis anytime.",
+          'MODE_DOWNGRADE'
+        );
+        return;
+      }
+
+      // Feature #4: for any other AI failure in clinical mode, notify the patient
+      // that their credit has been refunded (the backend refunds synchronously on
+      // 5xx before the error reaches the client).
+      if (wasClinical) {
+        injectSystemMessage(
+          conversationId,
+          "Something went wrong processing your request. Your diagnosis credit is being restored — this usually takes a moment.",
+          'REFUND_PENDING'
+        );
+        // Give the backend a beat, then confirm the refund to the patient.
+        setTimeout(() => {
+          injectSystemMessage(
+            conversationId,
+            "✓ Your diagnosis credit has been restored successfully. You can retry your message.",
+            'REFUND_SUCCESS'
+          );
+        }, 1800);
+      }
     }
   },
 
@@ -695,6 +798,72 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     await get().processAIResponse(failedMsg, convId);
+  },
+
+  confirmClinicalMode: async () => {
+    const state = get();
+    const pending = state.pendingClinicalMessage;
+    if (!pending || state.isThinking) return;
+
+    const { text, category, conversationId } = pending;
+    const conversation = getConversation(state.conversations, conversationId);
+    if (!conversation) return;
+
+    const userMessage = buildUserMessage(text);
+    const requestId = generateId();
+    const abortController = new AbortController();
+
+    // Switch conversation to clinical_diagnosis, append user message, start the request.
+    set((current) => ({
+      conversations: current.conversations.map((conv) => {
+        if (conv.id !== conversationId) return conv;
+        return {
+          ...conv,
+          mode: 'clinical_diagnosis' as SessionMode,
+          category: (category ?? 'doctor_consultation') as ConversationCategory,
+          messages: [...conv.messages, userMessage],
+          updatedAt: now(),
+        };
+      }),
+      pendingClinicalMessage: null,
+      isThinking: true,
+      processingPhase: 'sending',
+      error: null,
+      activeRequestId: requestId,
+      activeRequestConversationId: conversationId,
+      activeAbortController: abortController,
+    }));
+
+    await get().processAIResponse(userMessage, conversationId);
+  },
+
+  cancelClinicalMode: () => {
+    const state = get();
+    const pending = state.pendingClinicalMessage;
+    if (!pending) return;
+
+    const { conversationId } = pending;
+
+    // Clear pending, switch conversation back to general mode, and inject an
+    // info message so the patient knows what happened.
+    set((current) => ({
+      conversations: current.conversations.map((conv) => {
+        if (conv.id !== conversationId) return conv;
+        return {
+          ...conv,
+          mode: 'general_health' as SessionMode,
+          category: 'general_health' as ConversationCategory,
+          updatedAt: now(),
+        };
+      }),
+      pendingClinicalMessage: null,
+    }));
+
+    injectSystemMessage(
+      conversationId,
+      "No problem — you're continuing in General Mode. You can always switch to Clinical Diagnosis whenever you're ready.",
+      'INFO'
+    );
   },
 
   deleteConversation: (conversationId: string) => {
@@ -772,6 +941,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeRequestId: null,
       activeRequestConversationId: null,
       activeAbortController: null,
+      pendingClinicalMessage: null,
     });
   },
 

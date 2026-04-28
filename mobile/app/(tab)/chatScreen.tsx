@@ -113,6 +113,8 @@ const ChatScreen: React.FC = () => {
   const clearEscalationNotice = useChatStore((state) => state.clearEscalationNotice);
   const initializeChat = useChatStore((state) => state.initializeChat);
   const deleteConversation = useChatStore((state) => state.deleteConversation);
+  const confirmClinicalMode = useChatStore((state) => state.confirmClinicalMode);
+  const cancelClinicalMode = useChatStore((state) => state.cancelClinicalMode);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeConversationId) || null,
@@ -269,8 +271,7 @@ const ChatScreen: React.FC = () => {
   }, [isInitializing, activeConversation?.id, activeConversation?.mode, setConversationMode]);
 
   useEffect(() => {
-    // INSUFFICIENT_CREDITS is not auto-dismissed — user must act (top up or dismiss).
-    if (error && error !== 'INSUFFICIENT_CREDITS') {
+    if (error) {
       const timer = setTimeout(() => clearError(), 4000);
       return () => clearTimeout(timer);
     }
@@ -281,7 +282,8 @@ const ChatScreen: React.FC = () => {
       messages.map((msg) => ({
         id: msg.id,
         text: msg.text,
-        type: msg.role === 'USER' ? 'sent' : 'received',
+        type: msg.role === 'USER' ? 'sent' : msg.role === 'SYSTEM' ? 'system' : 'received',
+        systemType: msg.systemType,
         timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
@@ -805,60 +807,19 @@ const ChatScreen: React.FC = () => {
                   onRetry={retrySendMessage} 
                   onFollowUp={handleFollowUp}
                   isTyping={isThinking}
+                  onConfirmClinical={confirmClinicalMode}
+                  onCancelClinical={cancelClinicalMode}
                 />
               </View>
             )}
 
-            {/* Error banner — credit gate gets a dedicated Top-Up CTA */}
-            {error && error !== 'INSUFFICIENT_CREDITS' && (
+            {/* Error banner */}
+            {error && (
               <View className="mx-4 mb-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 flex-row items-center gap-2">
                 <Ionicons name="warning-outline" size={16} color="#dc2626" />
                 <Text className="text-sm font-medium text-red-700 flex-1">{error}</Text>
                 <TouchableOpacity onPress={clearError}>
                   <Ionicons name="close" size={16} color="#dc2626" />
-                </TouchableOpacity>
-              </View>
-            )}
-            {error === 'INSUFFICIENT_CREDITS' && (
-              <View
-                style={{
-                  marginHorizontal: 16,
-                  marginBottom: 8,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: '#fcd34d',
-                  backgroundColor: '#fffbeb',
-                  padding: 12,
-                  gap: 8,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="flash-outline" size={16} color="#b45309" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#92400e' }}>
-                      Out of credits — switched to General Mode
-                    </Text>
-                    <Text style={{ fontSize: 11, color: '#b45309', marginTop: 2 }}>
-                      You can continue chatting in General Mode or top up to resume Clinical Diagnosis.
-                    </Text>
-                  </View>
-                  <TouchableOpacity onPress={clearError} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Ionicons name="close" size={16} color="#b45309" />
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    clearError();
-                    router.push('/(tab)/settings/subscription');
-                  }}
-                  style={{
-                    backgroundColor: '#0EA5A4',
-                    borderRadius: 8,
-                    paddingVertical: 8,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>Top Up to Resume Clinical Diagnosis</Text>
                 </TouchableOpacity>
               </View>
             )}
