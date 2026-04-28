@@ -289,6 +289,7 @@ const ChatScreen: React.FC = () => {
           minute: '2-digit',
         }),
         status: msg.status === 'READ' ? 'SENT' : msg.status,
+        failureCode: msg.failureCode,
         diagnosis: msg.diagnosis,
         prescription: msg.prescription,
         diagnosisId: msg.diagnosisId,
@@ -807,6 +808,7 @@ const ChatScreen: React.FC = () => {
                   onRetry={retrySendMessage} 
                   onFollowUp={handleFollowUp}
                   isTyping={isThinking}
+                  activeMode={activeMode}
                   onConfirmClinical={confirmClinicalMode}
                   onCancelClinical={cancelClinicalMode}
                 />

@@ -14,6 +14,7 @@ export interface Message {
   systemType?: string;
   timestamp?: string;
   status?: 'SENDING' | 'SENT' | 'FAILED';
+  failureCode?: 'INSUFFICIENT_CREDITS' | 'GENERIC';
   diagnosis?: Diagnosis;
   prescription?: Prescription;
   diagnosisId?: string;
@@ -33,6 +34,7 @@ interface MessageListProps {
   onRetry?: (messageId: string) => void;
   onFollowUp?: (question: string) => void;
   isTyping?: boolean;
+  activeMode?: string;
   /** Called when the patient confirms they want to proceed in Clinical Mode */
   onConfirmClinical?: () => void;
   /** Called when the patient opts to stay in General Mode */
@@ -55,6 +57,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onRetry,
   onFollowUp,
   isTyping,
+  activeMode,
   onConfirmClinical,
   onCancelClinical,
 }) => {
@@ -240,7 +243,11 @@ export const MessageList: React.FC<MessageListProps> = ({
         timestamp={msg.timestamp}
         status={msg.status}
         isNew={isNew}
-        onRetry={msg.status === 'FAILED' && onRetry ? () => onRetry(msg.id) : undefined}
+        onRetry={
+          msg.status === 'FAILED' && msg.failureCode !== 'INSUFFICIENT_CREDITS' && onRetry
+            ? () => onRetry(msg.id)
+            : undefined
+        }
         onFollowUp={onFollowUp}
         diagnosis={msg.diagnosis}
         prescription={msg.prescription}
@@ -251,11 +258,12 @@ export const MessageList: React.FC<MessageListProps> = ({
         riskFlags={msg.riskFlags}
         investigations={msg.investigations}
         physicianSuggestions={msg.physicianSuggestions}
+        showClinicalContent={activeMode === 'clinical_diagnosis'}
         isFirstInGroup={isFirstInGroup}
         isLastInGroup={isLastInGroup}
       />
     );
-  }, [onRetry, onFollowUp, initialCountRef]);
+  }, [onRetry, onFollowUp, initialCountRef, activeMode]);
 
   return (
     <View style={{ flex: 1 }}>

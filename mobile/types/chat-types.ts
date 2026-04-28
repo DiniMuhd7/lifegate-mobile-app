@@ -21,6 +21,9 @@ export type SystemMessageType =
 // SENDING → SENT (server received) → READ (AI responded) | FAILED
 export type MessageStatus = 'SENDING' | 'SENT' | 'READ' | 'FAILED';
 
+// Machine-readable failure reason for a failed user message.
+export type MessageFailureCode = 'INSUFFICIENT_CREDITS' | 'GENERIC';
+
 // Conversation category (matches suggested action ids)
 export type ConversationCategory =
   | 'doctor_consultation'
@@ -77,6 +80,8 @@ export type Message = {
   id: string; // UUID-like identifier
   role: MessageRole;
   status: MessageStatus; // SENDING | SENT | FAILED
+  /** Optional failure reason used by UI (e.g. hide retry for credit-gate errors). */
+  failureCode?: MessageFailureCode;
   /** Subtype for SYSTEM messages — drives specialised rendering in the chat UI */
   systemType?: SystemMessageType;
   text: string;

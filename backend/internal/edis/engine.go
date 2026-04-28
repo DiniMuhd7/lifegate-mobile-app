@@ -333,9 +333,13 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 		resp.NeedsPhysicianReview = true
 	}
 
+	// Non-sensor conversational flows escalate only after full HPI completion.
+	// Sensor categories remain eligible immediately because they are objective tests.
+	escalationEligible := isSensorCategory || hpiComplete
+
 	// ── Urgency-based escalation ───────────────────────────────────────────────
 	// HIGH or CRITICAL urgency triggers General → Clinical escalation.
-	if raw.Diagnosis != nil {
+	if escalationEligible && raw.Diagnosis != nil {
 		urg := strings.ToUpper(raw.Diagnosis.Urgency)
 		if urg == "HIGH" || urg == "CRITICAL" {
 			resp.Escalated = true
@@ -346,13 +350,15 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 
 	// ── Risk-flag-based escalation ─────────────────────────────────────────────
 	// Any HIGH or CRITICAL severity risk flag triggers escalation and physician review.
-	for _, flag := range raw.RiskFlags {
-		sev := strings.ToUpper(flag.Severity)
-		if sev == "HIGH" || sev == "CRITICAL" {
-			resp.Escalated = true
-			resp.NeedsPhysicianReview = true
-			if resp.EscalationTrigger == "" {
-				resp.EscalationTrigger = fmt.Sprintf("risk_flag:%s", flag.Flag)
+	if escalationEligible {
+		for _, flag := range raw.RiskFlags {
+			sev := strings.ToUpper(flag.Severity)
+			if sev == "HIGH" || sev == "CRITICAL" {
+				resp.Escalated = true
+				resp.NeedsPhysicianReview = true
+				if resp.EscalationTrigger == "" {
+					resp.EscalationTrigger = fmt.Sprintf("risk_flag:%s", flag.Flag)
+				}
 			}
 		}
 	}

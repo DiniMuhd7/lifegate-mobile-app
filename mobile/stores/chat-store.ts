@@ -694,7 +694,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
           return {
             ...conversation,
             messages: conversation.messages.map((message) =>
-              message.id === userMessage.id ? { ...message, status: 'FAILED' as MessageStatus } : message
+              message.id === userMessage.id
+                ? {
+                    ...message,
+                    status: 'FAILED' as MessageStatus,
+                    failureCode: isInsufficientCredits ? 'INSUFFICIENT_CREDITS' : 'GENERIC',
+                  }
+                : message
             ),
             // Feature #5: silently switch to General Mode when credits run out.
             ...(isInsufficientCredits && wasClinical
@@ -784,7 +790,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : {
               ...item,
               messages: item.messages.map((message) =>
-                message.id === messageId ? { ...message, status: 'SENDING' as MessageStatus } : message
+                message.id === messageId
+                  ? { ...message, status: 'SENDING' as MessageStatus, failureCode: undefined }
+                  : message
               ),
               updatedAt: now(),
             }

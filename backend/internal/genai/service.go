@@ -62,6 +62,31 @@ func hpiIsComplete(hpi *ai.SymptomProfile) bool {
 	return hpi.Onset != "" && hpi.Duration != "" && hpi.SeverityScore > 0
 }
 
+func isClinicalDiagnosisCategory(category string) bool {
+	return strings.EqualFold(strings.TrimSpace(category), "clinical_diagnosis")
+}
+
+// enforceCategoryOutputPolicy makes request category the server-side source of truth.
+// Unless the request is explicitly clinical_diagnosis, strip all clinical fields
+// so no client can receive diagnosis/test outputs while in non-clinical mode.
+func enforceCategoryOutputPolicy(resp *edis.EDISResponse, category string) {
+	if resp == nil || isClinicalDiagnosisCategory(category) {
+		return
+	}
+
+	resp.Mode = "general"
+	resp.Diagnosis = nil
+	resp.Prescription = nil
+	resp.Conditions = nil
+	resp.RiskFlags = nil
+	resp.Investigations = nil
+	resp.FollowUpPlan = nil
+	resp.Escalated = false
+	resp.EscalationTrigger = ""
+	resp.LowConfidence = false
+	resp.NeedsPhysicianReview = false
+}
+
 // ─── Patient context helpers ──────────────────────────────────────────────────
 
 // fetchPatientContext queries the DB for the patient's health profile and
@@ -504,7 +529,7 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 	// Process never returns an error — graceful fallback is applied on failure.
 	resp, _ := s.engine.Process(ctx, messages, req.Category, patient, knownHPI)
 
-	return s.buildAndPublish(ctx, req.UserID, req.Message, resp, start)
+	return s.buildAndPublish(ctx, req.UserID, req.Message, req.Category, resp, start)
 }
 
 // ─── ChatInSession (session-scoped) ──────────────────────────────────────────
@@ -564,7 +589,7 @@ func (s *Service) ChatInSession(ctx context.Context, sessionID, userID, message,
 		return b
 	}())
 
-	return s.buildAndPublish(ctx, userID, message, resp, start)
+	return s.buildAndPublish(ctx, userID, message, category, resp, start)
 }
 
 // ─── FinalizeSession ──────────────────────────────────────────────────────────
@@ -649,7 +674,9 @@ func (s *Service) Status() map[string]string {
 // buildAndPublish converts an EDISResponse into a ChatResponse and publishes
 // the appropriate NATS events (ai.question.generated, early_flag.detected,
 // ai.session.escalated, ai.diagnosis.preliminary).
-func (s *Service) buildAndPublish(ctx context.Context, userID, message string, resp *edis.EDISResponse, start time.Time) (*ChatResponse, error) {
+func (s *Service) buildAndPublish(ctx context.Context, userID, message, category string, resp *edis.EDISResponse, start time.Time) (*ChatResponse, error) {
+	enforceCategoryOutputPolicy(resp, category)
+
 	// Persist any health profile fields collected from the patient this turn.
 	// Done before building the response so ProfileUpdated reflects actual DB state.
 	profileUpdated := s.saveProfileUpdate(ctx, userID, resp.ProfileUpdate)

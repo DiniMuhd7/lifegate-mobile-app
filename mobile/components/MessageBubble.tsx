@@ -61,6 +61,8 @@ interface MessageBubbleProps {
   riskFlags?: RiskFlag[];
   investigations?: Investigation[];
   physicianSuggestions?: VerifiedPhysician[];
+  /** Enables clinical-only cards (diagnosis, differentials, tests, prescriptions, risk flags). */
+  showClinicalContent?: boolean;
   /** Whether this is the first bubble in a consecutive same-sender group */
   isFirstInGroup?: boolean;
   /** Whether this is the last bubble in a consecutive same-sender group */
@@ -99,6 +101,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   riskFlags,
   investigations,
   physicianSuggestions,
+  showClinicalContent = true,
   isFirstInGroup = true,
   isLastInGroup = true,
 }) => {
@@ -326,25 +329,25 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
             )}
 
             {/* Risk flags */}
-            {riskFlags && riskFlags.length > 0 && (
+            {showClinicalContent && riskFlags && riskFlags.length > 0 && (
               <RiskFlagList riskFlags={riskFlags} />
             )}
 
             {/* Diagnosis card */}
-            {diagnosis && diagnosis.condition?.trim() && (
+            {showClinicalContent && diagnosis && diagnosis.condition?.trim() && (
               <DiagnosisCard diagnosis={diagnosis} diagnosisId={diagnosisId} isExistingCase={isExistingCase} />
             )}
 
             {/* Differential diagnosis */}
-            {conditions && conditions.length > 0 && (
+            {showClinicalContent && conditions && conditions.length > 0 && (
               <DifferentialList conditions={conditions} />
             )}
 
             {/* Prescription */}
-            {prescription && <PrescriptionCard prescription={prescription} />}
+            {showClinicalContent && prescription && <PrescriptionCard prescription={prescription} />}
 
             {/* Investigations */}
-            {investigations && investigations.length > 0 && (
+            {showClinicalContent && investigations && investigations.length > 0 && (
               <InvestigationList investigations={investigations} />
             )}
 
