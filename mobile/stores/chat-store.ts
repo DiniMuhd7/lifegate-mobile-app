@@ -725,8 +725,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Feature #5: always inject an in-chat insufficient-credit notice.
       if (isInsufficientCredits) {
         const creditNotice = wasClinical
-          ? "You've used all your diagnosis credits and have been switched to General Mode."
-          : "You've used all your diagnosis credits.";
+          ? "Clinical Diagnosis services require diagnosis credits. Top up your credits to continue Clinical Diagnosis mode — licensed doctors will review your case and you'll receive a full diagnosis report."
+          : "Diagnosis credits are required to access Clinical Diagnosis services. Top up to have licensed doctors review your case and receive a full diagnosis report.";
         injectSystemMessage(
           conversationId,
           creditNotice,
