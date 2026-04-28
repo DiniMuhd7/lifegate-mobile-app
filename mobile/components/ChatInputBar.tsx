@@ -28,6 +28,7 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -116,9 +117,23 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [ocrState, setOcrState] = useState<'idle' | 'camera' | 'scanning'>('idle');
+  // Captured photo URI shown as preview while OCR is running.
+  const [capturedUri, setCapturedUri] = useState<string | null>(null);
 
   const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  // Pre-warm microphone permission on web so the getUserMedia call inside
+  // startRecordingWeb resolves immediately (no permission dialog during a hold)
+  // and avoids the race condition where the dialog's "Allow" click triggers a
+  // pointerup that fires onPressOut before recording can start.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    navigator.mediaDevices
+      ?.getUserMedia({ audio: true })
+      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+      .catch(() => {/* user may deny – that's fine, handled at press time */});
+  }, []);
 
   // ── Waveform bar animations ──────────────────────────────────────────────
   const barAnims = useRef(
@@ -396,16 +411,25 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     if (!cameraRef.current) return;
 
     try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
-        quality: 0.75,
+        quality: 0.72,
+        // Skip saving to gallery — in-memory only
+        skipProcessing: true,
       });
 
+      // Show the captured photo inside the modal with a scanning overlay
+      // instead of closing the modal first.
+      setCapturedUri(photo.uri);
       setOcrState('scanning');
 
       const base64 = photo.base64 ?? (await imageUriToBase64(photo.uri));
       if (!base64) {
-        Alert.alert('Camera Error', 'Could not capture the image. Please try again.');
+        Alert.alert('Camera Error', 'Could not read the captured image. Please try again.');
+        setOcrState('camera');
+        setCapturedUri(null);
         return;
       }
 
@@ -416,8 +440,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           'Not a Medical Document',
           "This image doesn't appear to be a medical document.\n\nPlease scan lab results, prescriptions, X-ray reports, medical notes, or similar clinical documents.",
           [
-            { text: 'Scan Again', onPress: () => setOcrState('camera') },
-            { text: 'Cancel', style: 'cancel' },
+            { text: 'Scan Again', onPress: () => { setCapturedUri(null); setOcrState('camera'); } },
+            { text: 'Done', style: 'cancel', onPress: () => { setCapturedUri(null); setOcrState('idle'); } },
           ],
         );
         return;
@@ -427,11 +451,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         const formatted = `[Medical Document Scan]\n${result.text}`;
         setText((prev) => (prev ? `${prev}\n\n${formatted}` : formatted));
       }
+      setCapturedUri(null);
+      setOcrState('idle');
     } catch (err) {
       console.error('[OCR] capture error:', err);
-      Alert.alert('Scan Error', 'Could not analyze the image. Please try again.');
-    } finally {
-      setOcrState('idle');
+      Alert.alert('Scan Error', 'Could not analyze the image. Please try again.',
+        [{ text: 'Try Again', onPress: () => { setCapturedUri(null); setOcrState('camera'); } },
+         { text: 'Cancel', style: 'cancel', onPress: () => { setCapturedUri(null); setOcrState('idle'); } }],
+      );
     }
   }, []);
 
@@ -753,110 +780,125 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
       {/* ── Medical Document Scanner Modal ─────────────────────────────────── */}
       <Modal
-        visible={ocrState === 'camera'}
+        visible={ocrState !== 'idle'}
         animationType="slide"
         presentationStyle="fullScreen"
         statusBarTranslucent
-        onRequestClose={() => setOcrState('idle')}
+        onRequestClose={() => { setCapturedUri(null); setOcrState('idle'); }}
       >
         <View style={{ flex: 1, backgroundColor: '#000' }}>
-          <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' }}>
 
-              {/* Top instruction */}
-              <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
-                <View
-                  style={{
-                    backgroundColor: 'rgba(0,0,0,0.62)',
-                    borderRadius: 24,
-                    paddingHorizontal: 24,
-                    paddingVertical: 14,
-                    alignItems: 'center',
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <Ionicons name="scan-outline" size={18} color="#0d9488" />
-                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700', letterSpacing: 0.2 }}>
-                      Scan Medical Document
-                    </Text>
+          {/* ── LIVE CAMERA VIEW ── */}
+          {ocrState === 'camera' && (
+            <CameraView
+              ref={cameraRef}
+              style={{ flex: 1 }}
+              facing={Platform.OS === 'web' ? 'front' : 'back'}
+            >
+              {/* Absolute UI layer — does NOT cover the camera feed with a background */}
+
+              {/* Dark mask TOP */}
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 148, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+              {/* Dark mask LEFT */}
+              <View style={{ position: 'absolute', top: 148, left: 0, width: (SCREEN_W - FRAME_W) / 2, bottom: 180, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+              {/* Dark mask RIGHT */}
+              <View style={{ position: 'absolute', top: 148, right: 0, width: (SCREEN_W - FRAME_W) / 2, bottom: 180, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+              {/* Dark mask BOTTOM */}
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+
+              {/* Top instruction card */}
+              <View style={{ position: 'absolute', top: 54, left: 0, right: 0, alignItems: 'center', paddingHorizontal: 24 }}>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center', maxWidth: 320 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+                    <Ionicons name="scan-outline" size={16} color="#0d9488" />
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Scan Medical Document</Text>
                   </View>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 11, textAlign: 'center', lineHeight: 16 }}>
                     Lab results · Prescriptions · X-ray reports · Medical notes
                   </Text>
                 </View>
               </View>
 
-              {/* Document frame guide */}
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: FRAME_W, height: FRAME_H }}>
-                  {/* Corner TL */}
-                  <View style={{ position: 'absolute', top: 0, left: 0, width: 30, height: 30, borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#0d9488', borderTopLeftRadius: 6 }} />
-                  {/* Corner TR */}
-                  <View style={{ position: 'absolute', top: 0, right: 0, width: 30, height: 30, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#0d9488', borderTopRightRadius: 6 }} />
-                  {/* Corner BL */}
-                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: 30, height: 30, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: '#0d9488', borderBottomLeftRadius: 6 }} />
-                  {/* Corner BR */}
-                  <View style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#0d9488', borderBottomRightRadius: 6 }} />
+              {/* Document scan frame — 4 corner brackets only (camera visible through centre) */}
+              <View style={{ position: 'absolute', top: 148, left: (SCREEN_W - FRAME_W) / 2, width: FRAME_W, height: FRAME_H }}>
+                {/* TL */}<View style={{ position: 'absolute', top: 0, left: 0, width: 36, height: 36, borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#0d9488', borderTopLeftRadius: 8 }} />
+                {/* TR */}<View style={{ position: 'absolute', top: 0, right: 0, width: 36, height: 36, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#0d9488', borderTopRightRadius: 8 }} />
+                {/* BL */}<View style={{ position: 'absolute', bottom: 0, left: 0, width: 36, height: 36, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: '#0d9488', borderBottomLeftRadius: 8 }} />
+                {/* BR */}<View style={{ position: 'absolute', bottom: 0, right: 0, width: 36, height: 36, borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#0d9488', borderBottomRightRadius: 8 }} />
+                {/* Centre crosshair (subtle) */}
+                <View style={{ position: 'absolute', top: '50%', left: '50%', width: 16, height: 16, marginTop: -8, marginLeft: -8, opacity: 0.4 }}>
+                  <View style={{ position: 'absolute', top: 7, left: 0, right: 0, height: 2, backgroundColor: '#0d9488' }} />
+                  <View style={{ position: 'absolute', left: 7, top: 0, bottom: 0, width: 2, backgroundColor: '#0d9488' }} />
                 </View>
               </View>
 
-              {/* Bottom: cancel + capture */}
-              <View
-                style={{
-                  paddingBottom: 52,
-                  paddingHorizontal: 48,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => setOcrState('idle')}
-                  activeOpacity={0.7}
-                  style={{ paddingHorizontal: 16, paddingVertical: 10 }}
-                >
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, fontWeight: '500' }}>Cancel</Text>
-                </TouchableOpacity>
+              {/* Bottom controls */}
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', paddingHorizontal: 40, justifyContent: 'space-between' }}>
 
-                {/* Capture button */}
-                <TouchableOpacity
-                  onPress={handleCapture}
-                  activeOpacity={0.82}
-                  style={{
-                    width: 78,
-                    height: 78,
-                    borderRadius: 39,
-                    borderWidth: 4,
-                    borderColor: 'rgba(255,255,255,0.88)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 62,
-                      height: 62,
-                      borderRadius: 31,
-                      backgroundColor: '#0d9488',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      shadowColor: '#0d9488',
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.5,
-                      shadowRadius: 8,
-                      elevation: 8,
-                    }}
+                  {/* Cancel */}
+                  <TouchableOpacity
+                    onPress={() => { setCapturedUri(null); setOcrState('idle'); }}
+                    activeOpacity={0.7}
+                    style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <Ionicons name="camera" size={28} color="#ffffff" />
-                  </View>
-                </TouchableOpacity>
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="close" size={22} color="#fff" />
+                    </View>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 4 }}>Cancel</Text>
+                  </TouchableOpacity>
 
-                {/* Spacer for symmetry */}
-                <View style={{ width: 72 }} />
+                  {/* Capture shutter */}
+                  <TouchableOpacity
+                    onPress={handleCapture}
+                    activeOpacity={0.85}
+                    style={{ alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <View style={{ width: 82, height: 82, borderRadius: 41, borderWidth: 3.5, borderColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' }}>
+                      <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: '#0d9488' }} />
+                      </View>
+                    </View>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 }}>Capture</Text>
+                  </TouchableOpacity>
+
+                  {/* Torch / Flash placeholder (symmetry) */}
+                  <View style={{ width: 56, height: 56 }} />
+                </View>
               </View>
 
+            </CameraView>
+          )}
+
+          {/* ── SCANNING OVERLAY: show captured photo + spinner ── */}
+          {ocrState === 'scanning' && (
+            <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+              {capturedUri ? (
+                <>
+                  <View style={{ width: FRAME_W, height: FRAME_H, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#0d9488' }}>
+                    <Image
+                      source={{ uri: capturedUri }}
+                      style={{ width: FRAME_W, height: FRAME_H }}
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.52)', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ backgroundColor: 'rgba(0,0,0,0.82)', borderRadius: 20, paddingHorizontal: 32, paddingVertical: 24, alignItems: 'center', gap: 14 }}>
+                      <ActivityIndicator size="large" color="#0d9488" />
+                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.2 }}>Analyzing Document…</Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, textAlign: 'center' }}>AI is reading your medical document</Text>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <View style={{ alignItems: 'center', gap: 16 }}>
+                  <ActivityIndicator size="large" color="#0d9488" />
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Analyzing Document…</Text>
+                </View>
+              )}
             </View>
-          </CameraView>
+          )}
+
         </View>
       </Modal>
     </View>
