@@ -82,6 +82,8 @@ export type ChatState = {
   confirmClinicalMode: () => Promise<void>;
   /** Patient declined clinical mode — switch back to general and surface an info message. */
   cancelClinicalMode: () => void;
+  /** Resume the last insufficient-credit failed triage message after topping up. */
+  resumeTriageAfterTopUp: () => Promise<void>;
   clearError: () => void;
   clearEscalationNotice: (conversationId?: string) => void;
   resetChatState: () => void;
@@ -732,6 +734,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           creditNotice,
           'MODE_DOWNGRADE'
         );
+        injectSystemMessage(
+          conversationId,
+          'After topping up, tap Continue Triage to resume from where you stopped.',
+          'RESUME_TRIAGE'
+        );
         return;
       }
 
@@ -875,6 +882,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
       "No problem — you're continuing in General Mode. You can always switch to Clinical Diagnosis whenever you're ready.",
       'INFO'
     );
+  },
+
+  resumeTriageAfterTopUp: async () => {
+    const state = get();
+    if (state.isThinking) return;
+
+    const convId = state.activeConversationId;
+    const conversation = state.conversations.find((item) => item.id === convId);
+    if (!convId || !conversation) return;
+
+    const failedMsg = [...conversation.messages]
+      .reverse()
+      .find(
+        (message) => message.role === 'USER' && message.status === 'FAILED' && message.failureCode === 'INSUFFICIENT_CREDITS'
+      );
+
+    if (!failedMsg) {
+      set({ error: 'No paused triage message found to resume.' });
+      return;
+    }
+
+    set((current) => ({
+      conversations: current.conversations.map((conv) =>
+        conv.id !== convId
+          ? conv
+          : {
+              ...conv,
+              mode: 'clinical_diagnosis' as SessionMode,
+              category: 'doctor_consultation' as ConversationCategory,
+              updatedAt: now(),
+            }
+      ),
+    }));
+
+    await get().retrySendMessage(failedMsg.id);
   },
 
   deleteConversation: (conversationId: string) => {

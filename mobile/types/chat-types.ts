@@ -13,6 +13,7 @@ export type MessageRole = 'USER' | 'AI' | 'SYSTEM';
 export type SystemMessageType =
   | 'CONFIRM_CLINICAL'   // Clinical mode confirmation prompt with action buttons
   | 'MODE_DOWNGRADE'     // Notifies patient they've been silently moved to General Mode
+  | 'RESUME_TRIAGE'      // Prompts patient to continue triage after topping up credits
   | 'REFUND_PENDING'     // AI failed — credit refund is processing
   | 'REFUND_SUCCESS'     // Credit was successfully refunded
   | 'INFO';              // Generic informational system message

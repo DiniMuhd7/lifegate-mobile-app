@@ -37,6 +37,8 @@ interface MessageListProps {
   activeMode?: string;
   /** Called when the patient taps Top Up on insufficient-credits notice */
   onTopUp?: () => void;
+  /** Called when the patient taps Continue Triage after topping up */
+  onResumeTriage?: () => void;
   /** Called when the patient confirms they want to proceed in Clinical Mode */
   onConfirmClinical?: () => void;
   /** Called when the patient opts to stay in General Mode */
@@ -61,6 +63,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   isTyping,
   activeMode,
   onTopUp,
+  onResumeTriage,
   onConfirmClinical,
   onCancelClinical,
 }) => {
@@ -158,6 +161,7 @@ export const MessageList: React.FC<MessageListProps> = ({
       const isConfirm = msg.systemType === 'CONFIRM_CLINICAL';
       const isSuccess = msg.systemType === 'REFUND_SUCCESS';
       const isDowngrade = msg.systemType === 'MODE_DOWNGRADE';
+      const isResumeTriage = msg.systemType === 'RESUME_TRIAGE';
 
       // Colour palette varies by type
       const borderColor = isSuccess ? '#86efac' : isDowngrade ? '#fcd34d' : '#99f6e4';
@@ -250,6 +254,25 @@ export const MessageList: React.FC<MessageListProps> = ({
             >
               <Ionicons name="wallet-outline" size={16} color="#fff" />
               <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Top Up</Text>
+            </TouchableOpacity>
+          )}
+
+          {isResumeTriage && onResumeTriage && (
+            <TouchableOpacity
+              onPress={onResumeTriage}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: '#0f766e',
+                borderRadius: 10,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="play-circle-outline" size={16} color="#fff" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Continue Triage</Text>
             </TouchableOpacity>
           )}
         </View>

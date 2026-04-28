@@ -115,6 +115,7 @@ const ChatScreen: React.FC = () => {
   const deleteConversation = useChatStore((state) => state.deleteConversation);
   const confirmClinicalMode = useChatStore((state) => state.confirmClinicalMode);
   const cancelClinicalMode = useChatStore((state) => state.cancelClinicalMode);
+  const resumeTriageAfterTopUp = useChatStore((state) => state.resumeTriageAfterTopUp);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeConversationId) || null,
@@ -810,6 +811,7 @@ const ChatScreen: React.FC = () => {
                   isTyping={isThinking}
                   activeMode={activeMode}
                   onTopUp={() => router.push('/(tab)/settings/subscription')}
+                  onResumeTriage={resumeTriageAfterTopUp}
                   onConfirmClinical={confirmClinicalMode}
                   onCancelClinical={cancelClinicalMode}
                 />
