@@ -29,6 +29,7 @@ import {
   VerifiedPhysician,
 } from 'types/chat-types';
 import { ChatService } from 'services/chat-service';
+import { PaymentService } from 'services/payment-service';
 import { SessionService } from 'services/session-service';
 import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
@@ -89,6 +90,10 @@ export type ChatState = {
 };
 
 const ESCALATION_URGENCY = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+const CLINICAL_TOPUP_MESSAGE =
+  "Clinical Diagnosis services require diagnosis credits. Top up your credits to continue Clinical Diagnosis mode — licensed doctors will review your case and you'll receive a full diagnosis report.";
+const GENERAL_TOPUP_MESSAGE =
+  "Diagnosis credits are required to access Clinical Diagnosis services. Top up to have licensed doctors review your case and receive a full diagnosis report.";
 
 const modeToCategory = (mode: SessionMode): ConversationCategory =>
   mode === 'clinical_diagnosis' ? 'doctor_consultation' : 'general_health';
@@ -647,6 +652,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeAbortController: null,
       }));
 
+      if (
+        conversationSnapshot.mode === 'general_health' &&
+        escalatedConversation.mode === 'clinical_diagnosis'
+      ) {
+        try {
+          const creditBalance = await PaymentService.getCreditBalance();
+          if ((creditBalance?.balance ?? 0) <= 0) {
+            injectSystemMessage(conversationId, CLINICAL_TOPUP_MESSAGE, 'MODE_DOWNGRADE');
+          }
+        } catch {
+          // Best-effort only — do not block chat flow when balance fetch fails.
+        }
+      }
+
       scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
 
       const updatedConversation = getConversation(get().conversations, conversationId);
@@ -725,8 +744,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Feature #5: always inject an in-chat insufficient-credit notice.
       if (isInsufficientCredits) {
         const creditNotice = wasClinical
-          ? "Clinical Diagnosis services require diagnosis credits. Top up your credits to continue Clinical Diagnosis mode — licensed doctors will review your case and you'll receive a full diagnosis report."
-          : "Diagnosis credits are required to access Clinical Diagnosis services. Top up to have licensed doctors review your case and receive a full diagnosis report.";
+          ? CLINICAL_TOPUP_MESSAGE
+          : GENERAL_TOPUP_MESSAGE;
         injectSystemMessage(
           conversationId,
           creditNotice,
