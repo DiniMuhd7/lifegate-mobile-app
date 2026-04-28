@@ -504,37 +504,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     }
   }, []);
 
-  // ── Hold-to-record handlers ───────────────────────────────────────────────
+  // ── Shared stop + transcribe logic ───────────────────────────────────────
+  // Used by both the native release handler and the web second-tap handler.
 
-  const handleMicPressIn = useCallback(async () => {
-    if (disabled || voiceStateRef.current !== 'idle') return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    recordStartRef.current = Date.now();
-    pressActiveRef.current = true;
-
-    const started = Platform.OS === 'web'
-      ? await startRecordingWeb()
-      : await startRecordingNative();
-
-    // User released the button before permission prompt resolved — cancel.
-    if (!started || !pressActiveRef.current) {
-      if (started) {
-        if (Platform.OS === 'web') await stopRecordingWeb();
-        else await stopRecordingNative();
-      }
-      return;
-    }
-    setVoiceStateAndRef('recording');
-    startDurationCounter();
-    startWaveAnimation();
-  }, [disabled, startRecordingWeb, startRecordingNative, stopRecordingWeb, stopRecordingNative, startDurationCounter, startWaveAnimation, setVoiceStateAndRef]);
-
-  const handleMicPressOut = useCallback(async () => {
-    pressActiveRef.current = false;
-    // Use the ref — not the closure-captured voiceState — so this is never stale.
-    if (voiceStateRef.current !== 'recording') return;
-
+  const stopAndTranscribe = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     stopWaveAnimation();
     stopDurationCounter();
@@ -542,13 +515,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     const elapsed = Date.now() - recordStartRef.current;
 
     if (elapsed < MIN_RECORD_MS) {
-      // Too short — cancel and show a brief "Hold to record" hint.
+      // Recording too short — cancel and show hint.
       if (Platform.OS === 'web') await stopRecordingWeb();
       else await stopRecordingNative();
       barAnims.forEach((a) => a.setValue(0.15));
       setVoiceStateAndRef('idle');
       setRecordingDuration(0);
-      // Show hint for 2 s so the user knows they need to hold.
       setShowHoldHint(true);
       setTimeout(() => setShowHoldHint(false), 2000);
       return;
@@ -567,7 +539,6 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       } else {
         const uri = await stopRecordingNative();
         if (uri) {
-          // transcribeUri deletes the file regardless of success/failure
           const transcript = await VoiceService.transcribeUri(uri);
           if (transcript) setText((p) => (p ? `${p} ${transcript}` : transcript));
         }
@@ -580,6 +551,68 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       setRecordingDuration(0);
     }
   }, [stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims, setVoiceStateAndRef]);
+
+  // ── Platform-specific recording interaction ───────────────────────────────
+  //
+  // WEB  → Tap-to-toggle:  first tap starts, second tap stops.
+  //        Reason: hold-to-record is unreliable on web because getUserMedia
+  //        takes 50-200ms to initialise audio hardware even with pre-granted
+  //        permission. Any pointer-leave or gesture-cancel during that async
+  //        gap silently cancels the recording before the waveform ever shows.
+  //
+  // NATIVE → Hold-to-record: press-in starts, release stops (the classic UX).
+
+  const handleMicPressIn = useCallback(async () => {
+    if (disabled) return;
+
+    // Web tap-to-toggle: if already recording, this second tap = stop.
+    if (Platform.OS === 'web' && voiceStateRef.current === 'recording') {
+      await stopAndTranscribe();
+      return;
+    }
+
+    if (voiceStateRef.current !== 'idle') return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    recordStartRef.current = Date.now();
+    pressActiveRef.current = true;
+
+    const started = Platform.OS === 'web'
+      ? await startRecordingWeb()
+      : await startRecordingNative();
+
+    if (!started) {
+      // Recording failed to start — tell the user rather than failing silently.
+      pressActiveRef.current = false;
+      Alert.alert(
+        'Microphone Unavailable',
+        'Could not access the microphone. Please check your browser or device permissions and try again.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
+    // Native only: if user already released before getUserMedia resolved, cancel.
+    if (Platform.OS !== 'web' && !pressActiveRef.current) {
+      await stopRecordingNative();
+      return;
+    }
+
+    setVoiceStateAndRef('recording');
+    startDurationCounter();
+    startWaveAnimation();
+  }, [disabled, startRecordingWeb, startRecordingNative, stopRecordingNative, startDurationCounter, startWaveAnimation, setVoiceStateAndRef, stopAndTranscribe]);
+
+  const handleMicPressOut = useCallback(async () => {
+    pressActiveRef.current = false;
+
+    // Web uses tap-to-toggle — ignore the release event entirely.
+    if (Platform.OS === 'web') return;
+
+    // Native hold-to-record: release = stop.
+    if (voiceStateRef.current !== 'recording') return;
+    await stopAndTranscribe();
+  }, [stopAndTranscribe]);
 
   // ── Send handler ──────────────────────────────────────────────────────────
 
@@ -619,7 +652,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, gap: 6 }}>
           <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#0d9488' }} />
           <Text style={{ fontSize: 12, color: '#0d9488', fontWeight: '600', letterSpacing: 0.4 }}>
-            Recording… release to send
+            {Platform.OS === 'web' ? 'Recording… tap mic to stop' : 'Recording… release to send'}
           </Text>
         </View>
       )}
@@ -767,6 +800,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
         {/* ── Mic button (hold to record) ── */}
         <Pressable
+          testID="mic-button"
           onPressIn={handleMicPressIn}
           onPressOut={handleMicPressOut}
           disabled={disabled || voiceState === 'transcribing' || ocrState === 'scanning'}
@@ -829,7 +863,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
             letterSpacing: 0.3,
           }}
         >
-          {showHoldHint ? '⬆ Hold the mic button to record' : 'Hold mic to record · Tap camera to scan a document'}
+          {showHoldHint
+            ? (Platform.OS === 'web' ? '⬆ Tap the mic to start recording' : '⬆ Hold the mic button to record')
+            : (Platform.OS === 'web' ? 'Tap mic to record · Tap camera to scan a document' : 'Hold mic to record · Tap camera to scan a document')
+          }
         </Text>
       )}
 
