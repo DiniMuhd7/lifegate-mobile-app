@@ -373,14 +373,19 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const handleCameraPress = useCallback(async () => {
     if (disabled || voiceState !== 'idle' || ocrState !== 'idle') return;
 
-    if (!cameraPermission?.granted) {
-      const result = await requestCameraPermission();
-      if (!result.granted) {
-        Alert.alert(
-          'Camera Access Required',
-          'Please allow camera access in your device settings to scan medical documents.',
-        );
-        return;
+    // On web, CameraView triggers the browser's own getUserMedia permission
+    // dialog when it mounts — navigator.permissions.request is not supported
+    // in Chrome so we must NOT call requestCameraPermission() on web.
+    if (Platform.OS !== 'web') {
+      if (!cameraPermission?.granted) {
+        const result = await requestCameraPermission();
+        if (!result.granted) {
+          Alert.alert(
+            'Camera Access Required',
+            'Please allow camera access in your device settings to scan medical documents.',
+          );
+          return;
+        }
       }
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -612,7 +617,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           </TouchableOpacity>
         )}
 
-        {/* ── Recording: duration + WhatsApp waveform ── */}}
+        {/* ── Recording: duration + WhatsApp waveform ── */}
         {voiceState === 'recording' && (
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d9488', minWidth: 42, letterSpacing: 0.5 }}>
