@@ -2,6 +2,7 @@ package genai
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -223,4 +224,59 @@ func (h *Handler) GetAvailablePhysicians(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": physicians})
+}
+
+// ─── POST /api/genai/transcribe ───────────────────────────────────────────────
+
+// Transcribe accepts a multipart audio upload (field name: "audio"), forwards
+// it to OpenAI Whisper, and returns the extracted text. The audio data is
+// processed entirely in memory and is never persisted on the server.
+//
+// @Summary      Transcribe voice to text
+// @Description  Transcribes a voice recording using OpenAI Whisper. Accepts multipart/form-data with an "audio" field.
+// @Tags         genai
+// @Accept       mpfd
+// @Produce      json
+// @Security     BearerAuth
+// @Param        audio  formData  file  true  "Audio file (webm, m4a, mp3, wav, etc)"
+// @Success      200    {object}  object{success=bool,text=string}
+// @Failure      400    {object}  object{success=bool,message=string}
+// @Failure      500    {object}  object{success=bool,message=string}
+// @Router       /genai/transcribe [post]
+func (h *Handler) Transcribe(c *gin.Context) {
+	const maxUploadBytes = 25 << 20 // 25 MB — Whisper hard limit
+	if err := c.Request.ParseMultipartForm(maxUploadBytes); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid multipart form"})
+		return
+	}
+
+	file, header, err := c.Request.FormFile("audio")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Missing audio field"})
+		return
+	}
+	defer file.Close()
+
+	audioData, err := io.ReadAll(io.LimitReader(file, maxUploadBytes))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read audio"})
+		return
+	}
+	if len(audioData) < 512 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Audio file is too small"})
+		return
+	}
+
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "audio/m4a"
+	}
+
+	text, err := h.svc.TranscribeAudio(c.Request.Context(), audioData, header.Filename, contentType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": fmt.Sprintf("Transcription failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "text": text})
 }

@@ -203,6 +203,7 @@ func main() {
 	// Wire physician push broadcasts into the AI service so escalated cases
 	// trigger Expo push notifications even when physicians are in the background.
 	genaiSvc.SetPhysicianPushBroadcaster(pushSvc)
+	genaiSvc.SetOpenAIKey(cfg.OpenAIAPIKey)
 
 	reviewSvc := review.NewService(database)
 	reviewHandler := review.NewHandler(reviewSvc)
@@ -345,6 +346,7 @@ func main() {
 		})
 		genaiGroup.POST("/health-check", genaiHandler.HealthCheck)
 		genaiGroup.GET("/status", genaiHandler.Status)
+		genaiGroup.POST("/transcribe", genaiHandler.Transcribe)
 	}
 
 	// Session-scoped AI routes

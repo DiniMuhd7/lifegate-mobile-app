@@ -1,11 +1,15 @@
 package genai
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
+	"net/http"
 	"strings"
 	"time"
 
@@ -221,12 +225,13 @@ func (s *Service) saveProfileUpdate(ctx context.Context, userID string, u *ai.Pr
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 type Service struct {
-	engine   *edis.Engine
-	db       *sql.DB
-	nats     *natsclient.Client
-	sessions *sessions.Service
-	notifier PhysicianNotifier
-	physPush PhysicianPushBroadcaster
+	engine     *edis.Engine
+	db         *sql.DB
+	nats       *natsclient.Client
+	sessions   *sessions.Service
+	notifier   PhysicianNotifier
+	physPush   PhysicianPushBroadcaster
+	openAIKey  string
 }
 
 // PhysicianNotifier is satisfied by the WebSocket hub. It is used to push
@@ -257,6 +262,73 @@ func (s *Service) SetPhysicianNotifier(n PhysicianNotifier) {
 // escalated cases trigger a push to all physicians with a registered token.
 func (s *Service) SetPhysicianPushBroadcaster(b PhysicianPushBroadcaster) {
 	s.physPush = b
+}
+
+// SetOpenAIKey stores the OpenAI API key used for Whisper audio transcription.
+func (s *Service) SetOpenAIKey(key string) {
+	s.openAIKey = key
+}
+
+// TranscribeAudio sends raw audio bytes to OpenAI Whisper and returns the
+// transcribed text. Audio data is never written to disk on the server — it is
+// streamed directly to the Whisper API in a multipart POST body.
+func (s *Service) TranscribeAudio(ctx context.Context, audioData []byte, filename, contentType string) (string, error) {
+	if s.openAIKey == "" {
+		return "", fmt.Errorf("OpenAI API key is not configured")
+	}
+	if len(audioData) == 0 {
+		return "", fmt.Errorf("audio data is empty")
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+
+	_ = mw.WriteField("model", "whisper-1")
+	_ = mw.WriteField("language", "en")
+	_ = mw.WriteField("response_format", "json")
+
+	part, err := mw.CreateFormFile("file", filename)
+	if err != nil {
+		return "", fmt.Errorf("creating form file: %w", err)
+	}
+	if _, err = part.Write(audioData); err != nil {
+		return "", fmt.Errorf("writing audio data: %w", err)
+	}
+	if err = mw.Close(); err != nil {
+		return "", fmt.Errorf("closing multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		"https://api.openai.com/v1/audio/transcriptions",
+		&body,
+	)
+	if err != nil {
+		return "", fmt.Errorf("building request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+s.openAIKey)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("whisper API request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("reading whisper response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("whisper API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Text string `json:"text"`
+	}
+	if err = json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("parsing whisper response: %w", err)
+	}
+	return strings.TrimSpace(result.Text), nil
 }
 
 // ─── Request / Response types ─────────────────────────────────────────────────
