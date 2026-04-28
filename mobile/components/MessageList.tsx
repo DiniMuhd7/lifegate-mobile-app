@@ -35,6 +35,8 @@ interface MessageListProps {
   onFollowUp?: (question: string) => void;
   isTyping?: boolean;
   activeMode?: string;
+  /** Called when the patient taps Top Up on insufficient-credits notice */
+  onTopUp?: () => void;
   /** Called when the patient confirms they want to proceed in Clinical Mode */
   onConfirmClinical?: () => void;
   /** Called when the patient opts to stay in General Mode */
@@ -58,6 +60,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onFollowUp,
   isTyping,
   activeMode,
+  onTopUp,
   onConfirmClinical,
   onCancelClinical,
 }) => {
@@ -229,6 +232,25 @@ export const MessageList: React.FC<MessageListProps> = ({
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#475569' }}>Stay in General</Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {isDowngrade && onTopUp && (
+            <TouchableOpacity
+              onPress={onTopUp}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: '#b45309',
+                borderRadius: 10,
+                paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="wallet-outline" size={16} color="#fff" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>Top Up</Text>
+            </TouchableOpacity>
           )}
         </View>
       );

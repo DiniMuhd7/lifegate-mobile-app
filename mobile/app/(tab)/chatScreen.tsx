@@ -809,6 +809,7 @@ const ChatScreen: React.FC = () => {
                   onFollowUp={handleFollowUp}
                   isTyping={isThinking}
                   activeMode={activeMode}
+                  onTopUp={() => router.push('/(tab)/settings/subscription')}
                   onConfirmClinical={confirmClinicalMode}
                   onCancelClinical={cancelClinicalMode}
                 />

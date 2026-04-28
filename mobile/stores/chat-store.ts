@@ -726,7 +726,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (isInsufficientCredits && wasClinical) {
         injectSystemMessage(
           conversationId,
-          "You've used all your diagnosis credits — your session has been switched to General Mode.\n\nYou can continue chatting here for free, or top up your credits to resume Clinical Diagnosis anytime.",
+          "You've used all your diagnosis credits and have been switched to General Mode; tap Top Up to resume Clinical Diagnosis.",
           'MODE_DOWNGRADE'
         );
         return;
