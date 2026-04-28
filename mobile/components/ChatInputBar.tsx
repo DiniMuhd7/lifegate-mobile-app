@@ -422,8 +422,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       {/* Status label */}
       {voiceState === 'recording' && (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, gap: 6 }}>
-          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#ef4444' }} />
-          <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: '600', letterSpacing: 0.4 }}>
+          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#0d9488' }} />
+          <Text style={{ fontSize: 12, color: '#0d9488', fontWeight: '600', letterSpacing: 0.4 }}>
             Recording… release to send
           </Text>
         </View>
@@ -461,13 +461,13 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           opacity: disabled ? 0.55 : 1,
           transform: [{ translateX: shakeAnim }],
           borderWidth: voiceState === 'recording' ? 1.5 : 0,
-          borderColor: voiceState === 'recording' ? 'rgba(239,68,68,0.35)' : 'transparent',
+          borderColor: voiceState === 'recording' ? 'rgba(13,148,136,0.35)' : 'transparent',
         }}
       >
         {/* ── Recording: duration + WhatsApp waveform ── */}
         {voiceState === 'recording' && (
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444', minWidth: 42, letterSpacing: 0.5 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d9488', minWidth: 42, letterSpacing: 0.5 }}>
               {formatDuration(recordingDuration)}
             </Text>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, height: 32 }}>
@@ -477,7 +477,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                   style={{
                     width: 3,
                     height: 28,
-                    backgroundColor: '#ef4444',
+                    backgroundColor: '#0d9488',
                     borderRadius: 2,
                     transform: [{ scaleY: anim }],
                   }}
@@ -537,7 +537,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                 width: 36,
                 height: 36,
                 borderRadius: 18,
-                backgroundColor: voiceState === 'recording' ? 'rgba(239,68,68,0.13)' : 'rgba(13,148,136,0.08)',
+                backgroundColor: 'rgba(13,148,136,0.08)',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -545,7 +545,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
               <Ionicons
                 name={voiceState === 'transcribing' ? 'mic-off-outline' : voiceState === 'recording' ? 'mic' : 'mic-outline'}
                 size={20}
-                color={voiceState === 'recording' ? '#dc2626' : voiceState === 'transcribing' ? '#94a3b8' : '#0d9488'}
+                color={voiceState === 'transcribing' ? '#94a3b8' : '#0d9488'}
               />
             </View>
           </Animated.View>
