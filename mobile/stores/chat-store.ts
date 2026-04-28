@@ -90,9 +90,7 @@ export type ChatState = {
 };
 
 const ESCALATION_URGENCY = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
-const CLINICAL_TOPUP_MESSAGE =
-  "Clinical Diagnosis services require diagnosis credits. Top up your credits to continue Clinical Diagnosis mode — licensed doctors will review your case and you'll receive a full diagnosis report.";
-const GENERAL_TOPUP_MESSAGE =
+const TOPUP_MESSAGE =
   "Diagnosis credits are required to access Clinical Diagnosis services. Top up to have licensed doctors review your case and receive a full diagnosis report.";
 
 const modeToCategory = (mode: SessionMode): ConversationCategory =>
@@ -659,7 +657,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         try {
           const creditBalance = await PaymentService.getCreditBalance();
           if ((creditBalance?.balance ?? 0) <= 0) {
-            injectSystemMessage(conversationId, CLINICAL_TOPUP_MESSAGE, 'MODE_DOWNGRADE');
+            injectSystemMessage(conversationId, TOPUP_MESSAGE, 'MODE_DOWNGRADE');
           }
         } catch {
           // Best-effort only — do not block chat flow when balance fetch fails.
@@ -743,12 +741,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Feature #5: always inject an in-chat insufficient-credit notice.
       if (isInsufficientCredits) {
-        const creditNotice = wasClinical
-          ? CLINICAL_TOPUP_MESSAGE
-          : GENERAL_TOPUP_MESSAGE;
         injectSystemMessage(
           conversationId,
-          creditNotice,
+          TOPUP_MESSAGE,
           'MODE_DOWNGRADE'
         );
         return;
