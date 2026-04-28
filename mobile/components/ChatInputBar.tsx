@@ -26,11 +26,16 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as FileSystem from 'expo-file-system';
 import { VoiceService } from 'services/voice-service';
+import { OcrService } from 'services/ocr-service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +71,40 @@ function normaliseMeter(dbFS: number): number {
   return Math.min(1, Math.max(0, (dbFS + 60) / 60));
 }
 
+/**
+ * Converts a captured image URI to a raw base64 string.
+ * Fallback for when expo-camera returns a URI without the base64 field.
+ */
+async function imageUriToBase64(uri: string): Promise<string | null> {
+  try {
+    if (Platform.OS === 'web') {
+      const r = await fetch(uri);
+      const blob = await r.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const res = reader.result as string;
+          resolve(res.split(',')[1] ?? res);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } else {
+      return await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    }
+  } catch {
+    return null;
+  }
+}
+
+// ─── Camera scanner constants ─────────────────────────────────────────────────
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const FRAME_W = SCREEN_W * 0.84;
+const FRAME_H = FRAME_W * 1.35;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = ({
@@ -76,6 +115,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [text, setText] = useState('');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [ocrState, setOcrState] = useState<'idle' | 'camera' | 'scanning'>('idle');
+
+  const cameraRef = useRef<CameraView | null>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   // ── Waveform bar animations ──────────────────────────────────────────────
   const barAnims = useRef(
@@ -325,6 +368,68 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     });
   }, []);
 
+  // ── Camera / OCR handlers ────────────────────────────────────────────────
+
+  const handleCameraPress = useCallback(async () => {
+    if (disabled || voiceState !== 'idle' || ocrState !== 'idle') return;
+
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        Alert.alert(
+          'Camera Access Required',
+          'Please allow camera access in your device settings to scan medical documents.',
+        );
+        return;
+      }
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setOcrState('camera');
+  }, [disabled, voiceState, ocrState, cameraPermission, requestCameraPermission]);
+
+  const handleCapture = useCallback(async () => {
+    if (!cameraRef.current) return;
+
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        base64: true,
+        quality: 0.75,
+      });
+
+      setOcrState('scanning');
+
+      const base64 = photo.base64 ?? (await imageUriToBase64(photo.uri));
+      if (!base64) {
+        Alert.alert('Camera Error', 'Could not capture the image. Please try again.');
+        return;
+      }
+
+      const result = await OcrService.scanImage(base64, 'image/jpeg');
+
+      if (!result.isMedical) {
+        Alert.alert(
+          'Not a Medical Document',
+          "This image doesn't appear to be a medical document.\n\nPlease scan lab results, prescriptions, X-ray reports, medical notes, or similar clinical documents.",
+          [
+            { text: 'Scan Again', onPress: () => setOcrState('camera') },
+            { text: 'Cancel', style: 'cancel' },
+          ],
+        );
+        return;
+      }
+
+      if (result.text) {
+        const formatted = `[Medical Document Scan]\n${result.text}`;
+        setText((prev) => (prev ? `${prev}\n\n${formatted}` : formatted));
+      }
+    } catch (err) {
+      console.error('[OCR] capture error:', err);
+      Alert.alert('Scan Error', 'Could not analyze the image. Please try again.');
+    } finally {
+      setOcrState('idle');
+    }
+  }, []);
+
   // ── Hold-to-record handlers ───────────────────────────────────────────────
 
   const handleMicPressIn = useCallback(async () => {
@@ -419,7 +524,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const charCount = text.length;
   const showCounter = charCount > 4000;
   const isNearLimit = charCount > 4500;
-  const isVoiceActive = voiceState !== 'idle';
+  const isVoiceActive = voiceState !== 'idle' || ocrState !== 'idle';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -448,6 +553,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           </Text>
         </View>
       )}
+      {ocrState === 'scanning' && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 8, gap: 8 }}>
+          <ActivityIndicator size="small" color="#0d9488" />
+          <Text style={{ fontSize: 12, color: '#0d9488', fontWeight: '600', letterSpacing: 0.4 }}>
+            Analyzing medical scan…
+          </Text>
+        </View>
+      )}
 
       {/* Character counter */}
       {showCounter && voiceState === 'idle' && (
@@ -467,7 +580,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           alignItems: 'center',
           backgroundColor: 'rgba(255,255,255,0.92)',
           borderRadius: 30,
-          paddingLeft: 20,
+          paddingLeft: 4,
           paddingRight: 6,
           paddingVertical: 6,
           opacity: disabled ? 0.55 : 1,
@@ -476,7 +589,30 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           borderColor: voiceState === 'recording' ? 'rgba(13,148,136,0.35)' : 'transparent',
         }}
       >
-        {/* ── Recording: duration + WhatsApp waveform ── */}
+        {/* ── Camera scan button (left edge, idle only) ── */}
+        {voiceState === 'idle' && ocrState === 'idle' && (
+          <TouchableOpacity
+            onPress={handleCameraPress}
+            disabled={disabled}
+            activeOpacity={0.7}
+            style={{ marginLeft: 6, marginRight: 2, padding: 4 }}
+          >
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 17,
+                backgroundColor: 'rgba(13,148,136,0.08)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons name="camera-outline" size={19} color="#0d9488" />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* ── Recording: duration + WhatsApp waveform ── */}}
         {voiceState === 'recording' && (
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d9488', minWidth: 42, letterSpacing: 0.5 }}>
@@ -509,8 +645,23 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           </View>
         )}
 
+        {/* ── Scanning: OCR in progress ── */}
+        {ocrState === 'scanning' && (
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, paddingLeft: 12 }}>
+            <ActivityIndicator size="small" color="#0d9488" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, color: '#0d9488', fontWeight: '600' }}>
+                Analyzing medical image…
+              </Text>
+              <Text style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
+                AI is reading your document
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* ── Idle: text input ── */}
-        {voiceState === 'idle' && (
+        {voiceState === 'idle' && ocrState !== 'scanning' && (
           <View style={{ flex: 1, justifyContent: 'center', minHeight: 44 }}>
             {!hasText && (
               <View
@@ -540,7 +691,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         <Pressable
           onPressIn={handleMicPressIn}
           onPressOut={handleMicPressOut}
-          disabled={disabled || voiceState === 'transcribing'}
+          disabled={disabled || voiceState === 'transcribing' || ocrState === 'scanning'}
           style={{ marginRight: 4, padding: 4 }}
         >
           <Animated.View style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', transform: [{ scale: micPulse }] }}>
@@ -589,11 +740,120 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       </Animated.View>
 
       {/* Hold-to-record hint */}
-      {voiceState === 'idle' && !hasText && !disabled && (
+      {voiceState === 'idle' && ocrState === 'idle' && !hasText && !disabled && (
         <Text style={{ textAlign: 'center', marginTop: 6, fontSize: 10.5, color: '#94a3b8', letterSpacing: 0.3 }}>
-          Hold mic to record a voice message
+          Hold mic to record · Tap camera to scan a document
         </Text>
       )}
+
+      {/* ── Medical Document Scanner Modal ─────────────────────────────────── */}
+      <Modal
+        visible={ocrState === 'camera'}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setOcrState('idle')}
+      >
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back">
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' }}>
+
+              {/* Top instruction */}
+              <View style={{ alignItems: 'center', paddingTop: 56, paddingHorizontal: 24 }}>
+                <View
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.62)',
+                    borderRadius: 24,
+                    paddingHorizontal: 24,
+                    paddingVertical: 14,
+                    alignItems: 'center',
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Ionicons name="scan-outline" size={18} color="#0d9488" />
+                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700', letterSpacing: 0.2 }}>
+                      Scan Medical Document
+                    </Text>
+                  </View>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+                    Lab results · Prescriptions · X-ray reports · Medical notes
+                  </Text>
+                </View>
+              </View>
+
+              {/* Document frame guide */}
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: FRAME_W, height: FRAME_H }}>
+                  {/* Corner TL */}
+                  <View style={{ position: 'absolute', top: 0, left: 0, width: 30, height: 30, borderTopWidth: 3, borderLeftWidth: 3, borderColor: '#0d9488', borderTopLeftRadius: 6 }} />
+                  {/* Corner TR */}
+                  <View style={{ position: 'absolute', top: 0, right: 0, width: 30, height: 30, borderTopWidth: 3, borderRightWidth: 3, borderColor: '#0d9488', borderTopRightRadius: 6 }} />
+                  {/* Corner BL */}
+                  <View style={{ position: 'absolute', bottom: 0, left: 0, width: 30, height: 30, borderBottomWidth: 3, borderLeftWidth: 3, borderColor: '#0d9488', borderBottomLeftRadius: 6 }} />
+                  {/* Corner BR */}
+                  <View style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderBottomWidth: 3, borderRightWidth: 3, borderColor: '#0d9488', borderBottomRightRadius: 6 }} />
+                </View>
+              </View>
+
+              {/* Bottom: cancel + capture */}
+              <View
+                style={{
+                  paddingBottom: 52,
+                  paddingHorizontal: 48,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => setOcrState('idle')}
+                  activeOpacity={0.7}
+                  style={{ paddingHorizontal: 16, paddingVertical: 10 }}
+                >
+                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, fontWeight: '500' }}>Cancel</Text>
+                </TouchableOpacity>
+
+                {/* Capture button */}
+                <TouchableOpacity
+                  onPress={handleCapture}
+                  activeOpacity={0.82}
+                  style={{
+                    width: 78,
+                    height: 78,
+                    borderRadius: 39,
+                    borderWidth: 4,
+                    borderColor: 'rgba(255,255,255,0.88)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 62,
+                      height: 62,
+                      borderRadius: 31,
+                      backgroundColor: '#0d9488',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      shadowColor: '#0d9488',
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 8,
+                      elevation: 8,
+                    }}
+                  >
+                    <Ionicons name="camera" size={28} color="#ffffff" />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Spacer for symmetry */}
+                <View style={{ width: 72 }} />
+              </View>
+
+            </View>
+          </CameraView>
+        </View>
+      </Modal>
     </View>
   );
 };

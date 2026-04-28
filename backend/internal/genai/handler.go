@@ -280,3 +280,52 @@ func (h *Handler) Transcribe(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "text": text})
 }
+
+// ─── POST /api/genai/scan ─────────────────────────────────────────────────
+
+// ScanImage accepts a JSON body containing a base64-encoded medical document
+// image, runs it through OpenAI Vision (gpt-4o) for OCR, validates that the
+// content is medically relevant, and returns the extracted text.
+// The image is processed entirely in memory and is never persisted.
+//
+// @Summary      OCR scan of a medical document image
+// @Description  Performs real-time OCR on a medical image using OpenAI Vision. Rejects non-medical images. Image is never stored.
+// @Tags         genai
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body  object{image=string,mimeType=string}  true  "Base64 image + MIME type"
+// @Success      200   {object}  object{success=bool,text=string,isMedical=bool}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      500   {object}  object{success=bool,message=string}
+// @Router       /genai/scan [post]
+func (h *Handler) ScanImage(c *gin.Context) {
+	var req struct {
+		Image    string `json:"image" binding:"required"`
+		MimeType string `json:"mimeType"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if req.MimeType == "" {
+		req.MimeType = "image/jpeg"
+	}
+	// ~10 MB raw → ~13.3 MB base64 limit
+	if len(req.Image) > 14_000_000 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Image too large (max ~10 MB)"})
+		return
+	}
+	if len(req.Image) < 100 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Image data too small"})
+		return
+	}
+
+	text, isMedical, err := h.svc.ScanMedicalImage(c.Request.Context(), req.Image, req.MimeType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": fmt.Sprintf("Image scan failed: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "text": text, "isMedical": isMedical})
+}

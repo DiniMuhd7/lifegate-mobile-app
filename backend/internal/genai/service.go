@@ -264,9 +264,105 @@ func (s *Service) SetPhysicianPushBroadcaster(b PhysicianPushBroadcaster) {
 	s.physPush = b
 }
 
-// SetOpenAIKey stores the OpenAI API key used for Whisper audio transcription.
+// SetOpenAIKey stores the OpenAI API key used for Whisper and Vision APIs.
 func (s *Service) SetOpenAIKey(key string) {
 	s.openAIKey = key
+}
+
+// ScanMedicalImage sends a base64-encoded image to OpenAI Vision (gpt-4o) for
+// real-time OCR extraction. It returns the extracted text and a flag indicating
+// whether the image was identified as a medical document. The image data is
+// processed entirely in memory — it is never written to any storage.
+func (s *Service) ScanMedicalImage(ctx context.Context, imageBase64, mimeType string) (text string, isMedical bool, err error) {
+	if s.openAIKey == "" {
+		return "", false, fmt.Errorf("OpenAI API key is not configured")
+	}
+
+	const systemPrompt = `You are a medical document OCR assistant. Examine the provided image carefully.
+
+If the image is NOT a medical or health-related document (e.g. a selfie, food photo, landscape, random screenshot, or any non-clinical content), respond with exactly: NOT_MEDICAL
+
+If the image IS a medical or health-related document — such as lab results, blood panel, urine analysis, prescription, medication packaging, X-ray or imaging report, doctor's notes, medical certificate, ECG/EKG, ultrasound report, pathology report, discharge summary, or any clinical document — extract ALL text and structured information using this format:
+
+Document Type: <type>
+Date: <date if visible>
+---
+<All extracted text, preserving structure, numerical values, units, reference ranges, and clinical annotations>
+---
+
+Be thorough, accurate, and preserve all medical terminology.`
+
+	reqBody := map[string]any{
+		"model":      "gpt-4o",
+		"max_tokens": 2000,
+		"messages": []map[string]any{
+			{
+				"role": "user",
+				"content": []map[string]any{
+					{
+						"type": "text",
+						"text": systemPrompt,
+					},
+					{
+						"type": "image_url",
+						"image_url": map[string]string{
+							"url":    fmt.Sprintf("data:%s;base64,%s", mimeType, imageBase64),
+							"detail": "high",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", false, fmt.Errorf("marshalling vision request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		"https://api.openai.com/v1/chat/completions",
+		bytes.NewReader(bodyBytes),
+	)
+	if err != nil {
+		return "", false, fmt.Errorf("building vision request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+s.openAIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", false, fmt.Errorf("vision API request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", false, fmt.Errorf("reading vision response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("vision API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err = json.Unmarshal(respBody, &result); err != nil {
+		return "", false, fmt.Errorf("parsing vision response: %w", err)
+	}
+	if len(result.Choices) == 0 {
+		return "", false, fmt.Errorf("empty response from vision API")
+	}
+
+	content := strings.TrimSpace(result.Choices[0].Message.Content)
+	if strings.EqualFold(content, "NOT_MEDICAL") {
+		return "", false, nil
+	}
+	return content, true, nil
 }
 
 // TranscribeAudio sends raw audio bytes to OpenAI Whisper and returns the

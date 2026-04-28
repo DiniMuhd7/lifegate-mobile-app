@@ -347,6 +347,7 @@ func main() {
 		genaiGroup.POST("/health-check", genaiHandler.HealthCheck)
 		genaiGroup.GET("/status", genaiHandler.Status)
 		genaiGroup.POST("/transcribe", genaiHandler.Transcribe)
+		genaiGroup.POST("/scan", genaiHandler.ScanImage)
 	}
 
 	// Session-scoped AI routes
