@@ -725,7 +725,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
         {/* ── Recording: duration + WhatsApp waveform ── */}
         {voiceState === 'recording' && (
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 10 }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: '#0d9488', minWidth: 42, letterSpacing: 0.5 }}>
               {formatDuration(recordingDuration)}
             </Text>
@@ -748,7 +748,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
         {/* ── Transcribing: spinner ── */}
         {voiceState === 'transcribing' && (
-          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, paddingLeft: 10 }}>
             <ActivityIndicator size="small" color="#0d9488" />
             <Text style={{ fontSize: 14, color: '#0d9488', fontWeight: '500' }}>
               Transcribing voice…
@@ -874,29 +874,33 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       <Modal
         visible={ocrState !== 'idle'}
         animationType="slide"
-        presentationStyle="fullScreen"
+        presentationStyle="overFullScreen"
+        transparent
         statusBarTranslucent
         onRequestClose={() => { setCapturedUri(null); setOcrState('idle'); }}
       >
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
+        {/* Semi-transparent overlay — app UI visible at ~10% behind */}
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.90)' }}>
 
           {/* ── LIVE CAMERA VIEW ── */}
           {ocrState === 'camera' && (
-            <CameraView
-              ref={cameraRef}
-              style={{ flex: 1 }}
-              facing={Platform.OS === 'web' ? 'front' : 'back'}
-            >
-              {/* Absolute UI layer — does NOT cover the camera feed with a background */}
-
-              {/* Dark mask TOP */}
-              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 148, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-              {/* Dark mask LEFT */}
-              <View style={{ position: 'absolute', top: 148, left: 0, width: (SCREEN_W - FRAME_W) / 2, bottom: 180, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-              {/* Dark mask RIGHT */}
-              <View style={{ position: 'absolute', top: 148, right: 0, width: (SCREEN_W - FRAME_W) / 2, bottom: 180, backgroundColor: 'rgba(0,0,0,0.55)' }} />
-              {/* Dark mask BOTTOM */}
-              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.55)' }} />
+            <>
+              {/* Camera feed — constrained to the scan frame only */}
+              <View style={{
+                position: 'absolute',
+                top: 148,
+                left: (SCREEN_W - FRAME_W) / 2,
+                width: FRAME_W,
+                height: FRAME_H,
+                borderRadius: 4,
+                overflow: 'hidden',
+              }}>
+                <CameraView
+                  ref={cameraRef}
+                  style={{ flex: 1 }}
+                  facing={Platform.OS === 'web' ? 'front' : 'back'}
+                />
+              </View>
 
               {/* Top instruction card */}
               <View style={{ position: 'absolute', top: 54, left: 0, right: 0, alignItems: 'center', paddingHorizontal: 24 }}>
@@ -958,13 +962,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                   <View style={{ width: 56, height: 56 }} />
                 </View>
               </View>
-
-            </CameraView>
+            </>
           )}
 
           {/* ── SCANNING OVERLAY: show captured photo + spinner ── */}
           {ocrState === 'scanning' && (
-            <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' }}>
               {capturedUri ? (
                 <>
                   <View style={{ width: FRAME_W, height: FRAME_H, borderRadius: 12, overflow: 'hidden', borderWidth: 2, borderColor: '#0d9488' }}>
