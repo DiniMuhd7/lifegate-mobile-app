@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -61,6 +62,63 @@ const (
 	FlagGastrointestinal = "GASTROINTESTINAL_RISK"
 	FlagRenal            = "RENAL_RISK"
 )
+
+var emergencyPreHPIFlags = map[string]struct{}{
+	FlagCardiac:      {},
+	FlagNeurological: {},
+	FlagRespiratory:  {},
+	FlagSepsis:       {},
+	FlagHypertensive: {},
+	FlagObstetric:    {},
+	FlagMentalHealth: {},
+}
+
+func isEmergencyPreHPIFlag(flag ai.RiskFlag) bool {
+	sev := strings.ToUpper(strings.TrimSpace(flag.Severity))
+	if sev != "HIGH" && sev != "CRITICAL" {
+		return false
+	}
+	code := strings.ToUpper(strings.TrimSpace(flag.Flag))
+	_, ok := emergencyPreHPIFlags[code]
+	return ok
+}
+
+var phoneNumberPattern = regexp.MustCompile(`\+?\d[\d\s().-]{6,}\d`)
+
+func redactPhoneNumbers(text string) string {
+	if strings.TrimSpace(text) == "" {
+		return text
+	}
+	return strings.TrimSpace(phoneNumberPattern.ReplaceAllString(text, "[redacted]"))
+}
+
+func sanitizeResponsePhoneNumbers(raw *ai.AIResponse) {
+	if raw == nil {
+		return
+	}
+
+	raw.Text = redactPhoneNumbers(raw.Text)
+
+	for i := range raw.FollowUpQuestions {
+		raw.FollowUpQuestions[i] = redactPhoneNumbers(raw.FollowUpQuestions[i])
+	}
+
+	if raw.Diagnosis != nil {
+		raw.Diagnosis.Description = redactPhoneNumbers(raw.Diagnosis.Description)
+	}
+
+	for i := range raw.Conditions {
+		raw.Conditions[i].Description = redactPhoneNumbers(raw.Conditions[i].Description)
+	}
+
+	for i := range raw.RiskFlags {
+		raw.RiskFlags[i].Description = redactPhoneNumbers(raw.RiskFlags[i].Description)
+	}
+
+	for i := range raw.Investigations {
+		raw.Investigations[i].Reason = redactPhoneNumbers(raw.Investigations[i].Reason)
+	}
+}
 
 // ─── Response type ────────────────────────────────────────────────────────────
 
@@ -219,6 +277,7 @@ func (e *Engine) Process(ctx context.Context, messages []ai.ChatMessage, categor
 // category is used to enforce mode-specific safety rules (e.g. prescription restriction).
 func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 	resp := &EDISResponse{AIResponse: raw}
+	sanitizeResponsePhoneNumbers(raw)
 
 	// Ensure mode is set.
 	if raw.Mode == "" {
@@ -333,15 +392,36 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 		resp.NeedsPhysicianReview = true
 	}
 
-	// Non-sensor conversational flows escalate only after full HPI completion.
+	// Practical policy:
+	//   1) Emergency override: conversational sessions may escalate before full HPI,
+	//      but only for hard red-flag risk codes at HIGH/CRITICAL severity.
+	//   2) Standard escalation path (urgency/risk): requires full HPI for
+	//      conversational sessions.
+	//   3) Diagnosis release remains tied to full HPI by the HPI gate above.
+	if !isSensorCategory && !hpiComplete {
+		for _, flag := range raw.RiskFlags {
+			if !isEmergencyPreHPIFlag(flag) {
+				continue
+			}
+			resp.Escalated = true
+			resp.NeedsPhysicianReview = true
+			if resp.EscalationTrigger == "" {
+				resp.EscalationTrigger = fmt.Sprintf("emergency_risk_flag:%s", strings.ToUpper(strings.TrimSpace(flag.Flag)))
+			}
+			break
+		}
+	}
+
+	// Non-sensor conversational flows use full-HPI gating for standard escalation.
 	// Sensor categories remain eligible immediately because they are objective tests.
 	escalationEligible := isSensorCategory || hpiComplete
 
 	// ── Urgency-based escalation ───────────────────────────────────────────────
-	// HIGH or CRITICAL urgency triggers General → Clinical escalation.
+	// Any diagnosis urgency (LOW, MEDIUM, HIGH, CRITICAL) triggers
+	// General → Clinical escalation once escalation is eligible.
 	if escalationEligible && raw.Diagnosis != nil {
 		urg := strings.ToUpper(raw.Diagnosis.Urgency)
-		if urg == "HIGH" || urg == "CRITICAL" {
+		if urg == "LOW" || urg == "MEDIUM" || urg == "HIGH" || urg == "CRITICAL" {
 			resp.Escalated = true
 			resp.EscalationTrigger = fmt.Sprintf("urgency_threshold_breach:%s", urg)
 			resp.NeedsPhysicianReview = true
@@ -380,7 +460,7 @@ func gracefulFallback() *EDISResponse {
 		AIResponse: &ai.AIResponse{
 			Text: "I'm having a little trouble right now — it might be a brief connection issue. " +
 				"Please try sending your message again in a moment. " +
-				"If you're experiencing a medical emergency, please call 199 immediately.",
+				"If you're experiencing a medical emergency, please seek immediate emergency care.",
 			Mode: "general",
 		},
 	}

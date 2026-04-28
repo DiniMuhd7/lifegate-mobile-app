@@ -99,10 +99,15 @@ export class ChatService {
     } catch (error: any) {
       console.error('Backend AI API Error:', error);
       // Detect credit-gate rejection so the UI can show a top-up prompt.
-      if (
-        error?.response?.status === 402 &&
-        error?.response?.data?.code === 'INSUFFICIENT_CREDITS'
-      ) {
+      const status = error?.response?.status;
+      const code = String(error?.response?.data?.code || '').toUpperCase();
+      const message = String(error?.response?.data?.message || '').toLowerCase();
+      const isCreditGate =
+        status === 402 ||
+        code === 'INSUFFICIENT_CREDITS' ||
+        message.includes('insufficient') && message.includes('credit');
+
+      if (isCreditGate) {
         throw new Error('INSUFFICIENT_CREDITS');
       }
       throw new Error(

@@ -88,7 +88,7 @@ export type ChatState = {
   flushPendingPersistence: () => Promise<void>;
 };
 
-const ESCALATION_URGENCY = new Set(['HIGH', 'CRITICAL']);
+const ESCALATION_URGENCY = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 
 const modeToCategory = (mode: SessionMode): ConversationCategory =>
   mode === 'clinical_diagnosis' ? 'doctor_consultation' : 'general_health';
@@ -722,11 +722,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
 
-      // Feature #5: inject an in-chat message explaining the mode downgrade.
-      if (isInsufficientCredits && wasClinical) {
+      // Feature #5: always inject an in-chat insufficient-credit notice.
+      if (isInsufficientCredits) {
+        const creditNotice = wasClinical
+          ? "You've used all your diagnosis credits and have been switched to General Mode; tap Top Up to resume Clinical Diagnosis."
+          : "You've used all your diagnosis credits; tap Top Up to continue with Clinical Diagnosis.";
         injectSystemMessage(
           conversationId,
-          "You've used all your diagnosis credits and have been switched to General Mode; tap Top Up to resume Clinical Diagnosis.",
+          creditNotice,
           'MODE_DOWNGRADE'
         );
         return;

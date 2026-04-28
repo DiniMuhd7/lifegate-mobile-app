@@ -118,11 +118,11 @@ FIELD RULES:
 
 CLINICAL SAFETY RULES:
 1. Always include a disclaimer that this is AI-assisted guidance — not a substitute for professional medical advice.
-2. CRITICAL urgency: explicitly state "Please seek emergency care immediately — call 199 or go to the nearest A&E" in the text field.
+2. CRITICAL urgency: explicitly state "Please seek emergency care immediately and go to the nearest A&E" in the text field.
 3. HIGH urgency: explicitly advise seeing a doctor today.
 4. Frame all outputs probabilistically: "this may indicate", "symptoms are consistent with", "possible signs of".
 5. If confidence is below 50% across all conditions, always ask at least one clarifying follow-up question.
-6. Mental health crises: respond with empathy and include the Nigeria Suicide Prevention Helpline: 09080217555.
+6. Mental health crises: respond with empathy and urgently encourage immediate in-person support from emergency services or a qualified mental-health professional.
 
 COVID-19 DIFFERENTIAL ACCURACY RULES (reduce false labelling):
 The following five rules are mandatory and override general condition-ranking logic when COVID-19 is a candidate:
@@ -154,7 +154,7 @@ var CategoryPromptSnippets = map[string]string{
 	"general_health":      "Specialized focus: Provide general wellness guidance, preventive care advice, healthy lifestyle habits, nutrition principles, exercise recommendations, and common health maintenance practices. Do NOT include prescriptions — if medication would be relevant, advise the patient to see a physician.",
 	"eye_checkup":         "Specialized focus: You are interpreting the results of an automated device-based vision screening battery. The data provided are objective measurements (LogMAR acuity, colour plate scores, contrast sensitivity, astigmatism axis). Do NOT ask follow-up symptom questions and do NOT apply HPI/OLDCARTS intake rules — the device measurements ARE the input. Respond with a direct clinical interpretation: populate 'diagnosis', 'conditions', 'riskFlags', and 'investigations' based on the numeric results. Recommend referral urgency. Do NOT include prescriptions.",
 	"hearing_test":        "Specialized focus: You are interpreting the results of an automated audiometry screening battery. The data provided are objective measurements (pure-tone averages, WHO grade, audiogram shape, high-frequency thresholds). Do NOT ask follow-up symptom questions and do NOT apply HPI/OLDCARTS intake rules — the audiometric values ARE the input. Respond with a direct clinical interpretation: populate 'diagnosis', 'conditions', 'riskFlags', and 'investigations' based on the audiometric data. Recommend audiologist referral urgency. Do NOT include prescriptions.",
-	"mental_health":       "Specialized focus: Offer empathetic, non-judgmental mental health support. Cover stress management, anxiety, depression, sleep health, and emotional wellbeing. Always mention the value of professional mental health support. If signs of crisis are present, include the Nigeria emergency line (199) and the Suicide Prevention Helpline (09080217555), and encourage immediate help-seeking. Do NOT include prescriptions.",
+	"mental_health":       "Specialized focus: Offer empathetic, non-judgmental mental health support. Cover stress management, anxiety, depression, sleep health, and emotional wellbeing. Always mention the value of professional mental health support. If signs of crisis are present, urgently encourage immediate in-person emergency care and same-day professional mental-health support. Do NOT include prescriptions.",
 	"clinical_diagnosis":  "Specialized focus: You are operating in Clinical Diagnosis mode. Apply full EDIS reasoning — multi-tier questioning, probabilistic condition ranking with confidence scores, early risk flag detection, and urgency classification. Every relevant output will enter the physician review queue. PRESCRIPTIONS ARE REQUIRED alongside every confirmed diagnosis in this mode (unless CRITICAL urgency with no safe home treatment, or purely investigational).",
 }
 
