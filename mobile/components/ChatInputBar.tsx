@@ -123,16 +123,25 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  // Pre-warm microphone permission on web so the getUserMedia call inside
-  // startRecordingWeb resolves immediately (no permission dialog during a hold)
-  // and avoids the race condition where the dialog's "Allow" click triggers a
-  // pointerup that fires onPressOut before recording can start.
+  // Pre-warm microphone on web: only if permission is ALREADY granted so we
+  // never trigger an unexpected permission dialog at mount time. The purpose is
+  // to ensure the AudioContext pipeline starts up and the first getUserMedia
+  // call inside startRecordingWeb resolves instantly (no permission dialog
+  // racing with onPressOut). For first-time users, the permission dialog will
+  // appear on the first press which is the correct and expected place for it.
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    navigator.mediaDevices
-      ?.getUserMedia({ audio: true })
-      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
-      .catch(() => {/* user may deny – that's fine, handled at press time */});
+    // navigator.permissions is not available on all browsers, skip silently
+    navigator.permissions?.query({ name: 'microphone' as PermissionName })
+      .then((status) => {
+        if (status.state === 'granted') {
+          // Permission already granted — warm up the audio pipeline
+          return navigator.mediaDevices
+            ?.getUserMedia({ audio: true })
+            .then((stream) => stream.getTracks().forEach((t) => t.stop()));
+        }
+      })
+      .catch(() => {/* ignore — best-effort only */});
   }, []);
 
   // ── Waveform bar animations ──────────────────────────────────────────────
@@ -410,6 +419,11 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
 
+    // Tracks whether the post-capture state has already been explicitly reset
+    // by one of the alert button handlers. Used in the finally block to avoid
+    // a double-reset that would fight with the "Scan Again" → camera flow.
+    let stateHandled = false;
+
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -427,9 +441,17 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
       const base64 = photo.base64 ?? (await imageUriToBase64(photo.uri));
       if (!base64) {
-        Alert.alert('Camera Error', 'Could not read the captured image. Please try again.');
-        setOcrState('camera');
-        setCapturedUri(null);
+        Alert.alert(
+          'Camera Error',
+          'Could not read the captured image. Please try again.',
+          [
+            { text: 'Try Again', onPress: () => { stateHandled = true; setCapturedUri(null); setOcrState('camera'); } },
+            { text: 'Cancel', style: 'cancel', onPress: () => { stateHandled = true; setCapturedUri(null); setOcrState('idle'); } },
+          ],
+          // Prevent Android back-button from dismissing without a choice — that
+          // would leave ocrState stuck at 'scanning' and permanently disable mic.
+          { cancelable: false },
+        );
         return;
       }
 
@@ -440,9 +462,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           'Not a Medical Document',
           "This image doesn't appear to be a medical document.\n\nPlease scan lab results, prescriptions, X-ray reports, medical notes, or similar clinical documents.",
           [
-            { text: 'Scan Again', onPress: () => { setCapturedUri(null); setOcrState('camera'); } },
-            { text: 'Done', style: 'cancel', onPress: () => { setCapturedUri(null); setOcrState('idle'); } },
+            { text: 'Scan Again', onPress: () => { stateHandled = true; setCapturedUri(null); setOcrState('camera'); } },
+            { text: 'Done', style: 'cancel', onPress: () => { stateHandled = true; setCapturedUri(null); setOcrState('idle'); } },
           ],
+          { cancelable: false },
         );
         return;
       }
@@ -451,14 +474,28 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         const formatted = `[Medical Document Scan]\n${result.text}`;
         setText((prev) => (prev ? `${prev}\n\n${formatted}` : formatted));
       }
+      stateHandled = true;
       setCapturedUri(null);
       setOcrState('idle');
     } catch (err) {
       console.error('[OCR] capture error:', err);
-      Alert.alert('Scan Error', 'Could not analyze the image. Please try again.',
-        [{ text: 'Try Again', onPress: () => { setCapturedUri(null); setOcrState('camera'); } },
-         { text: 'Cancel', style: 'cancel', onPress: () => { setCapturedUri(null); setOcrState('idle'); } }],
+      Alert.alert(
+        'Scan Error',
+        'Could not analyze the image. Please try again.',
+        [
+          { text: 'Try Again', onPress: () => { stateHandled = true; setCapturedUri(null); setOcrState('camera'); } },
+          { text: 'Cancel', style: 'cancel', onPress: () => { stateHandled = true; setCapturedUri(null); setOcrState('idle'); } },
+        ],
+        { cancelable: false },
       );
+    } finally {
+      // Safety net: if no alert button was pressed (e.g. the alert was somehow
+      // dismissed without firing a handler), reset state here so the mic is
+      // never permanently disabled.
+      if (!stateHandled) {
+        setCapturedUri(null);
+        setOcrState('idle');
+      }
     }
   }, []);
 
