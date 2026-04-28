@@ -119,29 +119,34 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [ocrState, setOcrState] = useState<'idle' | 'camera' | 'scanning'>('idle');
   // Captured photo URI shown as preview while OCR is running.
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
+  // True for ~1.5s after a quick tap so we can show "Hold to record" hint.
+  const [showHoldHint, setShowHoldHint] = useState(false);
 
   const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  // Pre-warm microphone on web: only if permission is ALREADY granted so we
-  // never trigger an unexpected permission dialog at mount time. The purpose is
-  // to ensure the AudioContext pipeline starts up and the first getUserMedia
-  // call inside startRecordingWeb resolves instantly (no permission dialog
-  // racing with onPressOut). For first-time users, the permission dialog will
-  // appear on the first press which is the correct and expected place for it.
+  // ── voiceState ref — always in sync with voiceState ──────────────────────
+  // handleMicPressOut uses a ref so it is never stale in its useCallback
+  // closure, which would cause the recording to run forever when the user
+  // releases the button in the ~50 ms window between setVoiceState('recording')
+  // and React re-rendering the Pressable with the updated onPressOut handler.
+  const voiceStateRef = useRef<VoiceState>('idle');
+  const setVoiceStateAndRef = useCallback((s: VoiceState) => {
+    voiceStateRef.current = s;
+    setVoiceState(s);
+  }, []);
+
+  // Pre-warm microphone permission on web unconditionally at mount time.
+  // This guarantees the browser permission dialog appears once (at startup)
+  // rather than inside the hold gesture, where the dialog's "Allow" click
+  // fires pointerleave on the Pressable → onPressOut → pressActiveRef=false
+  // → recording silently cancelled before it can start.
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    // navigator.permissions is not available on all browsers, skip silently
-    navigator.permissions?.query({ name: 'microphone' as PermissionName })
-      .then((status) => {
-        if (status.state === 'granted') {
-          // Permission already granted — warm up the audio pipeline
-          return navigator.mediaDevices
-            ?.getUserMedia({ audio: true })
-            .then((stream) => stream.getTracks().forEach((t) => t.stop()));
-        }
-      })
-      .catch(() => {/* ignore — best-effort only */});
+    navigator.mediaDevices
+      ?.getUserMedia({ audio: true })
+      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+      .catch(() => {/* user may deny — that's fine, handled at press time */});
   }, []);
 
   // ── Waveform bar animations ──────────────────────────────────────────────
@@ -502,7 +507,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   // ── Hold-to-record handlers ───────────────────────────────────────────────
 
   const handleMicPressIn = useCallback(async () => {
-    if (disabled || voiceState !== 'idle') return;
+    if (disabled || voiceStateRef.current !== 'idle') return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     recordStartRef.current = Date.now();
@@ -520,14 +525,15 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       }
       return;
     }
-    setVoiceState('recording');
+    setVoiceStateAndRef('recording');
     startDurationCounter();
     startWaveAnimation();
-  }, [disabled, voiceState, startRecordingWeb, startRecordingNative, stopRecordingWeb, stopRecordingNative, startDurationCounter, startWaveAnimation]);
+  }, [disabled, startRecordingWeb, startRecordingNative, stopRecordingWeb, stopRecordingNative, startDurationCounter, startWaveAnimation, setVoiceStateAndRef]);
 
   const handleMicPressOut = useCallback(async () => {
     pressActiveRef.current = false;
-    if (voiceState !== 'recording') return;
+    // Use the ref — not the closure-captured voiceState — so this is never stale.
+    if (voiceStateRef.current !== 'recording') return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     stopWaveAnimation();
@@ -536,16 +542,19 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     const elapsed = Date.now() - recordStartRef.current;
 
     if (elapsed < MIN_RECORD_MS) {
-      // Too short — cancel silently
+      // Too short — cancel and show a brief "Hold to record" hint.
       if (Platform.OS === 'web') await stopRecordingWeb();
       else await stopRecordingNative();
       barAnims.forEach((a) => a.setValue(0.15));
-      setVoiceState('idle');
+      setVoiceStateAndRef('idle');
       setRecordingDuration(0);
+      // Show hint for 2 s so the user knows they need to hold.
+      setShowHoldHint(true);
+      setTimeout(() => setShowHoldHint(false), 2000);
       return;
     }
 
-    setVoiceState('transcribing');
+    setVoiceStateAndRef('transcribing');
 
     try {
       if (Platform.OS === 'web') {
@@ -567,10 +576,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       console.error('[Voice] transcription error:', err);
       Alert.alert('Voice Error', 'Could not transcribe the recording. Please try again.');
     } finally {
-      setVoiceState('idle');
+      setVoiceStateAndRef('idle');
       setRecordingDuration(0);
     }
-  }, [voiceState, stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims]);
+  }, [stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims, setVoiceStateAndRef]);
 
   // ── Send handler ──────────────────────────────────────────────────────────
 
@@ -808,10 +817,19 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         </Animated.View>
       </Animated.View>
 
-      {/* Hold-to-record hint */}
-      {voiceState === 'idle' && ocrState === 'idle' && !hasText && !disabled && (
-        <Text style={{ textAlign: 'center', marginTop: 6, fontSize: 10.5, color: '#94a3b8', letterSpacing: 0.3 }}>
-          Hold mic to record · Tap camera to scan a document
+      {/* Hold-to-record hint — shown always when idle + empty, or briefly after a quick tap */}
+      {voiceState === 'idle' && ocrState === 'idle' && !disabled && (
+        <Text
+          style={{
+            textAlign: 'center',
+            marginTop: 6,
+            fontSize: showHoldHint ? 12 : 10.5,
+            color: showHoldHint ? '#0d9488' : (hasText ? 'transparent' : '#94a3b8'),
+            fontWeight: showHoldHint ? '600' : '400',
+            letterSpacing: 0.3,
+          }}
+        >
+          {showHoldHint ? '⬆ Hold the mic button to record' : 'Hold mic to record · Tap camera to scan a document'}
         </Text>
       )}
 
