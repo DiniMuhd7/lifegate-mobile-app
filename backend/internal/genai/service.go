@@ -81,8 +81,10 @@ func enforceCategoryOutputPolicy(resp *edis.EDISResponse, category string) {
 	resp.RiskFlags = nil
 	resp.Investigations = nil
 	resp.FollowUpPlan = nil
-	resp.Escalated = false
-	resp.EscalationTrigger = ""
+	// Escalated / EscalationTrigger are intentionally preserved so the frontend
+	// can prompt the user to upgrade to Clinical mode when EDIS detects a
+	// threshold breach — even while the session is still in general_health mode.
+	// They carry no clinical content (PHI), so preserving them is safe.
 	resp.LowConfidence = false
 	resp.NeedsPhysicianReview = false
 }
