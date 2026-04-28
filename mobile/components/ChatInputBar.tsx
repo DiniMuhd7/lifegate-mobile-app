@@ -100,6 +100,9 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const waveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Duration counter interval
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Guards against the race where the user releases the button before
+  // getUserMedia / Audio.requestPermissionsAsync resolves.
+  const pressActiveRef = useRef(false);
 
   // Web-specific refs
   const webMediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -329,18 +332,27 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     recordStartRef.current = Date.now();
+    pressActiveRef.current = true;
 
     const started = Platform.OS === 'web'
       ? await startRecordingWeb()
       : await startRecordingNative();
 
-    if (!started) return;
+    // User released the button before permission prompt resolved — cancel.
+    if (!started || !pressActiveRef.current) {
+      if (started) {
+        if (Platform.OS === 'web') await stopRecordingWeb();
+        else await stopRecordingNative();
+      }
+      return;
+    }
     setVoiceState('recording');
     startDurationCounter();
     startWaveAnimation();
-  }, [disabled, voiceState, startRecordingWeb, startRecordingNative, startDurationCounter, startWaveAnimation]);
+  }, [disabled, voiceState, startRecordingWeb, startRecordingNative, stopRecordingWeb, stopRecordingNative, startDurationCounter, startWaveAnimation]);
 
   const handleMicPressOut = useCallback(async () => {
+    pressActiveRef.current = false;
     if (voiceState !== 'recording') return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
