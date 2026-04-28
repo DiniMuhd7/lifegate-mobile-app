@@ -19,6 +19,7 @@ const isWeb = Platform.OS === 'web';
 const WebView = isWeb ? null : require('react-native-webview').default;
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
+import { useChatStore } from 'stores/chat-store';
 import type { CreditBundle, PaymentCurrency } from 'types/payment-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,6 +46,9 @@ export default function SubscriptionScreen() {
     paymentLoading,
   } = usePaymentStore();
 
+  const activeConversationId = useChatStore((state) => state.activeConversationId);
+  const setConversationMode = useChatStore((state) => state.setConversationMode);
+
   const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
   const [currency, setCurrency] = useState<PaymentCurrency>('NGN');
   const [showWebView, setShowWebView] = useState(false);
@@ -66,6 +70,11 @@ export default function SubscriptionScreen() {
       fetchBalance();
     }, [])
   );
+
+  const switchActiveChatToClinical = useCallback(() => {
+    if (!activeConversationId) return;
+    setConversationMode(activeConversationId, 'clinical_diagnosis');
+  }, [activeConversationId, setConversationMode]);
 
   useEffect(() => {
     if (!paymentLink) return;
@@ -110,6 +119,7 @@ export default function SubscriptionScreen() {
           setShowVerifyPrompt(false);
           setVerifying(false);
           setVerifyAttempt(0);
+          switchActiveChatToClinical();
           router.push({
             pathname: '/(tab)/settings/checkOutScreen',
             params: {
@@ -137,7 +147,7 @@ export default function SubscriptionScreen() {
       pathname: '/(tab)/settings/payment-failed',
       params: { bundleId: selectedBundle ?? '' },
     });
-  }, [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink]);
+  }, [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink, switchActiveChatToClinical]);
 
   const handleNavChange = useCallback(
     async (nav: WebViewNavigation) => {
@@ -164,6 +174,7 @@ export default function SubscriptionScreen() {
         try {
           const tx = await verifyPayment(txRef, flwTxId);
           if (tx.status === 'success') {
+            switchActiveChatToClinical();
             router.push({
               pathname: '/(tab)/settings/checkOutScreen',
               params: {
@@ -183,7 +194,7 @@ export default function SubscriptionScreen() {
         params: { bundleId: selectedBundle ?? '' },
       });
     },
-    [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink]
+    [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink, switchActiveChatToClinical]
   );
 
   const displayBundles: CreditBundle[] = bundles.length
