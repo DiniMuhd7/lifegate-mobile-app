@@ -33,20 +33,20 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/alerts"
 	auditpkg "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/audit"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
-	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/edis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/explore"
 	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
+	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/payments"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/explore"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
@@ -199,6 +199,10 @@ func main() {
 	// Wire push notifications so physicians receive patient-case events
 	// and patients receive completion notifications from physician reviews.
 	physicianSvc.SetPushNotifier(pushSvc)
+
+	// Auto-assignment worker — assigns new pending cases to verified physicians,
+	// sends patient IM updates, and reassigns cases not completed within 30 minutes.
+	go physicianSvc.StartAutoAssignment(context.Background())
 
 	// Wire physician push broadcasts into the AI service so escalated cases
 	// trigger Expo push notifications even when physicians are in the background.
