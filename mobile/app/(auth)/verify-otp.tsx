@@ -97,7 +97,12 @@ export default function VerifyOtpScreen() {
         const { verifyPhysician2FA } = useAuthStore.getState();
         const success = await verifyPhysician2FA(email, otpString);
         if (success) {
-          runNavigation(() => router.replace('/(prof-tab)/review'));
+          const { user: verifiedUser } = useAuthStore.getState();
+          if (verifiedUser?.mdcn_verified) {
+            runNavigation(() => router.replace('/(prof-tab)/review'));
+          } else {
+            runNavigation(() => router.replace('/physician-pending'));
+          }
         } else {
           const { error: storeError } = useAuthStore.getState();
           setError(storeError || 'Invalid verification code');

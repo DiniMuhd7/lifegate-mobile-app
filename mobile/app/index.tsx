@@ -5,7 +5,9 @@ import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useSessionStore } from 'stores/session-store';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logo from 'assets/logo.svg';
+import { INTRO_SEEN_KEY } from './intro';
 
 
 
@@ -39,24 +41,37 @@ export default function SplashScreen() {
           }
         }
 
+        // Check if first-launch intro has been seen
+        const introSeen = await AsyncStorage.getItem(INTRO_SEEN_KEY);
+
         // Navigate based on auth state
         setTimeout(() => {
+          // First-ever launch: show onboarding regardless of auth state
+          if (!introSeen) {
+            router.replace('/intro');
+            return;
+          }
+
           if (isAuthenticated) {
             const { user } = useAuthStore.getState();
             if (user?.role === 'admin') {
               router.replace('/(admin-tab)/dashboard');
             } else if (user?.role === 'professional') {
-              router.replace('/(prof-tab)/review');
+              if (user.mdcn_verified) {
+                router.replace('/(prof-tab)/review');
+              } else {
+                router.replace('/physician-pending');
+              }
             } else {
               router.replace('/(tab)/health');
             }
           } else {
-            router.replace('/login');
+            router.replace('/welcome');
           }
         }, 1500); // Show splash for 1.5 seconds
       } catch (error) {
         console.error('Error initializing app:', error);
-        router.replace('/login');
+        router.replace('/welcome');
       }
     };
 

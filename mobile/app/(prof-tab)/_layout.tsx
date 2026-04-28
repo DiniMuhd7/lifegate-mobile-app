@@ -76,6 +76,9 @@ export default function ProfTabLayout() {
       } else {
         router.replace('/(tab)/chatScreen');
       }
+    } else if (!authUser?.mdcn_verified) {
+      // Physician is authenticated but not yet verified — hold on pending screen.
+      router.replace('/physician-pending');
     }
   }, [navigationState?.key, isAuthenticated, authUser, sessionLoading]);
 

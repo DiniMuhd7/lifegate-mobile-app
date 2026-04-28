@@ -68,7 +68,11 @@ export default function LoginScreen() {
             params: { email: pending2FA.email, mode: 'physician2fa' },
           });
         } else if (user?.role === 'professional') {
-          router.replace('/(prof-tab)/review');
+          if (user.mdcn_verified) {
+            router.replace('/(prof-tab)/review');
+          } else {
+            router.replace('/physician-pending');
+          }
         } else if (user?.role === 'admin') {
           router.replace('/(admin-tab)/dashboard');
         } else {

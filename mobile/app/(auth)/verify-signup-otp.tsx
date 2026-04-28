@@ -118,8 +118,9 @@ export default function VerifySignupOtpScreen() {
         const userRole = user?.role ?? userDraft.role;
 
         if (userRole === 'professional') {
-          // Route professional users to MDCN license verification screen
-          runNavigation(() => router.replace('/(auth)/mdcn-verify'));
+          // Route professional users to the verification-pending screen.
+          // MDCN live-verification is omitted until a future release.
+          runNavigation(() => router.replace('/physician-pending'));
         } else {
           // Route regular users to health dashboard
           runNavigation(() => router.replace('/(tab)/health'));
