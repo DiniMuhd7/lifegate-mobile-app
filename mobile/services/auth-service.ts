@@ -458,4 +458,40 @@ export const AuthService = {
       return { success: true };
     }
   },
+
+  /**
+   * Schedule the authenticated user's account for deletion in 90 days.
+   * POST /auth/account/delete
+   */
+  async requestAccountDeletion(): Promise<{ success: boolean; message: string; user?: import('../types/auth-types').User }> {
+    try {
+      const response = await api.post<{ success: boolean; message: string; data?: { user: import('../types/auth-types').User } }>(
+        '/auth/account/delete'
+      );
+      if (!response.data.success) {
+        return { success: false, message: response.data.message || 'Failed to schedule account deletion' };
+      }
+      return { success: true, message: response.data.message, user: response.data.data?.user };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
+
+  /**
+   * Cancel a previously scheduled account deletion.
+   * DELETE /auth/account/delete
+   */
+  async cancelAccountDeletion(): Promise<{ success: boolean; message: string; user?: import('../types/auth-types').User }> {
+    try {
+      const response = await api.delete<{ success: boolean; message: string; data?: { user: import('../types/auth-types').User } }>(
+        '/auth/account/delete'
+      );
+      if (!response.data.success) {
+        return { success: false, message: response.data.message || 'Failed to cancel account deletion' };
+      }
+      return { success: true, message: response.data.message, user: response.data.data?.user };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
 };

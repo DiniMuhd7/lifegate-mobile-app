@@ -766,6 +766,29 @@ func (s *Service) MarkMDCNVerified(ctx context.Context, userID string) (*User, e
 	return user, nil
 }
 
+// ScheduleAccountDeletion marks the user's account for deletion in 90 days.
+func (s *Service) ScheduleAccountDeletion(userID string) (*User, error) {
+	user, err := s.repo.ScheduleAccountDeletion(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to schedule account deletion: %w", err)
+	}
+	return user, nil
+}
+
+// CancelAccountDeletion removes the scheduled deletion for the user's account.
+func (s *Service) CancelAccountDeletion(userID string) (*User, error) {
+	user, err := s.repo.CancelAccountDeletion(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cancel account deletion: %w", err)
+	}
+	return user, nil
+}
+
+// DeleteExpiredAccounts permanently removes all user accounts past their scheduled deletion date.
+func (s *Service) DeleteExpiredAccounts() (int64, error) {
+	return s.repo.DeleteExpiredAccounts()
+}
+
 func (s *Service) generateJWT(u *User) (string, error) {
 	expiry, err := time.ParseDuration(s.cfg.JWTExpiry)
 	if err != nil {

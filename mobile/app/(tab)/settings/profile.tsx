@@ -113,10 +113,13 @@ function PasswordHintRow({ label, ok }: { label: string; ok: boolean }) {
 
 export default function ManageProfileScreen() {
   const { user } = useAuthStore();
-  const { changePassword, updateHealthProfile, loading, getProfile, error } = useProfileStore();
+  const { changePassword, updateHealthProfile, loading, getProfile, error, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCancelDeletionModal, setShowCancelDeletionModal] = useState(false);
+  const [deletionLoading, setDeletionLoading] = useState(false);
   const [languageSaving, setLanguageSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: user?.name?.split(' ')[0] || '',
@@ -182,6 +185,13 @@ export default function ManageProfileScreen() {
   const completionLabel =
     profileCompletion >= 80 ? 'Complete' : profileCompletion >= 50 ? 'Almost there' : 'Incomplete';
 
+  const isDeletionScheduled = !!user.deletion_scheduled_at;
+  const deletionDate = isDeletionScheduled
+    ? new Date(user.deletion_scheduled_at!).toLocaleDateString('en-GB', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      })
+    : null;
+
   const handleSaveEdit = () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
       Alert.alert('Validation', 'Please fill in all required fields');
@@ -215,6 +225,34 @@ export default function ManageProfileScreen() {
       }
     } catch {
       Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    setDeletionLoading(true);
+    const ok = await requestAccountDeletion();
+    setDeletionLoading(false);
+    setShowDeleteModal(false);
+    if (ok) {
+      Alert.alert(
+        'Deletion Scheduled',
+        'Your account and all associated data will be permanently deleted in 90 days. You can cancel this at any time from your profile.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Error', 'Failed to schedule account deletion. Please try again.');
+    }
+  };
+
+  const handleConfirmCancelDeletion = async () => {
+    setDeletionLoading(true);
+    const ok = await cancelAccountDeletion();
+    setDeletionLoading(false);
+    setShowCancelDeletionModal(false);
+    if (ok) {
+      Alert.alert('Deletion Cancelled', 'Your account deletion has been cancelled. Your account is safe.', [{ text: 'OK' }]);
+    } else {
+      Alert.alert('Error', 'Failed to cancel deletion. Please try again.');
     }
   };
 
@@ -257,6 +295,26 @@ export default function ManageProfileScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48, paddingTop: 8 }}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={T} />}
         >
+          {/* Deletion pending banner */}
+          {isDeletionScheduled && (
+            <View style={styles.deletionBanner}>
+              <Ionicons name="warning" size={18} color="#B91C1C" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.deletionBannerTitle}>Account scheduled for deletion</Text>
+                <Text style={styles.deletionBannerSub}>
+                  Your account and all data will be permanently deleted on {deletionDate}.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowCancelDeletionModal(true)}
+                style={styles.deletionBannerBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.deletionBannerBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <SectionLabel title="PERSONAL INFORMATION" />
           <View style={styles.card}>
             <InfoRow icon="person-outline" label="Full Name" value={user.name} editable onPress={() => setShowEditModal(true)} />
@@ -308,7 +366,112 @@ export default function ManageProfileScreen() {
               }}
             />
           </View>
+
+          {/* Danger Zone */}
+          <SectionLabel title="DANGER ZONE" />
+          <View style={styles.dangerCard}>
+            <View style={styles.dangerRow}>
+              <View style={[styles.rowIcon, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="trash-outline" size={16} color="#DC2626" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dangerLabel}>Delete Account</Text>
+                <Text style={styles.dangerSub}>
+                  {isDeletionScheduled
+                    ? `Scheduled for ${deletionDate}`
+                    : 'Permanently delete your account and all data'}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.dangerBtn, isDeletionScheduled && styles.dangerBtnDisabled]}
+              onPress={() => !isDeletionScheduled && setShowDeleteModal(true)}
+              activeOpacity={isDeletionScheduled ? 1 : 0.8}
+            >
+              <Ionicons name="trash-outline" size={15} color={isDeletionScheduled ? '#9CA3AF' : '#fff'} />
+              <Text style={[styles.dangerBtnText, isDeletionScheduled && { color: '#9CA3AF' }]}>
+                {isDeletionScheduled ? 'Deletion Pending' : 'Delete Account'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
+
+        {/* ── Delete Account Confirmation Modal ── */}
+        <Modal visible={showDeleteModal} transparent animationType="fade">
+          <View style={styles.overlay}>
+            <View style={[styles.sheet, { paddingBottom: 28 }]}>
+              <View style={styles.handle} />
+              <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                <View style={styles.deleteIconWrap}>
+                  <Ionicons name="warning" size={30} color="#DC2626" />
+                </View>
+                <Text style={styles.deleteModalTitle}>Delete Account?</Text>
+                <Text style={styles.deleteModalBody}>
+                  Your account will be scheduled for permanent deletion in{' '}
+                  <Text style={{ fontWeight: '800' }}>90 days</Text>. During this period you can
+                  cancel the deletion at any time from your profile.{'
+
+'}After 90 days, your account, health records, diagnoses and all personal data will be{' '}
+                  <Text style={{ fontWeight: '800' }}>permanently and irrecoverably deleted</Text>.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.deleteConfirmBtn}
+                onPress={handleConfirmDeleteAccount}
+                activeOpacity={0.85}
+                disabled={deletionLoading}
+              >
+                {deletionLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.deleteConfirmBtnText}>Yes, Delete My Account</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteCancelBtn}
+                onPress={() => setShowDeleteModal(false)}
+                activeOpacity={0.8}
+                disabled={deletionLoading}
+              >
+                <Text style={styles.deleteCancelBtnText}>Keep My Account</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── Cancel Deletion Confirmation Modal ── */}
+        <Modal visible={showCancelDeletionModal} transparent animationType="fade">
+          <View style={styles.overlay}>
+            <View style={[styles.sheet, { paddingBottom: 28 }]}>
+              <View style={styles.handle} />
+              <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                <View style={[styles.deleteIconWrap, { backgroundColor: '#D1FAE5' }]}>
+                  <Ionicons name="shield-checkmark" size={30} color="#059669" />
+                </View>
+                <Text style={styles.deleteModalTitle}>Cancel Deletion?</Text>
+                <Text style={styles.deleteModalBody}>
+                  This will cancel the scheduled deletion of your account. Your account and all your data will remain active.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, { backgroundColor: '#059669' }]}
+                onPress={handleConfirmCancelDeletion}
+                activeOpacity={0.85}
+                disabled={deletionLoading}
+              >
+                {deletionLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.deleteConfirmBtnText}>Yes, Keep My Account</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteCancelBtn}
+                onPress={() => setShowCancelDeletionModal(false)}
+                activeOpacity={0.8}
+                disabled={deletionLoading}
+              >
+                <Text style={styles.deleteCancelBtnText}>Go Back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Edit Profile Sheet */}
         <Modal visible={showEditModal} transparent animationType="slide">
@@ -562,4 +725,87 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
   },
+  // ── Danger zone ──
+  dangerCard: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 16,
+    gap: 14,
+  },
+  dangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dangerLabel: { fontSize: 14, fontWeight: '700', color: '#991B1B' },
+  dangerSub: { fontSize: 11, color: '#EF4444', marginTop: 2 },
+  dangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+  dangerBtnDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dangerBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  // ── Deletion banner ──
+  deletionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 14,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  deletionBannerTitle: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
+  deletionBannerSub: { fontSize: 11, color: '#DC2626', marginTop: 2, lineHeight: 16 },
+  deletionBannerBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  deletionBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  // ── Delete modal ──
+  deleteIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  deleteModalTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B', marginBottom: 10, textAlign: 'center' },
+  deleteModalBody: { fontSize: 14, color: '#64748B', lineHeight: 22, textAlign: 'center', paddingHorizontal: 4 },
+  deleteConfirmBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  deleteConfirmBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  deleteCancelBtn: {
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  deleteCancelBtnText: { fontSize: 15, fontWeight: '700', color: '#64748B' },
 });

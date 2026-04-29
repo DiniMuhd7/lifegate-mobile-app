@@ -39,6 +39,8 @@ export type User = {
   // MDCN license verification
   mdcn_verified?: boolean;
   mdcn_verified_at?: string | null;
+  // Account deletion scheduling
+  deletion_scheduled_at?: string | null;
 };
 
 // Form draft for registration - contains all possible fields

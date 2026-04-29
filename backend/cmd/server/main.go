@@ -26,6 +26,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	docs "github.com/DiniMuhd7/lifegate-mobile-app/backend/docs"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/admin"
@@ -247,6 +248,22 @@ func main() {
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)
 	authSvc.SetReferralProcessor(referralSvc)
+
+	// Daily job: permanently delete user accounts whose 90-day deletion window has elapsed.
+	go func() {
+		for {
+			if n, err := authSvc.DeleteExpiredAccounts(); err != nil {
+				log.Printf("[deletion-job] error purging expired accounts: %v", err)
+			} else if n > 0 {
+				log.Printf("[deletion-job] permanently deleted %d expired account(s)", n)
+			}
+			// Sleep until midnight UTC to run once per day.
+			now := time.Now().UTC()
+			next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
+			time.Sleep(time.Until(next))
+		}
+	}()
+
 	supportSvc := support.NewService(cfg)
 	supportHandler := support.NewHandler(supportSvc)
 
@@ -305,6 +322,8 @@ func main() {
 		authGroup.PUT("/change-password", middleware.Auth(cfg.JWTSecret), authHandler.ChangePassword)
 		authGroup.PUT("/health-profile", middleware.Auth(cfg.JWTSecret), authHandler.UpdateHealthProfile)
 		authGroup.PATCH("/mdcn-verify", middleware.Auth(cfg.JWTSecret), authHandler.MarkMDCNVerified)
+		authGroup.POST("/account/delete", middleware.Auth(cfg.JWTSecret), authHandler.RequestAccountDeletion)
+		authGroup.DELETE("/account/delete", middleware.Auth(cfg.JWTSecret), authHandler.CancelAccountDeletion)
 	}
 
 	supportGroup := api.Group("/support", middleware.Auth(cfg.JWTSecret))

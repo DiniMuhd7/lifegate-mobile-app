@@ -32,10 +32,11 @@ type User struct {
 	CertificateID        string     `json:"certificateId,omitempty" db:"certificate_id"`
 	CertificateIssueDate string     `json:"certificateIssueDate,omitempty" db:"certificate_issue_date"`
 	YearsOfExperience    string     `json:"yearsOfExperience,omitempty" db:"years_of_experience"`
-	MdcnVerified         bool       `json:"mdcn_verified" db:"mdcn_verified"`
-	MdcnVerifiedAt       *time.Time `json:"mdcn_verified_at,omitempty" db:"mdcn_verified_at"`
-	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
+	MdcnVerified           bool       `json:"mdcn_verified" db:"mdcn_verified"`
+	MdcnVerifiedAt         *time.Time `json:"mdcn_verified_at,omitempty" db:"mdcn_verified_at"`
+	DeletionScheduledAt    *time.Time `json:"deletion_scheduled_at,omitempty" db:"deletion_scheduled_at"`
+	CreatedAt              time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type PendingRegistration struct {
@@ -71,7 +72,7 @@ func (r *Repository) FindUserByEmail(email string) (*User, error) {
         current_medications, emergency_contact, genotype, COALESCE(specialization,''),
         COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-        mdcn_verified, mdcn_verified_at, created_at, updated_at
+        mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at
  FROM users WHERE email = $1`, email)
 	return scanUser(row)
 }
@@ -100,7 +101,7 @@ func (r *Repository) FindUserByID(id string) (*User, error) {
         current_medications, emergency_contact, genotype, COALESCE(specialization,''),
         COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-        mdcn_verified, mdcn_verified_at, created_at, updated_at
+        mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at
  FROM users WHERE id = $1`, id)
 	return scanUser(row)
 }
@@ -114,7 +115,7 @@ func scanUser(row *sql.Row) (*User, error) {
 		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.Specialization,
 		&u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
 		&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
-		&u.CreatedAt, &u.UpdatedAt,
+		&u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -134,7 +135,7 @@ func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
            current_medications, emergency_contact, genotype, COALESCE(specialization,''),
            COALESCE(certificate_name,''), COALESCE(certificate_id,''),
            COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-           mdcn_verified, mdcn_verified_at, created_at, updated_at`,
+           mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at`,
 		userID, now)
 	return scanUser(row)
 }
@@ -310,4 +311,50 @@ func (r *Repository) GetPasswordHashByID(userID string) (string, error) {
 func (r *Repository) UpdatePasswordByID(userID, hash string) error {
 	_, err := r.db.Exec(`UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2`, hash, userID)
 	return err
+}
+
+// ScheduleAccountDeletion sets deletion_scheduled_at to 90 days from now.
+func (r *Repository) ScheduleAccountDeletion(userID string) (*User, error) {
+	scheduledAt := time.Now().UTC().Add(90 * 24 * time.Hour)
+	row := r.db.QueryRow(
+		`UPDATE users
+		 SET deletion_scheduled_at = $2, updated_at = NOW()
+		 WHERE id = $1::uuid
+		 RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
+		           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
+		           COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
+		           current_medications, emergency_contact, genotype, COALESCE(specialization,''),
+		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
+		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
+		           mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at`,
+		userID, scheduledAt)
+	return scanUser(row)
+}
+
+// CancelAccountDeletion clears deletion_scheduled_at for a user.
+func (r *Repository) CancelAccountDeletion(userID string) (*User, error) {
+	row := r.db.QueryRow(
+		`UPDATE users
+		 SET deletion_scheduled_at = NULL, updated_at = NOW()
+		 WHERE id = $1::uuid
+		 RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
+		           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
+		           COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
+		           current_medications, emergency_contact, genotype, COALESCE(specialization,''),
+		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
+		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
+		           mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at`,
+		userID)
+	return scanUser(row)
+}
+
+// DeleteExpiredAccounts permanently deletes users whose deletion_scheduled_at has passed.
+// Returns the number of rows deleted.
+func (r *Repository) DeleteExpiredAccounts() (int64, error) {
+	res, err := r.db.Exec(
+		`DELETE FROM users WHERE deletion_scheduled_at IS NOT NULL AND deletion_scheduled_at <= NOW()`)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }

@@ -645,3 +645,54 @@ func (h *Handler) Logout(c *gin.Context) {
 	_ = h.svc.RevokeRefreshToken(c.Request.Context(), req.RefreshToken)
 	respond(c, http.StatusOK, true, "Logged out", nil)
 }
+
+// RequestAccountDeletion schedules the authenticated user's account for permanent deletion in 90 days.
+//
+// @Summary      Request account deletion
+// @Description  Schedules the account for deletion 90 days from now. The user can cancel within that window.
+// @Tags         auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=object{user=object}}
+// @Failure      401  {object}  object{success=bool,message=string}
+// @Router       /auth/account/delete [post]
+func (h *Handler) RequestAccountDeletion(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, ok := userID.(string)
+	if !ok || uid == "" {
+		respond(c, http.StatusUnauthorized, false, "Unauthorized", nil)
+		return
+	}
+	user, err := h.svc.ScheduleAccountDeletion(uid)
+	if err != nil {
+		respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+		return
+	}
+	respond(c, http.StatusOK, true, "Your account has been scheduled for deletion in 90 days. You can cancel this at any time before then.", gin.H{"user": user})
+}
+
+// CancelAccountDeletion cancels a previously requested account deletion.
+//
+// @Summary      Cancel account deletion
+// @Description  Cancels a scheduled account deletion, keeping the account active.
+// @Tags         auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=object{user=object}}
+// @Failure      401  {object}  object{success=bool,message=string}
+// @Router       /auth/account/delete [delete]
+func (h *Handler) CancelAccountDeletion(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, ok := userID.(string)
+	if !ok || uid == "" {
+		respond(c, http.StatusUnauthorized, false, "Unauthorized", nil)
+		return
+	}
+	user, err := h.svc.CancelAccountDeletion(uid)
+	if err != nil {
+		respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+		return
+	}
+	respond(c, http.StatusOK, true, "Account deletion has been cancelled. Your account is safe.", gin.H{"user": user})
+}
+

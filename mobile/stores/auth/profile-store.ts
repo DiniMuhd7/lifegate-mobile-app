@@ -31,6 +31,8 @@ type ProfileState = {
     newPassword: string,
     confirmPassword: string
   ) => Promise<boolean>;
+  requestAccountDeletion: () => Promise<boolean>;
+  cancelAccountDeletion: () => Promise<boolean>;
 };
 
 export const useProfileStore = create<ProfileState>((setUser) => ({
@@ -96,5 +98,44 @@ getProfile: async () => {
       return false;
     }
   },
-  // -------- PROFILE: CHANGE PASSWORD
+
+  // -------- ACCOUNT DELETION: REQUEST --------
+  requestAccountDeletion: async () => {
+    setUser({ loading: true, error: null });
+    try {
+      const response = await AuthService.requestAccountDeletion();
+      if (!response.success) {
+        setUser({ loading: false, error: response.message ?? 'Failed to schedule account deletion' });
+        return false;
+      }
+      if (response.user) {
+        useAuthStore.setState({ user: response.user, isAuthenticated: true });
+      }
+      setUser({ loading: false, error: null });
+      return true;
+    } catch (err: any) {
+      setUser({ loading: false, error: extractErrorMessage(err) });
+      return false;
+    }
+  },
+
+  // -------- ACCOUNT DELETION: CANCEL --------
+  cancelAccountDeletion: async () => {
+    setUser({ loading: true, error: null });
+    try {
+      const response = await AuthService.cancelAccountDeletion();
+      if (!response.success) {
+        setUser({ loading: false, error: response.message ?? 'Failed to cancel account deletion' });
+        return false;
+      }
+      if (response.user) {
+        useAuthStore.setState({ user: response.user, isAuthenticated: true });
+      }
+      setUser({ loading: false, error: null });
+      return true;
+    } catch (err: any) {
+      setUser({ loading: false, error: extractErrorMessage(err) });
+      return false;
+    }
+  },
 }));
