@@ -409,9 +409,7 @@ export default function ManageProfileScreen() {
                 <Text style={styles.deleteModalBody}>
                   Your account will be scheduled for permanent deletion in{' '}
                   <Text style={{ fontWeight: '800' }}>90 days</Text>. During this period you can
-                  cancel the deletion at any time from your profile.{'
-
-'}After 90 days, your account, health records, diagnoses and all personal data will be{' '}
+                  cancel the deletion at any time from your profile.{'\n\n'}After 90 days, your account, health records, diagnoses and all personal data will be{' '}
                   <Text style={{ fontWeight: '800' }}>permanently and irrecoverably deleted</Text>.
                 </Text>
               </View>
