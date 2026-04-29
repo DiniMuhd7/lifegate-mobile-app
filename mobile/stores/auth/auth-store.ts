@@ -272,6 +272,23 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       useHealthStore.getState().reset();
       usePhysicianHealthStore.getState().reset();
     } catch { /* best-effort */ }
+
+    // Clear all lifecoin / activity stores so stale data from this user
+    // never bleeds into the next account logged in on the same device.
+    // resetAllCoins() wipes all five AsyncStorage keys; the individual
+    // store resets clear their in-memory state.
+    try {
+      const { useLifecoinsWalletStore } = await import('../lifecoins-wallet-store');
+      await useLifecoinsWalletStore.getState().resetAllCoins();
+    } catch { /* best-effort */ }
+    try {
+      const { useCheckinStore } = await import('../checkin-store');
+      useCheckinStore.getState().reset();
+    } catch { /* best-effort */ }
+    try {
+      const { useExploreStore } = await import('../explore-store');
+      useExploreStore.getState().reset();
+    } catch { /* best-effort */ }
   },
 
   // -------- MDCN VERIFICATION --------

@@ -31,9 +31,12 @@ function formatUnlockTime(hour: number): string {
   return `${h}:00 ${period}`;
 }
 
-function getSlotStatus(slot: HourlySlot): 'claimed' | 'available' | 'locked' {
-  if (slot.claimedDate === todayStr()) return 'claimed';
-  if (new Date().getHours() >= slot.unlockHour) return 'available';
+function getSlotStatus(slot: HourlySlot): 'claimed' | 'available' | 'locked' | 'missed' {
+  const today = todayStr();
+  const currentHour = new Date().getHours();
+  if (slot.claimedDate === today) return 'claimed';
+  if (currentHour >= slot.deadlineHour) return 'missed';
+  if (currentHour >= slot.unlockHour) return 'available';
   return 'locked';
 }
 
@@ -84,6 +87,10 @@ export default function CheckinsScreen() {
   const handleSlotTap = (slot: HourlySlot) => {
     const status = getSlotStatus(slot);
     if (status === 'claimed') return;
+    if (status === 'missed') {
+      showToastMsg('Slot missed — window closed', 0);
+      return;
+    }
     if (status === 'locked') {
       showToastMsg(`Unlocks at ${formatUnlockTime(slot.unlockHour)}`, 0);
       return;
@@ -136,6 +143,7 @@ export default function CheckinsScreen() {
 
   const totalClaimed = slots.filter((s) => s.claimedDate === todayStr()).length;
   const totalAvailable = slots.filter((s) => getSlotStatus(s) === 'available').length;
+  const totalMissed = slots.filter((s) => getSlotStatus(s) === 'missed').length;
   // Sum the coins value of each slot claimed today (each slot awards 1 coin).
   const todayEarned = slots
     .filter((s) => s.claimedDate === todayStr())
@@ -329,7 +337,8 @@ export default function CheckinsScreen() {
             </Text>
             <Text style={{ fontSize: 12, color: '#6b7280' }}>
               {totalClaimed}/{slots.length}
-              {totalAvailable > 0 ? ` - ${totalAvailable} ready` : ''}
+              {totalMissed > 0 ? ` · ${totalMissed} missed` : ''}
+              {totalAvailable > 0 ? ` · ${totalAvailable} ready` : ''}
             </Text>
           </View>
 
@@ -340,6 +349,7 @@ export default function CheckinsScreen() {
               <Pressable
                 key={slot.id}
                 onPress={() => handleSlotTap(slot)}
+                disabled={status === 'missed' || status === 'claimed'}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -373,7 +383,9 @@ export default function CheckinsScreen() {
                         ? 'rgba(22,163,74,0.2)'
                         : status === 'available'
                           ? 'rgba(10,173,162,0.2)'
-                          : 'rgba(255,255,255,0.06)',
+                          : status === 'missed'
+                            ? 'rgba(239,68,68,0.15)'
+                            : 'rgba(255,255,255,0.06)',
                     alignItems: 'center',
                     justifyContent: 'center',
                     marginRight: 14,
@@ -383,9 +395,11 @@ export default function CheckinsScreen() {
                     name={
                       (status === 'claimed'
                         ? 'checkmark-circle'
-                        : status === 'locked'
-                          ? 'lock-closed-outline'
-                          : (SLOT_ICONS[slot.id] ?? 'time-outline')) as any
+                        : status === 'missed'
+                          ? 'close-circle-outline'
+                          : status === 'locked'
+                            ? 'lock-closed-outline'
+                            : (SLOT_ICONS[slot.id] ?? 'time-outline')) as any
                     }
                     size={22}
                     color={
@@ -393,7 +407,9 @@ export default function CheckinsScreen() {
                         ? '#4ade80'
                         : status === 'available'
                           ? '#0AADA2'
-                          : '#4b5563'
+                          : status === 'missed'
+                            ? '#f87171'
+                            : '#4b5563'
                     }
                   />
                 </View>
@@ -404,18 +420,20 @@ export default function CheckinsScreen() {
                     style={{
                       fontSize: 14,
                       fontWeight: '700',
-                      color: status === 'locked' ? '#4b5563' : '#e5e7eb',
+                      color: status === 'locked' || status === 'missed' ? '#4b5563' : '#e5e7eb',
                       marginBottom: 2,
                     }}
                   >
                     {slot.label}
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#6b7280' }}>
+                  <Text style={{ fontSize: 12, color: status === 'missed' ? '#f87171' : '#6b7280' }}>
                     {status === 'claimed'
                       ? 'Completed today'
                       : status === 'available'
-                        ? 'Ready - tap to start check-in'
-                        : `Unlocks at ${formatUnlockTime(slot.unlockHour)}`}
+                        ? 'Ready — tap to start check-in'
+                        : status === 'missed'
+                          ? 'Missed — window closed'
+                          : `Unlocks at ${formatUnlockTime(slot.unlockHour)}`}
                   </Text>
                 </View>
 
@@ -430,21 +448,25 @@ export default function CheckinsScreen() {
                         ? 'rgba(22,163,74,0.2)'
                         : status === 'available'
                           ? 'rgba(251,191,36,0.15)'
-                          : 'rgba(255,255,255,0.05)',
+                          : status === 'missed'
+                            ? 'rgba(239,68,68,0.1)'
+                            : 'rgba(255,255,255,0.05)',
                     borderRadius: 10,
                     paddingHorizontal: 9,
                     paddingVertical: 5,
                   }}
                 >
                   <Ionicons
-                    name="heart"
+                    name={status === 'missed' ? 'close' : 'heart'}
                     size={12}
                     color={
                       status === 'claimed'
                         ? '#4ade80'
                         : status === 'available'
                           ? '#fbbf24'
-                          : '#374151'
+                          : status === 'missed'
+                            ? '#f87171'
+                            : '#374151'
                     }
                   />
                   <Text
@@ -456,7 +478,10 @@ export default function CheckinsScreen() {
                           ? '#4ade80'
                           : status === 'available'
                             ? '#fbbf24'
-                            : '#374151',
+                            : status === 'missed'
+                              ? '#f87171'
+                              : '#374151',
+                      textDecorationLine: status === 'missed' ? 'line-through' : 'none',
                     }}
                   >
                     +{slot.coins}
@@ -487,8 +512,8 @@ export default function CheckinsScreen() {
               style={{ marginTop: 1 }}
             />
             <Text style={{ flex: 1, fontSize: 12, color: '#93c5fd', lineHeight: 18 }}>
-              Each check-in slot asks 2-3 health questions tailored to your condition. Complete a slot
-              to earn 1 Lifecoin. Slots reset daily at midnight.
+              Each check-in slot has a time window — claim it before the next slot opens to earn
+              1 Lifecoin. Missed slots are locked and earn no reward. Slots reset daily at midnight.
             </Text>
           </View>
         </View>

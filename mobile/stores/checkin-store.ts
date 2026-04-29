@@ -11,16 +11,17 @@ const STORAGE_KEY = 'checkin_store_v1';
 export interface HourlySlot {
   id: number;
   label: string;
-  unlockHour: number; // 0-23
+  unlockHour: number;   // 0-23 — slot becomes claimable at this hour
+  deadlineHour: number; // 0-24 — slot window closes at this hour (24 = midnight = never misses within same day)
   coins: number;
   claimedDate: string | null; // YYYY-MM-DD
 }
 
 const SLOT_SCHEDULE: Omit<HourlySlot, 'claimedDate'>[] = [
-  { id: 1, label: 'Morning',   unlockHour: 6,  coins: 1 },
-  { id: 3, label: 'Noon',      unlockHour: 12, coins: 1 },
-  { id: 5, label: 'Evening',   unlockHour: 18, coins: 1 },
-  { id: 6, label: 'Night',     unlockHour: 21, coins: 1 },
+  { id: 1, label: 'Morning', unlockHour: 6,  deadlineHour: 12, coins: 1 },
+  { id: 3, label: 'Noon',    unlockHour: 12, deadlineHour: 18, coins: 1 },
+  { id: 5, label: 'Evening', unlockHour: 18, deadlineHour: 21, coins: 1 },
+  { id: 6, label: 'Night',   unlockHour: 21, deadlineHour: 24, coins: 1 },
 ];
 
 // ── Health Check-in Question Types ───────────────────────────────────────────
@@ -204,6 +205,8 @@ interface CheckinState extends PersistedCheckinData {
   initialized: boolean;
   initialize: () => Promise<void>;
   claimSlot: (id: number) => Promise<{ success: boolean; coinsEarned: number }>;
+  /** Reset all in-memory state. Call on logout so the next user starts clean. */
+  reset: () => void;
 }
 
 function defaultSlots(): HourlySlot[] {
@@ -255,10 +258,13 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     const { slots, lifecoins, streak, lastDailyCheckinDate } = get();
     const today = todayStr();
     const now = new Date();
+    const currentHour = now.getHours();
     const slot = slots.find((s) => s.id === id);
     if (!slot) return { success: false, coinsEarned: 0 };
     if (slot.claimedDate === today) return { success: false, coinsEarned: 0 };
-    if (now.getHours() < slot.unlockHour) return { success: false, coinsEarned: 0 };
+    if (currentHour < slot.unlockHour) return { success: false, coinsEarned: 0 };
+    // Slot window has closed — missed, no reward
+    if (currentHour >= slot.deadlineHour) return { success: false, coinsEarned: 0 };
 
     // Maintain streak — advance on first claim of the day
     let newStreak = streak;
@@ -293,5 +299,15 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     } catch { /* non-fatal */ }
 
     return { success: true, coinsEarned: slot.coins };
+  },
+
+  reset: () => {
+    set({
+      lifecoins: 0,
+      streak: 0,
+      lastDailyCheckinDate: null,
+      slots: defaultSlots(),
+      initialized: false,
+    });
   },
 }));

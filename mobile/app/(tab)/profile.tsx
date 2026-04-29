@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -48,6 +50,7 @@ export default function PatientProfileScreen() {
   const fetchCreditBalance  = usePaymentStore((s) => s.fetchBalance);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showRedeemLock, setShowRedeemLock] = useState(false);
 
   useEffect(() => {
     getProfile();
@@ -140,6 +143,69 @@ export default function PatientProfileScreen() {
 
   if (loading && !user) return <ProfileSkeleton />;
 
+  const redeemLockModal = (
+    <Modal
+      visible={showRedeemLock}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowRedeemLock(false)}
+    >
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 }}
+        onPress={() => setShowRedeemLock(false)}
+      >
+        <Pressable
+          style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', gap: 12 }}
+          onPress={() => { /* swallow — prevent backdrop close on inner tap */ }}
+        >
+          {/* Icon */}
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+            <Ionicons name="lock-closed" size={28} color="#D97706" />
+          </View>
+
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#111827', textAlign: 'center' }}>
+            Redemption Locked
+          </Text>
+
+          <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 21 }}>
+            You need at least{' '}
+            <Text style={{ fontWeight: '800', color: '#D97706' }}>100 Lifecoins</Text>{' '}
+            to redeem. You currently have{' '}
+            <Text style={{ fontWeight: '800', color: '#B45309' }}>{totalLifecoins} LC</Text>.
+          </Text>
+
+          {/* Progress bar */}
+          <View style={{ width: '100%', height: 8, backgroundColor: '#F3F4F6', borderRadius: 4, overflow: 'hidden', marginTop: 4 }}>
+            <View
+              style={{
+                height: '100%',
+                width: `${Math.min((totalLifecoins / 100) * 100, 100)}%`,
+                backgroundColor: totalLifecoins >= 75 ? '#F59E0B' : totalLifecoins >= 50 ? '#FCD34D' : '#FDE68A',
+                borderRadius: 4,
+              }}
+            />
+          </View>
+          <Text style={{ fontSize: 12, color: '#9CA3AF', fontWeight: '600', marginTop: -4 }}>
+            {totalLifecoins}/100 — {100 - totalLifecoins} more coins needed
+          </Text>
+
+          <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center', lineHeight: 18 }}>
+            Earn Lifecoins by completing daily health check-ins, watching Explore videos, and referring friends.
+          </Text>
+
+          {/* CTA */}
+          <TouchableOpacity
+            onPress={() => setShowRedeemLock(false)}
+            activeOpacity={0.85}
+            style={{ marginTop: 4, backgroundColor: '#F59E0B', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 32, width: '100%', alignItems: 'center' }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Got it</Text>
+          </TouchableOpacity>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
   if (!user) {
     return (
       <SafeAreaView className="flex-1 bg-[#F0F8F8] items-center justify-center">
@@ -153,6 +219,7 @@ export default function PatientProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
+      {redeemLockModal}
       <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
         <ScrollView
           className="flex-1"
@@ -199,7 +266,10 @@ export default function PatientProfileScreen() {
                 {/* — Lifecoins tile — */}
                 <TouchableOpacity
                   style={{ flex: 1, backgroundColor: '#FFFBEB', borderRadius: 14, borderWidth: 1, borderColor: '#FDE68A', overflow: 'hidden' }}
-                  onPress={() => router.push('/(tab)/health/redeem')}
+                  onPress={() => {
+                    if (totalLifecoins < 100) { setShowRedeemLock(true); return; }
+                    router.push('/(tab)/health/redeem');
+                  }}
                   activeOpacity={0.75}
                 >
                   <View style={{ width: '100%', height: 3, backgroundColor: '#F59E0B' }} />

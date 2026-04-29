@@ -315,6 +315,8 @@ interface ExploreState extends PersistedExploreData {
   claimReward: (videoId: string) => Promise<{ alreadyDone: boolean; coinsEarned: number; capReached: boolean }>;
   isRewarded: (videoId: string) => boolean;
   getDailyRemaining: () => number;
+  /** Reset all in-memory state. Call on logout so the next user starts clean. */
+  reset: () => void;
 }
 
 async function persist(data: PersistedExploreData) {
@@ -576,6 +578,22 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
     const today = todayStr();
     const watched = lastWatchDate === today ? dailyWatchedCount : 0;
     return Math.max(0, dailyCap - watched);
+  },
+
+  reset: () => {
+    set({
+      lifecoins: 0,
+      totalEarned: 0,
+      progress: [],
+      lastWatchDate: null,
+      dailyWatchedCount: 0,
+      cachedVideos: [],
+      lastVideoFetchDate: null,
+      initialized: false,
+      videos: [],
+      dailyCap: DAILY_VIDEO_CAP,
+      lastVideoRefreshDate: null,
+    });
   },
 }));
 
