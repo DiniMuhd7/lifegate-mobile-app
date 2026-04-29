@@ -31,14 +31,12 @@ export default function SubscriptionScreen() {
   const { user } = useAuthStore();
   const {
     balance,
-    bundles,
     transactions,
     paymentLink,
     activeTxRef,
     loading,
     error,
     fetchBalance,
-    fetchBundles,
     initiatePayment,
     verifyPayment,
     clearError,
@@ -61,7 +59,6 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     fetchBalance();
-    fetchBundles();
   }, []);
 
   // Refresh balance whenever the screen is focused (e.g. returning from checkout).
@@ -197,13 +194,11 @@ export default function SubscriptionScreen() {
     [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink, switchActiveChatToClinical]
   );
 
-  const displayBundles: CreditBundle[] = bundles.length
-    ? bundles
-    : [
-        { id: '2000',  amountNaira: 2500,  amountUSD: 5.00,  credits: 5,  label: '₦2,500 — 5 Credits',   labelUSD: '$5.00 — 5 Credits' },
-        { id: '5000',  amountNaira: 7500,  amountUSD: 12.00, credits: 15, label: '₦7,500 — 15 Credits',  labelUSD: '$12.00 — 15 Credits' },
-        { id: '10000', amountNaira: 25000, amountUSD: 22.00, credits: 50, label: '₦25,000 — 50 Credits', labelUSD: '$22.00 — 50 Credits' },
-      ];
+  const displayBundles: CreditBundle[] = [
+    { id: '2000',  amountNaira: 2500,  amountUSD: 5.00,  credits: 5,  label: '₦2,500 — 5 Credits',   labelUSD: '$5.00 — 5 Credits' },
+    { id: '5000',  amountNaira: 7500,  amountUSD: 12.00, credits: 15, label: '₦7,500 — 15 Credits',  labelUSD: '$12.00 — 15 Credits' },
+    { id: '10000', amountNaira: 25000, amountUSD: 22.00, credits: 50, label: '₦25,000 — 50 Credits', labelUSD: '$22.00 — 50 Credits' },
+  ];
 
   const selectedBundleData = displayBundles.find((bundle) => bundle.id === selectedBundle);
 
