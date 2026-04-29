@@ -200,9 +200,9 @@ export default function SubscriptionScreen() {
   const displayBundles: CreditBundle[] = bundles.length
     ? bundles
     : [
-        { id: '2000',  amountNaira: 8000,  amountUSD: 5.00,  credits: 5,  label: '₦8,000 — 5 Credits',   labelUSD: '$5.00 — 5 Credits' },
-        { id: '5000',  amountNaira: 19200, amountUSD: 12.00, credits: 15, label: '₦19,200 — 15 Credits',  labelUSD: '$12.00 — 15 Credits' },
-        { id: '10000', amountNaira: 35200, amountUSD: 22.00, credits: 40, label: '₦35,200 — 40 Credits',  labelUSD: '$22.00 — 40 Credits' },
+        { id: '2000',  amountNaira: 2500,  amountUSD: 5.00,  credits: 5,  label: '₦2,500 — 5 Credits',   labelUSD: '$5.00 — 5 Credits' },
+        { id: '5000',  amountNaira: 7500,  amountUSD: 12.00, credits: 15, label: '₦7,500 — 15 Credits',  labelUSD: '$12.00 — 15 Credits' },
+        { id: '10000', amountNaira: 25000, amountUSD: 22.00, credits: 50, label: '₦25,000 — 50 Credits', labelUSD: '$22.00 — 50 Credits' },
       ];
 
   const selectedBundleData = displayBundles.find((bundle) => bundle.id === selectedBundle);
@@ -281,33 +281,7 @@ export default function SubscriptionScreen() {
 
           <Text className="mb-3 text-base font-semibold text-gray-900">Choose a Credit Package</Text>
 
-          {/* Currency toggle */}
-          <View className="mb-4 flex-row rounded-xl overflow-hidden border border-[#D4ECEB] bg-white">
-            <Pressable
-              onPress={() => setCurrency('NGN')}
-              className={`flex-1 py-2.5 items-center ${
-                currency === 'NGN' ? 'bg-[#0EA5A4]' : 'bg-white'
-              }`}>
-              <Text
-                className={`text-sm font-semibold ${
-                  currency === 'NGN' ? 'text-white' : 'text-gray-600'
-                }`}>
-                Pay in ₦ NGN
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setCurrency('USD')}
-              className={`flex-1 py-2.5 items-center ${
-                currency === 'USD' ? 'bg-[#0EA5A4]' : 'bg-white'
-              }`}>
-              <Text
-                className={`text-sm font-semibold ${
-                  currency === 'USD' ? 'text-white' : 'text-gray-600'
-                }`}>
-                Pay in $ USD
-              </Text>
-            </Pressable>
-          </View>
+
 
           {displayBundles.map((bundle, idx) => {
             const selected = selectedBundle === bundle.id;

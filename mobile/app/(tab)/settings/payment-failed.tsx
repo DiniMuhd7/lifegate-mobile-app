@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 const BUNDLE_LABELS: Record<string, string> = {
   '2000': '5 Credits',
   '5000': '15 Credits',
-  '10000': '40 Credits',
+  '10000': '50 Credits',
 };
 
 export default function PaymentFailedScreen() {

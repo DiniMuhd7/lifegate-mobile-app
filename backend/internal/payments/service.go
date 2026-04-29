@@ -9,66 +9,25 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
-// bundleBase defines credit tiers with fixed USD prices.
-// NGN amounts are computed at request time from the live exchange rate.
+// bundleBase defines credit tiers.
+// ngnFixed is the authoritative NGN price shown to users; USD prices are kept for
+// international checkout display and are not derived from the live exchange rate.
 var bundleBase = []struct {
-	id      string
-	usd     float64
-	credits int
+	id       string
+	usd      float64
+	ngnFixed int
+	credits  int
 }{
-	{"2000", 5.00, 5},
-	{"5000", 12.00, 15},
-	{"10000", 22.00, 40},
-}
-
-// fallbackNGNPerUSD is used when the exchange-rate API is unreachable.
-const fallbackNGNPerUSD = 1600.0
-
-// erCacheDuration controls how often the exchange rate is refreshed.
-const erCacheDuration = 1 * time.Hour
-
-type erCache struct {
-	mu        sync.Mutex
-	rate      float64
-	fetchedAt time.Time
-}
-
-var ngnRateCache = &erCache{}
-
-// fetchLiveNGNRate calls the free open.er-api.com endpoint (no API key required)
-// and returns the number of NGN per 1 USD.
-func fetchLiveNGNRate() float64 {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		"https://open.er-api.com/v6/latest/USD", nil)
-	if err != nil {
-		return fallbackNGNPerUSD
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fallbackNGNPerUSD
-	}
-	defer resp.Body.Close()
-	var data struct {
-		Rates map[string]float64 `json:"rates"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return fallbackNGNPerUSD
-	}
-	if r, ok := data.Rates["NGN"]; ok && r > 0 {
-		return r
-	}
-	return fallbackNGNPerUSD
+	{"2000", 5.00, 2500, 5},
+	{"5000", 12.00, 7500, 15},
+	{"10000", 22.00, 25000, 50},
 }
 
 type Bundle struct {
@@ -191,35 +150,16 @@ func NewService(db *sql.DB, secretKey, publicKey, redirectURL, webhookHash strin
 	}
 }
 
-// getLiveNGNRate returns the cached NGN/USD rate, refreshing it when stale.
-func (s *Service) getLiveNGNRate() float64 {
-	ngnRateCache.mu.Lock()
-	defer ngnRateCache.mu.Unlock()
-	if ngnRateCache.rate > 0 && time.Since(ngnRateCache.fetchedAt) < erCacheDuration {
-		return ngnRateCache.rate
-	}
-	rate := fetchLiveNGNRate()
-	ngnRateCache.rate = rate
-	ngnRateCache.fetchedAt = time.Now()
-	return rate
-}
-
-// GetBundles returns all credit bundles with live-rate NGN prices and fixed USD prices.
+// GetBundles returns all credit bundles with fixed NGN prices and fixed USD prices.
 func (s *Service) GetBundles() []Bundle {
-	rate := s.getLiveNGNRate()
 	out := make([]Bundle, 0, len(bundleBase))
 	for _, b := range bundleBase {
-		// Round NGN to nearest ₦100 for clean display.
-		ngnAmount := int(math.Round(b.usd*rate/100) * 100)
-		if ngnAmount < 100 {
-			ngnAmount = 100
-		}
 		out = append(out, Bundle{
 			ID:          b.id,
-			AmountNaira: ngnAmount,
+			AmountNaira: b.ngnFixed,
 			AmountUSD:   b.usd,
 			Credits:     b.credits,
-			Label:       fmt.Sprintf("₦%s — %d Credits", formatNaira(ngnAmount), b.credits),
+			Label:       fmt.Sprintf("₦%s — %d Credits", formatNaira(b.ngnFixed), b.credits),
 			LabelUSD:    fmt.Sprintf("$%.2f — %d Credits", b.usd, b.credits),
 		})
 	}
