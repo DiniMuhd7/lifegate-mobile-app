@@ -115,31 +115,23 @@ function MDCNOverridePanel({
 }) {
   const overrideMDCN = useAdminStore((s) => s.overrideMDCN);
   const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'confirmed' | 'rejected' | null>(null);
+  const [resultMsg, setResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const handleOverride = (status: 'confirmed' | 'rejected') => {
-    const action = status === 'confirmed' ? 'confirm' : 'reject';
-    Alert.alert(
-      `${action.charAt(0).toUpperCase() + action.slice(1)} MDCN Verification`,
-      `This will manually ${action} the physician's MDCN certificate. Proceed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: status === 'confirmed' ? 'Confirm' : 'Reject',
-          style: status === 'rejected' ? 'destructive' : 'default',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await overrideMDCN(physicianId, status);
-              Alert.alert('Done', `MDCN verification ${status}.`);
-            } catch (e: any) {
-              Alert.alert('Error', e?.response?.data?.message ?? 'Override failed');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
-    );
+  const executeOverride = async () => {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    setPendingAction(null);
+    setLoading(true);
+    setResultMsg(null);
+    try {
+      await overrideMDCN(physicianId, action);
+      setResultMsg({ type: 'success', text: `MDCN verification ${action}.` });
+    } catch (e: any) {
+      setResultMsg({ type: 'error', text: e?.response?.data?.message ?? 'Override failed' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const badge = () => {
@@ -164,6 +156,44 @@ function MDCNOverridePanel({
   return (
     <View className="bg-white rounded-2xl p-4 mb-3"
       style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4 }}>
+
+      {/* Confirmation modal — replaces Alert.alert which doesn't work on web */}
+      <Modal
+        visible={pendingAction !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPendingAction(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360 }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 8 }}>
+              {pendingAction === 'confirmed' ? 'Confirm MDCN Verification' : 'Reject MDCN Verification'}
+            </Text>
+            <Text style={{ fontSize: 14, color: '#4b5563', marginBottom: 24, lineHeight: 20 }}>
+              {pendingAction === 'confirmed'
+                ? "This will manually confirm the physician's MDCN certificate. Proceed?"
+                : "This will reject the physician's MDCN certificate. Proceed?"}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setPendingAction(null)}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={executeOverride}
+                style={{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: pendingAction === 'confirmed' ? '#3b82f6' : '#ef4444' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
+                  {pendingAction === 'confirmed' ? 'Confirm' : 'Reject'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <SectionHeader title="MDCN Verification" icon="shield-checkmark-outline" color="#0AADA2" />
 
       <View className="flex-row items-center mb-3">
@@ -177,11 +207,27 @@ function MDCNOverridePanel({
         </Text>
       )}
 
+      {/* Inline result message */}
+      {resultMsg && (
+        <View className="flex-row items-center px-3 py-2 rounded-xl mb-2"
+          style={{ backgroundColor: resultMsg.type === 'success' ? '#dcfce7' : '#fee2e2' }}>
+          <Ionicons
+            name={resultMsg.type === 'success' ? 'checkmark-circle' : 'alert-circle'}
+            size={14}
+            color={resultMsg.type === 'success' ? '#166534' : '#dc2626'}
+          />
+          <Text className="text-xs font-semibold ml-1.5"
+            style={{ color: resultMsg.type === 'success' ? '#166534' : '#dc2626' }}>
+            {resultMsg.text}
+          </Text>
+        </View>
+      )}
+
       {/* Override action buttons */}
       <Text className="text-xs font-semibold text-gray-500 mb-2 mt-2">Admin Override</Text>
       <View className="flex-row gap-3">
         <TouchableOpacity
-          onPress={() => handleOverride('confirmed')}
+          onPress={() => { setResultMsg(null); setPendingAction('confirmed'); }}
           disabled={loading || overrideStatus === 'confirmed'}
           className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl border"
           style={{
@@ -201,13 +247,13 @@ function MDCNOverridePanel({
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => handleOverride('rejected')}
+          onPress={() => { setResultMsg(null); setPendingAction('rejected'); }}
           disabled={loading || overrideStatus === 'rejected'}
           className="flex-1 flex-row items-center justify-center py-2.5 rounded-xl border"
           style={{
             borderColor: overrideStatus === 'rejected' ? '#fca5a5' : '#ef4444',
             backgroundColor: overrideStatus === 'rejected' ? '#fef2f2' : '#fff',
-            opacity: loading ? 0.6 : 1,
+            opacity: (loading || overrideStatus === 'rejected') ? 0.6 : 1,
           }}
         >
           <Ionicons name="close-circle-outline" size={16} color="#ef4444" />

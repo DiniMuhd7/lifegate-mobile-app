@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -372,7 +373,7 @@ func (h *Handler) OverrideMDCN(c *gin.Context) {
 		status := http.StatusInternalServerError
 		if err.Error() == "physician not found" {
 			status = http.StatusNotFound
-		} else if err.Error()[:7] == "invalid" {
+		} else if strings.HasPrefix(err.Error(), "invalid") {
 			status = http.StatusBadRequest
 		}
 		c.JSON(status, gin.H{"success": false, "message": err.Error()})
