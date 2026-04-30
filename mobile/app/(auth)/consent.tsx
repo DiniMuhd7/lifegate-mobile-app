@@ -116,7 +116,7 @@ export default function ConsentScreen() {
               Terms &amp; Conditions
             </Text>
             <Text className="mb-5 text-xs leading-5 text-gray-500">
-              Effective Date: January 1, 2025 · Last updated: March 28, 2026
+              Effective Date: January 1, 2026 · Last updated: May 1, 2026
             </Text>
 
             {/* ── PART A: TERMS OF USE ─────────────────────────────────── */}
