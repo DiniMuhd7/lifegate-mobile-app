@@ -184,7 +184,7 @@ export default function ConsentScreen() {
 
             {/* A6. Payments */}
             <Section title="A6. Payments &amp; Credits">
-              <Bullet text="Consultation fees are charged in Nigerian Naira (₦) or via LifeCoins credits" />
+              <Bullet text="Consultation fees are charged in Nigerian Naira (₦) via Diagnosis credits" />
               <Bullet text="Payments are processed through Flutterwave; DSHub does not store card details" />
               <Bullet text="Fees are non-refundable once a physician has commenced a consultation" />
               <Bullet text="DSHub reserves the right to adjust pricing with 14 days' notice" />
