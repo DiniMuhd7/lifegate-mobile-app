@@ -1,22 +1,21 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   Pressable,
   ScrollView,
-  Modal,
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COUNTRY_OPTIONS } from 'constants/geo';
+import { COUNTRIES } from 'constants/geo';
 
 interface CountryPickerProps {
   label?: string;
   required?: boolean;
   hasError?: boolean;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (country: string) => void;
   placeholder?: string;
 }
 
@@ -26,151 +25,112 @@ export function CountryPicker({
   hasError,
   value,
   onChange,
-  placeholder = 'Select your country',
+  placeholder = 'Search country…',
 }: CountryPickerProps) {
-  const [modalVisible, setModalVisible] = useState(false);
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const inputRef = useRef<TextInput>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return COUNTRY_OPTIONS;
-    return COUNTRY_OPTIONS.filter((c) => c.label.toLowerCase().includes(q));
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter((c) => c.toLowerCase().includes(q));
   }, [query]);
 
-  const handleSelect = useCallback(
-    (v: string) => {
-      onChange(v);
-      setModalVisible(false);
+  const select = useCallback(
+    (country: string) => {
+      onChange(country);
       setQuery('');
+      setOpen(false);
     },
     [onChange],
   );
 
-  const handleOpen = () => {
-    setQuery('');
-    setModalVisible(true);
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      setQuery('');
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
   };
 
   return (
     <View className="mb-3">
       {label ? (
         <Text className="mb-1.5 font-medium text-gray-700">
-          {label} {required && <Text className="text-red-500">*</Text>}
+          {label}
+          {required && <Text className="text-red-500"> *</Text>}
         </Text>
       ) : null}
 
+      {/* Trigger */}
       <Pressable
-        onPress={handleOpen}
+        onPress={toggleOpen}
         className={`h-12 flex-row items-center rounded-xl px-3 ${
           hasError ? 'border border-red-300 bg-red-50' : 'bg-[#F2F4F7]'
         }`}>
         <Text className={`flex-1 text-sm ${value ? 'text-gray-900' : 'text-gray-400'}`}>
           {value || placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={16} color="#0EA5A4" />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#0EA5A4" />
       </Pressable>
 
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setModalVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-          <View
-            style={{
-              backgroundColor: '#fff',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              maxHeight: '80%',
-              paddingBottom: 24,
-            }}>
-            {/* Header */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: 20,
-                paddingTop: 20,
-                paddingBottom: 12,
-                borderBottomWidth: 1,
-                borderBottomColor: '#F1F5F9',
-              }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#1E293B' }}>
-                Select Country
-              </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={22} color="#94A3B8" />
+      {/* Inline dropdown */}
+      {open && (
+        <View
+          className="mt-1 overflow-hidden rounded-2xl border border-gray-100 bg-white"
+          style={{
+            elevation: 4,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+          }}>
+          {/* Search box */}
+          <View className="flex-row items-center border-b border-gray-100 px-3 py-2">
+            <Ionicons name="search-outline" size={15} color="#9CA3AF" />
+            <TextInput
+              ref={inputRef}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search country…"
+              placeholderTextColor="#9CA3AF"
+              autoCorrect={false}
+              autoCapitalize="words"
+              className="ml-2 flex-1 text-sm text-gray-800"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')}>
+                <Ionicons name="close-circle" size={15} color="#9CA3AF" />
               </TouchableOpacity>
-            </View>
-
-            {/* Search */}
-            <View
-              style={{
-                marginHorizontal: 16,
-                marginVertical: 12,
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#F2F4F7',
-                borderRadius: 12,
-                paddingHorizontal: 12,
-              }}>
-              <Ionicons name="search-outline" size={16} color="#9CA3AF" />
-              <TextInput
-                style={{ flex: 1, marginLeft: 8, fontSize: 14, color: '#1E293B', paddingVertical: 10 }}
-                placeholder="Search country..."
-                placeholderTextColor="#9CA3AF"
-                value={query}
-                onChangeText={setQuery}
-                autoCorrect={false}
-                autoCapitalize="words"
-              />
-              {query.length > 0 && (
-                <TouchableOpacity onPress={() => setQuery('')}>
-                  <Ionicons name="close-circle" size={16} color="#9CA3AF" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* List */}
-            <ScrollView keyboardShouldPersistTaps="handled">
-              {filtered.length === 0 ? (
-                <Text style={{ textAlign: 'center', color: '#94A3B8', paddingVertical: 24, fontSize: 14 }}>
-                  No countries found
-                </Text>
-              ) : (
-                filtered.map((c, i) => (
-                  <Pressable
-                    key={c.value}
-                    onPress={() => handleSelect(c.value)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      paddingHorizontal: 20,
-                      paddingVertical: 14,
-                      backgroundColor: pressed ? '#F0FAFA' : '#fff',
-                      borderBottomWidth: i < filtered.length - 1 ? 1 : 0,
-                      borderBottomColor: '#F1F5F9',
-                    })}>
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        color: c.value === value ? '#0EA5A4' : '#1E293B',
-                        fontWeight: c.value === value ? '600' : '400',
-                      }}>
-                      {c.label}
-                    </Text>
-                    {c.value === value && (
-                      <Ionicons name="checkmark-circle" size={18} color="#0EA5A4" />
-                    )}
-                  </Pressable>
-                ))
-              )}
-            </ScrollView>
+            )}
           </View>
+
+          <ScrollView style={{ maxHeight: 200 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+            {filtered.length === 0 ? (
+              <Text className="px-4 py-3 text-sm text-gray-400">No results</Text>
+            ) : (
+              filtered.map((country) => (
+                <Pressable
+                  key={country}
+                  onPress={() => select(country)}
+                  className="flex-row items-center justify-between px-4 py-3 border-b border-gray-50">
+                  <Text
+                    className={`text-sm ${
+                      country === value ? 'font-semibold text-[#0EA5A4]' : 'text-gray-800'
+                    }`}>
+                    {country}
+                  </Text>
+                  {country === value && (
+                    <Ionicons name="checkmark-circle" size={16} color="#0EA5A4" />
+                  )}
+                </Pressable>
+              ))
+            )}
+          </ScrollView>
         </View>
-      </Modal>
+      )}
     </View>
   );
 }

@@ -6,13 +6,13 @@ import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { PrimaryButton } from 'components/Button';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
-import { STATES_BY_COUNTRY } from 'constants/geo';
-import { CountryPicker } from 'components/CountryPicker';
-import { SuggestInput } from 'components/SuggestInput';
+import { NIGERIA_STATES } from 'constants/geo';
 import { DOBInput } from 'components/DobPicker';
 import { PhoneNumberInput } from 'components/PhoneInput';
 import { useState, useCallback } from 'react';
 import { validateSingleField } from 'utils/validation';
+import { CountryPicker } from 'components/CountryPicker';
+import { SuggestInput } from 'components/SuggestInput';
 
 const VALID_FIELDS = {
   phone: true,
@@ -157,11 +157,8 @@ export default function ProfessionalScreen() {
       <CountryPicker
         label="Country"
         value={userDraft.country || ''}
+        onChange={(v) => handleFieldChange('country', v)}
         hasError={!!fieldErrors.country}
-        onChange={(v) => {
-          handleFieldChange('country', v);
-          if (v !== userDraft.country) handleFieldChange('state', '');
-        }}
       />
       <ErrorMessage fieldName="country" fieldErrors={fieldErrors} />
 
@@ -170,11 +167,11 @@ export default function ProfessionalScreen() {
         <SuggestInput
           value={userDraft.state || ''}
           onChangeText={(v) => handleFieldChange('state', v)}
-          suggestions={STATES_BY_COUNTRY[userDraft.country || ''] ?? []}
-          placeholder={userDraft.country ? 'Type to search state...' : 'Select a country first'}
+          suggestions={userDraft.country === 'Nigeria' ? NIGERIA_STATES : []}
+          placeholder={userDraft.country === 'Nigeria' ? 'Search state…' : 'Enter your state or province'}
           placeholderTextColor="#9CA3AF"
-          inputClassName={`rounded-xl px-3 py-3 text-sm ${
-            fieldErrors.state ? 'border border-red-300 bg-red-50 text-gray-800' : 'bg-[#F2F4F7] text-gray-800'
+          inputClassName={`rounded-xl p-3 text-sm text-gray-800 h-12 ${
+            fieldErrors.state ? 'border border-red-300 bg-red-50' : 'bg-[#F2F4F7]'
           }`}
         />
       </View>
