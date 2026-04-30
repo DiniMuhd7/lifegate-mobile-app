@@ -18,6 +18,7 @@ import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { scheduleHealthInsightNotification } from 'utils/pushNotifications';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { BannerAd } from 'components/BannerAd';
 import { GreetingSection } from 'components/GreetingSection';
 import Logo from 'assets/logo.svg';
 import type { HealthTimelineEntry } from 'types/health-types';
@@ -941,9 +942,10 @@ export default function HealthDashboardScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
+    <BannerAd />
     <PatientBottomTabBar activeTab="health" />
 
-      {/* ── AI Chat FAB ── */}
+      {/* ── AI Chat FAB ── */
       <View
         pointerEvents="box-none"
         style={{

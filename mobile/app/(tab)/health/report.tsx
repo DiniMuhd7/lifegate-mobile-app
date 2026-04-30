@@ -20,6 +20,7 @@ import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
 import type { DiagnosisPrescription } from 'types/diagnosis-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { BannerAd } from 'components/BannerAd';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -740,6 +741,7 @@ export default function HealthReportScreen() {
         </View>
       )}
     </SafeAreaView>
+    <BannerAd />
     <PatientBottomTabBar activeTab="health" />
     </View>
   );

@@ -14,6 +14,7 @@ import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { BannerAd } from 'components/BannerAd';
 import { SeverityLineChart } from 'components/SeverityLineChart';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -482,6 +483,7 @@ export default function HealthTimelineScreen() {
         />
       )}
     </SafeAreaView>
+    <BannerAd />
     <PatientBottomTabBar activeTab="health" />
     </View>
   );
