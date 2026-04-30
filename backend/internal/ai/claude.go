@@ -32,10 +32,16 @@ Content string `json:"content"`
 var msgs []claudeMessage
 for _, m := range messages {
 role := "user"
+content := m.Text
 if strings.EqualFold(m.Role, "AI") {
 role = "assistant"
+} else if strings.EqualFold(m.Role, "SYSTEM") {
+// Anthropic messages API does not support a "system" role in the messages
+// list — prepend a clear label so the model knows this is injected context,
+// not patient speech.
+content = "[EDIS Clinical Context — not patient input]:\n" + m.Text
 }
-msgs = append(msgs, claudeMessage{Role: role, Content: m.Text})
+msgs = append(msgs, claudeMessage{Role: role, Content: content})
 }
 
 body := map[string]interface{}{

@@ -37,6 +37,8 @@ for _, m := range messages {
 role := "user"
 if strings.EqualFold(m.Role, "AI") {
 role = "assistant"
+} else if strings.EqualFold(m.Role, "SYSTEM") {
+role = "system"
 }
 msgs = append(msgs, openAIMessage{Role: role, Content: m.Text})
 }

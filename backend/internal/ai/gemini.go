@@ -43,10 +43,15 @@ Parts: []part{{Text: "Understood. I will respond as LifeGate health assistant in
 })
 for _, m := range messages {
 role := "user"
+text := m.Text
 if strings.EqualFold(m.Role, "AI") {
 role = "model"
+} else if strings.EqualFold(m.Role, "SYSTEM") {
+// Gemini only supports "user" and "model" roles — prepend a clear label so
+// the model knows this is injected clinical context, not patient speech.
+text = "[EDIS Clinical Context — not patient input]:\n" + m.Text
 }
-contents = append(contents, content{Role: role, Parts: []part{{Text: m.Text}}})
+contents = append(contents, content{Role: role, Parts: []part{{Text: text}}})
 }
 
 body := map[string]interface{}{
