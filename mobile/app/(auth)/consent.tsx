@@ -14,8 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from 'components/Button';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const PRIVACY_URL = 'https://www.lifegate.com/privacy-policy';
-const TERMS_URL = 'https://www.lifegate.com/terms';
+const PRIVACY_URL = 'https://www.dshub.com.ng/privacy-policy';
+const TERMS_URL = 'https://www.dshub.com.ng/terms';
 const NDPC_URL = 'https://ndpc.gov.ng';
 
 // Section component for clean structure
@@ -256,8 +256,8 @@ export default function ConsentScreen() {
                 Contact:{' '}
                 <Text
                   className="text-[#0EA5A4] underline"
-                  onPress={() => Linking.openURL('mailto:privacy@dshub.ng')}>
-                  privacy@dshub.ng
+                  onPress={() => Linking.openURL('mailto:privacy@dshub.com.ng')}>
+                  privacy@dshub.com.ng
                 </Text>
               </Text>
             </Section>
@@ -355,8 +355,8 @@ export default function ConsentScreen() {
                 Exercise your rights via{' '}
                 <Text
                   className="text-[#0EA5A4] underline"
-                  onPress={() => Linking.openURL('mailto:privacy@dshub.ng')}>
-                  privacy@dshub.ng
+                  onPress={() => Linking.openURL('mailto:privacy@dshub.com.ng')}>
+                  privacy@dshub.com.ng
                 </Text>
                 {' '}or contact the NDPC at{' '}
                 <Link label="ndpc.gov.ng" url={NDPC_URL} />.
@@ -371,8 +371,8 @@ export default function ConsentScreen() {
                 system is completely secure. If you suspect a breach, contact us immediately at{' '}
                 <Text
                   className="text-[#0EA5A4] underline"
-                  onPress={() => Linking.openURL('mailto:security@dshub.ng')}>
-                  security@dshub.ng
+                  onPress={() => Linking.openURL('mailto:security@dshub.com.ng')}>
+                  security@dshub.com.ng
                 </Text>
                 .
               </Text>

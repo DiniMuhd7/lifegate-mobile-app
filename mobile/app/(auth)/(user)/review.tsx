@@ -152,13 +152,13 @@ export default function UserReviewStep() {
             I confirm the information above is accurate and agree to the{' '}
             <Text
               className="font-semibold text-teal-600"
-              onPress={() => Linking.openURL('https://www.lifegate.com/terms')}>
+              onPress={() => Linking.openURL('https://www.dshub.com.ng/terms')}>
               Terms of Service
             </Text>
             {' '}and{' '}
             <Text
               className="font-semibold text-teal-600"
-              onPress={() => Linking.openURL('https://www.lifegate.com/privacy-policy')}>
+              onPress={() => Linking.openURL('https://www.dshub.com.ng/privacy-policy')}>
               Privacy Policy
             </Text>
             .
