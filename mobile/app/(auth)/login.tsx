@@ -196,22 +196,7 @@ export default function LoginScreen() {
             disabled={!canSubmit}
           />
 
-          {/* Divider */}
-          <View className="my-5 flex-row items-center">
-            <View className="flex-1 h-px bg-gray-200" />
-            <Text className="mx-3 text-xs text-gray-400">or continue with</Text>
-            <View className="flex-1 h-px bg-gray-200" />
-          </View>
 
-          {/* Google Sign-In */}
-          <Pressable
-            onPress={onGoogleLogin}
-            disabled={loading}
-            className="flex-row items-center justify-center rounded-xl border border-gray-200 bg-white py-3 px-4"
-            style={({ pressed }) => ({ opacity: pressed || loading ? 0.6 : 1 })}>
-            <Ionicons name="logo-google" size={18} color="#DB4437" />
-            <Text className="ml-2 text-sm font-semibold text-gray-700">Continue with Google</Text>
-          </Pressable>
 
           <View className="mt-6 flex-row justify-center">
             <Text className="text-sm text-gray-500">Don&apos;t have an account? </Text>

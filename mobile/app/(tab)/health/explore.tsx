@@ -737,17 +737,11 @@ export default function ExploreScreen() {
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
   const [adRewarded, setAdRewarded] = useState(false);
-
-  const AD_BONUS_COINS = 5;
-
-  const handleAdRewarded = useCallback(() => {
-    useLifecoinsWalletStore.getState().addCoins('ad_reward', AD_BONUS_COINS, 'Rewarded ad bonus');
-    setAdRewarded(true);
-    showToast(`+${AD_BONUS_COINS} bonus Lifecoins earned!`, AD_BONUS_COINS);
-  }, [showToast]);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [isFetching, setIsFetching] = useState(false);
+
+  const AD_BONUS_COINS = 5;
 
   useEffect(() => {
     if (!initialized) initialize();
@@ -772,6 +766,12 @@ export default function ExploreScreen() {
     setToast({ message, coins });
     setTimeout(() => setToast(null), 2800);
   }, []);
+
+  const handleAdRewarded = useCallback(() => {
+    useLifecoinsWalletStore.getState().addCoins('ad_reward', AD_BONUS_COINS, 'Rewarded ad bonus');
+    setAdRewarded(true);
+    showToast(`+${AD_BONUS_COINS} bonus Lifecoins earned!`, AD_BONUS_COINS);
+  }, [showToast]);
 
   const handleWatch = useCallback(
     (video: ExploreVideo) => {
