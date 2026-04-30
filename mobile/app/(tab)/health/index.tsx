@@ -509,62 +509,61 @@ const AIInsightCard = React.memo<{
 });
 
 const PROMOTIONS = [
-  { title: 'Check-ins', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
-  { title: 'Explore', icon: 'compass-outline' as const, color: '#059669', bg: '#d1fae5' },
-  { title: 'Referrals', icon: 'people-outline' as const, color: '#dc2626', bg: '#fee2e2' },
+  { title: 'Check-ins', subtitle: 'Log daily health check-ins & earn rewards', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
+  { title: 'Explore', subtitle: 'Browse health tips, videos & articles', icon: 'compass-outline' as const, color: '#059669', bg: '#d1fae5' },
+  { title: 'Referrals', subtitle: 'Invite friends and earn Diagnosis credits', icon: 'people-outline' as const, color: '#dc2626', bg: '#fee2e2' },
 ];
 
 function PromotionsSection() {
   return (
-    <View style={{ marginBottom: 16, paddingHorizontal: 16 }}>
-      <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
-        {PROMOTIONS.map((item) => (
-          <Pressable
-            key={item.title}
-            onPress={() => {
-              if (item.title === 'Check-ins') router.push('/(tab)/health/checkins' as never);
-              if (item.title === 'Explore') router.push('/(tab)/health/explore' as never);
-              if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
-            }}
-            style={({ pressed }) => ({
-              flex: 1,
-              maxWidth: 110,
-              aspectRatio: 0.85,
-              opacity: pressed ? 0.82 : 1,
+    <View style={{ marginBottom: 16, paddingHorizontal: 16, gap: 10 }}>
+      {PROMOTIONS.map((item) => (
+        <Pressable
+          key={item.title}
+          onPress={() => {
+            if (item.title === 'Check-ins') router.push('/(tab)/health/checkins' as never);
+            if (item.title === 'Explore') router.push('/(tab)/health/explore' as never);
+            if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
+          }}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            opacity: pressed ? 0.82 : 1,
+            backgroundColor: item.bg,
+            borderRadius: 20,
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            gap: 16,
+            shadowColor: item.color,
+            shadowOpacity: 0.14,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 3 },
+            elevation: 3,
+          })}
+        >
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 14,
+              backgroundColor: '#fff',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: item.bg,
-              borderRadius: 16,
-              gap: 12,
               shadowColor: item.color,
-              shadowOpacity: 0.14,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 3 },
-              elevation: 3,
-            })}
+              shadowOpacity: 0.18,
+              shadowRadius: 6,
+              elevation: 2,
+            }}
           >
-            <View
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: 14,
-                backgroundColor: '#fff',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: item.color,
-                shadowOpacity: 0.18,
-                shadowRadius: 6,
-                elevation: 2,
-              }}
-            >
-              <Ionicons name={item.icon} size={30} color={item.color} />
-            </View>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
-              {item.title}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+            <Ionicons name={item.icon} size={24} color={item.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1F2937' }}>{item.title}</Text>
+            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{item.subtitle}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={item.color} />
+        </Pressable>
+      ))}
     </View>
   );
 }
