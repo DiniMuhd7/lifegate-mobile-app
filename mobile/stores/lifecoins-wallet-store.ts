@@ -37,7 +37,8 @@ export type TxSource =
   | 'offer'
   | 'explore'
   | 'referral'
-  | 'redeem';
+  | 'redeem'
+  | 'ad_reward';
 
 export type TxType = 'earn' | 'redeem';
 

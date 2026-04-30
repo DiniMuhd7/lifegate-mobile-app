@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { useAuthStore } from 'stores/auth-store';
+import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
+import { RewardedAdButton } from 'components/RewardedAdButton';
 
 import { interpretVision } from 'services/sensor-interpretation-service';
 import type { SensorInterpretResponse } from 'services/sensor-interpretation-service';
@@ -1162,6 +1164,18 @@ export default function BatteryResults() {
               These results are from a screening tool only and do not replace a professional eye examination.
               Consult an eye-care professional for a formal assessment.
             </Text>
+          </View>
+
+          {/* Rewarded ad — optional bonus Lifecoins */}
+          <View style={{ marginBottom: 16 }}>
+            <RewardedAdButton
+              onRewarded={() => {
+                useLifecoinsWalletStore.getState().addCoins('ad_reward', 3, 'Eye test rewarded ad');
+              }}
+              label="Watch a short ad to support LifeGate"
+              sublabel="Takes ~30 seconds · completely optional"
+              coinsLabel="+3 LC"
+            />
           </View>
 
           {/* Actions */}

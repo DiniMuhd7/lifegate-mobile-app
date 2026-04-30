@@ -1,5 +1,6 @@
 export { Background } from './Background';
 export { BannerAd } from './BannerAd';
+export { RewardedAdButton } from './RewardedAdButton';
 export { ProfileMenu } from './ProfileMenu';
 export { GreetingSection } from './GreetingSection';
 export { SymptomChip } from './SymptomChip';

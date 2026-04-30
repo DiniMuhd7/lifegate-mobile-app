@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BannerAd } from 'components/BannerAd';
+import { RewardedAdButton } from 'components/RewardedAdButton';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -29,6 +30,7 @@ import {
 } from 'stores/explore-store';
 import { useAuthStore } from 'stores/auth-store';
 import { usePatientHealthStore } from 'stores/health-store';
+import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -626,6 +628,15 @@ export default function ExploreScreen() {
 
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
+  const [adRewarded, setAdRewarded] = useState(false);
+
+  const AD_BONUS_COINS = 5;
+
+  const handleAdRewarded = useCallback(() => {
+    useLifecoinsWalletStore.getState().addCoins('ad_reward', AD_BONUS_COINS, 'Rewarded ad bonus');
+    setAdRewarded(true);
+    showToast(`+${AD_BONUS_COINS} bonus Lifecoins earned!`, AD_BONUS_COINS);
+  }, [showToast]);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [isFetching, setIsFetching] = useState(false);
@@ -936,6 +947,19 @@ export default function ExploreScreen() {
                   refreshes daily. Health videos are for educational purposes only.
                 </Text>
               </View>
+
+              {/* Bonus rewarded ad — shown when the daily video cap is reached */}
+              {dailyRemaining === 0 && (
+                <View style={{ marginTop: 12 }}>
+                  <RewardedAdButton
+                    onRewarded={handleAdRewarded}
+                    label="Watch an ad for bonus coins"
+                    sublabel="Daily video limit reached · earn extra Lifecoins"
+                    coinsLabel={adRewarded ? '✓ Claimed' : `+${AD_BONUS_COINS} LC`}
+                    disabled={adRewarded}
+                  />
+                </View>
+              )}
             </View>
           ) : null
         }

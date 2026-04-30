@@ -36,6 +36,8 @@ import { interpretHearing } from 'services/sensor-interpretation-service';
 import type { SensorInterpretResponse } from 'services/sensor-interpretation-service';
 import { openHearingPDF } from 'services/hearing-pdf';
 import { useAuthStore } from 'stores/auth-store';
+import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
+import { RewardedAdButton } from 'components/RewardedAdButton';
 import type { PTAFrequency, TestEar, WHOGrade, SINResult, HFResult, BehavioralReport } from 'types/hearing-types';
 import { PTA_FREQUENCIES, HF_FREQUENCIES } from 'types/hearing-types';
 
@@ -1594,6 +1596,16 @@ export default function HearingResults() {
               This is a screening test and not a clinical diagnosis. Results may be affected by device limitations, ambient noise, and headphone type. Please consult an audiologist for confirmed hearing evaluation.
             </Text>
           </View>
+
+          {/* Rewarded ad — optional bonus Lifecoins */}
+          <RewardedAdButton
+            onRewarded={() => {
+              useLifecoinsWalletStore.getState().addCoins('ad_reward', 3, 'Hearing test rewarded ad');
+            }}
+            label="Watch a short ad to support LifeGate"
+            sublabel="Takes ~30 seconds · completely optional"
+            coinsLabel="+3 LC"
+          />
 
           {/* Actions */}
           <View style={{ gap: 10, marginTop: 16 }}>
