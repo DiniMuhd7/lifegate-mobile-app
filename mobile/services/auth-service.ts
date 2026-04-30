@@ -396,6 +396,28 @@ export const AuthService = {
   },
 
   /**
+   * Update the patient's basic profile (name and/or phone).
+   * PATCH /auth/profile
+   */
+  async updateBasicProfile(data: {
+    name?: string;
+    phone?: string;
+  }): Promise<{ success: boolean; message: string; user?: import('../types/auth-types').User }> {
+    try {
+      const response = await api.patch<{ success: boolean; message: string; data?: { user: import('../types/auth-types').User } }>(
+        '/auth/profile',
+        data
+      );
+      if (!response.data.success) {
+        return { success: false, message: response.data.message || 'Failed to update profile' };
+      }
+      return { success: true, message: response.data.message, user: response.data.data?.user };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
+
+  /**
    * Update the patient's health profile fields.
    * PUT /auth/health-profile
    */

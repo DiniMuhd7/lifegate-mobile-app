@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LabeledInput } from './LabeledInput';
@@ -23,6 +23,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   onSave,
 }) => {
   const [form, setForm] = useState(initialValues);
+
+  useEffect(() => {
+    if (visible) setForm(initialValues);
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = () => {
     if (!form.firstName.trim() || !form.lastName.trim()) {

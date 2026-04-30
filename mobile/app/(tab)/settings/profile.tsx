@@ -113,7 +113,7 @@ function PasswordHintRow({ label, ok }: { label: string; ok: boolean }) {
 
 export default function ManageProfileScreen() {
   const { user } = useAuthStore();
-  const { changePassword, updateHealthProfile, loading, getProfile, error, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
+  const { changePassword, updateHealthProfile, updateBasicProfile, loading, getProfile, error, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -192,13 +192,19 @@ export default function ManageProfileScreen() {
       })
     : null;
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
       Alert.alert('Validation', 'Please fill in all required fields');
       return;
     }
-    Alert.alert('Success', 'Profile updated successfully');
-    setShowEditModal(false);
+    const fullName = [editForm.firstName.trim(), editForm.lastName.trim()].filter(Boolean).join(' ');
+    const success = await updateBasicProfile({ name: fullName, phone: editForm.phone.trim() || undefined });
+    if (success) {
+      Alert.alert('Success', 'Profile updated successfully');
+      setShowEditModal(false);
+    } else {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
 
   const handleChangePassword = async () => {

@@ -326,6 +326,7 @@ func main() {
 		authGroup.GET("/me", middleware.Auth(cfg.JWTSecret), authHandler.Me)
 		authGroup.PUT("/change-password", middleware.Auth(cfg.JWTSecret), authHandler.ChangePassword)
 		authGroup.PUT("/health-profile", middleware.Auth(cfg.JWTSecret), authHandler.UpdateHealthProfile)
+		authGroup.PATCH("/profile", middleware.Auth(cfg.JWTSecret), authHandler.UpdateBasicProfile)
 		authGroup.PATCH("/mdcn-verify", middleware.Auth(cfg.JWTSecret), authHandler.MarkMDCNVerified)
 		authGroup.POST("/account/delete", middleware.Auth(cfg.JWTSecret), authHandler.RequestAccountDeletion)
 		authGroup.DELETE("/account/delete", middleware.Auth(cfg.JWTSecret), authHandler.CancelAccountDeletion)

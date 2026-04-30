@@ -9,7 +9,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { type WebViewNavigation } from 'react-native-webview';
 
@@ -59,6 +59,7 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     fetchBalance();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Refresh balance whenever the screen is focused (e.g. returning from checkout).
@@ -156,7 +157,14 @@ export default function SubscriptionScreen() {
       setShowWebView(false);
       clearPaymentLink();
 
-      const params = new URL(url.replace('lifegate://', 'https://dummy.host/')).searchParams;
+      let params: URLSearchParams;
+      try {
+        params = new URL(url.replace('lifegate://', 'https://dummy.host/')).searchParams;
+      } catch {
+        // Malformed deep-link URL — treat as failure
+        router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
+        return;
+      }
       const status = params.get('status') ?? '';
       const txRef = params.get('tx_ref') ?? activeTxRef ?? '';
       const flwTxId = params.get('transaction_id') ?? params.get('flw_tx_id') ?? '';
@@ -263,7 +271,7 @@ export default function SubscriptionScreen() {
 
           <View className="mb-6 flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <MaterialCommunityIcons name="history" size={20} color="#0EA5A4" />
+              <Ionicons name="time-outline" size={20} color="#0EA5A4" />
               <Text className="ml-2 text-base font-semibold text-gray-900">Transactions</Text>
             </View>
             <Pressable

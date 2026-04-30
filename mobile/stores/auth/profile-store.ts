@@ -17,6 +17,7 @@ type ProfileState = {
   // Actions
   clearError: () => void;
   getProfile: () => Promise<boolean>;
+  updateBasicProfile: (data: { name?: string; phone?: string }) => Promise<boolean>;
   updateHealthProfile: (data: {
     blood_type?: string | null;
     genotype?: string | null;
@@ -63,6 +64,25 @@ getProfile: async () => {
     return false;
   }
 },
+  // -------- PROFILE: UPDATE HEALTH PROFILE --------
+  updateBasicProfile: async (data) => {
+    setUser({ loading: true, error: null });
+    try {
+      const response = await AuthService.updateBasicProfile(data);
+      if (!response.success) {
+        setUser({ loading: false, error: response.message ?? 'Failed to update profile' });
+        return false;
+      }
+      if (response.user) {
+        useAuthStore.setState({ user: response.user, isAuthenticated: true });
+      }
+      setUser({ loading: false, error: null });
+      return true;
+    } catch (err: any) {
+      setUser({ loading: false, error: extractErrorMessage(err) });
+      return false;
+    }
+  },
   // -------- PROFILE: UPDATE HEALTH PROFILE --------
   updateHealthProfile: async (data) => {
     setUser({ loading: true, error: null });

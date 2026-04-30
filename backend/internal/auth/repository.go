@@ -230,6 +230,22 @@ func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (
 	return r.FindUserByID(userID)
 }
 
+// UpdateBasicProfile updates the user's name and/or phone number.
+func (r *Repository) UpdateBasicProfile(userID, name, phone string) (*User, error) {
+	_, err := r.db.Exec(`
+		UPDATE users
+		SET name       = CASE WHEN $2 <> '' THEN $2 ELSE name END,
+		    phone      = CASE WHEN $3 <> '' THEN $3 ELSE phone END,
+		    updated_at = NOW()
+		WHERE id = $1::uuid`,
+		userID, name, phone,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return r.FindUserByID(userID)
+}
+
 func (r *Repository) DeletePendingRegistration(email string) error {
 	_, err := r.db.Exec(`DELETE FROM pending_registrations WHERE email = $1`, email)
 	return err
