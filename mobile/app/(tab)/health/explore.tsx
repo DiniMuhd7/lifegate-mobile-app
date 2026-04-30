@@ -721,7 +721,7 @@ function VideoPlayerModal({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ExploreScreen() {
-  const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap, lastVideoRefreshDate } =
+  const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap, lastVideoFetchDate } =
     useExploreStore();
 
   const user = useAuthStore((s) => s.user);
@@ -747,16 +747,21 @@ export default function ExploreScreen() {
     if (!initialized) initialize();
   }, [initialized, initialize]);
 
-  // Re-fetch videos whenever the screen gains focus on a new calendar day.
+  // Re-fetch videos when the screen gains focus and the catalogue is from a
+  // previous day. Uses lastVideoFetchDate (persisted to storage and synced to
+  // Zustand state) so app restarts within the same day don't cause a redundant
+  // parallel fetch alongside initialize()'s own step-2 network call.
+  // Note: initialize() sets lastVideoRefreshDate: today early in step 1, so
+  // the dep change from initialized=false→true will NOT trigger a re-fetch here.
   useFocusEffect(
     useCallback(() => {
       if (!initialized) return;
       const today = new Date().toISOString().slice(0, 10);
-      if (lastVideoRefreshDate !== today) {
+      if (lastVideoFetchDate !== today) {
         setIsFetching(true);
         refreshVideos().finally(() => setIsFetching(false));
       }
-    }, [initialized, lastVideoRefreshDate, refreshVideos]),
+    }, [initialized, lastVideoFetchDate, refreshVideos]),
   );
 
   // Daily-shuffled video order — recalculated when the catalogue changes
@@ -1010,7 +1015,9 @@ export default function ExploreScreen() {
           ) : null
         }
         ListEmptyComponent={
-          isFetching && videos.length === 0 ? (
+          // No videos at all → always show spinner (initial fetch or day-change refresh in-flight).
+          // If videos are loaded but the active category has none, show a category message.
+          videos.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12, paddingHorizontal: 16 }}>
               <ActivityIndicator size="large" color="#059669" />
               <Text style={{ fontSize: 13, color: '#6b7280' }}>Loading today’s health videos…</Text>
@@ -1019,14 +1026,10 @@ export default function ExploreScreen() {
             <View style={{ alignItems: 'center', paddingVertical: 48, gap: 12, paddingHorizontal: 16 }}>
               <Ionicons name="logo-youtube" size={36} color="#374151" />
               <Text style={{ fontSize: 14, fontWeight: '700', color: '#e2e8f0', textAlign: 'center' }}>
-                {activeCategory === 'All'
-                  ? "Fetching today’s health videos…"
-                  : `No ${activeCategory} videos available yet`}
+                {`No ${activeCategory} videos available yet`}
               </Text>
               <Text style={{ fontSize: 12, color: '#6b7280', textAlign: 'center', paddingHorizontal: 24 }}>
-                {activeCategory === 'All'
-                  ? 'Fresh videos are sourced from YouTube daily. Pull to refresh or check back shortly.'
-                  : 'Try a different category or check back after the daily refresh.'}
+                Try a different category or check back after the daily refresh.
               </Text>
             </View>
           )

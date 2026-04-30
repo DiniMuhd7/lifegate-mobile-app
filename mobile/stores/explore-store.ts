@@ -400,12 +400,14 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
         persisted = JSON.parse(raw) as PersistedExploreData;
         const dailyWatchedCount = persisted.lastWatchDate === today ? (persisted.dailyWatchedCount ?? 0) : 0;
         const cachedVideos = persisted.cachedVideos ?? [];
-        set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true });
+        // Set lastVideoRefreshDate: today immediately so useFocusEffect does
+        // not trigger a parallel refreshVideos() while step 2 fetch is in-flight.
+        set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true, lastVideoRefreshDate: today });
       } else {
-        set({ initialized: true });
+        set({ initialized: true, lastVideoRefreshDate: today });
       }
     } catch {
-      set({ initialized: true });
+      set({ initialized: true, lastVideoRefreshDate: today });
     }
 
     // 2. Refresh video catalogue if stale (fetched before today)
@@ -425,6 +427,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           progress: mergedProgress,
           dailyWatchedCount: remote.rewardedIds.length,
           lastVideoRefreshDate: today,
+          lastVideoFetchDate: today,  // keep in-memory state in sync with storage
         });
         const current = get();
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -471,6 +474,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       progress: mergedProgress,
       dailyWatchedCount: remote.rewardedIds.length,
       lastVideoRefreshDate: today,
+      lastVideoFetchDate: today,  // keep in-memory state in sync with storage
     });
     // Persist updated video cache
     const current = get();

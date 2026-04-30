@@ -180,17 +180,19 @@ func (r *Refresher) run(ctx context.Context) {
 			continue
 		}
 
-		// Deactivate yesterday's entries for this category so the catalogue
-		// stays fresh without accumulating stale rows.
-		if err := r.repo.DeactivateOldVideos(cat, today); err != nil {
-			log.Printf("[explore/refresher] deactivate failed for %q: %v", cat, err)
-		}
-
+		// Upsert new videos FIRST so there is never a window where a category
+		// has zero active rows. DeactivateOldVideos runs after and only marks
+		// rows whose updated_at is before today — i.e. the ones we just upserted
+		// are safe because their updated_at = NOW().
 		for i, v := range videos {
 			sortOrder := sortBase + i
 			if err := r.repo.UpsertVideo(v, sortOrder); err != nil {
 				log.Printf("[explore/refresher] upsert failed for %q (%s): %v", v.Title, v.ID, err)
 			}
+		}
+
+		if err := r.repo.DeactivateOldVideos(cat, today); err != nil {
+			log.Printf("[explore/refresher] deactivate failed for %q: %v", cat, err)
 		}
 
 		log.Printf("[explore/refresher] refreshed %d video(s) for category %q", len(videos), cat)
