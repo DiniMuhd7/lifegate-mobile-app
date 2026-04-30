@@ -822,7 +822,7 @@ export default function HealthDashboardScreen() {
 
       {/* ── Loading ── */}
       <ScrollView
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 160 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 90 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
