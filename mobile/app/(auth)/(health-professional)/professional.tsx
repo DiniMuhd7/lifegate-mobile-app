@@ -1,4 +1,4 @@
-import { View, ScrollView } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { router, useFocusEffect, useRootNavigationState } from 'expo-router';
 import { useRegistrationStore } from 'stores/auth-store';
 import { LabeledInput } from 'components/LabeledInput';
@@ -6,6 +6,9 @@ import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { PrimaryButton } from 'components/Button';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
+import { STATES_BY_COUNTRY } from 'constants/geo';
+import { CountryPicker } from 'components/CountryPicker';
+import { SuggestInput } from 'components/SuggestInput';
 import { DOBInput } from 'components/DobPicker';
 import { PhoneNumberInput } from 'components/PhoneInput';
 import { useState, useCallback } from 'react';
@@ -151,23 +154,31 @@ export default function ProfessionalScreen() {
       />
       <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
 
-      <LabeledInput
-        label="State / Province"
-        placeholder="Enter your state or province"
-        value={userDraft.state || ''}
-        hasError={!!fieldErrors.state}
-        onChangeText={(v) => handleFieldChange('state', v)}
-      />
-      <ErrorMessage fieldName="state" fieldErrors={fieldErrors} />
-
-      <LabeledInput
+      <CountryPicker
         label="Country"
-        placeholder="Enter your country"
         value={userDraft.country || ''}
         hasError={!!fieldErrors.country}
-        onChangeText={(v) => handleFieldChange('country', v)}
+        onChange={(v) => {
+          handleFieldChange('country', v);
+          if (v !== userDraft.country) handleFieldChange('state', '');
+        }}
       />
       <ErrorMessage fieldName="country" fieldErrors={fieldErrors} />
+
+      <View className="mb-3">
+        <Text className="mb-1.5 font-medium text-gray-700">State / Province</Text>
+        <SuggestInput
+          value={userDraft.state || ''}
+          onChangeText={(v) => handleFieldChange('state', v)}
+          suggestions={STATES_BY_COUNTRY[userDraft.country || ''] ?? []}
+          placeholder={userDraft.country ? 'Type to search state...' : 'Select a country first'}
+          placeholderTextColor="#9CA3AF"
+          inputClassName={`rounded-xl px-3 py-3 text-sm ${
+            fieldErrors.state ? 'border border-red-300 bg-red-50 text-gray-800' : 'bg-[#F2F4F7] text-gray-800'
+          }`}
+        />
+      </View>
+      <ErrorMessage fieldName="state" fieldErrors={fieldErrors} />
 
       <View className="mt-6 mb-4">
         <PrimaryButton
