@@ -151,7 +151,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
               {loading ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text style={{ textAlign: 'center', fontWeight: '600', color: '#fff' }}>Change Password</Text>
+                <Text style={{ textAlign: 'center', fontWeight: '600', color: '#fff' }}>Update</Text>
               )}
             </TouchableOpacity>
           </View>
