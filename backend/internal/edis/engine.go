@@ -160,6 +160,8 @@ type PatientContext struct {
 	Allergies          string
 	MedicalHistory     string
 	CurrentMedications string
+	State              string // patient's state/province, if known
+	Country            string // patient's country, if known
 	// MissingProfileFields lists health profile fields that are not yet on record
 	// for this patient. When non-empty, EDIS is instructed to collect them
 	// naturally during triage and return them in a ProfileUpdate response field.
@@ -593,7 +595,8 @@ func buildHPIStateBlock(h *ai.SymptomProfile) string {
 // empty or unknown are omitted so the AI does not fabricate data.
 func buildPatientContextBlock(p PatientContext) string {
 	if p.Name == "" && p.Age == 0 && p.Gender == "" && p.BloodType == "" && p.Genotype == "" &&
-		p.Allergies == "" && p.MedicalHistory == "" && p.CurrentMedications == "" {
+		p.Allergies == "" && p.MedicalHistory == "" && p.CurrentMedications == "" &&
+		p.State == "" && p.Country == "" {
 		return ""
 	}
 
@@ -610,6 +613,17 @@ func buildPatientContextBlock(p PatientContext) string {
 	}
 	if p.Gender != "" {
 		fmt.Fprintf(&b, "Sex           : %s\n", p.Gender)
+	}
+	if p.State != "" || p.Country != "" {
+		location := p.State
+		if p.Country != "" {
+			if location != "" {
+				location += ", " + p.Country
+			} else {
+				location = p.Country
+			}
+		}
+		fmt.Fprintf(&b, "Location      : %s\n", location)
 	}
 	if p.BloodType != "" {
 		fmt.Fprintf(&b, "Blood Type    : %s\n", p.BloodType)
@@ -633,6 +647,9 @@ func buildPatientContextBlock(p PatientContext) string {
 	b.WriteString("• CHECK for drug interactions between your suggestions and the patient's current medications.\n")
 	b.WriteString("• USE the patient's existing conditions to sharpen your differential diagnoses.\n")
 	b.WriteString("• RAISE urgency appropriately when comorbidities increase vulnerability (e.g. diabetes, immunosuppression).\n")
+	if p.State != "" || p.Country != "" {
+		b.WriteString("• CONSIDER endemic diseases, regional pathogens, and locally prevalent conditions for the patient's location.\n")
+	}
 	b.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	return b.String()

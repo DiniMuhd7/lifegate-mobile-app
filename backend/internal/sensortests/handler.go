@@ -111,6 +111,12 @@ func (h *Handler) resolvePatient(c *gin.Context) edis.PatientContext {
 	if user.CurrentMedications != nil {
 		patient.CurrentMedications = *user.CurrentMedications
 	}
+	if user.State != nil {
+		patient.State = *user.State
+	}
+	if user.Country != nil {
+		patient.Country = *user.Country
+	}
 
 	return patient
 }

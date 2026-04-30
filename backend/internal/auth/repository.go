@@ -27,6 +27,8 @@ type User struct {
 	CurrentMedications   *string    `json:"current_medications,omitempty" db:"current_medications"`
 	EmergencyContact     *string    `json:"emergency_contact,omitempty" db:"emergency_contact"`
 	Genotype             *string    `json:"genotype,omitempty" db:"genotype"`
+	State                *string    `json:"state,omitempty" db:"state"`
+	Country              *string    `json:"country,omitempty" db:"country"`
 	Specialization       string     `json:"specialization,omitempty" db:"specialization"`
 	CertificateName      string     `json:"certificateName,omitempty" db:"certificate_name"`
 	CertificateID        string     `json:"certificateId,omitempty" db:"certificate_id"`
@@ -98,7 +100,7 @@ func (r *Repository) FindUserByID(id string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, COALESCE(specialization,''),
+        current_medications, emergency_contact, genotype, state, country, COALESCE(specialization,''),
         COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at
@@ -112,7 +114,7 @@ func scanUser(row *sql.Row) (*User, error) {
 		&u.ID, &u.UserID, &u.PatientID, &u.Name, &u.Email, &u.Role,
 		&u.Phone, &u.DOB, &u.Gender, &u.Language,
 		&u.HealthHistory, &u.ReferralCode, &u.BloodType, &u.Allergies, &u.MedicalHistory,
-		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.Specialization,
+		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.State, &u.Country, &u.Specialization,
 		&u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
 		&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
 		&u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
@@ -132,7 +134,7 @@ func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
  RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
            COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		   COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-           current_medications, emergency_contact, genotype, COALESCE(specialization,''),
+           current_medications, emergency_contact, genotype, state, country, COALESCE(specialization,''),
            COALESCE(certificate_name,''), COALESCE(certificate_id,''),
            COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
            mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at`,
