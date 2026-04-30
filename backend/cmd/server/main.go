@@ -314,6 +314,7 @@ func main() {
 		authGroup.POST("/login", authHandler.Login)
 		authGroup.POST("/login/verify-2fa", authHandler.VerifyPhysician2FA)
 		authGroup.POST("/login/resend-2fa", authHandler.ResendPhysician2FA)
+		authGroup.POST("/google", authHandler.GoogleLogin)
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/register/start", authHandler.RegisterStart)
 		authGroup.POST("/register/verify", authHandler.RegisterVerify)

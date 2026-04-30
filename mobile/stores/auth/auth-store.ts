@@ -37,6 +37,7 @@ type AuthState = {
   setLoginField: (field: 'email' | 'password', value: string) => void;
   clearLoginDraft: () => void;
   login: (email: string, password: string, remember: boolean) => Promise<boolean>;
+  loginWithGoogle: () => Promise<boolean>;
   verifyPhysician2FA: (email: string, otp: string) => Promise<boolean>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
@@ -289,6 +290,37 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       const { useExploreStore } = await import('../explore-store');
       useExploreStore.getState().reset();
     } catch { /* best-effort */ }
+  },
+
+  // -------- GOOGLE LOGIN --------
+  loginWithGoogle: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { signInWithGoogle } = await import('services/google-auth-service');
+      const googleResult = await signInWithGoogle();
+
+      const response = await AuthService.googleLogin(googleResult.idToken);
+      if (!response.success || !response.user) {
+        set({ loading: false, error: response.message ?? 'Google login failed' });
+        return false;
+      }
+
+      if (response.token) setAccessToken(response.token);
+      if (response.refreshToken) await saveRefreshToken(response.refreshToken);
+
+      try {
+        const { useHealthStore, usePhysicianHealthStore } = await import('../health-store');
+        useHealthStore.getState().reset();
+        usePhysicianHealthStore.getState().reset();
+      } catch { /* best-effort */ }
+
+      set({ user: response.user, isAuthenticated: true, loading: false, error: null });
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Google login failed';
+      set({ loading: false, error: msg });
+      return false;
+    }
   },
 
   // -------- MDCN VERIFICATION --------

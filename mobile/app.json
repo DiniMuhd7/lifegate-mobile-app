@@ -41,7 +41,8 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "googleMobileAdsAppId": "ca-app-pub-4516568539037938~3922174578"
     },
     "android": {
       "adaptiveIcon": {
@@ -49,7 +50,8 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.lazyapp.lifegatemobile",
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "googleMobileAdsAppId": "ca-app-pub-4516568539037938~3922174578"
     },
     "extra": {
       "router": {},

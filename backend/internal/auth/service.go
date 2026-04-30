@@ -890,3 +890,79 @@ func generateID(prefix string) string {
 	}
 	return prefix + "-" + strings.ToUpper(token)
 }
+
+// GoogleLogin verifies a Firebase ID token (obtained after Google Sign-In on the
+// client) via the Firebase REST API, then finds or creates the matching LifeGate
+// user and returns a signed TokenPair.
+func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, error) {
+	if s.cfg.FirebaseAPIKey == "" {
+		return nil, fmt.Errorf("Firebase API key not configured on the server")
+	}
+
+	// Verify the ID token with Firebase's accounts:lookup endpoint.
+	type firebaseRequest struct {
+		IDToken string `json:"idToken"`
+	}
+	type firebaseUser struct {
+		LocalID      string `json:"localId"`
+		Email        string `json:"email"`
+		DisplayName  string `json:"displayName"`
+		EmailVerified bool   `json:"emailVerified"`
+	}
+	type firebaseResponse struct {
+		Users []firebaseUser `json:"users"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	reqBody, _ := json.Marshal(firebaseRequest{IDToken: idToken})
+	url := "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + s.cfg.FirebaseAPIKey
+	resp, err := http.Post(url, "application/json", bytes.NewReader(reqBody)) //nolint:noctx
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify Google token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var fbResp firebaseResponse
+	if err := json.NewDecoder(resp.Body).Decode(&fbResp); err != nil {
+		return nil, fmt.Errorf("failed to parse Firebase response: %w", err)
+	}
+	if fbResp.Error != nil {
+		return nil, fmt.Errorf("Google token verification failed: %s", fbResp.Error.Message)
+	}
+	if len(fbResp.Users) == 0 {
+		return nil, fmt.Errorf("invalid Google token: no user found")
+	}
+
+	fbUser := fbResp.Users[0]
+	email := strings.ToLower(strings.TrimSpace(fbUser.Email))
+	name := fbUser.DisplayName
+	if name == "" {
+		name = email
+	}
+
+	user, err := s.repo.FindOrCreateGoogleUser(email, name, generateID("USR"), generateID("PAT"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve user: %w", err)
+	}
+
+	// Grant trial credits to newly created patient accounts (best-effort).
+	if s.trialGranter != nil {
+		_ = s.trialGranter.GrantTrialCredits(user.ID)
+	}
+	if s.referralProc != nil {
+		_, _ = s.referralProc.EnsureReferralCode(user.ID)
+	}
+
+	accessToken, err := s.generateJWT(user)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.IssueRefreshToken(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: accessToken, RefreshToken: refreshToken, User: user}, nil
+}
+

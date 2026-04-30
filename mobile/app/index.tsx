@@ -1,7 +1,7 @@
 // File: app/index.tsx  (Splash Screen - shows for 3 seconds then navigates)
 import { useEffect } from 'react';
 import { View, Text } from 'react-native';
-import { router } from 'expo-router';
+import { router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useSessionStore } from 'stores/session-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,7 +12,13 @@ import { INTRO_SEEN_KEY } from './intro';
 
 
 export default function SplashScreen() {
+  // useRootNavigationState().key is undefined until the root <Stack> has mounted.
+  // We must not call router.replace() before it is defined.
+  const rootNavKey = useRootNavigationState()?.key;
+
   useEffect(() => {
+    if (!rootNavKey) return; // Root layout not yet mounted — wait.
+
     const initializeApp = async () => {
       try {
         // _layout.tsx already triggered restoreSession(); wait for it to settle.
@@ -71,12 +77,12 @@ export default function SplashScreen() {
         }, 1500); // Show splash for 1.5 seconds
       } catch (error) {
         console.error('Error initializing app:', error);
-        router.replace('/welcome');
+        setTimeout(() => router.replace('/welcome'), 1500);
       }
     };
 
     initializeApp();
-  }, []);
+  }, [rootNavKey]);
 
   return (
     <LinearGradient

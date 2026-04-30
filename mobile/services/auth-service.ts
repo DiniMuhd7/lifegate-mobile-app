@@ -516,4 +516,27 @@ export const AuthService = {
       return { success: false, message: extractErrorMessage(error) };
     }
   },
+
+  /**
+   * Authenticate via Google ID token (issued by Firebase).
+   * The backend verifies the token, then creates or retrieves the user
+   * and returns a LifeGate JWT + refresh token pair.
+   * POST /auth/google
+   */
+  async googleLogin(idToken: string): Promise<AuthResponse> {
+    try {
+      const response = await api.post<BackendLoginResponse>('/auth/google', { id_token: idToken });
+      if (!response.data.success || !response.data.data?.token || !response.data.data?.user) {
+        return { success: false, message: response.data.message || 'Google login failed' };
+      }
+      return {
+        success: true,
+        token: response.data.data.token,
+        refreshToken: response.data.data.refresh_token,
+        user: response.data.data.user,
+      };
+    } catch (error: unknown) {
+      return { success: false, message: extractErrorMessage(error) };
+    }
+  },
 };

@@ -38,6 +38,10 @@ type Config struct {
 
 	YouTubeAPIKey string
 
+	// FirebaseAPIKey is used server-side to verify Firebase ID tokens
+	// (Google Sign-In). Set FIREBASE_API_KEY on the environment.
+	FirebaseAPIKey string
+
 	UploadDir string
 
 	FlutterwaveSecretKey   string
@@ -100,6 +104,8 @@ func Load() *Config {
 		SupportEmail: getEnv("SUPPORT_EMAIL", "contact@dshub.com.ng"),
 
 		YouTubeAPIKey: getEnv("YOUTUBE_DATA_API_KEY", ""),
+
+		FirebaseAPIKey: getEnv("FIREBASE_API_KEY", ""),
 
 		UploadDir: getEnv("UPLOAD_DIR", "./uploads"),
 

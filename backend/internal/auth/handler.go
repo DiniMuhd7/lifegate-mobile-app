@@ -735,3 +735,38 @@ func (h *Handler) CancelAccountDeletion(c *gin.Context) {
 	respond(c, http.StatusOK, true, "Account deletion has been cancelled. Your account is safe.", gin.H{"user": user})
 }
 
+// GoogleLogin authenticates a user via a Firebase Google Sign-In ID token.
+//
+// @Summary      Google Sign-In
+// @Description  Verify a Firebase ID token obtained via Google Sign-In and return a LifeGate JWT.
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{id_token=string}  true  "Firebase ID token"
+// @Success      200   {object}  object{success=bool,message=string,data=object{token=string,user=object}}
+// @Failure      400   {object}  object{success=bool,message=string}
+// @Failure      401   {object}  object{success=bool,message=string}
+// @Router       /auth/google [post]
+func (h *Handler) GoogleLogin(c *gin.Context) {
+	var req struct {
+		IDToken string `json:"id_token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respond(c, http.StatusBadRequest, false, err.Error(), nil)
+		return
+	}
+
+	pair, err := h.svc.GoogleLogin(c.Request.Context(), req.IDToken)
+	if err != nil {
+		respond(c, http.StatusUnauthorized, false, err.Error(), nil)
+		return
+	}
+
+	respond(c, http.StatusOK, true, "Login successful", gin.H{
+		"token":        pair.Token,
+		"refresh_token": pair.RefreshToken,
+		"user":         pair.User,
+	})
+}
+
+

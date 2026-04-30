@@ -376,3 +376,33 @@ func (r *Repository) DeleteExpiredAccounts() (int64, error) {
 	}
 	return res.RowsAffected()
 }
+
+// FindOrCreateGoogleUser returns the existing user with the given email, or inserts a new
+// patient account (with no password) if none exists. This is used by the Google Sign-In flow.
+func (r *Repository) FindOrCreateGoogleUser(email, name, userID, patientID string) (*User, error) {
+	// Try to find an existing account first.
+	user, err := r.FindUserByEmail(email)
+	if err == nil {
+		return user, nil
+	}
+
+	// Insert a new patient account (no password hash — Google-authenticated users
+	// cannot log in with a password unless they set one separately).
+	u := &User{
+		UserID:    userID,
+		PatientID: patientID,
+		Name:      name,
+		Email:     email,
+		Role:      "patient",
+	}
+	if err := r.db.QueryRow(
+		`INSERT INTO users (user_id, patient_id, name, email, password_hash, role)
+		 VALUES ($1,$2,$3,$4,'',$5)
+		 RETURNING id, created_at, updated_at`,
+		u.UserID, u.PatientID, u.Name, u.Email, u.Role,
+	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
