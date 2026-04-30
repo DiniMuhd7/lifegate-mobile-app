@@ -81,6 +81,11 @@ export default function ConsentScreen() {
           <View className="flex-1 items-center">
             <Text className="text-base font-bold text-white">Terms &amp; Conditions</Text>
             <Text className="mt-0.5 text-xs text-white/70">LifeGate by DSHub — Please read carefully</Text>
+          </View>
+          <View className="w-10" />
+        </View>
+
+        {/* Content card */}
         <View className="flex-1 overflow-hidden rounded-t-[32px] bg-[#F7FEFD]">
           {/* Scroll-to-read hint */}
           {!hasScrolledToBottom && (
