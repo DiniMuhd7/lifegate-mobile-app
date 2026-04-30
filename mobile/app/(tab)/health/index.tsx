@@ -822,7 +822,7 @@ export default function HealthDashboardScreen() {
 
       {/* ── Loading ── */}
       <ScrollView
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 90 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -935,8 +935,6 @@ export default function HealthDashboardScreen() {
                 recentCases.map((entry) => <RecentCaseRow key={entry.id} entry={entry} />)
               )}
             </View>
-          </View>
-
           </View>
         )}
       </ScrollView>
