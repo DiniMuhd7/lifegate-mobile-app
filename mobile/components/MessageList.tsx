@@ -295,7 +295,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         style={{ flex: 1 }}
-        contentContainerClassName={UI_SPACING.MESSAGE_LIST_PADDING_VERTICAL}
+        contentContainerStyle={{ paddingVertical: 16 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -309,7 +309,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         ListFooterComponent={
           <>
             {isTyping && <TypingIndicator />}
-            <View className="h-4" />
+            <View style={{ height: 16 }} />
           </>
         }
       />

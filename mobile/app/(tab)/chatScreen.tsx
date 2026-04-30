@@ -217,10 +217,12 @@ const ChatScreen: React.FC = () => {
   // session history. Guarded against deep-link resumes and mid-init state.
   useFocusEffect(
     useCallback(() => {
-      if (!resumeConversationId && !isInitializing) {
+      // Only navigate to welcome if we're not resuming a deep-link, not initializing,
+      // not mid-AI-response, and not already in an active conversation with messages.
+      if (!resumeConversationId && !isInitializing && !isThinking && showWelcomeRef.current) {
         goToWelcome();
       }
-    }, [goToWelcome, resumeConversationId, isInitializing])
+    }, [goToWelcome, resumeConversationId, isInitializing, isThinking])
   );
 
   // Hardware back button (Android) — mirrors the back arrow behaviour
@@ -818,9 +820,9 @@ const ChatScreen: React.FC = () => {
 
             {/* Error banner */}
             {error && (
-              <View className="mx-4 mb-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 flex-row items-center gap-2">
+              <View style={{ marginHorizontal: 16, marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fef2f2', paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="warning-outline" size={16} color="#dc2626" />
-                <Text className="text-sm font-medium text-red-700 flex-1">{error}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#b91c1c', flex: 1 }}>{error}</Text>
                 <TouchableOpacity onPress={clearError}>
                   <Ionicons name="close" size={16} color="#dc2626" />
                 </TouchableOpacity>
