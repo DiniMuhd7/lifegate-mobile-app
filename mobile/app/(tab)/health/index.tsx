@@ -945,7 +945,7 @@ export default function HealthDashboardScreen() {
     <BannerAd />
     <PatientBottomTabBar activeTab="health" />
 
-      {/* ── AI Chat FAB ── */
+      {/* ── AI Chat FAB ── */}
       <View
         pointerEvents="box-none"
         style={{
