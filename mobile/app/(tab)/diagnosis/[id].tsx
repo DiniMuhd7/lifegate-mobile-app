@@ -39,9 +39,14 @@ const STATUS_CONFIG: Record<
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function normalizeDate(raw: string): string {
+  if (!raw) return '';
+  return raw.trim().replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+}
+
 function formatDate(iso: string) {
   try {
-    const date = new Date(iso).toLocaleDateString('en-US', {
+    const date = new Date(normalizeDate(iso)).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

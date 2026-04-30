@@ -43,9 +43,14 @@ type ExportFormat = 'pdf' | 'png' | 'jpeg';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function normalizeDate(raw: string): string {
+  if (!raw) return '';
+  return raw.trim().replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+}
+
 function formatDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-US', {
+    return new Date(normalizeDate(iso)).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
     });
   } catch { return iso; }
@@ -85,7 +90,7 @@ function groupByMonth(entries: HealthTimelineEntry[]): { month: string; items: H
   const seen = new Map<string, number>();
   for (const e of entries) {
     let key = '';
-    try { key = new Date(e.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch { key = 'Unknown'; }
+    try { key = new Date(normalizeDate(e.createdAt)).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch { key = 'Unknown'; }
     if (seen.has(key)) { groups[seen.get(key)!].items.push(e); }
     else { seen.set(key, groups.length); groups.push({ month: key, items: [e] }); }
   }

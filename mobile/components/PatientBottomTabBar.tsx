@@ -56,7 +56,7 @@ export const PatientBottomTabBar = ({ activeTab }: PatientBottomTabBarProps) => 
           <Pressable
             key={tabKey}
             onPress={() => router.replace(tab.route as never)}
-            className="flex-1 items-center justify-center py-4"
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 14 }}
           >
             <Ionicons
               name={isActive ? tab.activeIcon : tab.icon}
@@ -64,9 +64,12 @@ export const PatientBottomTabBar = ({ activeTab }: PatientBottomTabBarProps) => 
               color={isActive ? '#0AADA2' : '#9E9E9E'}
             />
             <Text
-              className={`text-xs mt-1 font-medium ${
-                isActive ? 'text-teal-600' : 'text-gray-500'
-              }`}
+              style={{
+                fontSize: 11,
+                marginTop: 4,
+                fontWeight: '600',
+                color: isActive ? '#0AADA2' : '#9E9E9E',
+              }}
             >
               {tab.label}
             </Text>

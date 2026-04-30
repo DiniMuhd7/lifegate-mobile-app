@@ -317,17 +317,30 @@ function _deriveBaseInsight(entries: HealthTimelineEntry[]): {
   };
 }
 
-function formatRelativeDate(iso: string): string {
+/** Normalise a date string that may be in PostgreSQL ::text format
+ *  e.g. "2026-04-28 09:15:23.123456+00" → "2026-04-28T09:15:23.123456+00:00"
+ *  so that JavaScriptCore (React Native / Expo Go) can parse it reliably.
+ */
+function normalizeDate(raw: string): string {
+  if (!raw) return '';
+  return raw.trim()
+    .replace(' ', 'T')                       // space → T separator
+    .replace(/([+-]\d{2})$/, '$1:00');        // +00 → +00:00
+}
+
+function formatRelativeDate(raw: string): string {
   try {
-    const diff = Date.now() - new Date(iso).getTime();
+    const d = new Date(normalizeDate(raw));
+    if (isNaN(d.getTime())) return '';
+    const diff = Date.now() - d.getTime();
     const days = Math.floor(diff / 86400000);
     if (days === 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;
     if (days < 30) return `${Math.floor(days / 7)}w ago`;
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
-    return iso;
+    return '';
   }
 }
 
@@ -503,15 +516,8 @@ const PROMOTIONS = [
 
 function PromotionsSection() {
   return (
-    <View style={{ marginBottom: 16 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'center',
-          gap: 10,
-          paddingHorizontal: 16,
-        }}
-      >
+    <View style={{ marginBottom: 16, paddingHorizontal: 16 }}>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
         {PROMOTIONS.map((item) => (
           <Pressable
             key={item.title}
@@ -521,33 +527,33 @@ function PromotionsSection() {
               if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
             }}
             style={({ pressed }) => ({
+              flex: 1,
               opacity: pressed ? 0.8 : 1,
               alignItems: 'center',
               backgroundColor: item.bg,
-              borderRadius: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 20,
-              width: 100,
-              gap: 8,
+              borderRadius: 18,
+              paddingVertical: 20,
+              paddingHorizontal: 8,
+              gap: 10,
             })}
           >
             <View
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
+                width: 52,
+                height: 52,
+                borderRadius: 26,
                 backgroundColor: '#fff',
                 alignItems: 'center',
                 justifyContent: 'center',
                 shadowColor: item.color,
-                shadowOpacity: 0.15,
-                shadowRadius: 4,
-                elevation: 2,
+                shadowOpacity: 0.18,
+                shadowRadius: 6,
+                elevation: 3,
               }}
             >
-              <Ionicons name={item.icon} size={22} color={item.color} />
+              <Ionicons name={item.icon} size={26} color={item.color} />
             </View>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#374151', textAlign: 'center' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
               {item.title}
             </Text>
           </Pressable>
@@ -936,7 +942,7 @@ export default function HealthDashboardScreen() {
         pointerEvents="box-none"
         style={{
           position: 'absolute',
-          bottom: insets.bottom + 88,
+          bottom: insets.bottom + 82,
           right: 20,
           alignItems: 'center',
           justifyContent: 'center',

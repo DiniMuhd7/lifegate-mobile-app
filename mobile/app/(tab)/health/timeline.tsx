@@ -66,7 +66,7 @@ function filterByDate(entries: HealthTimelineEntry[], filter: DateFilter): Healt
   if (filter === 'all') return entries;
   const days = filter === '7d' ? 7 : filter === '30d' ? 30 : 90;
   const cutoff = Date.now() - days * 86400000;
-  return entries.filter((e) => new Date(e.createdAt).getTime() >= cutoff);
+  return entries.filter((e) => new Date(normalizeDate(e.createdAt)).getTime() >= cutoff);
 }
 
 function detectRecurring(allEntries: HealthTimelineEntry[]): Set<string> {
@@ -80,21 +80,26 @@ function detectRecurring(allEntries: HealthTimelineEntry[]): Set<string> {
   return recurring;
 }
 
+function normalizeDate(raw: string): string {
+  if (!raw) return '';
+  return raw.trim().replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00');
+}
+
 function formatDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(normalizeDate(iso)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch { return iso; }
 }
 
 function shortDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return new Date(normalizeDate(iso)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch { return ''; }
 }
 
 function formatMonth(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return new Date(normalizeDate(iso)).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   } catch { return ''; }
 }
 

@@ -89,7 +89,7 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 		       d.outcome_checked,
 		       COALESCE(d.ai_response::text,'{}'),
 		       COALESCE(d.physician_ai_output::text,''),
-		       d.created_at::text, d.updated_at::text,
+		       TO_CHAR(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'), TO_CHAR(d.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(pu.name,''),
 		       COALESCE(d.physician_health_tips,'')
 		FROM diagnoses d
@@ -139,7 +139,7 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		       d.outcome_checked,
 		       COALESCE(d.ai_response::text,'{}'),
 		       COALESCE(d.physician_ai_output::text,''),
-		       d.created_at::text, d.updated_at::text,
+		       TO_CHAR(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'), TO_CHAR(d.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(pu.name,''),
 		       COALESCE(d.physician_health_tips,'')
 		FROM diagnoses d
