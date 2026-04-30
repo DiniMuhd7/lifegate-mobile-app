@@ -145,7 +145,7 @@ export async function scheduleFollowUp(
   // NOTE: The server handles the follow-up push notification via its cron worker,
   // which marks follow_up_notified_at to prevent duplicates. Scheduling a local
   // push here would cause the patient to receive two notifications on the same day.
-  const notificationId: string | null = null;
+  // notificationId remains null (initialised above).
 
   // Persist IDs so callers can cancel later.
   await AsyncStorage.setItem(
