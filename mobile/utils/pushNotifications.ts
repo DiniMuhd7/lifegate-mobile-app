@@ -191,7 +191,7 @@ export function addNotificationResponseListener(
   }
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as Record<string, unknown>;
-    const caseId = data?.caseId as string | undefined;
+    const caseId = (data?.caseId ?? data?.diagnosisId) as string | undefined;
     if (caseId) handler(caseId);
   });
 }

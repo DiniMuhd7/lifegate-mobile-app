@@ -62,6 +62,12 @@ export default function TabLayout() {
   }, []);
 
   const handleDismissBanner = useCallback(() => setBanner(null), []);
+  const handleBannerPress = useCallback(() => {
+    if (banner?.caseId) {
+      router.push({ pathname: '/(tab)/diagnosis/[id]', params: { id: banner.caseId, openIM: 'true' } });
+    }
+    setBanner(null);
+  }, [banner]);
 
   // ── Connect wsService so IM modal read-receipts and typing work ────────────
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -219,8 +225,7 @@ export default function TabLayout() {
         onDismiss={() => setProfileReminderDismissed(true)}
       />
       {/* In-app banner for new IM messages from the physician */}
-      {/* onPress just dismisses — navigating into the physician route stack from here would cause a blank screen */}
-      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleDismissBanner} />
+      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleBannerPress} />
       <Drawer
         screenOptions={{
           headerShown: false,

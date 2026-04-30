@@ -142,43 +142,10 @@ export async function scheduleFollowUp(
   }
 
   // ── Local push notification ─────────────────────────────────────────────────
-  const notifGranted = await requestNotificationPermission();
-  if (notifGranted && notifyAt > new Date()) {
-    try {
-      // Ensure the follow-up channel exists on Android.
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('follow-up', {
-          name: 'Follow-up Reminders',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          sound: 'default',
-        });
-      }
-
-      notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Follow-up: ${condition} 🩺`,
-          body:
-            `It's time to check in on your ${condition}. Did your symptoms improve?` +
-            (plan.triggerSymptoms.length > 0
-              ? ` Seek care now if you have: ${plan.triggerSymptoms.slice(0, 2).join(' or ')}.`
-              : ''),
-          data: {
-            type: 'follow_up_check',
-            diagnosisId,
-          },
-          sound: 'default',
-          ...(Platform.OS === 'android' ? { channelId: 'follow-up' } : {}),
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: notifyAt,
-        },
-      });
-    } catch {
-      notificationId = null;
-    }
-  }
+  // NOTE: The server handles the follow-up push notification via its cron worker,
+  // which marks follow_up_notified_at to prevent duplicates. Scheduling a local
+  // push here would cause the patient to receive two notifications on the same day.
+  const notificationId: string | null = null;
 
   // Persist IDs so callers can cancel later.
   await AsyncStorage.setItem(

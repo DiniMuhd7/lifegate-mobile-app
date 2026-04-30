@@ -100,11 +100,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function DiagnosisReportScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, openIM } = useLocalSearchParams<{ id: string; openIM?: string }>();
   const { selectedDiagnosis, detailLoading, error, fetchDiagnosisDetail, clearSelectedDiagnosis } =
     useDiagnosisStore();
   const [submittingOutcome, setSubmittingOutcome] = useState(false);
-  const [imVisible, setImVisible] = useState(false);
+  const [imVisible, setImVisible] = useState(openIM === 'true');
 
   // Find the local chat conversation that produced this diagnosis so the
   // patient can resume it with one tap.
