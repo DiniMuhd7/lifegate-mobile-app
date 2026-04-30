@@ -71,7 +71,7 @@ func (r *Repository) FindUserByEmail(email string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, COALESCE(specialization,''),
+        current_medications, emergency_contact, genotype, state, country, COALESCE(specialization,''),
         COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at
