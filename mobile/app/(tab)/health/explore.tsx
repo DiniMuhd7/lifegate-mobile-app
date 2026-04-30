@@ -256,6 +256,36 @@ function VideoPlayerModal({
   const { width: screenWidth } = useWindowDimensions();
   const videoHeight = Math.round((screenWidth * 9) / 16);
 
+  // ── Pre-roll ad state ──────────────────────────────────────────────────────
+  // Show a rewarded-ad opportunity before the video loads.
+  // After the ad is watched OR the skip countdown hits 0, preRollDone = true.
+  const [preRollDone, setPreRollDone] = useState(false);
+  const [skipCountdown, setSkipCountdown] = useState(5);
+  const skipRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (preRollDone) return;
+    skipRef.current = setInterval(() => {
+      setSkipCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(skipRef.current!);
+          skipRef.current = null;
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => {
+      if (skipRef.current) clearInterval(skipRef.current);
+    };
+  }, [preRollDone]);
+
+  const dismissPreRoll = useCallback(() => {
+    if (skipRef.current) clearInterval(skipRef.current);
+    setPreRollDone(true);
+  }, []);
+
+  // ── Video player state ─────────────────────────────────────────────────────
   const videoRef = useRef<WebView>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const [embedError, setEmbedError] = useState<number | null>(null);
@@ -370,7 +400,83 @@ function VideoPlayerModal({
       statusBarTranslucent
     >
       <View style={{ flex: 1, backgroundColor: '#000' }}>
-        {/* ── Video area ── */}
+
+        {/* ── Pre-roll ad screen ── shown before the video loads ── */}
+        {!preRollDone && (
+          <View style={{ flex: 1, backgroundColor: '#0f172a', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+            <LinearGradient
+              colors={[video.thumbnailColor + '33', '#0f172a']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 0.6 }}
+            />
+
+            {/* Close button */}
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={{ position: 'absolute', top: 52, left: 20 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="rgba(255,255,255,0.6)" />
+            </Pressable>
+
+            {/* "Up next" label */}
+            <View style={{ alignItems: 'center', gap: 6, marginBottom: 32 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.35)', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                Up next
+              </Text>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: '#f1f5f9', textAlign: 'center', lineHeight: 24 }} numberOfLines={2}>
+                {video.title}
+              </Text>
+              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+                {video.instructor} · {formatDuration(video.durationSeconds)}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4,
+                backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: 12,
+                paddingHorizontal: 12, paddingVertical: 5,
+                borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)' }}>
+                <Ionicons name="heart" size={13} color="#fbbf24" />
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#fbbf24' }}>+{video.coins} LC on completion</Text>
+              </View>
+            </View>
+
+            {/* Rewarded ad button */}
+            <View style={{ width: '100%', marginBottom: 16 }}>
+              <RewardedAdButton
+                onRewarded={() => {
+                  useLifecoinsWalletStore.getState().addCoins('ad_reward', 3, 'Explore pre-roll ad');
+                  dismissPreRoll();
+                }}
+                onDismissed={dismissPreRoll}
+                label="Watch a short ad to support LifeGate"
+                sublabel="Takes ~30 seconds · earns you +3 bonus LC"
+                coinsLabel="+3 LC"
+              />
+            </View>
+
+            {/* Skip button — enabled after countdown */}
+            <Pressable
+              onPress={skipCountdown === 0 ? dismissPreRoll : undefined}
+              style={({ pressed }) => ({
+                opacity: skipCountdown > 0 ? 0.4 : pressed ? 0.7 : 1,
+                paddingVertical: 10,
+                paddingHorizontal: 24,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.2)',
+                alignItems: 'center',
+              })}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
+                {skipCountdown > 0 ? `Skip in ${skipCountdown}s` : 'Skip →'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* ── Video area + bottom panel — hidden until pre-roll is dismissed ── */}
+        {preRollDone && (
+        <View style={{ flex: 1 }}>
         <View style={{ width: screenWidth, height: videoHeight, backgroundColor: '#000' }}>
           {embedError !== null ? (
             /* Error fallback — shown when YouTube blocks the embed (e.g. error 153) */
@@ -604,6 +710,8 @@ function VideoPlayerModal({
             </LinearGradient>
           </Pressable>
         </View>
+        </View>
+        )}
       </View>
     </Modal>
   );
