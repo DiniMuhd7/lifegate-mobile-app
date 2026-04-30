@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
@@ -14,13 +15,14 @@ interface Props {
  */
 export function ProfileReminderBanner({ visible, onDismiss }: Props) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-120)).current;
 
   useEffect(() => {
     if (visible) {
       Animated.spring(translateY, {
         toValue: 0,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
         tension: 80,
         friction: 10,
       }).start();
@@ -28,7 +30,7 @@ export function ProfileReminderBanner({ visible, onDismiss }: Props) {
       Animated.timing(translateY, {
         toValue: -120,
         duration: 250,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
     }
   }, [visible]);
@@ -62,8 +64,13 @@ export function ProfileReminderBanner({ visible, onDismiss }: Props) {
       ]}
     >
       <View
-        className="mx-4 mt-12 rounded-2xl p-4 flex-row items-center"
         style={{
+          marginTop: insets.top + 8,
+          marginHorizontal: 16,
+          borderRadius: 16,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
           backgroundColor: '#0AADA2',
           elevation: 6,
           shadowColor: '#0AADA2',

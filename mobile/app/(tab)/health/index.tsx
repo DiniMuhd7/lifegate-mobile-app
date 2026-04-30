@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -724,6 +724,7 @@ export default function HealthDashboardScreen() {
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   // ── FAB pulse animation ────────────────────────────────────────────────────
+  const insets = useSafeAreaInsets();
   const fabPulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -809,7 +810,7 @@ export default function HealthDashboardScreen() {
 
       {/* ── Loading ── */}
       <ScrollView
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: insets.bottom + 160 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -935,7 +936,7 @@ export default function HealthDashboardScreen() {
         pointerEvents="box-none"
         style={{
           position: 'absolute',
-          bottom: 88,
+          bottom: insets.bottom + 88,
           right: 20,
           alignItems: 'center',
           justifyContent: 'center',

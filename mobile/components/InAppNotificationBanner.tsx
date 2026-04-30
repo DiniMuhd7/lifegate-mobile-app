@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PhysicianNotification } from '../stores/notification-store';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
  */
 export function InAppNotificationBanner({ notification, onDismiss, onPress }: Props) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-120)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,23 +77,35 @@ export function InAppNotificationBanner({ notification, onDismiss, onPress }: Pr
       <TouchableOpacity
         activeOpacity={0.95}
         onPress={handlePress}
-        className="mx-4 mt-12 bg-blue-600 rounded-2xl p-4 flex-row items-start"
-        style={{ elevation: 6, shadowColor: '#1d4ed8', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+        style={{
+          marginTop: insets.top + 8,
+          marginHorizontal: 16,
+          backgroundColor: '#2563EB',
+          borderRadius: 16,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          elevation: 6,
+          shadowColor: '#1d4ed8',
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 4 },
+        }}
       >
-        <View className="flex-1">
-          <Text className="text-white font-bold text-sm mb-0.5">
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14, marginBottom: 2 }}>
             {notification.type === 'new_case'
               ? '🔔 New Case Assigned'
               : notification.type === 'im_message'
               ? '💬 New Message'
               : '📋 Case Updated'}
           </Text>
-          <Text className="text-blue-100 text-xs" numberOfLines={2}>
+          <Text style={{ color: '#bfdbfe', fontSize: 12 }} numberOfLines={2}>
             {notification.message}
           </Text>
         </View>
-        <TouchableOpacity onPress={dismiss} className="ml-3 mt-0.5">
-          <Text className="text-blue-200 text-lg leading-none">×</Text>
+        <TouchableOpacity onPress={dismiss} style={{ marginLeft: 12, marginTop: 2 }}>
+          <Text style={{ color: '#93c5fd', fontSize: 20, lineHeight: 20 }}>×</Text>
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
