@@ -92,7 +92,7 @@ export default function ConsentScreen() {
             <View className="flex-row items-center justify-center border-b border-amber-100 bg-amber-50 px-4 py-2">
               <Ionicons name="arrow-down-circle-outline" size={15} color="#D97706" />
               <Text className="ml-1 text-xs font-medium text-amber-700">
-                Please scroll to read the full Terms &amp; Conditions before consenting
+                Scroll to read the full Terms &amp; Conditions before consenting
               </Text>
             </View>
           )}
