@@ -540,7 +540,7 @@ export default function ManageProfileScreen() {
                 </View>
               </ScrollView>
               <View style={styles.sheetActions}>
-                <View style={{ flex: 1 }}><PrimaryButton title="Update Password" onPress={handleChangePassword} loading={loading} /></View>
+                <View style={{ flex: 1 }}><PrimaryButton title="Update" onPress={handleChangePassword} loading={loading} /></View>
                 <View style={{ flex: 1 }}><PrimaryButton title="Cancel" type="cancel" onPress={() => setShowPasswordModal(false)} /></View>
               </View>
             </View>
