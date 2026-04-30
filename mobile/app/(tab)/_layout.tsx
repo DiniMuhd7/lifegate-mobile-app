@@ -24,6 +24,7 @@ import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
 import { registerPatientPushToken, addNotificationResponseListener } from 'utils/pushNotifications';
+import { registerWebPush } from 'services/webPushRegistration';
 
 function isHealthProfileIncomplete(user: User | null): boolean {
   if (!user || user.role !== 'user') return false;
@@ -106,6 +107,7 @@ export default function TabLayout() {
   useEffect(() => {
     if (!isAuthenticated || !user || user.role !== 'user') return;
     registerPatientPushToken().catch(() => {/* best-effort */});
+    registerWebPush().catch(() => {/* best-effort */});
   }, [isAuthenticated, user]);
 
   // Handle push notification tap → navigate to diagnosis details

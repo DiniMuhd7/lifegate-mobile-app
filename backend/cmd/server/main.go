@@ -197,6 +197,11 @@ func main() {
 	// Push notification service (Expo Push API + Redis token storage).
 	pushSvc := notifications.NewService(redisClient)
 
+	// Web Push service (RFC 8292 / browser push notifications).
+	webPushSvc := notifications.NewWebPushService(database, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject)
+	// Mirror every Expo push to browser subscribers as well.
+	pushSvc.SetWebPush(webPushSvc)
+
 	// Wire push notifications so physicians receive patient-case events
 	// and patients receive completion notifications from physician reviews.
 	physicianSvc.SetPushNotifier(pushSvc)
@@ -508,6 +513,52 @@ func main() {
 		}()
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Push token registered"})
+	})
+
+	// ── Web Push (RFC 8292) ───────────────────────────────────────────────────
+	// Expose VAPID public key so the browser can call PushManager.subscribe().
+	api.GET("/vapid-public-key", func(c *gin.Context) {
+		if webPushSvc == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": "web push not configured"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "vapidPublicKey": webPushSvc.VAPIDPublicKey()})
+	})
+
+	// Save or update a browser PushSubscription for the authenticated user.
+	api.POST("/web-push/subscribe", middleware.Auth(cfg.JWTSecret), func(c *gin.Context) {
+		if webPushSvc == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": "web push not configured"})
+			return
+		}
+		var sub notifications.WebPushSubscription
+		if err := c.ShouldBindJSON(&sub); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		uid, _ := c.Get("userID")
+		if err := webPushSvc.SaveSubscription(c.Request.Context(), uid.(string), sub); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "failed to save subscription"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Subscribed"})
+	})
+
+	// Remove a browser PushSubscription (called when the user unsubscribes).
+	api.DELETE("/web-push/subscribe", middleware.Auth(cfg.JWTSecret), func(c *gin.Context) {
+		if webPushSvc == nil {
+			c.JSON(http.StatusNoContent, nil)
+			return
+		}
+		var body struct {
+			Endpoint string `json:"endpoint" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		_ = webPushSvc.DeleteSubscription(c.Request.Context(), body.Endpoint)
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Unsubscribed"})
 	})
 
 	// Chat session management (create, list, get, update, delete + resume prompt)

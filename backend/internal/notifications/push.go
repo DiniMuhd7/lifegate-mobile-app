@@ -26,12 +26,19 @@ const (
 
 // Service manages physician push token storage and push delivery.
 type Service struct {
-	redis *redisclient.Client
+	redis   *redisclient.Client
+	webPush *WebPushService // optional; nil when VAPID keys are not configured
 }
 
 // NewService creates a new push notification service.
 func NewService(redis *redisclient.Client) *Service {
 	return &Service{redis: redis}
+}
+
+// SetWebPush attaches a WebPushService so that every Expo push delivery is
+// also mirrored to any browser subscriptions the user has registered.
+func (s *Service) SetWebPush(wp *WebPushService) {
+	s.webPush = wp
 }
 
 // RegisterToken stores a physician's Expo push token in Redis.
@@ -61,20 +68,24 @@ func (s *Service) GetUserToken(ctx context.Context, userID string) string {
 // Delivery failures are logged but never propagated to the caller.
 func (s *Service) SendToUser(ctx context.Context, userID, title, body string, data map[string]string) {
 	token := s.GetUserToken(ctx, userID)
-	if token == "" {
-		return
+	if token != "" {
+		s.send(ctx, []pushMessage{{To: token, Title: title, Body: body, Data: data}})
 	}
-	s.send(ctx, []pushMessage{{To: token, Title: title, Body: body, Data: data}})
+	if s.webPush != nil {
+		go s.webPush.SendToUser(ctx, userID, title, body, data)
+	}
 }
 
 // SendToPhysician sends a push notification to a single physician if they have a
 // registered token.  Delivery failures are logged but not propagated.
 func (s *Service) SendToPhysician(ctx context.Context, physicianID, title, body string, data map[string]string) {
 	token := s.GetToken(ctx, physicianID)
-	if token == "" {
-		return
+	if token != "" {
+		s.send(ctx, []pushMessage{{To: token, Title: title, Body: body, Data: data}})
 	}
-	s.send(ctx, []pushMessage{{To: token, Title: title, Body: body, Data: data}})
+	if s.webPush != nil {
+		go s.webPush.SendToUser(ctx, physicianID, title, body, data)
+	}
 }
 
 // BroadcastToAll sends a push notification to every physician that has a push
@@ -102,15 +113,20 @@ func (s *Service) BroadcastToAllPhysicians(ctx context.Context, title, body stri
 		return
 	}
 	msgs := make([]pushMessage, 0, len(keys))
+	physicianIDs := make([]string, 0, len(keys))
 	for _, key := range keys {
 		token, _ := s.redis.Get(ctx, key)
 		if token == "" {
 			continue
 		}
 		msgs = append(msgs, pushMessage{To: token, Title: title, Body: body, Data: data})
+		physicianIDs = append(physicianIDs, key[len(tokenKeyPrefix):])
 	}
 	if len(msgs) > 0 {
 		s.send(ctx, msgs)
+	}
+	if s.webPush != nil && len(physicianIDs) > 0 {
+		go s.webPush.BroadcastToAllPhysicians(ctx, physicianIDs, title, body, data)
 	}
 }
 

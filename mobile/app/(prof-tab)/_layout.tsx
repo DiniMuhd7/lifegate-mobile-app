@@ -6,6 +6,7 @@ import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
 import { registerPhysicianPushToken, addNotificationResponseListener } from '../../utils/pushNotifications';
+import { registerWebPush } from 'services/webPushRegistration';
 import { useAuthStore } from 'stores/auth-store';
 import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
@@ -29,6 +30,7 @@ export default function ProfTabLayout() {
   // Register push token once on mount
   useEffect(() => {
     registerPhysicianPushToken().catch(() => {/* best-effort */});
+    registerWebPush().catch(() => {/* best-effort */});
   }, []);
 
   // Handle push notification tap → navigate to case

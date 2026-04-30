@@ -54,6 +54,13 @@ type Config struct {
 	// production (e.g. lifegate-backend.onrender.com). Leave empty to
 	// auto-detect localhost for local development.
 	SwaggerHost string
+
+	// VAPID keys for Web Push (RFC 8292). Generate once with:
+	//   go run ./scripts/gen_vapid/main.go
+	// VAPIDPublicKey is also exposed to the frontend via GET /api/vapid-public-key.
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string // mailto: or https: contact URI
 }
 
 func Load() *Config {
@@ -104,6 +111,10 @@ func Load() *Config {
 		HealthDataKey: getEnv("HEALTH_DATA_KEY", getEnv("JWT_SECRET", "changeme-secret")),
 
 		SwaggerHost: getEnv("SWAGGER_HOST", ""),
+
+		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
+		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
+		VAPIDSubject:    getEnv("VAPID_SUBJECT", "mailto:contact@dshub.com.ng"),
 	}
 }
 
