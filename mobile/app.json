@@ -51,7 +51,10 @@
       "package": "com.lazyapp.lifegatemobile"
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "lifegate-dshub"
+      }
     }
   }
 }

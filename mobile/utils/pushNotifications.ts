@@ -58,8 +58,13 @@ export async function registerPhysicianPushToken(): Promise<void> {
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-  await ProfessionalService.registerPushToken(tokenData.data);
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    await ProfessionalService.registerPushToken(tokenData.data);
+  } catch (e) {
+    // Silently ignore in Expo Go (no FCM project configured) — push is non-fatal
+    console.warn('[Push] Could not get Expo push token:', e);
+  }
 }
 
 const INSIGHT_NOTIF_ID_KEY = 'health_insight_notification_id';
@@ -172,9 +177,14 @@ export async function registerPatientPushToken(): Promise<void> {
 
   const projectId =
     Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-  // POST /push-token — patient-scoped endpoint
-  await api.post('/push-token', { token: tokenData.data });
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    // POST /push-token — patient-scoped endpoint
+    await api.post('/push-token', { token: tokenData.data });
+  } catch (e) {
+    // Silently ignore in Expo Go (no FCM project configured) — push is non-fatal
+    console.warn('[Push] Could not get Expo push token:', e);
+  }
 }
 
 /**
