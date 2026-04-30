@@ -14,8 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from 'components/Button';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const PRIVACY_URL = 'https://www.dshub.com.ng/privacy-policy';
-const TERMS_URL = 'https://www.dshub.com.ng/terms';
+const PRIVACY_URL = 'https://lifegate.dshub.com.ng/privacy-policy';
+const TERMS_URL = 'https://lifegate.dshub.com.ng/terms';
 const NDPC_URL = 'https://ndpc.gov.ng';
 
 // Section component for clean structure
