@@ -24,13 +24,12 @@ async function signInWeb(): Promise<GoogleSignInResult> {
   provider.addScope('email');
 
   const result = await signInWithPopup(auth, provider);
-  const credential = GoogleAuthProvider.credentialFromResult(result);
-  if (!credential?.idToken) {
-    throw new Error('Failed to retrieve Google ID token');
-  }
+  // getIdToken() returns the Firebase ID token (signed by Firebase, not Google).
+  // This is what the backend's accounts:lookup endpoint expects.
+  const idToken = await result.user.getIdToken();
 
   return {
-    idToken: credential.idToken,
+    idToken,
     email: result.user.email ?? '',
     name: result.user.displayName ?? '',
   };
@@ -38,6 +37,8 @@ async function signInWeb(): Promise<GoogleSignInResult> {
 
 async function signInNative(): Promise<GoogleSignInResult> {
   const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
+  const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
+  const { auth } = await import('./firebase');
 
   await GoogleSignin.hasPlayServices();
   const userInfo = await GoogleSignin.signIn();
@@ -47,10 +48,16 @@ async function signInNative(): Promise<GoogleSignInResult> {
     throw new Error('Failed to retrieve Google ID token');
   }
 
+  // Exchange the Google OAuth token for a Firebase credential, then get the
+  // Firebase ID token that the backend's accounts:lookup endpoint expects.
+  const firebaseCredential = GoogleAuthProvider.credential(tokens.idToken);
+  const firebaseResult = await signInWithCredential(auth, firebaseCredential);
+  const idToken = await firebaseResult.user.getIdToken();
+
   return {
-    idToken: tokens.idToken,
-    email: userInfo.data?.user.email ?? '',
-    name: userInfo.data?.user.name ?? '',
+    idToken,
+    email: firebaseResult.user.email ?? userInfo.data?.user.email ?? '',
+    name: firebaseResult.user.displayName ?? userInfo.data?.user.name ?? '',
   };
 }
 
