@@ -528,13 +528,13 @@ function PromotionsSection() {
             }}
             style={({ pressed }) => ({
               flex: 1,
-              aspectRatio: 1,
+              aspectRatio: 0.85,
               opacity: pressed ? 0.82 : 1,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: item.bg,
               borderRadius: 16,
-              gap: 10,
+              gap: 12,
               shadowColor: item.color,
               shadowOpacity: 0.14,
               shadowRadius: 8,
@@ -544,9 +544,9 @@ function PromotionsSection() {
           >
             <View
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
+                width: 60,
+                height: 60,
+                borderRadius: 14,
                 backgroundColor: '#fff',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -556,9 +556,9 @@ function PromotionsSection() {
                 elevation: 2,
               }}
             >
-              <Ionicons name={item.icon} size={26} color={item.color} />
+              <Ionicons name={item.icon} size={30} color={item.color} />
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
               {item.title}
             </Text>
           </Pressable>
