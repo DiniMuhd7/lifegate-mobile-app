@@ -936,6 +936,8 @@ export default function HealthDashboardScreen() {
               )}
             </View>
           </View>
+
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
