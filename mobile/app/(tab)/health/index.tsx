@@ -517,7 +517,7 @@ const PROMOTIONS = [
 function PromotionsSection() {
   return (
     <View style={{ marginBottom: 16, paddingHorizontal: 16 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
         {PROMOTIONS.map((item) => (
           <Pressable
             key={item.title}
@@ -527,16 +527,16 @@ function PromotionsSection() {
               if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
             }}
             style={({ pressed }) => ({
-              width: 100,
-              height: 100,
-              opacity: pressed ? 0.8 : 1,
+              flex: 1,
+              aspectRatio: 1,
+              opacity: pressed ? 0.82 : 1,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: item.bg,
-              borderRadius: 24,
-              gap: 8,
+              borderRadius: 16,
+              gap: 10,
               shadowColor: item.color,
-              shadowOpacity: 0.12,
+              shadowOpacity: 0.14,
               shadowRadius: 8,
               shadowOffset: { width: 0, height: 3 },
               elevation: 3,
@@ -546,7 +546,7 @@ function PromotionsSection() {
               style={{
                 width: 48,
                 height: 48,
-                borderRadius: 24,
+                borderRadius: 12,
                 backgroundColor: '#fff',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -556,9 +556,9 @@ function PromotionsSection() {
                 elevation: 2,
               }}
             >
-              <Ionicons name={item.icon} size={24} color={item.color} />
+              <Ionicons name={item.icon} size={26} color={item.color} />
             </View>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
               {item.title}
             </Text>
           </Pressable>
