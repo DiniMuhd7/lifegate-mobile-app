@@ -66,7 +66,7 @@ export const MarkdownText: React.FC<Props> = ({ children, style = {}, isSent = f
   const mutedColor = isSent ? 'rgba(255,255,255,0.75)' : '#6b7280';
   const baseTextStyle = { fontSize: 14, lineHeight: 20, color: baseColor, ...style };
 
-  const lines = children.split('\n');
+  const lines = (children ?? '').split('\n');
   const nodes: React.ReactNode[] = [];
   let i = 0;
 

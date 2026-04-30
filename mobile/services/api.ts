@@ -148,11 +148,13 @@ api.interceptors.request.use(
       // ignore token fetch errors
     }
 
-    // Offline guard — fail-fast for mutations so callers can queue offline.
+    // Offline guard — fail-fast only when the device explicitly reports no connection.
+    // We intentionally ignore `isInternetReachable` here: on Android (especially
+    // in Expo Go over a tunnel), the ICMP reachability probe often returns false
+    // even when the device has a working internet connection, which would
+    // incorrectly block every mutation.
     const netState = await NetInfo.fetch();
-    const isDefinitelyOffline =
-      netState.isConnected === false || netState.isInternetReachable === false;
-    if (isDefinitelyOffline) {
+    if (netState.isConnected === false) {
       const err = new Error('OFFLINE') as AxiosError;
       (err as any).isOffline = true;
       return Promise.reject(err);

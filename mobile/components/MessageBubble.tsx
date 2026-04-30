@@ -70,7 +70,8 @@ interface MessageBubbleProps {
 }
 
 /** Returns true when the string is a raw JSON object the AI accidentally leaked. */
-function isRawJson(text: string): boolean {
+function isRawJson(text: string | null | undefined): boolean {
+  if (!text) return false;
   const trimmed = text.trim();
   if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
   try {
@@ -105,7 +106,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   isFirstInGroup = true,
   isLastInGroup = true,
 }) => {
-  const displayMessage = isRawJson(message) ? FALLBACK_MESSAGE : message;
+  const displayMessage = !message ? FALLBACK_MESSAGE : isRawJson(message) ? FALLBACK_MESSAGE : message;
 
   // History messages start fully visible — no animation, no JS-thread work.
   // New messages (added after mount) animate in once.
