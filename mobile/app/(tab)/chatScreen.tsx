@@ -634,7 +634,7 @@ const ChatScreen: React.FC = () => {
               </View>
             ) : showWelcome ? (
               <ScrollView
-                className="flex-1"
+                style={{ flex: 1 }}
                 contentContainerStyle={{
                   flexGrow: 1,
                   paddingHorizontal: 20,
@@ -802,7 +802,7 @@ const ChatScreen: React.FC = () => {
                 </View>
               </ScrollView>
             ) : (
-              <View className="flex-1">
+              <View style={{ flex: 1 }}>
                 <MessageList 
                   messages={displayMessages} 
                   onRetry={retrySendMessage} 
