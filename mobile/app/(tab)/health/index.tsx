@@ -517,7 +517,7 @@ const PROMOTIONS = [
 function PromotionsSection() {
   return (
     <View style={{ marginBottom: 16, paddingHorizontal: 16 }}>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
         {PROMOTIONS.map((item) => (
           <Pressable
             key={item.title}
@@ -528,6 +528,7 @@ function PromotionsSection() {
             }}
             style={({ pressed }) => ({
               flex: 1,
+              maxWidth: 110,
               aspectRatio: 0.85,
               opacity: pressed ? 0.82 : 1,
               alignItems: 'center',
