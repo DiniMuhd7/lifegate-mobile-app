@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { useAuthStore } from 'stores/auth-store';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 import { interpretVision } from 'services/sensor-interpretation-service';
 import type { SensorInterpretResponse } from 'services/sensor-interpretation-service';
 import {
@@ -1086,7 +1086,10 @@ export default function BatteryResults() {
           <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: '#111827', textAlign: 'center' }}>
             Battery Results
           </Text>
-          <View style={{ width: 38 }} />
+          <Pressable onPress={() => router.replace('/(tab)/health' as never)} hitSlop={10}
+            style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#e5e7eb' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' })}>
+            <Ionicons name="close" size={20} color="#374151" />
+          </Pressable>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
@@ -1184,7 +1187,6 @@ export default function BatteryResults() {
           </View>
         </ScrollView>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

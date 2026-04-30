@@ -56,6 +56,8 @@ export type UserDraft = {
   gender: string;
   language: string;
   healthHistory: string;
+  state?: string;
+  country?: string;
   referredByCode?: string;
   role?: 'user' | 'professional'; // Set based on registration choice
   // Health professional specific fields
@@ -87,6 +89,8 @@ export type RegisterPayload = {
   gender: string;
   language: string;
   healthHistory: string;
+  state?: string;
+  country?: string;
   referredByCode?: string;
   role: 'user' | 'professional' | 'admin';
   // Health professional specific fields (optional)

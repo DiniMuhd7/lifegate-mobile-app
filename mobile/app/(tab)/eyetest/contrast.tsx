@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { CS_SPATIAL_FREQS } from 'services/adaptive-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
@@ -284,7 +284,6 @@ export default function ContrastTest() {
           </View>
         </View>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

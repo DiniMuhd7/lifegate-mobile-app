@@ -18,6 +18,8 @@ const VALID_FIELDS = {
   language: true,
   yearsOfExperience: true,
   specialization: true,
+  state: true,
+  country: true,
 } as const;
 
 type ValidFieldName = keyof typeof VALID_FIELDS;
@@ -148,6 +150,24 @@ export default function ProfessionalScreen() {
         onChangeText={(v) => handleFieldChange('specialization', v)}
       />
       <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
+
+      <LabeledInput
+        label="State / Province"
+        placeholder="Enter your state or province"
+        value={userDraft.state || ''}
+        hasError={!!fieldErrors.state}
+        onChangeText={(v) => handleFieldChange('state', v)}
+      />
+      <ErrorMessage fieldName="state" fieldErrors={fieldErrors} />
+
+      <LabeledInput
+        label="Country"
+        placeholder="Enter your country"
+        value={userDraft.country || ''}
+        hasError={!!fieldErrors.country}
+        onChangeText={(v) => handleFieldChange('country', v)}
+      />
+      <ErrorMessage fieldName="country" fieldErrors={fieldErrors} />
 
       <View className="mt-6 mb-4">
         <PrimaryButton

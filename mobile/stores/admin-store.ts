@@ -83,6 +83,7 @@ type AdminState = {
   fetchPendingRedemptions: () => Promise<void>;
   approveRedemption: (id: string) => Promise<void>;
   rejectRedemption: (id: string, note?: string) => Promise<void>;
+  triggerExploreRefresh: () => Promise<void>;
   fetchAll: () => Promise<void>;
   setFilters: (f: Partial<AdminCaseFilters>) => void;
   clearError: () => void;
@@ -332,6 +333,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     set((s) => ({
       pendingRedemptions: s.pendingRedemptions.filter((r) => r.id !== id),
     }));
+  },
+
+  triggerExploreRefresh: async () => {
+    await AdminService.triggerExploreRefresh();
   },
 
   fetchAll: async () => {

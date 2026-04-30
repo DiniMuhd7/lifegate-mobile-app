@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -142,7 +142,7 @@ export default function EyeTestResults() {
               justifyContent: 'center',
             })}
           >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
+            <Ionicons name="close" size={20} color="#374151" />
           </Pressable>
           <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: '#111827' }}>
             Your Results
@@ -388,7 +388,6 @@ export default function EyeTestResults() {
           </View>
         </ScrollView>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

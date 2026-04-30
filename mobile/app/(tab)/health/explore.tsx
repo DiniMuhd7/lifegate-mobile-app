@@ -780,7 +780,7 @@ export default function ExploreScreen() {
               color: '#6ee7b7',
             },
             {
-              label: 'Left to Watch',
+              label: 'Available',
               value: availableUnclaimed ?? '…',
               icon: 'time-outline' as const,
               color: '#93c5fd',

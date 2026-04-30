@@ -13,7 +13,7 @@ import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { NEAR_VISION_LEVELS } from 'services/adaptive-engine';
 import { lookupNearVision } from 'services/clinical-standards-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
@@ -205,7 +205,6 @@ export default function NearVisionTest() {
           </ScrollView>
         )}
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

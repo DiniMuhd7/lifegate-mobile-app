@@ -57,7 +57,19 @@ func (h *Handler) ListVideos(c *gin.Context) {
 	})
 }
 
-// ClaimReward records that a user watched and earned coins for a video.
+// TriggerRefresh forces an immediate YouTube catalogue refresh.
+// Admin only — protected at the route level.
+//
+// @Summary      Trigger explore video refresh
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      202  {object}  object{success=bool,message=string}
+// @Router       /admin/explore/refresh [post]
+func (h *Handler) TriggerRefresh(c *gin.Context) {
+	go h.svc.TriggerRefresh()
+	c.JSON(http.StatusAccepted, gin.H{"success": true, "message": "Video catalogue refresh started"})
+}
 //
 // @Summary      Claim video reward
 // @Tags         explore

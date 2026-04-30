@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { computeSnellenRows } from 'services/calibration-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 import type { SnellenRowSpec } from 'types/vision-types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -300,7 +300,7 @@ export default function EyeTestScreen() {
               justifyContent: 'center',
             })}
           >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
+            <Ionicons name="close" size={20} color="#374151" />
           </Pressable>
 
           <View style={{ flex: 1 }}>
@@ -467,7 +467,6 @@ export default function EyeTestScreen() {
           )}
         </ScrollView>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

@@ -97,7 +97,13 @@ export default function ReviewScreen() {
               <InfoRow icon="call-outline" label="Phone" value={userDraft.phone} />
               <InfoRow icon="calendar-outline" label="Date of Birth" value={userDraft.dob} />
               <InfoRow icon="male-female-outline" label="Gender" value={userDraft.gender} />
-              <InfoRow icon="language-outline" label="Language" value={userDraft.language} isLast />
+              <InfoRow icon="language-outline" label="Language" value={userDraft.language} isLast={!userDraft.state && !userDraft.country} />
+              {userDraft.state ? (
+                <InfoRow icon="location-outline" label="State / Province" value={userDraft.state} isLast={!userDraft.country} />
+              ) : null}
+              {userDraft.country ? (
+                <InfoRow icon="globe-outline" label="Country" value={userDraft.country} isLast />
+              ) : null}
             </View>
           </View>
 

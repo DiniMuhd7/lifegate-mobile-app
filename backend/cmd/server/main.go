@@ -566,6 +566,9 @@ func main() {
 		adminGroup.GET("/lifecoins/redemptions", paymentsHandler.GetPendingRedemptions)
 		adminGroup.POST("/lifecoins/redemptions/:id/approve", paymentsHandler.ApproveRedemption)
 		adminGroup.POST("/lifecoins/redemptions/:id/reject", paymentsHandler.RejectRedemption)
+
+		// Explore catalogue management
+		adminGroup.POST("/explore/refresh", exploreHandler.TriggerRefresh)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)

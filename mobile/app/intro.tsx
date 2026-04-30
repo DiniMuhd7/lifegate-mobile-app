@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Circle, Path, Line, Rect, Polygon, G, Ellipse } from 'react-native-svg';
+import Svg, { Circle, Path, Line, Rect, Polygon, G, Ellipse, Text as SvgText } from 'react-native-svg';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -33,33 +33,78 @@ const { width } = Dimensions.get('window');
 // SVG Illustrations  (240 × 240 viewBox)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Slide 1 – Heart with ECG pulse line */
+/** Slide 1 – Premium health hero: pulsing heart with orbiting metrics */
 const HealthIllustration: React.FC = () => (
-  <Svg width={230} height={230} viewBox="0 0 240 240">
-    {/* Decorative rings */}
-    <Circle cx="120" cy="120" r="105" fill="rgba(255,255,255,0.06)" />
-    <Circle cx="120" cy="120" r="82"  fill="rgba(255,255,255,0.10)" />
+  <Svg width={260} height={260} viewBox="0 0 260 260">
+    {/* ── Ambient glow rings ──────────────────────────────────────────── */}
+    <Circle cx="130" cy="130" r="118" fill="rgba(255,255,255,0.03)" />
+    <Circle cx="130" cy="130" r="95"  fill="rgba(255,255,255,0.05)" />
+    <Circle cx="130" cy="130" r="70"  fill="rgba(255,255,255,0.07)" />
 
-    {/* Heart shape */}
-    <Path
-      d="M120 175 C55 138 36 94 36 74 C36 50 57 35 80 35 C96 35 110 44 120 57 C130 44 144 35 160 35 C183 35 204 50 204 74 C204 94 185 138 120 175Z"
-      fill="white"
-      opacity="0.92"
+    {/* ── Dashed orbit ring ───────────────────────────────────────────── */}
+    <Circle cx="130" cy="130" r="100"
+      fill="none"
+      stroke="rgba(255,255,255,0.14)"
+      strokeWidth="1"
+      strokeDasharray="5 7"
     />
 
-    {/* ECG / pulse line drawn over the heart */}
+    {/* ── Floating metric cards ───────────────────────────────────────── */}
+    {/* Top-right: Heart Rate */}
+    <Rect x="168" y="38" width="68" height="32" rx="9"
+      fill="rgba(255,255,255,0.18)" />
+    <Rect x="168" y="38" width="68" height="32" rx="9"
+      fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1" />
+    <SvgText fill="white" fontSize="8" fontWeight="700" x="176" y="51" opacity="0.65">HEART RATE</SvgText>
+    <SvgText fill="white" fontSize="13" fontWeight="800" x="176" y="63">72 bpm</SvgText>
+
+    {/* Bottom-left: SpO₂ */}
+    <Rect x="22" y="172" width="62" height="32" rx="9"
+      fill="rgba(255,255,255,0.18)" />
+    <Rect x="22" y="172" width="62" height="32" rx="9"
+      fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1" />
+    <SvgText fill="white" fontSize="8" fontWeight="700" x="30" y="185" opacity="0.65">SPO₂</SvgText>
+    <SvgText fill="white" fontSize="13" fontWeight="800" x="30" y="197">98%</SvgText>
+
+    {/* Top-left: Temp */}
+    <Rect x="16" y="50" width="60" height="32" rx="9"
+      fill="rgba(255,255,255,0.18)" />
+    <Rect x="16" y="50" width="60" height="32" rx="9"
+      fill="none" stroke="rgba(255,255,255,0.28)" strokeWidth="1" />
+    <SvgText fill="white" fontSize="8" fontWeight="700" x="24" y="63" opacity="0.65">TEMP</SvgText>
+    <SvgText fill="white" fontSize="13" fontWeight="800" x="24" y="75">36.6 °C</SvgText>
+
+    {/* ── Heart body ──────────────────────────────────────────────────── */}
+    {/* Soft shadow/glow behind heart */}
     <Path
-      d="M62 120 L82 120 L91 96 L101 144 L109 107 L118 120 L145 120 L153 101 L163 139 L172 120 L184 120"
+      d="M130 192 C56 150 34 100 34 77 C34 49 58 32 84 32 C101 32 117 42 130 57 C143 42 159 32 176 32 C202 32 226 49 226 77 C226 100 204 150 130 192Z"
+      fill="rgba(255,255,255,0.12)" transform="translate(0,6)"
+    />
+    {/* Heart */}
+    <Path
+      d="M130 190 C56 148 34 98 34 75 C34 47 58 30 84 30 C101 30 117 40 130 55 C143 40 159 30 176 30 C202 30 226 47 226 75 C226 98 204 148 130 190Z"
+      fill="white"
+      opacity="0.94"
+    />
+
+    {/* ── ECG pulse line across heart ──────────────────────────────────── */}
+    <Path
+      d="M60 110 L82 110 L92 84 L103 136 L113 100 L123 110 L154 110 L163 88 L174 130 L184 110 L200 110"
       stroke="#0AADA2"
-      strokeWidth="3.5"
+      strokeWidth="3.8"
       fill="none"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
 
-    {/* Small glowing dot at the live point */}
-    <Circle cx="184" cy="120" r="5" fill="#0AADA2" />
-    <Circle cx="184" cy="120" r="9" fill="#0AADA2" opacity="0.25" />
+    {/* ── Live dot at end of ECG ───────────────────────────────────────── */}
+    <Circle cx="200" cy="110" r="4"  fill="#0AADA2" />
+    <Circle cx="200" cy="110" r="8"  fill="#0AADA2" opacity="0.28" />
+    <Circle cx="200" cy="110" r="13" fill="#0AADA2" opacity="0.10" />
+
+    {/* ── Connector lines from metrics to orbit ring ─────────────────── */}
+    <Line x1="168" y1="54"  x2="220" y2="82"  stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3 4" />
+    <Line x1="76"  y1="188" x2="48"  y2="204" stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3 4" />
   </Svg>
 );
 
@@ -203,7 +248,7 @@ const slides: SlideData[] = [
     title: 'Your Health,\nSimplified',
     subtitle:
       'Instant health assessments from the comfort of your home — fast, accurate, and always available.',
-    gradientColors: ['#0AADA2', '#078F8A'],
+    gradientColors: ['#0D2137', '#0A5C58'],
     Illustration: HealthIllustration,
   },
   {
@@ -270,52 +315,102 @@ const Dot: React.FC<DotProps> = ({ index, scrollX }) => {
 // Slide item
 // ─────────────────────────────────────────────────────────────────────────────
 
-type SlideItemProps = { item: SlideData; bottomPad: number };
+type SlideItemProps = { item: SlideData; bottomPad: number; isFirst: boolean };
 
-const SlideItem: React.FC<SlideItemProps> = ({ item, bottomPad }) => (
+const SlideItem: React.FC<SlideItemProps> = ({ item, bottomPad, isFirst }) => (
   <LinearGradient
     colors={item.gradientColors}
     start={{ x: 0.15, y: 0 }}
     end={{ x: 0.85, y: 1 }}
     style={{ width, flex: 1 }}
   >
+    {/* First slide: extra ambient orbs for depth */}
+    {isFirst && (
+      <>
+        <View style={{
+          position: 'absolute', top: -80, right: -60,
+          width: 280, height: 280, borderRadius: 140,
+          backgroundColor: 'rgba(10,173,162,0.18)',
+        }} />
+        <View style={{
+          position: 'absolute', bottom: 60, left: -80,
+          width: 240, height: 240, borderRadius: 120,
+          backgroundColor: 'rgba(10,173,162,0.10)',
+        }} />
+      </>
+    )}
+
     <View
       style={{
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 36,
+        paddingHorizontal: 32,
         paddingBottom: bottomPad,
       }}
     >
+      {isFirst && (
+        /* Branded badge above illustration */
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: 6,
+          backgroundColor: 'rgba(10,173,162,0.22)',
+          borderWidth: 1, borderColor: 'rgba(10,173,162,0.45)',
+          borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
+          marginBottom: 28,
+        }}>
+          <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#0AADA2' }} />
+          <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.85)', letterSpacing: 1.4, textTransform: 'uppercase' }}>
+            Lifegate Health
+          </Text>
+        </View>
+      )}
+
       {/* Illustration */}
-      <View style={{ marginBottom: 36 }}>
+      <View style={{ marginBottom: isFirst ? 28 : 36 }}>
         <item.Illustration />
       </View>
 
-      {/* Title */}
-      <Text
-        style={{
-          fontSize: 34,
-          fontWeight: '800',
-          color: 'white',
-          textAlign: 'center',
-          lineHeight: 42,
-          letterSpacing: -0.6,
-          marginBottom: 14,
-        }}
-      >
-        {item.title}
-      </Text>
+      {isFirst ? (
+        /* First-slide title treatment */
+        <View style={{ alignItems: 'center', marginBottom: 18 }}>
+          <Text style={{
+            fontSize: 13, fontWeight: '700', color: '#0AADA2',
+            letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 10,
+          }}>
+            Welcome
+          </Text>
+          <Text style={{
+            fontSize: 36, fontWeight: '900', color: 'white',
+            textAlign: 'center', lineHeight: 44, letterSpacing: -0.8,
+          }}>
+            Your Health,{'\n'}
+            <Text style={{ color: 'rgba(255,255,255,0.65)' }}>Simplified</Text>
+          </Text>
+          {/* Accent underline */}
+          <View style={{
+            marginTop: 14, width: 44, height: 3,
+            backgroundColor: '#0AADA2', borderRadius: 2,
+          }} />
+        </View>
+      ) : (
+        /* Regular title */
+        <Text style={{
+          fontSize: 34, fontWeight: '800', color: 'white',
+          textAlign: 'center', lineHeight: 42, letterSpacing: -0.6, marginBottom: 14,
+        }}>
+          {item.title}
+        </Text>
+      )}
 
       {/* Subtitle */}
       <Text
         style={{
-          fontSize: 16,
-          color: 'rgba(255,255,255,0.72)',
+          fontSize: 15,
+          color: 'rgba(255,255,255,0.66)',
           textAlign: 'center',
-          lineHeight: 25,
-          maxWidth: 310,
+          lineHeight: 24,
+          maxWidth: 300,
+          marginTop: isFirst ? 6 : 0,
         }}
       >
         {item.subtitle}
@@ -368,8 +463,8 @@ export default function IntroScreen() {
   }).current;
 
   const renderSlide = useCallback(
-    ({ item }: { item: SlideData }) => (
-      <SlideItem item={item} bottomPad={CONTROLS_HEIGHT} />
+    ({ item, index }: { item: SlideData; index: number }) => (
+      <SlideItem item={item} bottomPad={CONTROLS_HEIGHT} isFirst={index === 0} />
     ),
     [CONTROLS_HEIGHT],
   );

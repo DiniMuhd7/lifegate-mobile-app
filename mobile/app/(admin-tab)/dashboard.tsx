@@ -474,11 +474,13 @@ export default function AdminDashboardScreen() {
     loading, error,
     fetchAll, fetchCases, fetchSLABreachAlerts, fetchReassignmentLog,
     fetchAuditLog, fetchAllTransactions, fetchNDPASnapshots, generateNDPASnapshot,
+    triggerExploreRefresh,
     setFilters, filters, clearError,
   } = useAdminStore();
 
   const [activePanel, setActivePanel] = useState<Panel>('overview');
   const [refreshing, setRefreshing] = useState(false);
+  const [exploreRefreshing, setExploreRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -614,29 +616,90 @@ export default function AdminDashboardScreen() {
 
         {/* Quick Actions */}
         <SectionHeader title="Quick Actions" icon="flash" accent="#d97706" />
-        <TouchableOpacity
-          onPress={() => router.push('/(admin-tab)/lifecoins-approvals')}
-          style={{
-            backgroundColor: '#fff',
-            borderRadius: 16,
-            padding: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 12,
-            elevation: 1,
-            shadowColor: '#000',
-            shadowOpacity: 0.05,
-            shadowRadius: 4,
-          }}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="cash-outline" size={20} color="#d97706" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Lifecoins Redemptions</Text>
-            <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Review &amp; approve patient payout requests</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
-        </TouchableOpacity>
+        <View style={{ gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => router.push('/(admin-tab)/lifecoins-approvals')}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+            }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fef3c7', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="cash-outline" size={20} color="#d97706" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Lifecoins Redemptions</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Review &amp; approve patient payout requests</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            disabled={exploreRefreshing}
+            onPress={async () => {
+              const doRefresh = async () => {
+                setExploreRefreshing(true);
+                try {
+                  await triggerExploreRefresh();
+                  if (Platform.OS === 'web') {
+                    // eslint-disable-next-line no-alert
+                    window.alert('Explore video refresh triggered. New videos will appear within a minute.');
+                  } else {
+                    Alert.alert('Refresh Triggered', 'Explore video refresh triggered. New videos will appear within a minute.');
+                  }
+                } catch {
+                  if (Platform.OS === 'web') {
+                    // eslint-disable-next-line no-alert
+                    window.alert('Could not trigger explore refresh.');
+                  } else {
+                    Alert.alert('Error', 'Could not trigger explore refresh.');
+                  }
+                } finally {
+                  setExploreRefreshing(false);
+                }
+              };
+              if (Platform.OS === 'web') {
+                // eslint-disable-next-line no-alert
+                if (window.confirm('Re-fetch explore videos from YouTube?')) doRefresh();
+              } else {
+                Alert.alert('Refresh Explore Videos', 'Re-fetch explore videos from YouTube?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Refresh', onPress: doRefresh },
+                ]);
+              }
+            }}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              opacity: exploreRefreshing ? 0.6 : 1,
+            }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center' }}>
+              {exploreRefreshing
+                ? <ActivityIndicator size="small" color="#16a34a" />
+                : <Ionicons name="refresh-circle-outline" size={22} color="#16a34a" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Refresh Explore Videos</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Re-fetch health videos from YouTube</Text>
+            </View>
+            {!exploreRefreshing && <Ionicons name="chevron-forward" size={16} color="#9ca3af" />}
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };

@@ -364,15 +364,7 @@ export default function HealthTimelineScreen() {
             Symptom history · severity trends
           </Text>
         </View>
-        <Pressable onPress={() => router.push('/(tab)/health/alerts' as never)} style={{ padding: 6, borderRadius: 20, backgroundColor: '#f3f4f6', position: 'relative' }} hitSlop={8}>
-          <Ionicons name="notifications-outline" size={22} color="#374151" />
-          {unreadAlertCount > 0 && (
-            <View style={{ position: 'absolute', top: 2, right: 2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 9, color: '#fff', fontWeight: '700' }}>{unreadAlertCount > 9 ? '9+' : unreadAlertCount}</Text>
-            </View>
-          )}
-        </Pressable>
-        <Pressable onPress={() => router.push('/(tab)/health/report' as never)} style={{ padding: 6, borderRadius: 20, backgroundColor: '#f3f4f6', marginLeft: 6 }} hitSlop={8}>
+        <Pressable onPress={() => router.push('/(tab)/health/report' as never)} style={{ padding: 6, borderRadius: 20, backgroundColor: '#f3f4f6' }} hitSlop={8}>
           <Ionicons name="document-text-outline" size={22} color="#374151" />
         </Pressable>
       </View>
@@ -437,24 +429,10 @@ export default function HealthTimelineScreen() {
           )}
           ListHeaderComponent={
             <View>
-              {/* Summary strip — Total / Active / Resolved */}
-              <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
-                {[
-                  { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
-                  { label: 'Active', value: patientTimeline.filter((e) => e.status !== 'Completed').length, color: '#d97706' },
-                  { label: 'Resolved', value: patientTimeline.filter((e) => e.status === 'Completed').length, color: '#16a34a' },
-                ].map((s, i, arr) => (
-                  <View key={s.label} style={{ flex: 1, alignItems: 'center', paddingVertical: 14, borderRightWidth: i < arr.length - 1 ? 1 : 0, borderRightColor: '#f3f4f6' }}>
-                    <Text style={{ fontSize: 22, fontWeight: '800', color: s.color }}>{s.value}</Text>
-                    <Text style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, fontWeight: '500' }}>{s.label}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Recorded / Abnormal / Recurring strip */}
+              {/* Summary strip — Resolved / Abnormal / Recurring */}
               <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 }}>
                 {[
-                  { label: 'Recorded', value: dateFiltered.length, color: '#0891b2' },
+                  { label: 'Resolved', value: patientTimeline.filter((e) => e.status === 'Completed').length, color: '#16a34a' },
                   { label: 'Abnormal', value: abnormalCount, color: '#dc2626' },
                   { label: 'Recurring', value: recurringCount, color: '#d97706' },
                 ].map((s, i, arr) => (
@@ -483,13 +461,6 @@ export default function HealthTimelineScreen() {
                 onSeverityChange={setSeverityFilter}
                 onAbnormalToggle={() => setAbnormalOnly((p) => !p)}
               />
-
-              {/* Timeline entries separator */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Symptom Log</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: '#f3f4f6', marginLeft: 10 }} />
-                <Text style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>{listEntries.length} record{listEntries.length !== 1 ? 's' : ''}</Text>
-              </View>
 
               {/* Empty filter state */}
               {listEntries.length === 0 && (

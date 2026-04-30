@@ -42,6 +42,8 @@ const emptyDraft: UserDraft = {
   gender: '',
   language: '',
   healthHistory: '',
+  state: '',
+  country: '',
   referredByCode: '',
   role: undefined,
   specialization: '',
@@ -124,6 +126,12 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
       payload.append('language', language.toLowerCase());
       if (healthHistory) {
         payload.append('health_history', healthHistory);
+      }
+      if (formData.state?.trim()) {
+        payload.append('state', formData.state.trim());
+      }
+      if (formData.country?.trim()) {
+        payload.append('country', formData.country.trim());
       }
       if (referredByCode?.trim()) {
         payload.append('referred_by_code', referredByCode.trim().toUpperCase());

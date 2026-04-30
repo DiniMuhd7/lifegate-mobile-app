@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   StatusBar,
   TouchableOpacity,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -722,6 +723,20 @@ export default function HealthDashboardScreen() {
   const recentCases = useMemo(() => patientTimeline.slice(0, 3), [patientTimeline]);
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
+  // ── FAB pulse animation ────────────────────────────────────────────────────
+  const fabPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(fabPulse, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.delay(600),
+        Animated.timing(fabPulse, { toValue: 0, duration: 0, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [fabPulse]);
+  const fabRingScale = fabPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 2.0] });
+  const fabRingOpacity = fabPulse.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0.55, 0.2, 0] });
+
   return (
     <>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
@@ -914,6 +929,65 @@ export default function HealthDashboardScreen() {
       </ScrollView>
     </SafeAreaView>
     <PatientBottomTabBar activeTab="health" />
+
+      {/* ── AI Chat FAB ── */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          bottom: 88,
+          right: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 60,
+          height: 60,
+        }}
+      >
+        {/* Expanding pulse ring */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: '#0AADA2',
+            transform: [{ scale: fabRingScale }],
+            opacity: fabRingOpacity,
+          }}
+        />
+        {/* Second ring for depth */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: '#0AADA2',
+            transform: [{ scale: fabPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }],
+            opacity: fabPulse.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.4, 0.15, 0] }),
+          }}
+        />
+        {/* FAB button */}
+        <TouchableOpacity
+          onPress={() => router.push('/(tab)/chatScreen' as never)}
+          activeOpacity={0.85}
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: '#0AADA2',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#0AADA2',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.45,
+            shadowRadius: 10,
+            elevation: 10,
+          }}
+        >
+          <Ionicons name="pulse" size={28} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
     </>
   );

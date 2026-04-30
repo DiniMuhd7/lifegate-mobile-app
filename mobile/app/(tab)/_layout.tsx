@@ -23,6 +23,7 @@ import { useNotificationStore, PhysicianNotification } from 'stores/notification
 import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
+import { registerPatientPushToken, addNotificationResponseListener } from 'utils/pushNotifications';
 
 function isHealthProfileIncomplete(user: User | null): boolean {
   if (!user || user.role !== 'user') return false;
@@ -93,8 +94,23 @@ export default function TabLayout() {
     }
   }, [navigationState?.key, isAuthenticated, sessionLoading]);
 
-  // ── Health profile reminder ────────────────────────────────────────────────
+  // ── Patient push token registration ───────────────────────────────────────
   const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user || user.role !== 'user') return;
+    registerPatientPushToken().catch(() => {/* best-effort */});
+  }, [isAuthenticated, user]);
+
+  // Handle push notification tap → navigate to diagnosis details
+  useEffect(() => {
+    const sub = addNotificationResponseListener((caseId) => {
+      router.push({ pathname: '/(tab)/health', params: { diagnosisId: caseId } });
+    });
+    return () => sub.remove();
+  }, []);
+
+  // ── Health profile reminder ────────────────────────────────────────────────
   const [profileReminderDismissed, setProfileReminderDismissed] = useState(false);
   const showProfileReminder = !profileReminderDismissed && isHealthProfileIncomplete(user);
 

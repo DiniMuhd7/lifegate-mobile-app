@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { COLOR_PLATES, getPlateScheme } from 'services/adaptive-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 import type { ColorPlate } from 'types/vision-types';
 
 const TEAL = '#0AADA2';
@@ -191,7 +191,10 @@ export default function ColorVisionTest() {
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 }}>
-            <View style={{ width: 38, height: 38 }} />
+            <Pressable onPress={() => { markTestSkipped('color'); router.replace(nextScreen(useVisionStore.getState().testStatus) as never); }} hitSlop={10}
+              style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#e5e7eb' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' })}>
+              <Ionicons name="close" size={20} color="#374151" />
+            </Pressable>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>Color Vision</Text>
               <Text style={{ fontSize: 11, color: '#9ca3af' }}>Practice plate</Text>
@@ -221,7 +224,6 @@ export default function ColorVisionTest() {
               <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>I see 12 — Start Test →</Text>
             </Pressable>
           </View>
-          <PatientBottomTabBar />
         </SafeAreaView>
       </View>
     );
@@ -303,7 +305,6 @@ export default function ColorVisionTest() {
           </View>
         </View>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

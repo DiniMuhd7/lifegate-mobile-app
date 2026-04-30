@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { ASTIGMATISM_AXES } from 'services/adaptive-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 
 const TEAL = '#0AADA2';
 const TEAL_DARK = '#0f766e';
@@ -218,7 +218,6 @@ export default function AstigmatismTest() {
           </Pressable>
         </View>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

@@ -168,4 +168,10 @@ export const AdminService = {
   async rejectRedemption(id: string, note?: string): Promise<void> {
     await api.post(`/admin/lifecoins/redemptions/${id}/reject`, { note: note ?? '' });
   },
+
+  // ── Explore Content ───────────────────────────────────────────────────────
+
+  async triggerExploreRefresh(): Promise<void> {
+    await api.post('/admin/explore/refresh');
+  },
 };

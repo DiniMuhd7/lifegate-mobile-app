@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useVisionStore } from 'stores/vision-store';
 import { BATTERY_META } from 'services/adaptive-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 import type { BatteryTestId } from 'types/vision-types';
 
 const TEAL = '#0AADA2';
@@ -59,7 +59,7 @@ export default function BatterySelector() {
             hitSlop={10}
             style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#e5e7eb' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' })}
           >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
+            <Ionicons name="close" size={20} color="#374151" />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>Vision Battery</Text>
@@ -147,7 +147,6 @@ export default function BatterySelector() {
           </Pressable>
         </View>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { PrimaryButton } from 'components/Button';
+import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
@@ -17,6 +18,8 @@ const VALID_FIELDS = {
   healthHistory: true,
   language: true,
   referredByCode: true,
+  state: true,
+  country: true,
 } as const;
 
 type ValidFieldName = keyof typeof VALID_FIELDS;
@@ -100,6 +103,24 @@ export default function UserProfileStep() {
           placeholder="Select preferred language"
         />
         <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
+
+        <LabeledInput
+          label="State / Province"
+          placeholder="Enter your state or province"
+          value={userDraft.state || ''}
+          hasError={!!fieldErrors.state}
+          onChangeText={(v) => handleFieldChange('state', v)}
+        />
+        <ErrorMessage fieldName="state" fieldErrors={fieldErrors} />
+
+        <LabeledInput
+          label="Country"
+          placeholder="Enter your country"
+          value={userDraft.country || ''}
+          hasError={!!fieldErrors.country}
+          onChangeText={(v) => handleFieldChange('country', v)}
+        />
+        <ErrorMessage fieldName="country" fieldErrors={fieldErrors} />
 
         <View className="mb-2 mt-1">
           <Text className="mb-1.5 font-medium text-gray-700">

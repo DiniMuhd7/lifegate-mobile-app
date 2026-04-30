@@ -238,8 +238,8 @@ async function fetchCategoryVideos(category: string): Promise<ExploreVideo[]> {
   for (const it of items) {
     const vid = it.id.videoId;
     const dur = durationMap.get(vid) ?? 0;
-    // Keep only 5–20 min videos (300–1200 s)
-    if (dur < 300 || dur > 1200) continue;
+    // Keep only 3–20 min videos (180–1200 s)
+    if (dur < 180 || dur > 1200) continue;
 
     let desc = it.snippet.description ?? '';
     if (desc.length > 180) desc = desc.slice(0, 177) + '\u2026';

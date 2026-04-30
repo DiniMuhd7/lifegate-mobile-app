@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { LightSensor } from 'expo-sensors';
 import { useVisionStore } from 'stores/vision-store';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 import {
   CREDIT_CARD_MM,
   classifyLux,
@@ -878,7 +878,7 @@ export default function EyeTestCalibration() {
               justifyContent: 'center',
             })}
           >
-            <Ionicons name="arrow-back" size={20} color="#374151" />
+            <Ionicons name="close" size={20} color="#374151" />
           </Pressable>
 
           <View style={{ flex: 1 }}>
@@ -1004,7 +1004,6 @@ export default function EyeTestCalibration() {
           )}
         </View>
 
-        <PatientBottomTabBar />
       </SafeAreaView>
     </View>
   );

@@ -3,22 +3,26 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { ProfessionalService } from '../services/professional-service';
+import api from '../services/api';
 
-// Configure how notifications look while the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    // Physician case push notifications use an in-app banner, so suppress the
-    // OS banner for those. All other notifications (e.g. daily health insight)
-    // should show the OS banner normally.
-    const isCaseNotif = notification.request.content.data?.type === 'case';
-    return {
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: !isCaseNotif,
-      shouldShowList: true,
-    };
-  },
-});
+// Configure how notifications look while the app is in the foreground.
+// expo-notifications does not support this API on web, so guard it.
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async (notification) => {
+      // Physician case push notifications use an in-app banner, so suppress the
+      // OS banner for those. All other notifications (e.g. daily health insight)
+      // should show the OS banner normally.
+      const isCaseNotif = notification.request.content.data?.type === 'case';
+      return {
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: !isCaseNotif,
+        shouldShowList: true,
+      };
+    },
+  });
+}
 
 /**
  * Requests push permission, retrieves the Expo push token,
@@ -27,10 +31,9 @@ Notifications.setNotificationHandler({
  * Should be called once after the physician is authenticated.
  */
 export async function registerPhysicianPushToken(): Promise<void> {
-  if (!Device.isDevice) {
-    // Push notifications only work on physical devices
-    return;
-  }
+  // Push notifications are not available on web or simulators
+  if (Platform.OS === 'web') return;
+  if (!Device.isDevice) return;
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
@@ -135,12 +138,57 @@ export async function scheduleHealthInsightNotification(insightText: string): Pr
 }
 
 /**
+ * Requests push permission, retrieves the Expo push token,
+ * and registers it with the backend for a patient user.
+ *
+ * Should be called once after the patient is authenticated.
+ * The backend will also send a profile-completion reminder push if the
+ * patient's health profile is not fully filled in.
+ */
+export async function registerPatientPushToken(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  if (!Device.isDevice) return;
+
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+
+  if (finalStatus !== 'granted') {
+    console.warn('Push notification permission not granted');
+    return;
+  }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('patient-updates', {
+      name: 'Health & Case Updates',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+    });
+  }
+
+  const projectId =
+    Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  const tokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+  // POST /push-token — patient-scoped endpoint
+  await api.post('/push-token', { token: tokenData.data });
+}
+
+/**
  * Returns a subscription that fires when the user taps a push notification.
  * The response handler receives the notification data and can navigate to a case.
+ * Returns a no-op subscription on web.
  */
 export function addNotificationResponseListener(
   handler: (caseId: string) => void
 ): Notifications.EventSubscription {
+  if (Platform.OS === 'web') {
+    // Return a stub that matches the EventSubscription interface
+    return { remove: () => {} } as Notifications.EventSubscription;
+  }
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as Record<string, unknown>;
     const caseId = data?.caseId as string | undefined;

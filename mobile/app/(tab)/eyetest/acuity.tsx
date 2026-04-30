@@ -20,7 +20,7 @@ import {
   randomOptotype,
   randomOptotypes,
 } from 'services/adaptive-engine';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TEAL         = '#0AADA2';
@@ -1148,8 +1148,6 @@ export default function AcuityTest() {
             })}
           </View>
         </View>
-
-        <PatientBottomTabBar />
 
         {/* ── Phase Transition Modal ────────────────────────────────────── */}
         <PhaseTransitionModal

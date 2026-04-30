@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PhysicianNotification } from '../stores/notification-store';
 
@@ -25,7 +25,7 @@ export function InAppNotificationBanner({ notification, onDismiss, onPress }: Pr
     // Slide in
     Animated.spring(translateY, {
       toValue: 0,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
       tension: 80,
       friction: 10,
     }).start();
@@ -43,7 +43,7 @@ export function InAppNotificationBanner({ notification, onDismiss, onPress }: Pr
     Animated.timing(translateY, {
       toValue: -120,
       duration: 250,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start(() => onDismiss());
   }
 

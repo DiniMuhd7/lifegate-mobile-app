@@ -85,3 +85,18 @@ func (s *Service) ClaimReward(userID, videoID string) (coinsEarned int, alreadyC
 	}
 	return
 }
+
+// TriggerRefresh forces an immediate YouTube catalogue refresh regardless of
+// whether one has already run today. Intended for admin use only.
+func (s *Service) TriggerRefresh() {
+	if s.refresher == nil {
+		return
+	}
+	s.refreshMu.Lock()
+	defer s.refreshMu.Unlock()
+	// Reset lastRunDate so RunOnce does not skip the run.
+	s.refresher.runMu.Lock()
+	s.refresher.lastRunDate = ""
+	s.refresher.runMu.Unlock()
+	s.refresher.RunOnce(context.Background())
+}

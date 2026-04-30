@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export type PatientTab = 'chat' | 'health' | 'profile' | 'settings';
+export type PatientTab = 'health' | 'profile' | 'settings';
 
 interface PatientBottomTabBarProps {
   activeTab?: PatientTab;
@@ -22,12 +22,6 @@ const TABS: Record<PatientTab, TabConfig> = {
     icon: 'heart-outline',
     activeIcon: 'heart',
     route: '/(tab)/health',
-  },
-  chat: {
-    label: 'Chat',
-    icon: 'chatbubble-ellipses-outline',
-    activeIcon: 'chatbubble-ellipses',
-    route: '/(tab)/chatScreen',
   },
   profile: {
     label: 'Profile',

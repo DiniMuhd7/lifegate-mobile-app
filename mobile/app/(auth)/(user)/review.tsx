@@ -97,8 +97,24 @@ export default function UserReviewStep() {
               icon="language-outline"
               label="Preferred Language"
               value={userDraft.language || '—'}
-              isLast={!userDraft.healthHistory && !userDraft.referredByCode}
+              isLast={!userDraft.state && !userDraft.country && !userDraft.healthHistory && !userDraft.referredByCode}
             />
+            {userDraft.state ? (
+              <InfoRow
+                icon="location-outline"
+                label="State / Province"
+                value={userDraft.state}
+                isLast={!userDraft.country && !userDraft.healthHistory && !userDraft.referredByCode}
+              />
+            ) : null}
+            {userDraft.country ? (
+              <InfoRow
+                icon="globe-outline"
+                label="Country"
+                value={userDraft.country}
+                isLast={!userDraft.healthHistory && !userDraft.referredByCode}
+              />
+            ) : null}
 
             {userDraft.referredByCode ? (
               <InfoRow
