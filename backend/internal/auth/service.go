@@ -942,17 +942,19 @@ func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, 
 		name = email
 	}
 
-	user, err := s.repo.FindOrCreateGoogleUser(email, name, generateID("USR"), generateID("PAT"))
+	user, isNew, err := s.repo.FindOrCreateGoogleUser(email, name, generateID("USR"), generateID("PAT"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve user: %w", err)
 	}
 
-	// Grant trial credits to newly created patient accounts (best-effort).
-	if s.trialGranter != nil {
-		_ = s.trialGranter.GrantTrialCredits(user.ID)
-	}
-	if s.referralProc != nil {
-		_, _ = s.referralProc.EnsureReferralCode(user.ID)
+	// Grant trial credits and referral code only on first sign-in.
+	if isNew {
+		if s.trialGranter != nil {
+			_ = s.trialGranter.GrantTrialCredits(user.ID)
+		}
+		if s.referralProc != nil {
+			_, _ = s.referralProc.EnsureReferralCode(user.ID)
+		}
 	}
 
 	accessToken, err := s.generateJWT(user)

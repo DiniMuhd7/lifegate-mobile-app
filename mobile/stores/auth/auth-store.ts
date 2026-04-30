@@ -315,6 +315,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       } catch { /* best-effort */ }
 
       set({ user: response.user, isAuthenticated: true, loading: false, error: null });
+
+      // Mirror app-boot behaviour: load any abandoned session for patients.
+      if (response.user.role === 'user') {
+        import('../session-store')
+          .then(({ useSessionStore }) => useSessionStore.getState().fetchIncomplete())
+          .catch(() => {});
+      }
+
       return true;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google login failed';

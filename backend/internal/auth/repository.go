@@ -377,13 +377,20 @@ func (r *Repository) DeleteExpiredAccounts() (int64, error) {
 	return res.RowsAffected()
 }
 
-// FindOrCreateGoogleUser returns the existing user with the given email, or inserts a new
-// patient account (with no password) if none exists. This is used by the Google Sign-In flow.
-func (r *Repository) FindOrCreateGoogleUser(email, name, userID, patientID string) (*User, error) {
+// FindOrCreateGoogleUser looks up the user by email.
+// If found, it updates the display name from Google and returns (user, false, nil).
+// If not found, it inserts a new patient account and returns (user, true, nil).
+func (r *Repository) FindOrCreateGoogleUser(email, name, userID, patientID string) (*User, bool, error) {
 	// Try to find an existing account first.
 	user, err := r.FindUserByEmail(email)
 	if err == nil {
-		return user, nil
+		// Update name in case the user changed their Google display name.
+		_, _ = r.db.Exec(
+			`UPDATE users SET name = $1, updated_at = NOW() WHERE email = $2`,
+			name, email,
+		)
+		user.Name = name
+		return user, false, nil
 	}
 
 	// Insert a new patient account (no password hash — Google-authenticated users
@@ -401,8 +408,8 @@ func (r *Repository) FindOrCreateGoogleUser(email, name, userID, patientID strin
 		 RETURNING id, created_at, updated_at`,
 		u.UserID, u.PatientID, u.Name, u.Email, u.Role,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return u, nil
+	return u, true, nil
 }
 
