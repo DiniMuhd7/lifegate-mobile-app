@@ -6,6 +6,14 @@ const TOKEN_KEY = 'lifegate_token';
 const REFRESH_TOKEN_KEY = 'lifegate_refresh_token';
 
 /**
+ * Returns true when running in a real browser or native app.
+ * During Expo static export (SSG prerendering) this module is executed in
+ * Node.js, where `window` is undefined. All storage calls must be no-ops in
+ * that context to prevent "window is not defined" crashes at build time.
+ */
+const isClient = typeof window !== 'undefined';
+
+/**
  * On web always use localStorage (via AsyncStorage) so that tokens survive
  * page refreshes reliably. The SecureStore probe is only needed on native
  * where older Expo Go runtimes may not support the v15 API.
@@ -28,6 +36,7 @@ async function probeSecureStore(): Promise<boolean> {
 }
 
 async function storeSet(key: string, value: string): Promise<void> {
+  if (!isClient) return;
   if (await probeSecureStore()) {
     await SecureStore.setItemAsync(key, value);
   } else {
@@ -36,6 +45,7 @@ async function storeSet(key: string, value: string): Promise<void> {
 }
 
 async function storeGet(key: string): Promise<string | null> {
+  if (!isClient) return null;
   if (await probeSecureStore()) {
     return SecureStore.getItemAsync(key);
   }
@@ -43,6 +53,7 @@ async function storeGet(key: string): Promise<string | null> {
 }
 
 async function storeRemove(key: string): Promise<void> {
+  if (!isClient) return;
   if (await probeSecureStore()) {
     await SecureStore.deleteItemAsync(key);
   } else {
