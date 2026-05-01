@@ -107,8 +107,7 @@ services:
         value: /app/uploads
 
   # ─── Expo Web App (Static Site) ───────────────────────────────────────────
-  - type: web
-    env: static
+  - type: static
     name: lifegate-mobile-web
     rootDir: mobile
     buildCommand: npm ci && npm run export:web
