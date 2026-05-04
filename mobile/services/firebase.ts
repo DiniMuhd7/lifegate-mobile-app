@@ -3,8 +3,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
+const FALLBACK_FIREBASE_API_KEY = 'AIzaSyA1j0L_Tsz3KQRqF4BGpk7nJRRKEvZCXAc';
+const resolvedApiKey =
+  process.env.EXPO_PUBLIC_FIREBASE_API_KEY?.trim() || FALLBACK_FIREBASE_API_KEY;
+
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  apiKey: resolvedApiKey,
   authDomain: 'dshub-f226b.firebaseapp.com',
   projectId: 'dshub-f226b',
   storageBucket: 'dshub-f226b.firebasestorage.app',
