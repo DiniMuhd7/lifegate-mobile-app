@@ -839,7 +839,7 @@ const ChatScreen: React.FC = () => {
                 lineHeight: 15,
               }}
             >
-              LifeGate AI provides health information and clinical diagnosis. All AI outputs are reviewed and validated by licensed physicians. This service does not replace emergency care.
+              LifeGate AI provides health information and clinical diagnosis. All AI diagnoses outputs are reviewed and validated by licensed physicians. This service does not replace emergency care.
             </Text>
 
             <ChatInputBar
