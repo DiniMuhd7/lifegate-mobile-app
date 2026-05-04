@@ -12,6 +12,7 @@ package edis
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -271,7 +272,85 @@ func (e *Engine) Process(ctx context.Context, messages []ai.ChatMessage, categor
 		return gracefulFallback(), nil
 	}
 
+	raw = e.enforcePreferredLanguage(timeoutCtx, raw, patient.Language)
+
 	return analyze(raw, category), nil
+}
+
+func isEnglishLanguage(language string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(language))
+	return normalized == "" ||
+		normalized == "english" ||
+		normalized == "en" ||
+		normalized == "en-us" ||
+		normalized == "en-gb"
+}
+
+func (e *Engine) enforcePreferredLanguage(ctx context.Context, raw *ai.AIResponse, language string) *ai.AIResponse {
+	if raw == nil || isEnglishLanguage(language) {
+		return raw
+	}
+
+	payload, err := json.Marshal(raw)
+	if err != nil {
+		log.Printf("[EDIS] language enforcement marshal failed: %v", err)
+		return raw
+	}
+
+	userMessage := "TARGET_LANGUAGE: " + strings.TrimSpace(language) + "\n" +
+		"REWRITE the JSON below so all patient-facing text is in TARGET_LANGUAGE, preserving clinical meaning and ALL non-language fields/values:\n" +
+		string(payload)
+
+	rewritten, err := e.provider.Chat(ctx, languageRewriteSystemPrompt, []ai.ChatMessage{{
+		Role: "USER",
+		Text: userMessage,
+	}})
+	if err != nil || rewritten == nil {
+		if err != nil {
+			log.Printf("[EDIS] language enforcement rewrite failed: %v", err)
+		}
+		return raw
+	}
+
+	if strings.TrimSpace(rewritten.Text) != "" {
+		raw.Text = rewritten.Text
+	}
+
+	if len(rewritten.FollowUpQuestions) > 0 {
+		raw.FollowUpQuestions = rewritten.FollowUpQuestions
+	}
+
+	if raw.Diagnosis != nil && rewritten.Diagnosis != nil {
+		if strings.TrimSpace(rewritten.Diagnosis.Description) != "" {
+			raw.Diagnosis.Description = rewritten.Diagnosis.Description
+		}
+	}
+
+	for i := 0; i < len(raw.Conditions) && i < len(rewritten.Conditions); i++ {
+		if strings.TrimSpace(rewritten.Conditions[i].Description) != "" {
+			raw.Conditions[i].Description = rewritten.Conditions[i].Description
+		}
+	}
+
+	for i := 0; i < len(raw.RiskFlags) && i < len(rewritten.RiskFlags); i++ {
+		if strings.TrimSpace(rewritten.RiskFlags[i].Description) != "" {
+			raw.RiskFlags[i].Description = rewritten.RiskFlags[i].Description
+		}
+	}
+
+	for i := 0; i < len(raw.Investigations) && i < len(rewritten.Investigations); i++ {
+		if strings.TrimSpace(rewritten.Investigations[i].Reason) != "" {
+			raw.Investigations[i].Reason = rewritten.Investigations[i].Reason
+		}
+	}
+
+	if raw.Prescription != nil && rewritten.Prescription != nil {
+		if strings.TrimSpace(rewritten.Prescription.Instructions) != "" {
+			raw.Prescription.Instructions = rewritten.Prescription.Instructions
+		}
+	}
+
+	return raw
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -468,6 +547,19 @@ func gracefulFallback() *EDISResponse {
 		},
 	}
 }
+
+const languageRewriteSystemPrompt = `You are a clinical response localizer for LifeGate.
+
+You will receive:
+- TARGET_LANGUAGE
+- A JSON object that follows LifeGate's AI response schema.
+
+Task:
+1. Rewrite ALL patient-facing natural-language strings into TARGET_LANGUAGE.
+2. Keep clinical meaning, urgency, and safety intent exactly the same.
+3. Preserve ALL structure and non-language values exactly (numbers, enums, booleans, nulls, field presence).
+4. Do NOT add/remove fields.
+5. Return ONLY valid JSON.`
 
 // summarizationSystemPrompt instructs the AI to produce a compact clinical
 // summary from a conversation segment. The schema is intentionally a subset of
