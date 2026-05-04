@@ -10,18 +10,17 @@ import {
   ActivityIndicator,
   StyleSheet,
   Pressable,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { Dropdown } from 'components/DropDown';
+import { DOBInput } from 'components/DobPicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const T = '#0EA5A4';
@@ -135,23 +134,13 @@ function formatDateDisplay(dateString: string): string {
   }
 }
 
-function parseDateString(dateString: string): Date | null {
-  if (!dateString) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const monthIndex = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  const date = new Date(year, monthIndex, day);
-  if (
-    Number.isNaN(date.getTime()) ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== monthIndex ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-  return date;
+function parseDateFromYMD(value: string): Date | null {
+  if (!value) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const parsed = new Date(y, m - 1, d);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -164,7 +153,6 @@ export default function ManageProfileScreen() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelDeletionModal, setShowCancelDeletionModal] = useState(false);
-  const [showDobPicker, setShowDobPicker] = useState(false);
   const [deletionLoading, setDeletionLoading] = useState(false);
   const [languageSaving, setLanguageSaving] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -241,18 +229,6 @@ export default function ManageProfileScreen() {
         day: '2-digit', month: 'long', year: 'numeric',
       })
     : null;
-
-  const handleDateChange = (event: any, date?: Date) => {
-    if (Platform.OS !== 'web') {
-      setShowDobPicker(false);
-    }
-    if (date) {
-      const formatted = formatDateToString(date);
-      setEditForm({ ...editForm, dob: formatted });
-    }
-  };
-
-  const dobPickerDate = parseDateString(editForm.dob) || new Date();
 
   const handleSaveEdit = async () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
@@ -579,28 +555,11 @@ export default function ManageProfileScreen() {
                   value={editForm.lastName} onChangeText={(t) => setEditForm({ ...editForm, lastName: t })} />
                 <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad"
                   value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
-                <View style={styles.labeledInputWrapper}>
-                  <Text style={styles.labeledInputLabel}>Date of Birth</Text>
-                  {Platform.OS === 'web' ? (
-                    <LabeledInput
-                      label=""
-                      placeholder="YYYY-MM-DD"
-                      value={editForm.dob}
-                      onChangeText={(t) => setEditForm({ ...editForm, dob: t })}
-                    />
-                  ) : (
-                    <Pressable
-                      style={styles.dobInput}
-                      onPress={() => setShowDobPicker(true)}
-                      android_ripple={{ color: '#f0fafb' }}
-                    >
-                      <Ionicons name="calendar-outline" size={16} color={T} />
-                      <Text style={[styles.dobInputText, !editForm.dob && { color: '#A0AEC0' }]}>
-                        {editForm.dob ? formatDateDisplay(editForm.dob) : 'Select date'}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
+                <DOBInput
+                  label="Date of Birth"
+                  value={parseDateFromYMD(editForm.dob)}
+                  onChange={(date: Date) => setEditForm({ ...editForm, dob: formatDateToString(date) })}
+                />
                 <Dropdown
                   label="Gender"
                   options={GENDER_OPTIONS}
@@ -652,17 +611,6 @@ export default function ManageProfileScreen() {
             </View>
           </View>
         </Modal>
-
-        {/* Date of Birth Picker */}
-        {showDobPicker && (
-          <DateTimePicker
-            value={dobPickerDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-            maximumDate={new Date()}
-          />
-        )}
 
       </SafeAreaView>
     </View>
@@ -917,32 +865,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   deleteCancelBtnText: { fontSize: 15, fontWeight: '700', color: '#64748B' },
-  // ── DOB Input ──
-  labeledInputWrapper: {
-    marginBottom: 14,
-  },
-  labeledInputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 8,
-    marginLeft: 2,
-  },
-  dobInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#DFE5E8',
-  },
-  dobInputText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E293B',
-  },
 });
