@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from 'services/api';
+import { useAuthStore } from 'stores/auth/auth-store';
 import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
 const STORAGE_KEY = 'explore_store_v5';
@@ -196,12 +197,32 @@ function coinsForDuration(seconds: number): number {
  * resolves exact durations via videos.list, and returns ExploreVideo[]
  * ready for the store. Returns null if the API key is absent or any call fails.
  */
-async function fetchCategoryVideos(category: string): Promise<ExploreVideo[]> {
+function resolveExploreLanguage(language?: string | null): string {
+  const raw = (language ?? '').trim().toLowerCase();
+  if (!raw) return 'en';
+  const map: Record<string, string> = {
+    english: 'en',
+    eng: 'en',
+    french: 'fr',
+    francais: 'fr',
+    'français': 'fr',
+    spanish: 'es',
+    espanol: 'es',
+    'español': 'es',
+    yoruba: 'yo',
+    igbo: 'ig',
+    hausa: 'ha',
+  };
+  return map[raw] ?? raw.slice(0, 2) ?? 'en';
+}
+
+async function fetchCategoryVideos(category: string, language = 'en'): Promise<ExploreVideo[]> {
   const query = encodeURIComponent(CATEGORY_QUERIES[category]);
+  const relevanceLanguage = encodeURIComponent(resolveExploreLanguage(language));
   const searchUrl =
     `https://www.googleapis.com/youtube/v3/search` +
     `?part=snippet&q=${query}&type=video&videoDuration=medium` +
-    `&maxResults=${YT_RESULTS_PER_CAT}&relevanceLanguage=en` +
+    `&maxResults=${YT_RESULTS_PER_CAT}&relevanceLanguage=${relevanceLanguage}` +
     `&safeSearch=strict&key=${YT_API_KEY}`;
 
   const searchRes = await fetch(searchUrl);
@@ -262,7 +283,7 @@ async function fetchCategoryVideos(category: string): Promise<ExploreVideo[]> {
   return videos;
 }
 
-async function fetchFromYouTube(): Promise<ExploreVideo[] | null> {
+async function fetchFromYouTube(language?: string | null): Promise<ExploreVideo[] | null> {
   if (!YT_API_KEY) return null;
 
   const categories = Object.keys(CATEGORY_QUERIES);
@@ -271,7 +292,7 @@ async function fetchFromYouTube(): Promise<ExploreVideo[] | null> {
   // network calls to the latency of the single slowest category.
   const results = await Promise.all(
     categories.map((category) =>
-      fetchCategoryVideos(category).catch(() => [] as ExploreVideo[])
+      fetchCategoryVideos(category, language ?? 'en').catch(() => [] as ExploreVideo[])
     )
   );
 
@@ -340,6 +361,7 @@ async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing
  *      ensures all 16 categories are populated consistently for every user.
  */
 async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number } | null> {
+  const userLanguage = useAuthStore.getState().user?.language ?? 'en';
   // ── 1. Primary: backend catalogue ────────────────────────────────────────
   try {
     const res = await api.get<{
@@ -361,13 +383,13 @@ async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: str
 
       // Backend reachable but catalogue is empty (refresher hasn't run yet).
       // Fall back to a direct YouTube fetch so the screen isn't empty.
-      const ytVideos = await fetchFromYouTube();
+      const ytVideos = await fetchFromYouTube(userLanguage);
       if (ytVideos) return { videos: ytVideos, rewardedIds, dailyCap };
       return null;
     }
   } catch {
     // Backend unreachable — try YouTube so the screen isn't left empty.
-    const ytVideos = await fetchFromYouTube();
+    const ytVideos = await fetchFromYouTube(userLanguage);
     if (ytVideos) return { videos: ytVideos, rewardedIds: [], dailyCap: DAILY_VIDEO_CAP };
     return null;
   }

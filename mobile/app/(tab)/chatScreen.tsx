@@ -72,7 +72,7 @@ const STARTER_CHIPS: {
     color: '#0891b2',
     bg: '#e0f2fe',
     label: 'Medication Advice',
-    prompt: 'I have a question about a medication — its dosage, side effects, or drug interactions.',
+    prompt: 'I need medication safety advice based on my current medications, proper intake, side effects, interactions, and my health context. Please involve physician validation where necessary.',
   },
   {
     icon: 'flask-outline',
@@ -217,12 +217,10 @@ const ChatScreen: React.FC = () => {
   // session history. Guarded against deep-link resumes and mid-init state.
   useFocusEffect(
     useCallback(() => {
-      // Only navigate to welcome if we're not resuming a deep-link, not initializing,
-      // not mid-AI-response, and not already in an active conversation with messages.
-      if (!resumeConversationId && !isInitializing && !isThinking && showWelcomeRef.current) {
+      if (!resumeConversationId && !isInitializing) {
         goToWelcome();
       }
-    }, [goToWelcome, resumeConversationId, isInitializing, isThinking])
+    }, [goToWelcome, resumeConversationId, isInitializing])
   );
 
   // Hardware back button (Android) — mirrors the back arrow behaviour
@@ -636,7 +634,7 @@ const ChatScreen: React.FC = () => {
               </View>
             ) : showWelcome ? (
               <ScrollView
-                style={{ flex: 1 }}
+                className="flex-1"
                 contentContainerStyle={{
                   flexGrow: 1,
                   paddingHorizontal: 20,
@@ -804,7 +802,7 @@ const ChatScreen: React.FC = () => {
                 </View>
               </ScrollView>
             ) : (
-              <View style={{ flex: 1 }}>
+              <View className="flex-1">
                 <MessageList 
                   messages={displayMessages} 
                   onRetry={retrySendMessage} 
@@ -820,9 +818,9 @@ const ChatScreen: React.FC = () => {
 
             {/* Error banner */}
             {error && (
-              <View style={{ marginHorizontal: 16, marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: '#fca5a5', backgroundColor: '#fef2f2', paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View className="mx-4 mb-2 rounded-xl border border-red-300 bg-red-50 px-3 py-2 flex-row items-center gap-2">
                 <Ionicons name="warning-outline" size={16} color="#dc2626" />
-                <Text style={{ fontSize: 14, fontWeight: '500', color: '#b91c1c', flex: 1 }}>{error}</Text>
+                <Text className="text-sm font-medium text-red-700 flex-1">{error}</Text>
                 <TouchableOpacity onPress={clearError}>
                   <Ionicons name="close" size={16} color="#dc2626" />
                 </TouchableOpacity>

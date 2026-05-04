@@ -2,12 +2,15 @@ package explore
 
 import (
 	"context"
+	"strings"
 	"sync"
 )
 
 // DailyVideoCap is the total number of videos a user can claim rewards for per day.
 // 10 videos × 16 categories = 160.
 const DailyVideoCap = 160
+
+const defaultExploreLanguage = "en"
 
 // LifecoinsAdder is a minimal interface for awarding Lifecoins after a video watch.
 // Implemented by payments.Service — using an interface avoids an import cycle.
@@ -40,25 +43,28 @@ func (s *Service) SetRefresher(r *Refresher) {
 	s.refresher = r
 }
 
-// ListVideos returns active videos. Pass an empty string to return all categories.
-// If the catalogue is empty and a refresher is configured, it triggers a
-// synchronous YouTube fetch before returning the results.
-func (s *Service) ListVideos(category string) ([]Video, error) {
-	videos, err := s.repo.ListActiveVideos(category)
+// ListVideos returns active videos for the patient's preferred language.
+// It falls back to English when that language has no catalogue yet.
+func (s *Service) ListVideos(userID, category string) ([]Video, error) {
+	language, err := s.repo.GetUserLanguage(userID)
+	if err != nil {
+		return nil, err
+	}
+	language = normalizeExploreLanguage(language)
+
+	videos, err := s.repo.ListActiveVideos(category, language)
 	if err != nil {
 		return nil, err
 	}
 
-	// On-demand refresh: if the DB is empty and a refresher is available, run
-	// it synchronously once, then re-query. The mutex prevents stampedes.
+	// On-demand refresh: if the requested language catalogue is empty and a
+	// refresher is available, run it synchronously once, then re-query.
 	if len(videos) == 0 && s.refresher != nil {
 		s.refreshMu.Lock()
-		// Re-check after acquiring the lock — a concurrent goroutine may have
-		// already populated the catalogue.
-		videos2, _ := s.repo.ListActiveVideos(category)
+		videos2, _ := s.repo.ListActiveVideos(category, language)
 		if len(videos2) == 0 {
-			s.refresher.RunOnce(context.Background())
-			videos, err = s.repo.ListActiveVideos(category)
+			s.refresher.RunOnceForLanguage(context.Background(), language)
+			videos, err = s.repo.ListActiveVideos(category, language)
 		} else {
 			videos = videos2
 		}
@@ -68,7 +74,39 @@ func (s *Service) ListVideos(category string) ([]Video, error) {
 		}
 	}
 
+	if len(videos) == 0 && language != defaultExploreLanguage {
+		videos, err = s.repo.ListActiveVideos(category, defaultExploreLanguage)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return videos, nil
+}
+
+func normalizeExploreLanguage(language string) string {
+	language = strings.TrimSpace(strings.ToLower(language))
+	if language == "" {
+		return defaultExploreLanguage
+	}
+	switch language {
+	case "english", "eng":
+		return "en"
+	case "french", "francais", "français":
+		return "fr"
+	case "spanish", "espanol", "español":
+		return "es"
+	case "yoruba":
+		return "yo"
+	case "igbo":
+		return "ig"
+	case "hausa":
+		return "ha"
+	}
+	if len(language) >= 2 {
+		return language[:2]
+	}
+	return defaultExploreLanguage
 }
 
 // GetDailyRewardedIDs returns the video IDs the user has already claimed today.
@@ -94,9 +132,9 @@ func (s *Service) TriggerRefresh() {
 	}
 	s.refreshMu.Lock()
 	defer s.refreshMu.Unlock()
-	// Reset lastRunDate so RunOnce does not skip the run.
+	// Reset per-language run guards so RunOnce does not skip the run.
 	s.refresher.runMu.Lock()
-	s.refresher.lastRunDate = ""
+	s.refresher.lastRunDateByLanguage = map[string]string{}
 	s.refresher.runMu.Unlock()
 	s.refresher.RunOnce(context.Background())
 }

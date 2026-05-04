@@ -11,6 +11,7 @@ type Video struct {
 	Title           string `json:"title"`
 	Description     string `json:"description"`
 	Category        string `json:"category"`
+	Language        string `json:"language,omitempty"`
 	DurationSeconds int    `json:"durationSeconds"`
 	Coins           int    `json:"coins"`
 	ThumbnailColor  string `json:"thumbnailColor"`
@@ -38,27 +39,30 @@ func NewRepository(db *sql.DB) *Repository {
 
 // ListActiveVideos returns active videos ordered by sort_order.
 // Passing a non-empty category restricts results to that category only.
-func (r *Repository) ListActiveVideos(category string) ([]Video, error) {
+func (r *Repository) ListActiveVideos(category, language string) ([]Video, error) {
 	var (
 		rows *sql.Rows
 		err  error
 	)
+	if language == "" {
+		language = defaultExploreLanguage
+	}
 	if category != "" {
 		rows, err = r.db.Query(`
-			SELECT id, title, description, category, duration_seconds, coins,
+			SELECT id, title, description, category, COALESCE(language, 'en'), duration_seconds, coins,
 			       thumbnail_color, thumbnail_icon, instructor, youtube_id
 			FROM   explore_videos
-			WHERE  is_active = TRUE AND category = $1
+			WHERE  is_active = TRUE AND category = $1 AND COALESCE(language, 'en') = $2
 			ORDER  BY sort_order ASC, created_at ASC
-		`, category)
+		`, category, language)
 	} else {
 		rows, err = r.db.Query(`
-			SELECT id, title, description, category, duration_seconds, coins,
+			SELECT id, title, description, category, COALESCE(language, 'en'), duration_seconds, coins,
 			       thumbnail_color, thumbnail_icon, instructor, youtube_id
 			FROM   explore_videos
-			WHERE  is_active = TRUE
+			WHERE  is_active = TRUE AND COALESCE(language, 'en') = $1
 			ORDER  BY sort_order ASC, created_at ASC
-		`)
+		`, language)
 	}
 	if err != nil {
 		return nil, err
@@ -69,7 +73,7 @@ func (r *Repository) ListActiveVideos(category string) ([]Video, error) {
 	for rows.Next() {
 		var v Video
 		if err := rows.Scan(
-			&v.ID, &v.Title, &v.Description, &v.Category,
+			&v.ID, &v.Title, &v.Description, &v.Category, &v.Language,
 			&v.DurationSeconds, &v.Coins,
 			&v.ThumbnailColor, &v.ThumbnailIcon,
 			&v.Instructor, &v.YoutubeID,
@@ -79,6 +83,17 @@ func (r *Repository) ListActiveVideos(category string) ([]Video, error) {
 		videos = append(videos, v)
 	}
 	return videos, rows.Err()
+}
+
+// GetUserLanguage returns the patient's saved language preference.
+// Empty/unknown values fall back to English in the service layer.
+func (r *Repository) GetUserLanguage(userID string) (string, error) {
+	var language string
+	err := r.db.QueryRow(`SELECT COALESCE(language, '') FROM users WHERE id = $1::uuid`, userID).Scan(&language)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return language, err
 }
 
 // GetDailyRewardedIDs returns the set of video IDs already claimed by the user today.
@@ -168,13 +183,14 @@ func (r *Repository) ClaimReward(userID, videoID string, dailyCap int) (int, boo
 func (r *Repository) UpsertVideo(v Video, sortOrder int) error {
 	_, err := r.db.Exec(`
 		INSERT INTO explore_videos
-			(id, title, description, category, duration_seconds, coins,
+			(id, title, description, category, language, duration_seconds, coins,
 			 thumbnail_color, thumbnail_icon, instructor, youtube_id,
 			 is_active, sort_order)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE,$11)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,TRUE,$12)
 		ON CONFLICT (id) DO UPDATE SET
 			title            = EXCLUDED.title,
 			description      = EXCLUDED.description,
+			language         = EXCLUDED.language,
 			duration_seconds = EXCLUDED.duration_seconds,
 			coins            = EXCLUDED.coins,
 			thumbnail_color  = EXCLUDED.thumbnail_color,
@@ -186,6 +202,7 @@ func (r *Repository) UpsertVideo(v Video, sortOrder int) error {
 			updated_at       = NOW()
 	`,
 		v.ID, v.Title, v.Description, v.Category,
+		v.Language,
 		v.DurationSeconds, v.Coins,
 		v.ThumbnailColor, v.ThumbnailIcon,
 		v.Instructor, v.YoutubeID,
@@ -197,7 +214,10 @@ func (r *Repository) UpsertVideo(v Video, sortOrder int) error {
 // DeactivateOldVideos marks all videos in a category that were NOT refreshed
 // today as inactive. Videos are identified by the "yt_" prefix added by the
 // refresher (so hand-seeded entries are never deactivated).
-func (r *Repository) DeactivateOldVideos(category, today string) error {
+func (r *Repository) DeactivateOldVideos(category, language, today string) error {
+	if language == "" {
+		language = defaultExploreLanguage
+	}
 	// The refresher IDs are of the form "yt_<cat>_<youtubeId>".
 	// We deactivate rows in this category that haven't been updated today.
 	_, err := r.db.Exec(`
@@ -205,8 +225,9 @@ func (r *Repository) DeactivateOldVideos(category, today string) error {
 		SET    is_active  = FALSE,
 		       updated_at = NOW()
 		WHERE  category = $1
+		  AND  COALESCE(language, 'en') = $2
 		  AND  id LIKE 'yt_%'
-		  AND  DATE(updated_at) < $2::date
-	`, category, today)
+		  AND  DATE(updated_at) < $3::date
+	`, category, language, today)
 	return err
 }

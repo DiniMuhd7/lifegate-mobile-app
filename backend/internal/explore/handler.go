@@ -29,7 +29,9 @@ func NewHandler(svc *Service) *Handler {
 // @Router       /explore/videos [get]
 func (h *Handler) ListVideos(c *gin.Context) {
 	category := c.Query("category")
-	videos, err := h.svc.ListVideos(category)
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+	videos, err := h.svc.ListVideos(uid, category)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch videos"})
 		return
@@ -37,9 +39,6 @@ func (h *Handler) ListVideos(c *gin.Context) {
 	if videos == nil {
 		videos = []Video{}
 	}
-
-	userID, _ := c.Get("userID")
-	uid, _ := userID.(string)
 
 	rewardedIDs, err := h.svc.GetDailyRewardedIDs(uid)
 	if err != nil || rewardedIDs == nil {

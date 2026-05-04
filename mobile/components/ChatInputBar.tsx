@@ -114,6 +114,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   disabled = false,
 }) => {
   const [text, setText] = useState('');
+  const textRef = useRef('');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [ocrState, setOcrState] = useState<'idle' | 'camera' | 'scanning'>('idle');
@@ -122,8 +123,32 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   // True for ~1.5s after a quick tap so we can show "Hold to record" hint.
   const [showHoldHint, setShowHoldHint] = useState(false);
 
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
+
   const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  const autoSubmitExtractedText = useCallback(
+    (extracted: string, separator: string) => {
+      const cleaned = extracted.trim();
+      if (!cleaned) return;
+
+      const existing = textRef.current.trim();
+      const payload = existing ? `${existing}${separator}${cleaned}` : cleaned;
+
+      if (onSend && !disabled) {
+        onSend(payload);
+        textRef.current = '';
+        setText('');
+      } else {
+        textRef.current = payload;
+        setText(payload);
+      }
+    },
+    [onSend, disabled]
+  );
 
   // ── voiceState ref — always in sync with voiceState ──────────────────────
   // handleMicPressOut uses a ref so it is never stale in its useCallback
@@ -477,7 +502,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
       if (result.text) {
         const formatted = `[Medical Document Scan]\n${result.text}`;
-        setText((prev) => (prev ? `${prev}\n\n${formatted}` : formatted));
+        autoSubmitExtractedText(formatted, '\n\n');
       }
       stateHandled = true;
       setCapturedUri(null);
@@ -502,7 +527,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         setOcrState('idle');
       }
     }
-  }, []);
+  }, [autoSubmitExtractedText]);
 
   // ── Shared stop + transcribe logic ───────────────────────────────────────
   // Used by both the native release handler and the web second-tap handler.
@@ -534,13 +559,13 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         if (blob && blob.size > 1000) {
           const ext = blob.type.includes('webm') ? 'webm' : 'ogg';
           const transcript = await VoiceService.transcribeBlob(blob, `audio.${ext}`);
-          if (transcript) setText((p) => (p ? `${p} ${transcript}` : transcript));
+          if (transcript) autoSubmitExtractedText(transcript, ' ');
         }
       } else {
         const uri = await stopRecordingNative();
         if (uri) {
           const transcript = await VoiceService.transcribeUri(uri);
-          if (transcript) setText((p) => (p ? `${p} ${transcript}` : transcript));
+          if (transcript) autoSubmitExtractedText(transcript, ' ');
         }
       }
     } catch (err) {
@@ -550,7 +575,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       setVoiceStateAndRef('idle');
       setRecordingDuration(0);
     }
-  }, [stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims, setVoiceStateAndRef]);
+  }, [stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims, setVoiceStateAndRef, autoSubmitExtractedText]);
 
   // ── Platform-specific recording interaction ───────────────────────────────
   //

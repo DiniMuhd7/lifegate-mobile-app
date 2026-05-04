@@ -155,6 +155,7 @@ type PatientContext struct {
 	Name               string
 	Age                int    // 0 = unknown
 	Gender             string
+	Language           string // patient's preferred language, if known
 	BloodType          string
 	Genotype           string
 	Allergies          string
@@ -596,7 +597,7 @@ func buildHPIStateBlock(h *ai.SymptomProfile) string {
 func buildPatientContextBlock(p PatientContext) string {
 	if p.Name == "" && p.Age == 0 && p.Gender == "" && p.BloodType == "" && p.Genotype == "" &&
 		p.Allergies == "" && p.MedicalHistory == "" && p.CurrentMedications == "" &&
-		p.State == "" && p.Country == "" {
+		p.State == "" && p.Country == "" && p.Language == "" {
 		return ""
 	}
 
@@ -613,6 +614,9 @@ func buildPatientContextBlock(p PatientContext) string {
 	}
 	if p.Gender != "" {
 		fmt.Fprintf(&b, "Sex           : %s\n", p.Gender)
+	}
+	if p.Language != "" {
+		fmt.Fprintf(&b, "Language      : %s\n", p.Language)
 	}
 	if p.State != "" || p.Country != "" {
 		location := p.State
@@ -647,6 +651,9 @@ func buildPatientContextBlock(p PatientContext) string {
 	b.WriteString("• CHECK for drug interactions between your suggestions and the patient's current medications.\n")
 	b.WriteString("• USE the patient's existing conditions to sharpen your differential diagnoses.\n")
 	b.WriteString("• RAISE urgency appropriately when comorbidities increase vulnerability (e.g. diabetes, immunosuppression).\n")
+	if p.Language != "" {
+		b.WriteString("• RESPOND in the patient's preferred language shown above.\n")
+	}
 	if p.State != "" || p.Country != "" {
 		b.WriteString("• CONSIDER endemic diseases, regional pathogens, and locally prevalent conditions for the patient's location.\n")
 	}

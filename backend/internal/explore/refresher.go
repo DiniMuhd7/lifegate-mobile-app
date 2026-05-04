@@ -91,11 +91,11 @@ type Refresher struct {
 	repo         *Repository
 	apiKey       string
 	videosPerCat int
-	// lastRunDate guards against re-running on the same calendar day.
-	// Render restarts the server on every deploy; without this guard each
-	// deploy would consume YouTube API quota unnecessarily.
-	lastRunDate string
-	runMu       sync.Mutex
+	// lastRunDateByLanguage guards against re-running the same language on the
+	// same calendar day. This allows English daily refresh plus on-demand
+	// refreshes for a patient's preferred language.
+	lastRunDateByLanguage map[string]string
+	runMu                 sync.Mutex
 }
 
 // NewRefresher creates a Refresher. videosPerCat controls how many fresh
@@ -105,7 +105,7 @@ func NewRefresher(repo *Repository, apiKey string, videosPerCat int) *Refresher 
 	if videosPerCat < 1 {
 		videosPerCat = 3
 	}
-	return &Refresher{repo: repo, apiKey: apiKey, videosPerCat: videosPerCat}
+	return &Refresher{repo: repo, apiKey: apiKey, videosPerCat: videosPerCat, lastRunDateByLanguage: map[string]string{}}
 }
 
 // Start runs the daily refresh loop. It fires once immediately at startup (to
@@ -119,7 +119,7 @@ func (r *Refresher) Start(ctx context.Context) {
 	}
 
 	// Run immediately on startup.
-	r.run(ctx)
+	r.run(ctx, defaultExploreLanguage)
 
 	for {
 		// Sleep until the next midnight UTC.
@@ -127,7 +127,7 @@ func (r *Refresher) Start(ctx context.Context) {
 		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 		select {
 		case <-time.After(time.Until(nextMidnight)):
-			r.run(ctx)
+			r.run(ctx, defaultExploreLanguage)
 		case <-ctx.Done():
 			return
 		}
@@ -138,28 +138,34 @@ func (r *Refresher) Start(ctx context.Context) {
 // concurrently — only one execution will run at a time (others return immediately).
 // Used by the service layer to populate the catalogue on-demand when the DB is empty.
 func (r *Refresher) RunOnce(ctx context.Context) {
+	r.RunOnceForLanguage(ctx, defaultExploreLanguage)
+}
+
+// RunOnceForLanguage refreshes a specific language catalogue synchronously.
+func (r *Refresher) RunOnceForLanguage(ctx context.Context, language string) {
 	if r.apiKey == "" {
 		return
 	}
-	r.run(ctx)
+	r.run(ctx, normalizeExploreLanguage(language))
 }
 
 // run performs a single refresh cycle across all categories.
 // It is a no-op if it has already run today, preventing quota wastage on
 // server restarts or redeploys that can happen multiple times per day.
-func (r *Refresher) run(ctx context.Context) {
+func (r *Refresher) run(ctx context.Context, language string) {
+	language = normalizeExploreLanguage(language)
 	today := time.Now().UTC().Format("2006-01-02")
 
 	r.runMu.Lock()
-	if r.lastRunDate == today {
+	if r.lastRunDateByLanguage[language] == today {
 		r.runMu.Unlock()
-		log.Println("[explore/refresher] Already refreshed today — skipping.")
+		log.Printf("[explore/refresher] Already refreshed today for language=%s — skipping.", language)
 		return
 	}
-	r.lastRunDate = today
+	r.lastRunDateByLanguage[language] = today
 	r.runMu.Unlock()
 
-	log.Println("[explore/refresher] Starting daily YouTube video refresh…")
+	log.Printf("[explore/refresher] Starting YouTube video refresh for language=%s…", language)
 
 	sortBase := int(time.Now().Unix()) // unique offset per run
 
@@ -170,7 +176,7 @@ func (r *Refresher) run(ctx context.Context) {
 		default:
 		}
 
-		videos, err := r.searchCategory(ctx, cat, query)
+		videos, err := r.searchCategory(ctx, cat, query, language)
 		if err != nil {
 			log.Printf("[explore/refresher] search failed for %q: %v", cat, err)
 			continue
@@ -191,7 +197,7 @@ func (r *Refresher) run(ctx context.Context) {
 			}
 		}
 
-		if err := r.repo.DeactivateOldVideos(cat, today); err != nil {
+		if err := r.repo.DeactivateOldVideos(cat, language, today); err != nil {
 			log.Printf("[explore/refresher] deactivate failed for %q: %v", cat, err)
 		}
 
@@ -207,7 +213,7 @@ func (r *Refresher) run(ctx context.Context) {
 // across both medium (4–20 min) and long (>20 min) duration bands, fetches
 // exact durations via videos.list, and returns Video objects in the 5–30 min
 // range ready for the DB.
-func (r *Refresher) searchCategory(ctx context.Context, category, query string) ([]Video, error) {
+func (r *Refresher) searchCategory(ctx context.Context, category, query, language string) ([]Video, error) {
 	type searchResp struct {
 		Items []ytSearchItem `json:"items"`
 	}
@@ -223,6 +229,7 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 		r.videosPerCat,
 		r.apiKey,
 	)
+	searchURL = strings.Replace(searchURL, "relevanceLanguage=en", "relevanceLanguage="+url.QueryEscape(language), 1)
 	sr, err := ytGet[searchResp](ctx, searchURL)
 	if err != nil {
 		return nil, fmt.Errorf("search (medium) request: %w", err)
@@ -279,10 +286,11 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query string) 
 		}
 
 		out = append(out, Video{
-			ID:              fmt.Sprintf("yt_%s_%s", sanitizeID(category), d.ID),
+			ID:              fmt.Sprintf("yt_%s_%s_%s", sanitizeID(language), sanitizeID(category), d.ID),
 			Title:           snippet.Title,
 			Description:     desc,
 			Category:        category,
+			Language:        language,
 			DurationSeconds: dur,
 			Coins:           coins,
 			ThumbnailColor:  meta.color,

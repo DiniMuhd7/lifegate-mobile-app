@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Platform } from 'react-native';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth/auth-store';
@@ -14,6 +14,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function LoginScreen() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showGoogleRecoveryFab, setShowGoogleRecoveryFab] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
   const { loginDraft, setLoginField, clearLoginDraft, login, loginWithGoogle, error, clearError } = useAuthStore();
@@ -85,10 +86,12 @@ export default function LoginScreen() {
   };
 
   const onGoogleLogin = async () => {
+    setShowGoogleRecoveryFab(true);
     setLoading(true);
     try {
       const success = await loginWithGoogle();
       if (success) {
+        setShowGoogleRecoveryFab(false);
         const { user } = useAuthStore.getState();
         if (user?.role === 'professional') {
           router.replace(user.mdcn_verified ? '/(prof-tab)/review' : '/physician-pending');
@@ -101,6 +104,12 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBackToLogin = () => {
+    setLoading(false);
+    clearError();
+    router.replace('/(auth)/login');
   };
 
   const canSubmit =
@@ -196,6 +205,24 @@ export default function LoginScreen() {
             disabled={!canSubmit}
           />
 
+          {/* Divider */}
+          <View className="my-5 flex-row items-center">
+            <View className="h-px flex-1 bg-slate-200" />
+            <Text className="mx-3 text-xs font-semibold uppercase tracking-wider text-slate-400">or</Text>
+            <View className="h-px flex-1 bg-slate-200" />
+          </View>
+
+          {/* Google Sign-In */}
+          <Pressable
+            onPress={onGoogleLogin}
+            disabled={loading}
+            className="h-12 flex-row items-center justify-center rounded-xl border border-slate-200 bg-white"
+            style={({ pressed }) => ({ opacity: loading ? 0.6 : pressed ? 0.9 : 1 })}
+          >
+            <Ionicons name="logo-google" size={18} color="#EF4444" />
+            <Text className="ml-2 text-sm font-semibold text-slate-700">Continue with Google</Text>
+          </Pressable>
+
 
 
           <View className="mt-6 flex-row justify-center">
@@ -211,6 +238,18 @@ export default function LoginScreen() {
           </Text>
         </ScrollView>
       </LinearGradient>
+
+      {Platform.OS === 'web' && showGoogleRecoveryFab ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back to login"
+          onPress={handleBackToLogin}
+          className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-[#0EA5A4] shadow-xl"
+          style={({ pressed }) => ({ opacity: pressed ? 0.86 : 1 })}
+        >
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </Pressable>
+      ) : null}
     </SafeAreaView>
   );
 }
