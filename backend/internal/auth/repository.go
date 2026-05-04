@@ -230,15 +230,17 @@ func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (
 	return r.FindUserByID(userID)
 }
 
-// UpdateBasicProfile updates the user's name and/or phone number.
-func (r *Repository) UpdateBasicProfile(userID, name, phone string) (*User, error) {
+// UpdateBasicProfile updates the user's editable demographic profile fields.
+func (r *Repository) UpdateBasicProfile(userID, name, phone, dob, gender string) (*User, error) {
 	_, err := r.db.Exec(`
 		UPDATE users
 		SET name       = CASE WHEN $2 <> '' THEN $2 ELSE name END,
 		    phone      = CASE WHEN $3 <> '' THEN $3 ELSE phone END,
+		    dob        = CASE WHEN $4 <> '' THEN $4 ELSE dob END,
+		    gender     = CASE WHEN $5 <> '' THEN $5 ELSE gender END,
 		    updated_at = NOW()
 		WHERE id = $1::uuid`,
-		userID, name, phone,
+		userID, name, phone, dob, gender,
 	)
 	if err != nil {
 		return nil, err

@@ -23,16 +23,28 @@ async function signInWeb(): Promise<GoogleSignInResult> {
   provider.addScope('profile');
   provider.addScope('email');
 
-  const result = await signInWithPopup(auth, provider);
-  // getIdToken() returns the Firebase ID token (signed by Firebase, not Google).
-  // This is what the backend's accounts:lookup endpoint expects.
-  const idToken = await result.user.getIdToken();
+  try {
+    const result = await signInWithPopup(auth, provider);
+    // getIdToken() returns the Firebase ID token (signed by Firebase, not Google).
+    // This is what the backend's accounts:lookup endpoint expects.
+    const idToken = await result.user.getIdToken();
 
-  return {
-    idToken,
-    email: result.user.email ?? '',
-    name: result.user.displayName ?? '',
-  };
+    return {
+      idToken,
+      email: result.user.email ?? '',
+      name: result.user.displayName ?? '',
+    };
+  } catch (err: unknown) {
+    const code =
+      typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';
+    if (code.includes('auth/unauthorized-domain') || code.includes('auth/unauthorised-domain')) {
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      throw new Error(
+        `Google sign-in is not enabled for ${host}. Add this domain in Firebase Console -> Authentication -> Settings -> Authorized domains.`
+      );
+    }
+    throw err;
+  }
 }
 
 async function signInNative(): Promise<GoogleSignInResult> {

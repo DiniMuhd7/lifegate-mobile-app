@@ -17,7 +17,7 @@ type ProfileState = {
   // Actions
   clearError: () => void;
   getProfile: () => Promise<boolean>;
-  updateBasicProfile: (data: { name?: string; phone?: string }) => Promise<boolean>;
+  updateBasicProfile: (data: { name?: string; phone?: string; dob?: string; gender?: string }) => Promise<boolean>;
   updateHealthProfile: (data: {
     blood_type?: string | null;
     genotype?: string | null;

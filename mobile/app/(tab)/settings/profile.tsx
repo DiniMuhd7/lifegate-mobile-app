@@ -35,6 +35,12 @@ const LANGUAGE_OPTIONS = [
   { label: 'French', value: 'French' },
 ];
 
+const GENDER_OPTIONS = [
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+  { label: 'Other', value: 'other' },
+];
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function SectionLabel({ title }: { title: string }) {
@@ -125,6 +131,8 @@ export default function ManageProfileScreen() {
     firstName: user?.name?.split(' ')[0] || '',
     lastName: user?.name?.split(' ').slice(1).join(' ') || '',
     phone: user?.phone || '',
+    dob: user?.dob || '',
+    gender: user?.gender || '',
   });
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
 
@@ -136,6 +144,8 @@ export default function ManageProfileScreen() {
         firstName: user?.name?.split(' ')[0] || '',
         lastName: user?.name?.split(' ').slice(1).join(' ') || '',
         phone: user?.phone || '',
+        dob: user?.dob || '',
+        gender: user?.gender || '',
       });
     }
   }, [user]);
@@ -197,8 +207,27 @@ export default function ManageProfileScreen() {
       Alert.alert('Validation', 'Please fill in all required fields');
       return;
     }
+
+    const dobValue = editForm.dob.trim();
+    if (dobValue) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dobValue)) {
+        Alert.alert('Validation', 'Date of birth must be in YYYY-MM-DD format');
+        return;
+      }
+      const parsed = new Date(dobValue);
+      if (Number.isNaN(parsed.getTime())) {
+        Alert.alert('Validation', 'Please enter a valid date of birth');
+        return;
+      }
+    }
+
     const fullName = [editForm.firstName.trim(), editForm.lastName.trim()].filter(Boolean).join(' ');
-    const success = await updateBasicProfile({ name: fullName, phone: editForm.phone.trim() || undefined });
+    const success = await updateBasicProfile({
+      name: fullName,
+      phone: editForm.phone.trim() || undefined,
+      dob: dobValue || undefined,
+      gender: editForm.gender.trim() || undefined,
+    });
     if (success) {
       Alert.alert('Success', 'Profile updated successfully');
       setShowEditModal(false);
@@ -326,8 +355,8 @@ export default function ManageProfileScreen() {
             <InfoRow icon="person-outline" label="Full Name" value={user.name} editable onPress={() => setShowEditModal(true)} />
             <InfoRow icon="mail-outline" label="Email Address" value={user.email} locked />
             <InfoRow icon="call-outline" label="Phone Number" value={user.phone} editable onPress={() => setShowEditModal(true)} />
-            <InfoRow icon="male-female-outline" label="Gender" value={user.gender} />
-            <InfoRow icon="calendar-outline" label="Date of Birth" value={formattedDob || user.dob} locked />
+            <InfoRow icon="male-female-outline" label="Gender" value={user.gender} editable onPress={() => setShowEditModal(true)} />
+            <InfoRow icon="calendar-outline" label="Date of Birth" value={formattedDob || user.dob} editable onPress={() => setShowEditModal(true)} />
             <InfoRow icon="id-card-outline" label="Patient ID" value={user.patient_id} locked last />
           </View>
 
@@ -498,10 +527,19 @@ export default function ManageProfileScreen() {
                   value={editForm.lastName} onChangeText={(t) => setEditForm({ ...editForm, lastName: t })} />
                 <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad"
                   value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
-                <View style={styles.note}>
-                  <Ionicons name="information-circle-outline" size={14} color="#94A3B8" />
-                  <Text style={styles.noteText}>Email, date of birth and patient ID cannot be changed here.</Text>
-                </View>
+                <LabeledInput
+                  label="Date of Birth"
+                  placeholder="YYYY-MM-DD"
+                  value={editForm.dob}
+                  onChangeText={(t) => setEditForm({ ...editForm, dob: t })}
+                />
+                <Dropdown
+                  label="Gender"
+                  options={GENDER_OPTIONS}
+                  placeholder="Select gender"
+                  selectedValue={editForm.gender}
+                  onChange={(value) => setEditForm({ ...editForm, gender: value })}
+                />
               </ScrollView>
               <View style={styles.sheetActions}>
                 <View style={{ flex: 1 }}><PrimaryButton title="Save Changes" onPress={handleSaveEdit} /></View>
@@ -709,18 +747,6 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#1E293B' },
   sheetActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
-  note: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2EEF0',
-    padding: 12,
-    marginBottom: 20,
-    alignItems: 'flex-start',
-  },
-  noteText: { flex: 1, fontSize: 12, color: '#94A3B8', lineHeight: 18 },
   hintBox: {
     backgroundColor: '#F8FAFC',
     borderRadius: 12,

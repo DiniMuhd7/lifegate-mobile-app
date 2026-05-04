@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -523,14 +524,14 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	respond(c, http.StatusOK, true, "Password changed successfully", nil)
 }
 
-// UpdateBasicProfile updates the authenticated user's name and/or phone number.
+// UpdateBasicProfile updates the authenticated user's basic demographic fields.
 //
 // @Summary      Update basic profile
 // @Tags         auth
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        body  body      object{name=string,phone=string}  false  "Profile fields to update"
+// @Param        body  body      object{name=string,phone=string,dob=string,gender=string}  false  "Profile fields to update"
 // @Success      200   {object}  object{success=bool,message=string,data=object{user=object}}
 // @Failure      400   {object}  object{success=bool,message=string}
 // @Failure      401   {object}  object{success=bool,message=string}
@@ -543,18 +544,25 @@ func (h *Handler) UpdateBasicProfile(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Name  string `json:"name"`
-		Phone string `json:"phone"`
+		Name   string `json:"name"`
+		Phone  string `json:"phone"`
+		DOB    string `json:"dob"`
+		Gender string `json:"gender"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respond(c, http.StatusBadRequest, false, err.Error(), nil)
 		return
 	}
-	if req.Name == "" && req.Phone == "" {
-		respond(c, http.StatusBadRequest, false, "at least one of name or phone must be provided", nil)
+	req.Name = strings.TrimSpace(req.Name)
+	req.Phone = strings.TrimSpace(req.Phone)
+	req.DOB = strings.TrimSpace(req.DOB)
+	req.Gender = strings.TrimSpace(req.Gender)
+
+	if req.Name == "" && req.Phone == "" && req.DOB == "" && req.Gender == "" {
+		respond(c, http.StatusBadRequest, false, "at least one of name, phone, dob or gender must be provided", nil)
 		return
 	}
-	user, err := h.svc.repo.UpdateBasicProfile(uid, req.Name, req.Phone)
+	user, err := h.svc.repo.UpdateBasicProfile(uid, req.Name, req.Phone, req.DOB, req.Gender)
 	if err != nil {
 		respond(c, http.StatusInternalServerError, false, "Failed to update profile", nil)
 		return

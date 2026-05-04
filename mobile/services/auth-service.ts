@@ -396,12 +396,14 @@ export const AuthService = {
   },
 
   /**
-   * Update the patient's basic profile (name and/or phone).
+   * Update the patient's basic profile (name, phone, dob and/or gender).
    * PATCH /auth/profile
    */
   async updateBasicProfile(data: {
     name?: string;
     phone?: string;
+    dob?: string;
+    gender?: string;
   }): Promise<{ success: boolean; message: string; user?: import('../types/auth-types').User }> {
     try {
       const response = await api.patch<{ success: boolean; message: string; data?: { user: import('../types/auth-types').User } }>(
