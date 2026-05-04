@@ -135,6 +135,25 @@ function formatDateDisplay(dateString: string): string {
   }
 }
 
+function parseDateString(dateString: string): Date | null {
+  if (!dateString) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, monthIndex, day);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== monthIndex ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function ManageProfileScreen() {
@@ -232,6 +251,8 @@ export default function ManageProfileScreen() {
       setEditForm({ ...editForm, dob: formatted });
     }
   };
+
+  const dobPickerDate = parseDateString(editForm.dob) || new Date();
 
   const handleSaveEdit = async () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
@@ -560,16 +581,25 @@ export default function ManageProfileScreen() {
                   value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
                 <View style={styles.labeledInputWrapper}>
                   <Text style={styles.labeledInputLabel}>Date of Birth</Text>
-                  <Pressable
-                    style={styles.dobInput}
-                    onPress={() => setShowDobPicker(true)}
-                    android_ripple={{ color: '#f0fafb' }}
-                  >
-                    <Ionicons name="calendar-outline" size={16} color={T} />
-                    <Text style={[styles.dobInputText, !editForm.dob && { color: '#A0AEC0' }]}>
-                      {editForm.dob ? formatDateDisplay(editForm.dob) : 'Select date'}
-                    </Text>
-                  </Pressable>
+                  {Platform.OS === 'web' ? (
+                    <LabeledInput
+                      label=""
+                      placeholder="YYYY-MM-DD"
+                      value={editForm.dob}
+                      onChangeText={(t) => setEditForm({ ...editForm, dob: t })}
+                    />
+                  ) : (
+                    <Pressable
+                      style={styles.dobInput}
+                      onPress={() => setShowDobPicker(true)}
+                      android_ripple={{ color: '#f0fafb' }}
+                    >
+                      <Ionicons name="calendar-outline" size={16} color={T} />
+                      <Text style={[styles.dobInputText, !editForm.dob && { color: '#A0AEC0' }]}>
+                        {editForm.dob ? formatDateDisplay(editForm.dob) : 'Select date'}
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
                 <Dropdown
                   label="Gender"
@@ -626,7 +656,7 @@ export default function ManageProfileScreen() {
         {/* Date of Birth Picker */}
         {showDobPicker && (
           <DateTimePicker
-            value={editForm.dob ? new Date(editForm.dob) : new Date()}
+            value={dobPickerDate}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleDateChange}
