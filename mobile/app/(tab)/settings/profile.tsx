@@ -34,6 +34,8 @@ const LANGUAGE_OPTIONS = [
   { label: 'Igbo', value: 'Igbo' },
   { label: 'Pidgin', value: 'Pidgin' },
   { label: 'French', value: 'French' },
+  { label: 'Swahili', value: 'Swahili' },
+  { label: 'Arabic', value: 'Arabic' },
 ];
 
 const GENDER_OPTIONS = [
