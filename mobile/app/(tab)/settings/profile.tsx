@@ -10,10 +10,12 @@ import {
   ActivityIndicator,
   StyleSheet,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
@@ -115,6 +117,24 @@ function PasswordHintRow({ label, ok }: { label: string; ok: boolean }) {
   );
 }
 
+function formatDateToString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateDisplay(dateString: string): string {
+  if (!dateString) return '';
+  try {
+    const d = new Date(dateString);
+    if (Number.isNaN(d.getTime())) return dateString;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateString;
+  }
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function ManageProfileScreen() {
@@ -125,6 +145,7 @@ export default function ManageProfileScreen() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelDeletionModal, setShowCancelDeletionModal] = useState(false);
+  const [showDobPicker, setShowDobPicker] = useState(false);
   const [deletionLoading, setDeletionLoading] = useState(false);
   const [languageSaving, setLanguageSaving] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -201,6 +222,16 @@ export default function ManageProfileScreen() {
         day: '2-digit', month: 'long', year: 'numeric',
       })
     : null;
+
+  const handleDateChange = (event: any, date?: Date) => {
+    if (Platform.OS !== 'web') {
+      setShowDobPicker(false);
+    }
+    if (date) {
+      const formatted = formatDateToString(date);
+      setEditForm({ ...editForm, dob: formatted });
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
@@ -527,12 +558,19 @@ export default function ManageProfileScreen() {
                   value={editForm.lastName} onChangeText={(t) => setEditForm({ ...editForm, lastName: t })} />
                 <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad"
                   value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
-                <LabeledInput
-                  label="Date of Birth"
-                  placeholder="YYYY-MM-DD"
-                  value={editForm.dob}
-                  onChangeText={(t) => setEditForm({ ...editForm, dob: t })}
-                />
+                <View style={styles.labeledInputWrapper}>
+                  <Text style={styles.labeledInputLabel}>Date of Birth</Text>
+                  <Pressable
+                    style={styles.dobInput}
+                    onPress={() => setShowDobPicker(true)}
+                    android_ripple={{ color: '#f0fafb' }}
+                  >
+                    <Ionicons name="calendar-outline" size={16} color={T} />
+                    <Text style={[styles.dobInputText, !editForm.dob && { color: '#A0AEC0' }]}>
+                      {editForm.dob ? formatDateDisplay(editForm.dob) : 'Select date'}
+                    </Text>
+                  </Pressable>
+                </View>
                 <Dropdown
                   label="Gender"
                   options={GENDER_OPTIONS}
@@ -584,6 +622,17 @@ export default function ManageProfileScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Date of Birth Picker */}
+        {showDobPicker && (
+          <DateTimePicker
+            value={editForm.dob ? new Date(editForm.dob) : new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+            maximumDate={new Date()}
+          />
+        )}
 
       </SafeAreaView>
     </View>
@@ -838,4 +887,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   deleteCancelBtnText: { fontSize: 15, fontWeight: '700', color: '#64748B' },
+  // ── DOB Input ──
+  labeledInputWrapper: {
+    marginBottom: 14,
+  },
+  labeledInputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+    marginBottom: 8,
+    marginLeft: 2,
+  },
+  dobInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#DFE5E8',
+  },
+  dobInputText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1E293B',
+  },
 });
