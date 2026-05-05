@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, GestureResponderEvent, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PhysicianNotification } from '../stores/notification-store';
@@ -104,7 +104,13 @@ export function InAppNotificationBanner({ notification, onDismiss, onPress }: Pr
             {notification.message}
           </Text>
         </View>
-        <TouchableOpacity onPress={dismiss} style={{ marginLeft: 12, marginTop: 2 }}>
+        <TouchableOpacity
+          onPress={(event: GestureResponderEvent) => {
+            event.stopPropagation();
+            dismiss();
+          }}
+          style={{ marginLeft: 12, marginTop: 2 }}
+        >
           <Text style={{ color: '#93c5fd', fontSize: 20, lineHeight: 20 }}>×</Text>
         </TouchableOpacity>
       </TouchableOpacity>

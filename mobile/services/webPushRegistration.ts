@@ -12,6 +12,42 @@
 import { Platform } from 'react-native';
 import api from './api';
 
+type WebPushStatus = {
+  supported: boolean;
+  permission: NotificationPermission | 'unsupported';
+  subscribed: boolean;
+};
+
+/**
+ * Returns current web push capability + subscription status.
+ */
+export async function getWebPushStatus(): Promise<WebPushStatus> {
+  if (Platform.OS !== 'web') {
+    return { supported: false, permission: 'unsupported', subscribed: false };
+  }
+  if (typeof window === 'undefined') {
+    return { supported: false, permission: 'unsupported', subscribed: false };
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { supported: false, permission: 'unsupported', subscribed: false };
+  }
+
+  const permission: NotificationPermission = typeof Notification === 'undefined'
+    ? 'default'
+    : Notification.permission;
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (!registration) {
+      return { supported: true, permission, subscribed: false };
+    }
+    const sub = await registration.pushManager.getSubscription();
+    return { supported: true, permission, subscribed: !!sub };
+  } catch {
+    return { supported: true, permission, subscribed: false };
+  }
+}
+
 /**
  * Register for web push notifications. Call this once per authenticated
  * session on the web platform (e.g. in the root layout useEffect).
@@ -47,10 +83,13 @@ export async function registerWebPush(): Promise<boolean> {
 
     // 4. Subscribe (or retrieve the existing subscription).
     const applicationServerKey = urlBase64ToUint8Array(data.vapidPublicKey);
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey,
-    });
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+    }
 
     // 5. Send the subscription to our backend.
     await api.post('/web-push/subscribe', subscription.toJSON());

@@ -4,11 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getWebPushStatus, registerWebPush, unregisterWebPush } from 'services/webPushRegistration';
 
 async function getPermissionStatus(): Promise<boolean> {
   if (Platform.OS === 'web') {
-    if (typeof Notification === 'undefined') return false;
-    return Notification.permission === 'granted';
+    const status = await getWebPushStatus();
+    return status.subscribed;
   }
   const { status } = await Notifications.getPermissionsAsync();
   return status === 'granted';
@@ -51,13 +52,11 @@ export default function NotificationScreen() {
     setBusy(true);
     try {
       if (enabled) {
-        // Permissions cannot be revoked in-app on either platform.
         if (Platform.OS === 'web') {
-          Alert.alert(
-            'Turn Off Notifications',
-            'To turn off notifications, use your browser site settings for this app and set notifications to Block.'
-          );
+          await unregisterWebPush();
+          setEnabled(false);
         } else {
+          // Permissions cannot be revoked in-app on native platforms.
           const opened = await Linking.openSettings();
           if (!opened) {
             Alert.alert('Unavailable', 'Could not open device settings. Please open Settings manually.');
@@ -67,14 +66,15 @@ export default function NotificationScreen() {
       }
 
       if (Platform.OS === 'web') {
-        if (typeof Notification === 'undefined') {
+        const status = await getWebPushStatus();
+        if (!status.supported) {
           Alert.alert('Unsupported', 'This browser does not support push notification permissions.');
           return;
         }
-        const status = await Notification.requestPermission();
-        setEnabled(status === 'granted');
+        const ok = await registerWebPush();
+        setEnabled(ok);
 
-        if (status !== 'granted') {
+        if (!ok) {
           Alert.alert(
             'Permission Not Granted',
             'Notifications are blocked in this browser. Allow notifications from browser site settings to enable them.'
