@@ -24,4 +24,9 @@ export const IMService = {
     const res = await api.get(`/im/${diagnosisId}/unread`);
     return (res.data?.data?.count as number) ?? 0;
   },
+
+  /** Send typing indicator to the counterpart. */
+  sendTypingIndicator: async (diagnosisId: string, isTyping: boolean): Promise<void> => {
+    await api.post(`/im/${diagnosisId}/typing`, { typing: isTyping });
+  },
 };

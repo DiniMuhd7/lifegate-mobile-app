@@ -659,6 +659,8 @@ func main() {
 		imGroup.PUT("/:diagnosisId/read", imHandler.MarkRead)
 		// GET  /im/:diagnosisId/unread — unread count for the calling role
 		imGroup.GET("/:diagnosisId/unread", imHandler.UnreadCount)
+		// POST /im/:diagnosisId/typing — broadcast typing indicator
+		imGroup.POST("/:diagnosisId/typing", imHandler.SendTypingIndicator)
 	}
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)

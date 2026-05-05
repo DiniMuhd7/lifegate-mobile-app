@@ -57,11 +57,30 @@ func role(c *gin.Context) string {
 }
 
 // lookupName fetches the display name for the given user ID from the users table.
-// Returns an empty string (non-fatal) if the lookup fails.
+// Returns "Unknown User" if the lookup fails.
 func (h *Handler) lookupName(userID string) string {
 	var name string
-	_ = h.db.QueryRow(`SELECT name FROM users WHERE id = $1`, userID).Scan(&name)
+	err := h.db.QueryRow(`SELECT name FROM users WHERE id = $1`, userID).Scan(&name)
+	if err != nil || name == "" {
+		return "Unknown User"
+	}
 	return name
+}
+
+// verifyParticipant checks if the caller (userID) is a participant in the diagnosis.
+// Returns (true, nil) if authorized; (false, error) if not.
+func (h *Handler) verifyParticipant(diagnosisID, userID string) (bool, error) {
+	patientID, physicianID, err := h.svc.GetParticipants(diagnosisID)
+	if err != nil {
+		return false, err
+	}
+	if patientID == "" {
+		return false, errors.New("diagnosis not found")
+	}
+	if userID != patientID && userID != physicianID {
+		return false, errors.New("access denied: user is not a participant in this conversation")
+	}
+	return true, nil
 }
 
 // respondError writes a consistent JSON error response.
@@ -79,6 +98,18 @@ func (h *Handler) ListMessages(c *gin.Context) {
 	callerRole := role(c)
 	callerID := uid(c)
 
+	// Verify caller is a participant in this diagnosis
+	ok, err := h.verifyParticipant(diagnosisID, callerID)
+	if err != nil {
+		log.Printf("im: participant verify error: %v", err)
+		respondError(c, http.StatusForbidden, "Access denied")
+		return
+	}
+	if !ok {
+		respondError(c, http.StatusForbidden, "You are not a participant in this conversation")
+		return
+	}
+
 	msgs, err := h.svc.GetMessages(diagnosisID)
 	if err != nil {
 		log.Printf("im: list messages error: %v", err)
@@ -90,18 +121,24 @@ func (h *Handler) ListMessages(c *gin.Context) {
 	if markErr := h.svc.MarkRead(diagnosisID, callerRole); markErr != nil {
 		log.Printf("im: mark read error: %v", markErr)
 	} else if h.hub != nil {
-		// Find the sender of any messages sent TO this caller (i.e. by the other side)
-		// and notify them that the messages have been read.
+		// Check if there are any unread messages from the other side.
+		// If so, notify the sender(s) once that messages have been read.
+		hasUnread := false
+		var senderID string
 		for _, m := range msgs {
 			if m.SenderRole != callerRole && m.ReadAt == nil {
-				payload, _ := json.Marshal(map[string]string{
-					"diagnosis_id": diagnosisID,
-					"reader_id":    callerID,
-					"reader_role":  callerRole,
-				})
-				h.hub.BroadcastToUser(m.SenderID, "im.read_receipt", payload)
-				break // one broadcast is sufficient
+				hasUnread = true
+				senderID = m.SenderID
+				break
 			}
+		}
+		if hasUnread && senderID != "" {
+			payload, _ := json.Marshal(map[string]string{
+				"diagnosis_id": diagnosisID,
+				"reader_id":    callerID,
+				"reader_role":  callerRole,
+			})
+			h.hub.BroadcastToUser(senderID, "im.read_receipt", payload)
 		}
 	}
 
@@ -119,10 +156,6 @@ type sendRequest struct {
 
 // SendMessage creates a new IM message and broadcasts it to the counterpart
 // via WebSocket.
-//
-// Access-control note: this endpoint allows both "user" and "professional"
-// roles. The caller is identified by their JWT claims. The counterpart is
-// identified by scanning existing conversation messages for the other role.
 func (h *Handler) SendMessage(c *gin.Context) {
 	diagnosisID := c.Param("diagnosisId")
 
@@ -134,6 +167,19 @@ func (h *Handler) SendMessage(c *gin.Context) {
 
 	senderID := uid(c)
 	senderRole := role(c)
+
+	// Verify caller is a participant in this diagnosis
+	ok, err := h.verifyParticipant(diagnosisID, senderID)
+	if err != nil {
+		log.Printf("im: participant verify error: %v", err)
+		respondError(c, http.StatusForbidden, "Access denied")
+		return
+	}
+	if !ok {
+		respondError(c, http.StatusForbidden, "You are not a participant in this conversation")
+		return
+	}
+
 	senderName := h.lookupName(senderID)
 
 	msg, err := h.svc.SendMessage(diagnosisID, senderID, senderRole, senderName, req.Content)
@@ -220,6 +266,19 @@ func (h *Handler) broadcastNewMessage(diagnosisID, senderRole, senderID string, 
 func (h *Handler) MarkRead(c *gin.Context) {
 	diagnosisID := c.Param("diagnosisId")
 	callerRole := role(c)
+	callerID := uid(c)
+
+	// Verify caller is a participant in this diagnosis
+	ok, err := h.verifyParticipant(diagnosisID, callerID)
+	if err != nil {
+		log.Printf("im: participant verify error: %v", err)
+		respondError(c, http.StatusForbidden, "Access denied")
+		return
+	}
+	if !ok {
+		respondError(c, http.StatusForbidden, "You are not a participant in this conversation")
+		return
+	}
 
 	if err := h.svc.MarkRead(diagnosisID, callerRole); err != nil {
 		log.Printf("im: mark read error: %v", err)
@@ -236,6 +295,19 @@ func (h *Handler) MarkRead(c *gin.Context) {
 func (h *Handler) UnreadCount(c *gin.Context) {
 	diagnosisID := c.Param("diagnosisId")
 	callerRole := role(c)
+	callerID := uid(c)
+
+	// Verify caller is a participant in this diagnosis
+	ok, err := h.verifyParticipant(diagnosisID, callerID)
+	if err != nil {
+		log.Printf("im: participant verify error: %v", err)
+		respondError(c, http.StatusForbidden, "Access denied")
+		return
+	}
+	if !ok {
+		respondError(c, http.StatusForbidden, "You are not a participant in this conversation")
+		return
+	}
 
 	count, err := h.svc.UnreadCount(diagnosisID, callerRole)
 	if err != nil {
@@ -245,4 +317,64 @@ func (h *Handler) UnreadCount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"count": count}})
+}
+
+// ─── POST /im/:diagnosisId/typing ───────────────────────────────────────────
+
+type typingRequest struct {
+	Typing bool `json:"typing" binding:"required"`
+}
+
+// SendTypingIndicator broadcasts a typing indicator to the counterpart.
+func (h *Handler) SendTypingIndicator(c *gin.Context) {
+	diagnosisID := c.Param("diagnosisId")
+	callerID := uid(c)
+
+	var req typingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "typing status is required")
+		return
+	}
+
+	// Verify caller is a participant in this diagnosis
+	ok, err := h.verifyParticipant(diagnosisID, callerID)
+	if err != nil {
+		log.Printf("im: participant verify error: %v", err)
+		respondError(c, http.StatusForbidden, "Access denied")
+		return
+	}
+	if !ok {
+		respondError(c, http.StatusForbidden, "You are not a participant in this conversation")
+		return
+	}
+
+	if h.hub == nil {
+		c.JSON(http.StatusOK, gin.H{"success": true})
+		return
+	}
+
+	// Broadcast typing status to the counterpart
+	patientID, physicianID, err := h.svc.GetParticipants(diagnosisID)
+	if err != nil {
+		log.Printf("im: get participants error: %v", err)
+		respondError(c, http.StatusInternalServerError, "Failed to send typing indicator")
+		return
+	}
+
+	var counterpartID string
+	if callerID == patientID {
+		counterpartID = physicianID
+	} else {
+		counterpartID = patientID
+	}
+
+	if counterpartID != "" {
+		payload, _ := json.Marshal(map[string]interface{}{
+			"diagnosis_id": diagnosisID,
+			"typing":       req.Typing,
+		})
+		h.hub.BroadcastToUser(counterpartID, "im.typing", payload)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }

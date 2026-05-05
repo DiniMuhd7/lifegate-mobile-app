@@ -322,6 +322,8 @@ export function InstantMessageModal({
   const listRef         = useRef<FlatList>(null);
   const dragStartOffset = useRef(FULL_HEIGHT - HALF_HEIGHT);
   const prevMsgLen      = useRef(0);
+  const typingTimer     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingActive    = useRef(false);
 
   // ── Build list data (memoised) ────────────────────────────────────────────
   const listItems = useMemo(
@@ -411,6 +413,36 @@ export function InstantMessageModal({
     return () => { unsubMsg(); unsubReceipt(); unsubTyping(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagnosisId]);
+
+  // ── Send typing indicator (debounced, max 500ms) ─────────────────────────
+  useEffect(() => {
+    // Debounce typing indicator: only send every 500ms while typing
+    if (text.trim().length > 0) {
+      if (!typingActive.current) {
+        typingActive.current = true;
+        useIMStore.getState().sendTypingIndicator(diagnosisId, true);
+      }
+      // Reset the debounce timer
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      typingTimer.current = setTimeout(() => {
+        if (typingActive.current) {
+          typingActive.current = false;
+          useIMStore.getState().sendTypingIndicator(diagnosisId, false);
+        }
+      }, 500);
+    } else {
+      // User cleared the input; send stopped typing
+      if (typingActive.current) {
+        typingActive.current = false;
+        useIMStore.getState().sendTypingIndicator(diagnosisId, false);
+      }
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+    }
+    return () => {
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, diagnosisId]);
 
   // ── Toggle full / half screen ─────────────────────────────────────────────
   const toggleFullScreen = useCallback(() => {

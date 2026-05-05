@@ -37,6 +37,9 @@ interface IMState {
 
   /** Update counterpart typing indicator (from im.typing WS event). */
   setCounterpartTyping: (diagnosisId: string, isTyping: boolean) => void;
+
+  /** Send typing indicator to the counterpart (true = typing, false = stopped). */
+  sendTypingIndicator: (diagnosisId: string, isTyping: boolean) => Promise<void>;
 }
 
 // ─── Default conversation factory ────────────────────────────────────────────
@@ -314,5 +317,15 @@ export const useIMStore = create<IMState>((set, get) => ({
         }),
       };
     });
+  },
+
+  // ── sendTypingIndicator ────────────────────────────────────────────────────
+  sendTypingIndicator: async (diagnosisId, isTyping) => {
+    try {
+      await IMService.sendTypingIndicator(diagnosisId, isTyping);
+    } catch (err) {
+      // Silently fail for typing indicators; they're low-priority
+      console.warn('Failed to send typing indicator:', err);
+    }
   },
 }));
