@@ -35,8 +35,7 @@
           "androidMode": "default",
           "androidCollapsedTitle": "LifeGate"
         }
-      ],
-      "react-native-google-mobile-ads"
+      ]
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
