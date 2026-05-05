@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useAuthStore } from '../stores/auth-store';
+import { installWebAlertPolyfill } from '../utils/installWebAlertPolyfill';
 
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
@@ -13,6 +14,7 @@ export default function RootLayout() {
   // Restore auth session on every cold start / web page refresh so that
   // the user is not lost when landing on any deep-linked route directly.
   useEffect(() => {
+    installWebAlertPolyfill();
     restoreSession();
   }, []);
 

@@ -191,6 +191,15 @@ const ChatScreen: React.FC = () => {
   }, [createConversation, setActiveConversation]);
 
   const handleDeleteFromPanel = useCallback((convId: string) => {
+    const performDelete = () => {
+      deleteConversation(convId);
+      // If no conversations remain or no active one is set, reset to welcome.
+      const remaining = useChatStore.getState().conversations;
+      if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
+        goToWelcome();
+      }
+    };
+
     Alert.alert(
       'Delete Conversation',
       'Are you sure you want to delete this conversation?',
@@ -199,14 +208,7 @@ const ChatScreen: React.FC = () => {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            deleteConversation(convId);
-            // If no conversations remain or no active one is set, reset to welcome.
-            const remaining = useChatStore.getState().conversations;
-            if (remaining.length === 0 || !useChatStore.getState().activeConversationId) {
-              goToWelcome();
-            }
-          },
+          onPress: performDelete,
         },
       ],
     );
@@ -533,7 +535,7 @@ const ChatScreen: React.FC = () => {
 
               </View>
 
-              {/* Right: History + Settings */}
+              {/* Right: History */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                 <TouchableOpacity
                   onPress={openHistory}
@@ -541,13 +543,6 @@ const ChatScreen: React.FC = () => {
                   style={{ padding: 6 }}
                 >
                   <Ionicons name="time-outline" size={24} color="#0f766e" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => router.replace('/(tab)/settings')}
-                  activeOpacity={0.7}
-                  style={{ padding: 6 }}
-                >
-                  <Ionicons name="settings-outline" size={26} color="#0f766e" />
                 </TouchableOpacity>
               </View>
             </View>
