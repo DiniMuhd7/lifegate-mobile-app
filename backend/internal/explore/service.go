@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 )
 
 // DailyVideoCap is the total number of videos a user can claim rewards for per day.
@@ -60,7 +61,11 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 		language = normalizeExploreLanguage(language)
 	}
 
-	videos, err := s.repo.ListActiveVideos(category, language)
+	// dateSeed changes daily so hashtext(id || seed) produces a different
+	// ordering each day, rotating the displayed subset of the 30-day pool.
+	dateSeed := time.Now().UTC().Format("2006-01-02")
+
+	videos, err := s.repo.ListActiveVideos(category, language, dateSeed)
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +74,10 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 	// refresher is available, run it synchronously once, then re-query.
 	if len(videos) == 0 && s.refresher != nil {
 		s.refreshMu.Lock()
-		videos2, _ := s.repo.ListActiveVideos(category, language)
+		videos2, _ := s.repo.ListActiveVideos(category, language, dateSeed)
 		if len(videos2) == 0 {
 			s.refresher.RunOnceForLanguage(context.Background(), language)
-			videos, err = s.repo.ListActiveVideos(category, language)
+			videos, err = s.repo.ListActiveVideos(category, language, dateSeed)
 		} else {
 			videos = videos2
 		}
@@ -83,7 +88,7 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 	}
 
 	if len(videos) == 0 && language != defaultExploreLanguage {
-		videos, err = s.repo.ListActiveVideos(category, defaultExploreLanguage)
+		videos, err = s.repo.ListActiveVideos(category, defaultExploreLanguage, dateSeed)
 		if err != nil {
 			return nil, err
 		}

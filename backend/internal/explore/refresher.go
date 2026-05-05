@@ -197,7 +197,11 @@ func (r *Refresher) run(ctx context.Context, language string) {
 			}
 		}
 
-		if err := r.repo.DeactivateOldVideos(cat, language, today); err != nil {
+		// Keep a 30-day rolling pool so daily hash-rotation in ListActiveVideos
+		// can serve a different subset each day. Only truly stale rows (>30 days
+		// without an update) are deactivated.
+		cutoff := time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02")
+		if err := r.repo.DeactivateOldVideos(cat, language, cutoff); err != nil {
 			log.Printf("[explore/refresher] deactivate failed for %q: %v", cat, err)
 		}
 
@@ -223,10 +227,21 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 	allIDs := make([]string, 0, r.videosPerCat)
 	byID := make(map[string]ytSearchItem, r.videosPerCat)
 
+	// Rotate publishedAfter through 12 bi-weekly windows over ~6 months so
+	// each run queries a different slice of YouTube's content history and
+	// gradually diversifies the pool. Window index cycles 0-11 by week-of-year.
+	weekOfYear := time.Now().UTC().YearDay() / 7 // 0–52
+	windowIndex := weekOfYear % 12               // 0–11
+	// Older window = older content, newer window = recent uploads.
+	// Range: 14–180 days back in 14-day steps across 12 windows.
+	daysBack := 14 + windowIndex*14
+	publishedAfter := time.Now().UTC().AddDate(0, 0, -daysBack).Format(time.RFC3339)
+
 	searchURL := fmt.Sprintf(
-		"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=medium&maxResults=%d&relevanceLanguage=en&safeSearch=strict&key=%s",
+		"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=medium&maxResults=%d&relevanceLanguage=en&safeSearch=strict&publishedAfter=%s&key=%s",
 		url.QueryEscape(query),
 		r.videosPerCat,
+		url.QueryEscape(publishedAfter),
 		r.apiKey,
 	)
 	searchURL = strings.Replace(searchURL, "relevanceLanguage=en", "relevanceLanguage="+url.QueryEscape(language), 1)

@@ -37,9 +37,11 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// ListActiveVideos returns active videos ordered by sort_order.
-// Passing a non-empty category restricts results to that category only.
-func (r *Repository) ListActiveVideos(category, language string) ([]Video, error) {
+// ListActiveVideos returns active videos with a deterministic daily rotation.
+// dateSeed (YYYY-MM-DD) acts as a salt for hashtext() so the ORDER BY changes
+// every day, presenting a different subset of the accumulated 30-day pool to
+// each user without any true randomness (consistent within a day).
+func (r *Repository) ListActiveVideos(category, language, dateSeed string) ([]Video, error) {
 	var (
 		rows *sql.Rows
 		err  error
@@ -47,22 +49,25 @@ func (r *Repository) ListActiveVideos(category, language string) ([]Video, error
 	if language == "" {
 		language = defaultExploreLanguage
 	}
+	if dateSeed == "" {
+		dateSeed = time.Now().UTC().Format("2006-01-02")
+	}
 	if category != "" {
 		rows, err = r.db.Query(`
 			SELECT id, title, description, category, COALESCE(language, 'en'), duration_seconds, coins,
 			       thumbnail_color, thumbnail_icon, instructor, youtube_id
 			FROM   explore_videos
 			WHERE  is_active = TRUE AND category = $1 AND COALESCE(language, 'en') = $2
-			ORDER  BY sort_order ASC, created_at ASC
-		`, category, language)
+			ORDER  BY hashtext(id || $3) ASC
+		`, category, language, dateSeed)
 	} else {
 		rows, err = r.db.Query(`
 			SELECT id, title, description, category, COALESCE(language, 'en'), duration_seconds, coins,
 			       thumbnail_color, thumbnail_icon, instructor, youtube_id
 			FROM   explore_videos
 			WHERE  is_active = TRUE AND COALESCE(language, 'en') = $1
-			ORDER  BY sort_order ASC, created_at ASC
-		`, language)
+			ORDER  BY hashtext(id || $2) ASC
+		`, language, dateSeed)
 	}
 	if err != nil {
 		return nil, err
