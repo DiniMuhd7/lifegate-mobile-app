@@ -14,8 +14,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
-const PUBLISHER_ID = 'ca-app-pub-4516568539037938';
-const AD_SLOT    = '4524809808'; // trailing segment of the ad unit ID
+const PUBLISHER_ID = 'ca-app-pub-3940256099942544'; // Google test publisher ID
+const AD_SLOT    = '6300978111'; // Google test banner ad unit
 
 // Extend window type for adsbygoogle
 declare global {
@@ -25,18 +25,9 @@ declare global {
 }
 
 /** Returns true only when running on the deployed production origin. */
+// Dev-mode: always enabled so test ads render on localhost / Codespaces.
 function isProduction(): boolean {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  // localhost, 127.x, *.github.dev (Codespaces), *.preview, etc. → dev
-  return (
-    host !== 'localhost' &&
-    !host.startsWith('127.') &&
-    !host.endsWith('.github.dev') &&
-    !host.endsWith('.app.github.dev') &&
-    !host.includes('preview') &&
-    !host.includes('codespace')
-  );
+  return typeof window !== 'undefined';
 }
 
 function loadAdScript() {

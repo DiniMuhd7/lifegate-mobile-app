@@ -12,8 +12,8 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const PUBLISHER_ID = 'ca-app-pub-4516568539037938';
-const AD_UNIT_ID   = 'ca-app-pub-4516568539037938/1561718040';
+const PUBLISHER_ID = 'ca-app-pub-3940256099942544'; // Google test publisher ID
+const AD_UNIT_ID   = 'ca-app-pub-3940256099942544/5224354917'; // Google test rewarded ad unit
 
 declare global {
   interface Window {
@@ -33,17 +33,9 @@ interface AdBreakConfig {
   beforeReward?: (showAdFn: () => void) => void;
 }
 
+// Dev-mode: always enabled so test ads render on localhost / Codespaces.
 function isProduction(): boolean {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  return (
-    host !== 'localhost' &&
-    !host.startsWith('127.') &&
-    !host.endsWith('.github.dev') &&
-    !host.endsWith('.app.github.dev') &&
-    !host.includes('preview') &&
-    !host.includes('codespace')
-  );
+  return typeof window !== 'undefined';
 }
 
 let adConfigured = false;
@@ -92,7 +84,7 @@ export function RewardedAdButton({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isProduction()) ensureAdConfig();
+    ensureAdConfig();
   }, []);
 
   // Hidden on non-production origins.
