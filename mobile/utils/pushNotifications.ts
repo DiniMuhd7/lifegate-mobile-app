@@ -5,6 +5,44 @@ import { Platform } from 'react-native';
 import { ProfessionalService } from '../services/professional-service';
 import api from '../services/api';
 
+export type InAppPushNotificationPayload = {
+  type: 'new_case' | 'case_status' | 'im_message';
+  caseId: string;
+  diagnosisId?: string;
+  message: string;
+};
+
+function normalizePushToInAppPayload(
+  notification: Notifications.Notification
+): InAppPushNotificationPayload | null {
+  const data = (notification.request.content.data ?? {}) as Record<string, unknown>;
+  const caseId = String(data.caseId ?? data.diagnosisId ?? '').trim();
+  if (!caseId) return null;
+
+  const rawType = String(data.type ?? '').toLowerCase();
+  const type: InAppPushNotificationPayload['type'] =
+    rawType === 'im_message' || rawType === 'message'
+      ? 'im_message'
+      : rawType === 'new_case' || rawType === 'case'
+        ? 'new_case'
+        : 'case_status';
+
+  const body = String(notification.request.content.body ?? '').trim();
+  const fallback =
+    type === 'im_message'
+      ? 'You have a new message.'
+      : type === 'new_case'
+        ? 'You have a new case notification.'
+        : 'Your case has been updated.';
+
+  return {
+    type,
+    caseId,
+    diagnosisId: String(data.diagnosisId ?? '').trim() || undefined,
+    message: body || fallback,
+  };
+}
+
 // Configure how notifications look while the app is in the foreground.
 // expo-notifications does not support this API on web, so guard it.
 if (Platform.OS !== 'web') {
@@ -193,5 +231,23 @@ export function addNotificationResponseListener(
     const data = response.notification.request.content.data as Record<string, unknown>;
     const caseId = (data?.caseId ?? data?.diagnosisId) as string | undefined;
     if (caseId) handler(caseId);
+  });
+}
+
+/**
+ * Returns a subscription that fires when a push notification is received while
+ * the app is running (foreground). Payload is normalized for in-app store use.
+ * Returns a no-op subscription on web.
+ */
+export function addNotificationReceivedListener(
+  handler: (payload: InAppPushNotificationPayload) => void
+): Notifications.EventSubscription {
+  if (Platform.OS === 'web') {
+    return { remove: () => {} } as Notifications.EventSubscription;
+  }
+
+  return Notifications.addNotificationReceivedListener((notification) => {
+    const payload = normalizePushToInAppPayload(notification);
+    if (payload) handler(payload);
   });
 }

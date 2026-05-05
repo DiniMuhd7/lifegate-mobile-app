@@ -23,7 +23,7 @@ import { useNotificationStore, PhysicianNotification } from 'stores/notification
 import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
-import { registerPatientPushToken, addNotificationResponseListener } from 'utils/pushNotifications';
+import { registerPatientPushToken, addNotificationResponseListener, addNotificationReceivedListener } from 'utils/pushNotifications';
 import { registerWebPush } from 'services/webPushRegistration';
 
 function isHealthProfileIncomplete(user: User | null): boolean {
@@ -51,6 +51,7 @@ export default function TabLayout() {
 
   // ── In-app IM notification banner ─────────────────────────────────────────
   const [banner, setBanner] = useState<PhysicianNotification | null>(null);
+  const addNotification = useNotificationStore((s) => s.addNotification);
 
   useEffect(() => {
     const unsub = useNotificationStore.subscribe((state) => {
@@ -117,6 +118,24 @@ export default function TabLayout() {
     });
     return () => sub.remove();
   }, []);
+
+  // Bridge native push deliveries into the in-app notification store so banners
+  // can still appear even when websocket events are missed.
+  useEffect(() => {
+    const sub = addNotificationReceivedListener((payload) => {
+      const latest = useNotificationStore.getState().notifications[0];
+      const isRecentDuplicate = !!latest &&
+        !latest.isRead &&
+        latest.type === payload.type &&
+        latest.caseId === payload.caseId &&
+        latest.message === payload.message &&
+        Date.now() - latest.timestamp < 15_000;
+
+      if (isRecentDuplicate) return;
+      addNotification(payload);
+    });
+    return () => sub.remove();
+  }, [addNotification]);
 
   // ── Health profile reminder ────────────────────────────────────────────────
   const [profileReminderDismissed, setProfileReminderDismissed] = useState(false);

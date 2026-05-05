@@ -5,7 +5,7 @@ import { BottomTabBar } from '../../components/BottomTabBar';
 import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
-import { registerPhysicianPushToken, addNotificationResponseListener } from '../../utils/pushNotifications';
+import { registerPhysicianPushToken, addNotificationResponseListener, addNotificationReceivedListener } from '../../utils/pushNotifications';
 import { registerWebPush } from 'services/webPushRegistration';
 import { useAuthStore } from 'stores/auth-store';
 import wsService from 'services/websocket-service';
@@ -14,6 +14,8 @@ import { getToken } from 'utils/tokenStorage';
 export default function ProfTabLayout() {
   const router = useRouter();
   const [banner, setBanner] = useState<PhysicianNotification | null>(null);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const addNotification = useNotificationStore((s) => s.addNotification);
 
   // Mount physician real-time events
   usePhysicianWebSocket();
@@ -27,11 +29,12 @@ export default function ProfTabLayout() {
     return unsub;
   }, []);
 
-  // Register push token once on mount
+  // Register push token once after authentication
   useEffect(() => {
+    if (!isAuthenticated) return;
     registerPhysicianPushToken().catch(() => {/* best-effort */});
     registerWebPush().catch(() => {/* best-effort */});
-  }, []);
+  }, [isAuthenticated]);
 
   // Handle push notification tap → navigate to case
   useEffect(() => {
@@ -41,8 +44,23 @@ export default function ProfTabLayout() {
     return () => sub.remove();
   }, [router]);
 
+  useEffect(() => {
+    const sub = addNotificationReceivedListener((payload) => {
+      const latest = useNotificationStore.getState().notifications[0];
+      const isRecentDuplicate = !!latest &&
+        !latest.isRead &&
+        latest.type === payload.type &&
+        latest.caseId === payload.caseId &&
+        latest.message === payload.message &&
+        Date.now() - latest.timestamp < 15_000;
+
+      if (isRecentDuplicate) return;
+      addNotification(payload);
+    });
+    return () => sub.remove();
+  }, [addNotification]);
+
   // Connect wsService so the IM modal read-receipts/typing work
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const wsConnected = useRef(false);
   useEffect(() => {
     if (!isAuthenticated) return;
