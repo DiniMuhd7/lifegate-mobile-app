@@ -1,19 +1,21 @@
 /**
  * BannerAd.tsx — AdMob banner for native (iOS / Android).
  *
- * Native AdMob requires a development build (EAS Build / expo prebuild).
- * This stub renders nothing in the Expo Go client and in test/CI environments.
- * When you create a native build, replace this with react-native-google-mobile-ads:
- *
- *   import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
- *
- * App ID  : ca-app-pub-4516568539037938~3922174578  (set in app.json)
- * Unit ID : ca-app-pub-4516568539037938/4524809808
+ * App ID  : ca-app-pub-3940256099942544~3347511713  (test — iOS)
+ * App ID  : ca-app-pub-3940256099942544~1458002511  (test — Android)
+ * Unit ID : ca-app-pub-3940256099942544/6300978111  (test banner)
  */
 import React from 'react';
-import { View } from 'react-native';
+import { BannerAd as RNBannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+
+const AD_UNIT_ID = TestIds.BANNER;
 
 export function BannerAd() {
-  // Native AdMob requires a development build — returns null in Expo Go.
-  return <View />;
+  return (
+    <RNBannerAd
+      unitId={AD_UNIT_ID}
+      size={BannerAdSize.BANNER}
+      requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+    />
+  );
 }

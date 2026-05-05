@@ -20,6 +20,13 @@
       "@react-native-community/datetimepicker",
       "expo-secure-store",
       [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
@@ -28,7 +35,8 @@
           "androidMode": "default",
           "androidCollapsedTitle": "LifeGate"
         }
-      ]
+      ],
+      "react-native-google-mobile-ads"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -42,8 +50,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "googleMobileAdsAppId": "ca-app-pub-4516568539037938~3922174578"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
@@ -51,8 +58,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.lazyapp.lifegatemobile",
-      "softwareKeyboardLayoutMode": "pan",
-      "googleMobileAdsAppId": "ca-app-pub-4516568539037938~3922174578"
+      "softwareKeyboardLayoutMode": "pan"
     },
     "extra": {
       "router": {},
