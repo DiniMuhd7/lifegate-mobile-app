@@ -27,6 +27,7 @@ import {
   CATEGORY_META,
   ALL_CATEGORIES,
   deriveUserCategories,
+  getRecommendedVideos,
 } from 'stores/explore-store';
 import { useAuthStore } from 'stores/auth-store';
 import { usePatientHealthStore } from 'stores/health-store';
@@ -237,6 +238,95 @@ const VideoCard = React.memo(function VideoCard({
             </Text>
           </View>
         )}
+      </View>
+    </Pressable>
+  );
+});
+
+// ── RecommendedVideoCard ──────────────────────────────────────────────────────
+// Compact card used in the horizontal "Recommended for You" row.
+
+const RecommendedVideoCard = React.memo(function RecommendedVideoCard({
+  video,
+  rewarded,
+  onWatch,
+}: {
+  video: ExploreVideo;
+  rewarded: boolean;
+  onWatch: () => void;
+}) {
+  const meta = CATEGORY_META[video.category];
+  return (
+    <Pressable
+      onPress={rewarded ? undefined : onWatch}
+      style={({ pressed }) => ({
+        opacity: pressed ? 0.9 : 1,
+        width: 168,
+        borderRadius: 16,
+        overflow: 'hidden',
+        backgroundColor: rewarded ? '#0c1a12' : '#1c2438',
+        borderWidth: 1,
+        borderColor: rewarded ? '#166534' : 'rgba(255,255,255,0.09)',
+        marginRight: 12,
+      })}
+    >
+      {/* Thumbnail strip */}
+      <LinearGradient
+        colors={[video.thumbnailColor + 'dd', darken(darken(video.thumbnailColor))]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ height: 82, alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+      >
+        <Ionicons
+          name={meta?.icon as keyof typeof Ionicons.glyphMap ?? 'play-circle-outline'}
+          size={34}
+          color="rgba(255,255,255,0.85)"
+        />
+        {/* Duration badge */}
+        <View style={{
+          position: 'absolute', top: 6, right: 8,
+          backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10,
+          paddingHorizontal: 7, paddingVertical: 2,
+        }}>
+          <Text style={{ fontSize: 10, color: '#fff', fontWeight: '600' }}>
+            {formatDuration(video.durationSeconds)}
+          </Text>
+        </View>
+        {/* Coins badge */}
+        <View style={{
+          position: 'absolute', bottom: 6, left: 8,
+          flexDirection: 'row', alignItems: 'center', gap: 3,
+          backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
+          paddingHorizontal: 7, paddingVertical: 2,
+        }}>
+          <Ionicons name="heart" size={10} color={rewarded ? '#6b7280' : '#fbbf24'} />
+          <Text style={{ fontSize: 10, fontWeight: '800', color: rewarded ? '#6b7280' : '#fbbf24' }}>
+            {rewarded ? 'Earned' : `+${video.coins} LC`}
+          </Text>
+        </View>
+      </LinearGradient>
+
+      {/* Info */}
+      <View style={{ padding: 10, gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+          <View style={{
+            backgroundColor: (meta?.color ?? '#059669') + '33',
+            borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2,
+          }}>
+            <Text style={{ fontSize: 9, fontWeight: '700', color: meta?.color ?? '#6ee7b7' }}>
+              {video.category}
+            </Text>
+          </View>
+        </View>
+        <Text
+          style={{ fontSize: 12, fontWeight: '700', color: rewarded ? '#6b7280' : '#f1f5f9', lineHeight: 17 }}
+          numberOfLines={2}
+        >
+          {video.title}
+        </Text>
+        <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }} numberOfLines={1}>
+          {video.instructor}
+        </Text>
       </View>
     </Pressable>
   );
@@ -734,6 +824,13 @@ export default function ExploreScreen() {
     return ['All', ...deriveUserCategories(user, diagnosedConditions)];
   }, [user, patientTimeline]);
 
+  // Personalised "Recommended for You" videos derived from the patient's
+  // diagnosed conditions, health history, and gender.
+  const recommendedVideos = useMemo(() => {
+    const diagnosedConditions = patientTimeline.map((e) => e.condition).filter(Boolean);
+    return getRecommendedVideos(videos, user, diagnosedConditions);
+  }, [videos, user, patientTimeline]);
+
   const [activeVideo, setActiveVideo] = useState<ExploreVideo | null>(null);
   const [toast, setToast] = useState<{ message: string; coins: number } | null>(null);
   const [adRewarded, setAdRewarded] = useState(false);
@@ -1000,19 +1097,58 @@ export default function ExploreScreen() {
         showsVerticalScrollIndicator={false}
         removeClippedSubviews
         ListHeaderComponent={
-          activeCategory !== 'All' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 10, paddingHorizontal: 16 }}>
-              <Ionicons
-                name={(CATEGORY_META[activeCategory]?.icon ?? 'grid-outline') as keyof typeof Ionicons.glyphMap}
-                size={16}
-                color={CATEGORY_META[activeCategory]?.color ?? '#059669'}
-              />
-              <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>{activeCategory}</Text>
-              <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
-                · {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          ) : null
+          <>
+            {/* Recommended for You — horizontal strip, only on the 'All' tab */}
+            {activeCategory === 'All' && recommendedVideos.length > 0 && (
+              <View style={{ paddingTop: 8, paddingBottom: 4 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  paddingHorizontal: 16, marginBottom: 12,
+                }}>
+                  <Ionicons name="sparkles" size={16} color="#fbbf24" />
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>
+                    Recommended for You
+                  </Text>
+                  <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
+                    · based on your health profile
+                  </Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 4 }}
+                >
+                  {recommendedVideos.map((video) => (
+                    <RecommendedVideoCard
+                      key={video.id}
+                      video={video}
+                      rewarded={isRewarded(video.id)}
+                      onWatch={() => handleWatch(video)}
+                    />
+                  ))}
+                </ScrollView>
+                <View style={{
+                  height: 1, backgroundColor: 'rgba(255,255,255,0.06)',
+                  marginHorizontal: 16, marginTop: 16, marginBottom: 4,
+                }} />
+              </View>
+            )}
+
+            {/* Category header when a specific category is active */}
+            {activeCategory !== 'All' && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 10, paddingHorizontal: 16 }}>
+                <Ionicons
+                  name={(CATEGORY_META[activeCategory]?.icon ?? 'grid-outline') as keyof typeof Ionicons.glyphMap}
+                  size={16}
+                  color={CATEGORY_META[activeCategory]?.color ?? '#059669'}
+                />
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9' }}>{activeCategory}</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: '600' }}>
+                  · {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            )}
+          </>
         }
         ListEmptyComponent={
           // No videos at all → always show spinner (initial fetch or day-change refresh in-flight).

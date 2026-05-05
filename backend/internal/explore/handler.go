@@ -18,20 +18,25 @@ func NewHandler(svc *Service) *Handler {
 
 // ListVideos returns the active video catalogue.
 // An optional ?category= query parameter filters results to a single category.
+// An optional ?lang= query parameter overrides the user's stored language
+// preference (e.g. "en", "fr", "yo") so the mobile client can pass the
+// in-memory language instantly without waiting for a profile-sync DB write.
 //
 // @Summary      List explore videos
 // @Tags         explore
 // @Produce      json
 // @Security     BearerAuth
 // @Param        category  query  string  false  "Filter by category"
+// @Param        lang      query  string  false  "Language override (ISO 639-1)"
 // @Success      200  {object}  object{success=bool,data=object{videos=array,total=integer,dailyCap=integer}}
 // @Failure      500  {object}  object{success=bool,message=string}
 // @Router       /explore/videos [get]
 func (h *Handler) ListVideos(c *gin.Context) {
 	category := c.Query("category")
+	lang := c.Query("lang")
 	userID, _ := c.Get("userID")
 	uid, _ := userID.(string)
-	videos, err := h.svc.ListVideos(uid, category)
+	videos, err := h.svc.ListVideos(uid, category, lang)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch videos"})
 		return

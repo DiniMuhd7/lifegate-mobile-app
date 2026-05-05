@@ -175,6 +175,69 @@ export function deriveUserCategories(
   return Array.from(ranked);
 }
 
+/**
+ * Returns up to `limit` videos that match the patient's diagnosed conditions
+ * and health profile. Used to populate the "Recommended for You" row.
+ *
+ * Matching runs each diagnosed condition string through CONDITION_CATEGORY_MAP
+ * and returns one video per matched category so the row stays compact and varied.
+ */
+export function getRecommendedVideos(
+  videos: ExploreVideo[],
+  user: Parameters<typeof deriveUserCategories>[0],
+  diagnosedConditions: string[],
+  limit = 8,
+): ExploreVideo[] {
+  if (!videos.length) return [];
+
+  const matchedCats = new Set<string>();
+
+  // Condition-specific matches from the diagnosis list
+  const corpus = diagnosedConditions.join(' ');
+  if (corpus.trim()) {
+    for (const { pattern, category } of CONDITION_CATEGORY_MAP) {
+      if (pattern.test(corpus)) matchedCats.add(category);
+    }
+  }
+
+  // Gender / medication context
+  const gender = (user?.gender ?? '').toLowerCase();
+  if (gender === 'female' || gender === 'f') {
+    matchedCats.add('Maternal Health');
+    matchedCats.add("Women's Health");
+  } else if (gender === 'male' || gender === 'm') {
+    matchedCats.add("Men's Health");
+  }
+  if (user?.current_medications) matchedCats.add('Medication');
+
+  // Also scan freetext health fields
+  const healthText = [
+    user?.medical_history ?? '',
+    user?.health_history ?? '',
+    user?.allergies ?? '',
+  ].join(' ');
+  if (healthText.trim()) {
+    for (const { pattern, category } of CONDITION_CATEGORY_MAP) {
+      if (pattern.test(healthText)) matchedCats.add(category);
+    }
+  }
+
+  if (matchedCats.size === 0) return [];
+
+  // Pick one video per matched category (prefer unwatched / unlocked ones)
+  const result: ExploreVideo[] = [];
+  const usedIds = new Set<string>();
+  for (const cat of matchedCats) {
+    if (result.length >= limit) break;
+    const match = videos.find((v) => v.category === cat && !usedIds.has(v.id));
+    if (match) {
+      result.push(match);
+      usedIds.add(match.id);
+    }
+  }
+  return result;
+}
+
 /** Parse ISO 8601 durations like PT4M13S → seconds */
 function parseISO8601Duration(iso: string): number {
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -361,13 +424,13 @@ async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing
  *      ensures all 16 categories are populated consistently for every user.
  */
 async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number } | null> {
-  const userLanguage = useAuthStore.getState().user?.language ?? 'en';
+  const userLanguage = resolveExploreLanguage(useAuthStore.getState().user?.language);
   // ── 1. Primary: backend catalogue ────────────────────────────────────────
   try {
     const res = await api.get<{
       success: boolean;
       data: { videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number };
-    }>('/explore/videos');
+    }>(`/explore/videos?lang=${encodeURIComponent(userLanguage)}`);
 
     if (res.data.success) {
       const rewardedIds   = res.data.data.rewardedIds ?? [];

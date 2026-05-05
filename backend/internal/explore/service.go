@@ -44,13 +44,21 @@ func (s *Service) SetRefresher(r *Refresher) {
 }
 
 // ListVideos returns active videos for the patient's preferred language.
-// It falls back to English when that language has no catalogue yet.
-func (s *Service) ListVideos(userID, category string) ([]Video, error) {
-	language, err := s.repo.GetUserLanguage(userID)
-	if err != nil {
-		return nil, err
+// langOverride — when non-empty — is used directly so the mobile client can
+// reflect a language change without waiting for the profile-sync DB write.
+// It falls back to English when the resolved language has no catalogue yet.
+func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, error) {
+	var language string
+	if langOverride != "" {
+		language = normalizeExploreLanguage(langOverride)
+	} else {
+		var err error
+		language, err = s.repo.GetUserLanguage(userID)
+		if err != nil {
+			return nil, err
+		}
+		language = normalizeExploreLanguage(language)
 	}
-	language = normalizeExploreLanguage(language)
 
 	videos, err := s.repo.ListActiveVideos(category, language)
 	if err != nil {
