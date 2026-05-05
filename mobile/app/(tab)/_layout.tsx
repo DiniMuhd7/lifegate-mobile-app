@@ -6,7 +6,8 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus, BackHandler } from 'react-native';
+import { AppState, AppStateStatus, BackHandler, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Drawer } from 'expo-router/drawer';
 import { router, useRootNavigationState } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -20,6 +21,7 @@ import { useChatStore } from '@/stores/chat-store';
 import { useSessionStore } from '@/stores/session-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useNotificationStore, PhysicianNotification } from 'stores/notification-store';
+import { useIMStore } from 'stores/im-store';
 import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
@@ -53,6 +55,19 @@ export default function TabLayout() {
   // ── In-app IM notification banner ─────────────────────────────────────────
   const [banner, setBanner] = useState<PhysicianNotification | null>(null);
   const addNotification = useNotificationStore((s) => s.addNotification);
+
+  // ── Sync OS app-icon badge with total IM unread count ─────────────────────
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const unsub = useIMStore.subscribe((state) => {
+      const total = Object.values(state.conversations).reduce(
+        (sum, c) => sum + c.unreadCount,
+        0,
+      );
+      Notifications.setBadgeCountAsync(total).catch(() => {});
+    });
+    return unsub;
+  }, []);
 
   useEffect(() => {
     const unsub = useNotificationStore.subscribe((state) => {
@@ -261,8 +276,6 @@ export default function TabLayout() {
         visible={showProfileReminder}
         onDismiss={() => setProfileReminderDismissed(true)}
       />
-      {/* In-app banner for new IM messages from the physician */}
-      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleBannerPress} />
       <Drawer
         screenOptions={{
           headerShown: false,
@@ -333,6 +346,8 @@ export default function TabLayout() {
           }}
         />
       </Drawer>
+      {/* In-app banner — rendered AFTER Drawer so it appears on top */}
+      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleBannerPress} />
     </GestureHandlerRootView>
   );
 }

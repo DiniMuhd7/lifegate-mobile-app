@@ -16,6 +16,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
+import { useNotificationStore } from 'stores/notification-store';
 import { useHealthMetricsStore } from 'stores/health-metrics-store';
 import { DAILY_STEP_GOAL } from 'utils/backgroundHealthMonitor';
 import { scheduleHealthInsightNotification } from 'utils/pushNotifications';
@@ -780,6 +781,8 @@ export default function HealthDashboardScreen() {
     reset: resetHealthStore,
   } = useHealthStore();
 
+  const imNotifCount = useNotificationStore((s) => s.unreadCount);
+
   const { user, sessionLoading } = useAuthStore();
 
   // Track the last userId that triggered a fetch. When a different user
@@ -924,7 +927,7 @@ export default function HealthDashboardScreen() {
           style={{ padding: 6, position: 'relative' }}
         >
           <Ionicons name="notifications-outline" size={24} color="#0f766e" />
-          {unreadAlertCount > 0 && (
+          {(unreadAlertCount + imNotifCount) > 0 && (
             <View
               style={{
                 position: 'absolute',
@@ -940,7 +943,7 @@ export default function HealthDashboardScreen() {
               }}
             >
               <Text style={{ fontSize: 9, color: '#fff', fontWeight: '800' }}>
-                {unreadAlertCount > 9 ? '9+' : unreadAlertCount}
+                {(unreadAlertCount + imNotifCount) > 9 ? '9+' : (unreadAlertCount + imNotifCount)}
               </Text>
             </View>
           )}
