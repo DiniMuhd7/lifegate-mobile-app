@@ -20,6 +20,7 @@ import {
 } from 'stores/checkin-store';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
 import api from 'services/api';
+import { scheduleCheckinReminderNotifications } from 'utils/pushNotifications';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -67,6 +68,14 @@ export default function CheckinsScreen() {
   useEffect(() => {
     if (!initialized) initialize();
   }, [initialized, initialize]);
+
+  // Schedule (or refresh) slot reminder notifications whenever slots change
+  // (on init and after each claim). Runs after initialization only.
+  useEffect(() => {
+    if (initialized) {
+      scheduleCheckinReminderNotifications(slots);
+    }
+  }, [initialized, slots]);
 
   // Always re-fetch so physician-edited condition/urgency are current.
   useEffect(() => {

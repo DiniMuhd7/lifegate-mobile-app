@@ -240,6 +240,7 @@ func main() {
 	)
 	paymentsHandler := payments.NewHandler(paymentsSvc)
 	paymentsHandler.SetPushNotifier(pushSvc)
+	paymentsHandler.SetHub(hub)
 	referralSvc := referral.NewService(database)
 	referralSvc.SetCreditGranter(paymentsSvc)
 	referralHandler := referral.NewHandler(referralSvc)

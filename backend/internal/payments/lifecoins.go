@@ -524,3 +524,39 @@ func (s *Service) SubmitCheckinAnswers(userID string, slotID int, answers []map[
 	)
 	return err
 }
+
+// slotLabels maps slot IDs to human-readable names matching the mobile schedule.
+var slotLabels = map[int]string{
+	1: "Morning",
+	3: "Noon",
+	5: "Evening",
+	6: "Night",
+}
+
+// GetCheckinPhysicianInfo returns the physician assigned to the patient's most
+// recent active diagnosis, the patient's display name, and the slot label.
+// Returns empty strings (no error) when no active assigned diagnosis exists.
+func (s *Service) GetCheckinPhysicianInfo(userID string, slotID int) (physicianID, patientName, slotLabel string, err error) {
+	slotLabel = slotLabels[slotID]
+	if slotLabel == "" {
+		slotLabel = fmt.Sprintf("Slot %d", slotID)
+	}
+
+	row := s.db.QueryRow(`
+		SELECT COALESCE(d.physician_id::text, ''), COALESCE(u.name, 'Patient')
+		FROM   diagnoses d
+		JOIN   users u ON u.id = d.user_id
+		WHERE  d.user_id = $1::uuid
+		  AND  d.physician_id IS NOT NULL
+		  AND  d.status != 'Completed'
+		ORDER  BY d.created_at DESC
+		LIMIT  1`, userID)
+
+	err = row.Scan(&physicianID, &patientName)
+	if err != nil {
+		// No active assigned diagnosis — not an error condition, just no physician.
+		err = nil
+		physicianID = ""
+	}
+	return
+}

@@ -215,6 +215,104 @@ export async function registerPatientPushToken(): Promise<void> {
   await api.post('/push-token', { token: tokenData.data });
 }
 
+const CHECKIN_REMINDER_IDS_KEY = 'checkin_reminder_notification_ids';
+
+/**
+ * Schedules (or reschedules) daily push notifications to remind the patient
+ * to complete each unclaimed check-in slot 15 minutes before its window closes.
+ *
+ * Slot schedule (from checkin-store):
+ *   Morning  — deadline 12:00 → reminder at 11:45
+ *   Noon     — deadline 18:00 → reminder at 17:45
+ *   Evening  — deadline 21:00 → reminder at 20:45
+ *   Night    — deadline 24:00 → reminder at 23:45
+ *
+ * Previously scheduled reminders are always cancelled first so stale IDs
+ * (e.g. from a prior day or after a slot is claimed) are cleaned up.
+ * Silently no-ops on web or when permission is not granted.
+ */
+export async function scheduleCheckinReminderNotifications(
+  slots: Array<{ id: number; label: string; deadlineHour: number; claimedDate: string | null }>,
+): Promise<void> {
+  if (Platform.OS === 'web') return;
+
+  try {
+    let { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      ({ status } = await Notifications.requestPermissionsAsync());
+    }
+    if (status !== 'granted') return;
+
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+
+    // Cancel all previously scheduled checkin reminders.
+    const prevRaw = await AsyncStorage.getItem(CHECKIN_REMINDER_IDS_KEY);
+    if (prevRaw) {
+      const prevIds: string[] = JSON.parse(prevRaw);
+      await Promise.all(
+        prevIds.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})),
+      );
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('checkin-reminders', {
+        name: 'Health Check-in Reminders',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const scheduledIds: string[] = [];
+
+    for (const slot of slots) {
+      // Skip slots already claimed today — no reminder needed.
+      if (slot.claimedDate === today) continue;
+
+      // deadline 24 wraps to next-day midnight; treat as 23:45.
+      const deadlineHour = slot.deadlineHour === 24 ? 24 : slot.deadlineHour;
+      const reminderMinutes = deadlineHour * 60 - 15; // 15 min before deadline
+      const reminderHour = Math.floor(reminderMinutes / 60) % 24;
+      const reminderMin = reminderMinutes % 60;
+
+      const content: Notifications.NotificationContentInput = {
+        title: `⏰ ${slot.label} check-in closing soon`,
+        body: `Your ${slot.label} health check-in window closes in 15 minutes. Complete it now to earn your Lifecoin!`,
+        sound: true,
+        data: { type: 'checkin_reminder', slotId: slot.id },
+        ...(Platform.OS === 'android' && { channelId: 'checkin-reminders' }),
+      };
+
+      // In dev, fire a preview 10 seconds from now so it can be tested immediately.
+      if (__DEV__) {
+        const devId = await Notifications.scheduleNotificationAsync({
+          content: { ...content, title: '[Preview] ' + content.title },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: 10,
+            repeats: false,
+          },
+        });
+        scheduledIds.push(devId);
+      }
+
+      const id = await Notifications.scheduleNotificationAsync({
+        content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: reminderHour,
+          minute: reminderMin,
+        },
+      });
+      scheduledIds.push(id);
+    }
+
+    await AsyncStorage.setItem(CHECKIN_REMINDER_IDS_KEY, JSON.stringify(scheduledIds));
+  } catch (e) {
+    console.warn('[CheckinReminder] Failed to schedule notifications:', e);
+  }
+}
+
 /**
  * Returns a subscription that fires when the user taps a push notification.
  * The response handler receives the notification data and can navigate to a case.

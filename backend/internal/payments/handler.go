@@ -1,6 +1,8 @@
 package payments
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,10 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// wsHubIface is a minimal interface over the WebSocket hub so the payments
+// package does not import the websocket package directly (avoids a cycle).
+type wsHubIface interface {
+	BroadcastToUser(userID, event string, data []byte)
+}
+
 // Handler exposes payment and credits HTTP endpoints.
 type Handler struct {
-	svc      *Service
-	pushSvc  *notifications.Service
+	svc     *Service
+	pushSvc *notifications.Service
+	hub     wsHubIface
 }
 
 func NewHandler(svc *Service) *Handler {
@@ -23,6 +32,12 @@ func NewHandler(svc *Service) *Handler {
 // notify patients when their redemption request is approved or rejected.
 func (h *Handler) SetPushNotifier(push *notifications.Service) {
 	h.pushSvc = push
+}
+
+// SetHub wires in the WebSocket hub so the handler can push real-time
+// physician.checkin.update events when a patient submits check-in answers.
+func (h *Handler) SetHub(hub wsHubIface) {
+	h.hub = hub
 }
 
 // GetBundles returns all available credit bundle options.
@@ -331,6 +346,32 @@ func (h *Handler) SubmitCheckinAnswers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
 		return
 	}
+
+	// Notify the assigned physician in real-time (best-effort — non-blocking).
+	go func() {
+		physicianID, patientName, slotLabel, err := h.svc.GetCheckinPhysicianInfo(uid, body.SlotID)
+		if err != nil || physicianID == "" {
+			return
+		}
+		msg := fmt.Sprintf("%s completed their %s health check-in", patientName, slotLabel)
+		ctx := context.Background()
+		if h.pushSvc != nil {
+			h.pushSvc.SendToUser(ctx, physicianID,
+				"📋 Patient Check-in Update", msg,
+				map[string]string{"type": "checkin_update", "patientId": uid},
+			)
+		}
+		if h.hub != nil {
+			data, _ := json.Marshal(map[string]string{
+				"patientId": uid,
+				"patientName": patientName,
+				"slotLabel": slotLabel,
+				"message": msg,
+			})
+			h.hub.BroadcastToUser(physicianID, "physician.checkin.update", data)
+		}
+	}()
+
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
