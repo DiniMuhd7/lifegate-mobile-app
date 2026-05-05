@@ -1,4 +1,4 @@
-import { View, Text, Pressable, AppState, AppStateStatus, Linking, ScrollView } from 'react-native';
+import { View, Text, Pressable, AppState, AppStateStatus, Linking, ScrollView, Platform, Alert } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,6 +6,10 @@ import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 async function getPermissionStatus(): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    if (typeof Notification === 'undefined') return false;
+    return Notification.permission === 'granted';
+  }
   const { status } = await Notifications.getPermissionsAsync();
   return status === 'granted';
 }
@@ -43,15 +47,67 @@ export default function NotificationScreen() {
   }, []);
 
   const handleToggle = async () => {
+    if (busy) return;
     setBusy(true);
-    if (enabled) {
-      // Can't revoke programmatically — direct the user to system settings.
-      await Linking.openSettings();
-    } else {
+    try {
+      if (enabled) {
+        // Permissions cannot be revoked in-app on either platform.
+        if (Platform.OS === 'web') {
+          Alert.alert(
+            'Turn Off Notifications',
+            'To turn off notifications, use your browser site settings for this app and set notifications to Block.'
+          );
+        } else {
+          const opened = await Linking.openSettings();
+          if (!opened) {
+            Alert.alert('Unavailable', 'Could not open device settings. Please open Settings manually.');
+          }
+        }
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        if (typeof Notification === 'undefined') {
+          Alert.alert('Unsupported', 'This browser does not support push notification permissions.');
+          return;
+        }
+        const status = await Notification.requestPermission();
+        setEnabled(status === 'granted');
+
+        if (status !== 'granted') {
+          Alert.alert(
+            'Permission Not Granted',
+            'Notifications are blocked in this browser. Allow notifications from browser site settings to enable them.'
+          );
+        }
+        return;
+      }
+
       const { status } = await Notifications.requestPermissionsAsync();
       setEnabled(status === 'granted');
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow notifications in device settings to enable alerts.');
+      }
+    } catch {
+      Alert.alert('Error', 'Could not update notification permission. Please try again.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
+  };
+
+  const handleOpenDeviceSettings = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Browser Settings',
+        'Open your browser site settings for this app to manage notifications.\n\nExample: click the lock icon in the address bar -> Site settings -> Notifications.'
+      );
+      return;
+    }
+
+    const opened = await Linking.openSettings();
+    if (!opened) {
+      Alert.alert('Unavailable', 'Could not open device settings. Please open Settings manually.');
+    }
   };
 
   const NotificationToggle = () => (
@@ -144,7 +200,7 @@ export default function NotificationScreen() {
           </View>
 
           <Pressable
-            onPress={() => Linking.openSettings()}
+            onPress={handleOpenDeviceSettings}
             className="mt-4 h-10 rounded-xl bg-[#F0F8F8] border border-[#D8EBEB] items-center justify-center active:opacity-80"
           >
             <Text className="text-sm font-semibold text-[#0EA5A4]">Open Device Settings</Text>
