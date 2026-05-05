@@ -234,6 +234,9 @@ func main() {
 		cfg.FlutterwavePublicKey,
 		cfg.FlutterwaveRedirectURL,
 		cfg.FlutterwaveWebhookHash,
+		cfg.FXRateURL,
+		cfg.FXFallbackNGNPerUSD,
+		cfg.FXCacheTTL,
 	)
 	paymentsHandler := payments.NewHandler(paymentsSvc)
 	paymentsHandler.SetPushNotifier(pushSvc)

@@ -31,16 +31,19 @@ export default function SubscriptionScreen() {
   const { user } = useAuthStore();
   const {
     balance,
+    bundles,
     transactions,
     paymentLink,
     activeTxRef,
     loading,
     error,
     fetchBalance,
+    fetchBundles,
     initiatePayment,
     verifyPayment,
     clearError,
     clearPaymentLink,
+    bundlesLoading,
     paymentLoading,
   } = usePaymentStore();
 
@@ -59,6 +62,7 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     fetchBalance();
+    fetchBundles();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -66,8 +70,16 @@ export default function SubscriptionScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchBalance();
-    }, [])
+      fetchBundles();
+    }, [fetchBalance, fetchBundles])
   );
+
+  useEffect(() => {
+	if (!selectedBundle) return;
+	if (!bundles.some((bundle) => bundle.id === selectedBundle)) {
+		setSelectedBundle(null);
+	}
+  }, [bundles, selectedBundle]);
 
   const switchActiveChatToClinical = useCallback(() => {
     if (!activeConversationId) return;
@@ -205,11 +217,7 @@ export default function SubscriptionScreen() {
     [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink, switchActiveChatToClinical]
   );
 
-  const displayBundles: CreditBundle[] = [
-    { id: '2000',  amountNaira: 2500,  amountUSD: 5.00,  credits: 5,  label: '₦2,500 — 5 Credits',   labelUSD: '$5.00 — 5 Credits' },
-    { id: '5000',  amountNaira: 7500,  amountUSD: 12.00, credits: 15, label: '₦7,500 — 15 Credits',  labelUSD: '$12.00 — 15 Credits' },
-    { id: '10000', amountNaira: 25000, amountUSD: 22.00, credits: 50, label: '₦25,000 — 50 Credits', labelUSD: '$22.00 — 50 Credits' },
-  ];
+  const displayBundles: CreditBundle[] = bundles;
 
   const selectedBundleData = displayBundles.find((bundle) => bundle.id === selectedBundle);
 
@@ -287,7 +295,35 @@ export default function SubscriptionScreen() {
 
           <Text className="mb-3 text-base font-semibold text-gray-900">Choose a Credit Package</Text>
 
+          <View className="mb-4 rounded-2xl bg-[#E8F4F4] p-1 flex-row border border-[#D4ECEB]">
+            {(['NGN', 'USD'] as const).map((option) => {
+              const active = currency === option;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setCurrency(option)}
+                  className={`flex-1 rounded-xl px-4 py-3 ${active ? 'bg-white' : 'bg-transparent'}`}>
+                  <Text
+                    className={`text-center text-sm font-semibold ${active ? 'text-[#0EA5A4]' : 'text-gray-500'}`}>
+                    {option === 'NGN' ? 'Pay in Naira' : 'Pay in USD'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
+          <Text className="mb-4 text-xs leading-5 text-gray-500">
+            {currency === 'USD'
+              ? 'USD prices are derived from the latest cached market FX rate.'
+              : 'NGN prices are the base price for local card and bank payment options.'}
+          </Text>
+
+          {bundlesLoading && displayBundles.length === 0 ? (
+            <View className="mb-4 items-center justify-center py-6">
+              <ActivityIndicator color="#0EA5A4" size="small" />
+              <Text className="mt-2 text-sm text-gray-500">Loading current bundle prices...</Text>
+            </View>
+          ) : null}
 
           {displayBundles.map((bundle, idx) => {
             const selected = selectedBundle === bundle.id;
@@ -338,9 +374,9 @@ export default function SubscriptionScreen() {
                     : `₦${selectedBundleData.amountNaira.toLocaleString()}`}
                 </Text>.
               </Text>
-              {currency === 'NGN' && (
+                {currency === 'USD' && (
                 <Text className="text-xs text-gray-400 mt-1">
-                  NGN price reflects today's exchange rate.
+                    USD amount is derived from the latest cached FX rate.
                 </Text>
               )}
             </View>
@@ -435,12 +471,12 @@ export default function SubscriptionScreen() {
                     <ActivityIndicator color="white" size="small" />
                     <Text className="text-xs text-white/90">
                       {verifyAttempt > 0
-                        ? `Checking with Flutterwave (${verifyAttempt} of 7)…`
+                        ? `Checking with Flutterwave (${verifyAttempt} of 8)…`
                         : 'Preparing…'}
                     </Text>
                   </View>
                 ) : (
-                  <Text className="text-base font-semibold text-white">I've Completed Payment</Text>
+                  <Text className="text-base font-semibold text-white">I&apos;ve Completed Payment</Text>
                 )}
               </Pressable>
               <Pressable

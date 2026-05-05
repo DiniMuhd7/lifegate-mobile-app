@@ -52,6 +52,9 @@ make run
 | `SMTP_PASSWORD` | — | SMTP password |
 | `SMTP_FROM` | `noreply@lifegate.app` | From address for emails |
 | `UPLOAD_DIR` | `./uploads` | Directory for certificate uploads |
+| `FX_RATE_URL` | `https://open.er-api.com/v6/latest/USD` | HTTP endpoint returning USD-base FX rates with `rates.NGN` |
+| `FX_FALLBACK_NGN_PER_USD` | `1600` | Fallback USD -> NGN rate used if the FX provider fails |
+| `FX_CACHE_TTL` | `30m` | Cache lifetime for the fetched FX rate |
 
 ## API Reference
 
@@ -129,3 +132,5 @@ docker run -p 5000:5000 --env-file .env lifegate-backend
 4. Set **Start Command**: `./lifegate-server`
 5. Add all environment variables from `.env.example` in the Render dashboard.
 6. Provision a **PostgreSQL** and **Redis** instance on Render and link their `DATABASE_URL` / `REDIS_URL`.
+
+For live USD bundle pricing, ensure `FX_RATE_URL`, `FX_FALLBACK_NGN_PER_USD`, and `FX_CACHE_TTL` are set in production.

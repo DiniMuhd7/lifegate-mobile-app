@@ -3,7 +3,9 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -48,6 +50,9 @@ type Config struct {
 	FlutterwavePublicKey   string
 	FlutterwaveRedirectURL string
 	FlutterwaveWebhookHash string
+	FXRateURL              string
+	FXFallbackNGNPerUSD    float64
+	FXCacheTTL             time.Duration
 
 	// HealthDataKey is used to derive the AES-256 key for encrypting
 	// sensitive health fields in the users table. Falls back to JWT_SECRET
@@ -113,6 +118,9 @@ func Load() *Config {
 		FlutterwavePublicKey:   getEnv("FLW_PUBLIC_KEY", ""),
 		FlutterwaveRedirectURL: getEnv("FLW_REDIRECT_URL", ""),
 		FlutterwaveWebhookHash: getEnv("FLW_WEBHOOK_HASH", ""),
+		FXRateURL:              getEnv("FX_RATE_URL", "https://open.er-api.com/v6/latest/USD"),
+		FXFallbackNGNPerUSD:    getEnvFloat("FX_FALLBACK_NGN_PER_USD", 1600),
+		FXCacheTTL:             getEnvDuration("FX_CACHE_TTL", 30*time.Minute),
 
 		HealthDataKey: getEnv("HEALTH_DATA_KEY", getEnv("JWT_SECRET", "changeme-secret")),
 
@@ -129,4 +137,28 @@ func getEnv(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+func getEnvFloat(key string, defaultVal float64) float64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return defaultVal
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return defaultVal
+	}
+	return parsed
+}
+
+func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return defaultVal
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		return defaultVal
+	}
+	return parsed
 }

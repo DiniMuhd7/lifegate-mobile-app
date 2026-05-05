@@ -90,6 +90,15 @@ services:
       - key: FLW_WEBHOOK_HASH
         sync: false            # secret hash set in Flutterwave dashboard → Settings → Webhooks
 
+      # FX pricing for USD bundles
+      # USD bundle prices are derived from the latest cached USD -> NGN rate.
+      - key: FX_RATE_URL
+        value: https://open.er-api.com/v6/latest/USD
+      - key: FX_FALLBACK_NGN_PER_USD
+        value: "1600"
+      - key: FX_CACHE_TTL
+        value: 30m
+
       # Email — Resend (https://resend.com)
       # Requires the sender domain to be verified in the Resend dashboard.
       - key: RESEND_API_KEY

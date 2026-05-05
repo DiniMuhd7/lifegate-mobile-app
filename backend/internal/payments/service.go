@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -19,17 +20,20 @@ import (
 )
 
 // bundleBase defines credit tiers.
-// ngnFixed is the authoritative NGN price shown to users; USD prices are kept for
-// international checkout display and are not derived from the live exchange rate.
+// NGN prices are the source of truth. USD bundle prices are derived from a
+// cached live FX rate (with fallback) so checkout follows one market rule.
 var bundleBase = []struct {
 	id       string
-	usd      float64
 	ngnFixed int
 	credits  int
 }{
-	{"2000", 5.00, 2500, 5},
-	{"5000", 12.00, 7500, 15},
-	{"10000", 22.00, 25000, 50},
+	{"2000", 2500, 5},
+	{"5000", 7500, 15},
+	{"10000", 25000, 50},
+}
+
+type fxRateResponse struct {
+	Rates map[string]float64 `json:"rates"`
 }
 
 type Bundle struct {
@@ -138,10 +142,16 @@ type Service struct {
 	publicKey      string
 	redirectURL    string
 	webhookHash    string
+	fxRateURL      string
+	fallbackFXRate float64
+	fxCacheTTL     time.Duration
 	httpClient     *http.Client
 	paymentLock    sync.Mutex                  // Protects concurrent VerifyAndCredit calls (FIX #1)
 	processingTxs  map[string]bool             // Tracks txRefs currently being processed
 	retryQueue     []*PaymentRetry             // Webhook retry queue (FIX #4)
+	fxCacheMu      sync.RWMutex
+	cachedFXRate   float64
+	fxCachedAt     time.Time
 }
 
 // PaymentRetry tracks failed webhook events for retry (FIX #4)
@@ -153,35 +163,93 @@ type PaymentRetry struct {
 	LastAttempt time.Time
 }
 
-func NewService(db *sql.DB, secretKey, publicKey, redirectURL, webhookHash string) *Service {
+func NewService(db *sql.DB, secretKey, publicKey, redirectURL, webhookHash, fxRateURL string, fallbackFXRate float64, fxCacheTTL time.Duration) *Service {
 	return &Service{
 		db:            db,
 		secretKey:     secretKey,
 		publicKey:     publicKey,
 		redirectURL:   redirectURL,
 		webhookHash:   webhookHash,
+		fxRateURL:     fxRateURL,
+		fallbackFXRate: fallbackFXRate,
+		fxCacheTTL:    fxCacheTTL,
 		httpClient:    &http.Client{Timeout: flwHTTPTimeout},
 		processingTxs: make(map[string]bool),
 	}
 }
 
-// GetBundles returns all credit bundles with fixed NGN prices and fixed USD prices.
+// GetBundles returns credit bundles using NGN as the source of truth and a cached live FX rate for USD.
 func (s *Service) GetBundles() []Bundle {
+	rate := s.getNGNPerUSD()
 	out := make([]Bundle, 0, len(bundleBase))
 	for _, b := range bundleBase {
+		usd := roundCurrency(float64(b.ngnFixed) / rate)
 		out = append(out, Bundle{
 			ID:          b.id,
 			AmountNaira: b.ngnFixed,
-			AmountUSD:   b.usd,
+			AmountUSD:   usd,
 			Credits:     b.credits,
 			Label:       fmt.Sprintf("₦%s — %d Credits", formatNaira(b.ngnFixed), b.credits),
-			LabelUSD:    fmt.Sprintf("$%.2f — %d Credits", b.usd, b.credits),
+			LabelUSD:    fmt.Sprintf("$%.2f — %d Credits", usd, b.credits),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Credits < out[j].Credits
 	})
 	return out
+}
+
+func (s *Service) getNGNPerUSD() float64 {
+	if s.fallbackFXRate <= 0 {
+		s.fallbackFXRate = 1600
+	}
+
+	s.fxCacheMu.RLock()
+	if s.cachedFXRate > 0 && time.Since(s.fxCachedAt) < s.fxCacheTTL {
+		rate := s.cachedFXRate
+		s.fxCacheMu.RUnlock()
+		return rate
+	}
+	s.fxCacheMu.RUnlock()
+
+	if strings.TrimSpace(s.fxRateURL) == "" {
+		return s.fallbackFXRate
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, s.fxRateURL, nil)
+	if err != nil {
+		return s.fallbackFXRate
+	}
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return s.fallbackFXRate
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return s.fallbackFXRate
+	}
+
+	var payload fxRateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return s.fallbackFXRate
+	}
+
+	rate := payload.Rates["NGN"]
+	if rate <= 0 {
+		return s.fallbackFXRate
+	}
+
+	s.fxCacheMu.Lock()
+	s.cachedFXRate = rate
+	s.fxCachedAt = time.Now()
+	s.fxCacheMu.Unlock()
+	return rate
+}
+
+func roundCurrency(amount float64) float64 {
+	return math.Round(amount*100) / 100
 }
 
 // formatNaira formats an integer naira amount with comma separators.
@@ -446,7 +514,7 @@ func (s *Service) InitiatePayment(userID, email, name, bundleID, currency string
 	var dbAmount int
 	if currency == "USD" {
 		chargeAmount = bundle.AmountUSD
-		dbAmount = int(bundle.AmountUSD * 100) // store as cents
+		dbAmount = int(math.Round(bundle.AmountUSD * 100)) // store as cents
 	} else {
 		chargeAmount = float64(bundle.AmountNaira)
 		dbAmount = bundle.AmountNaira
@@ -726,7 +794,7 @@ func (s *Service) validateBundleCredits(bundleID string, amount int, currency st
 		var expectedAmount int
 		if currency == "USD" {
 			// USD stored as cents for precision
-			expectedAmount = int(b.usd * 100)
+			expectedAmount = int(math.Round(roundCurrency(float64(b.ngnFixed)/s.getNGNPerUSD()) * 100))
 		} else {
 			// NGN stored as whole naira
 			expectedAmount = b.ngnFixed
