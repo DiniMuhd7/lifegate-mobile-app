@@ -56,8 +56,12 @@ export default function TabLayout() {
 
   useEffect(() => {
     const unsub = useNotificationStore.subscribe((state) => {
-      const latest = state.notifications[0];
-      if (latest && !latest.isRead && latest.type === 'im_message') {
+      // Find the most recent unread IM message (not necessarily at index 0 —
+      // a simultaneous diagnosis.update may have been prepended ahead of it).
+      const latest = state.notifications.find(
+        (n) => !n.isRead && n.type === 'im_message',
+      );
+      if (latest) {
         setBanner((prev) => (prev?.id === latest.id ? prev : latest));
       }
     });

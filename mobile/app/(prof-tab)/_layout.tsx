@@ -20,11 +20,20 @@ export default function ProfTabLayout() {
   // Mount physician real-time events
   usePhysicianWebSocket();
 
-  // Subscribe to new notifications so we can show the banner
+  // Subscribe to new notifications so we can show the banner.
+  // For IM messages, prefer the most recent unread im_message even if a
+  // newer non-IM notification has been prepended ahead of it.
   useEffect(() => {
     const unsub = useNotificationStore.subscribe((state) => {
-      const latest = state.notifications[0];
-      if (latest && !latest.isRead) setBanner((prev) => (prev?.id === latest.id ? prev : latest));
+      const latestIM = state.notifications.find(
+        (n) => !n.isRead && n.type === 'im_message',
+      );
+      const latestAny = state.notifications.find((n) => !n.isRead);
+      // IM messages take priority; fall back to any unread notification.
+      const candidate = latestIM ?? latestAny ?? null;
+      if (candidate) {
+        setBanner((prev) => (prev?.id === candidate.id ? prev : candidate));
+      }
     });
     return unsub;
   }, []);
@@ -80,6 +89,18 @@ export default function ProfTabLayout() {
 
   const handleDismissBanner = useCallback(() => setBanner(null), []);
 
+  const handleBannerPress = useCallback(() => {
+    if (banner?.type === 'im_message' && banner.caseId) {
+      router.push({
+        pathname: '/(prof-tab)/caseReview',
+        params: { id: banner.caseId, openIM: 'true' },
+      });
+    } else if (banner?.caseId) {
+      router.push({ pathname: '/(prof-tab)/caseQueue', params: { caseId: banner.caseId } });
+    }
+    setBanner(null);
+  }, [banner, router]);
+
   // ── Auth guard ────────────────────────────────────────────────────────────
   const authUser = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
@@ -123,7 +144,7 @@ export default function ProfTabLayout() {
       </Stack>
 
       {/* In-app notification banner (overlays content) */}
-      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} />
+      <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleBannerPress} />
 
       {/* Bottom Tab Bar — active tab is auto-detected from the current pathname */}
       <BottomTabBar />
