@@ -50,6 +50,7 @@ import (
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthmetrics"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
@@ -138,6 +139,9 @@ func main() {
 
 	sensorSvc := sensortests.NewService(edisEngine)
 	sensorHandler := sensortests.NewHandler(sensorSvc, authRepo)
+
+	healthMetricsSvc := healthmetrics.NewService(database)
+	healthMetricsHandler := healthmetrics.NewHandler(healthMetricsSvc)
 
 	hub := wshub.NewHub()
 
@@ -629,6 +633,14 @@ func main() {
 	{
 		sensorGroup.POST("/vision/interpret", sensorHandler.InterpretVision)
 		sensorGroup.POST("/hearing/interpret", sensorHandler.InterpretHearing)
+	}
+
+	// Continuous background health monitoring — step count, active minutes,
+	// distance, and calorie snapshots uploaded periodically by the mobile client.
+	healthMetricsGroup := api.Group("/health-metrics", middleware.Auth(cfg.JWTSecret))
+	{
+		healthMetricsGroup.POST("/sync", healthMetricsHandler.Sync)
+		healthMetricsGroup.GET("/today", healthMetricsHandler.Today)
 	}
 
 	// Instant messaging — patient ↔ physician on a per-diagnosis basis.

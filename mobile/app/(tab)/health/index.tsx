@@ -16,6 +16,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
+import { useHealthMetricsStore, DAILY_STEP_GOAL } from 'stores/health-metrics-store';
 import { scheduleHealthInsightNotification } from 'utils/pushNotifications';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { BannerAd } from 'components/BannerAd';
@@ -515,6 +516,130 @@ const PROMOTIONS = [
   { title: 'Referrals', subtitle: 'Invite friends and earn Diagnosis credits', icon: 'people-outline' as const, color: '#dc2626', bg: '#fee2e2' },
 ];
 
+// ─── Activity Monitor Card ────────────────────────────────────────────────────
+
+function ActivityMonitorCard() {
+  const { stepsToday, activeMinutes, distanceMeters, calories, pedometerAvailable, isMonitoring } =
+    useHealthMetricsStore();
+
+  // Don't show the card if monitoring is unavailable (web, no permission, etc.)
+  if (pedometerAvailable === false) return null;
+
+  const goalProgress = Math.min(stepsToday / DAILY_STEP_GOAL, 1);
+  const goalPct = Math.round(goalProgress * 100);
+  const stepsLeft = Math.max(DAILY_STEP_GOAL - stepsToday, 0);
+  const distKm = (distanceMeters / 1000).toFixed(2);
+
+  return (
+    <View
+      style={{
+        marginHorizontal: 16,
+        marginBottom: 12,
+        borderRadius: 18,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#e0f2fe',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <LinearGradient
+        colors={['#e0f2fe', '#f0fdf4']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          gap: 8,
+        }}
+      >
+        <Ionicons name="fitness-outline" size={18} color="#0891b2" />
+        <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: '#0891b2' }}>
+          Today's Activity
+        </Text>
+        {isMonitoring && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22c55e' }} />
+            <Text style={{ fontSize: 10, color: '#16a34a', fontWeight: '600' }}>LIVE</Text>
+          </View>
+        )}
+        {!isMonitoring && pedometerAvailable === null && (
+          <ActivityIndicator size="small" color="#0891b2" />
+        )}
+      </LinearGradient>
+
+      {/* Step goal progress bar */}
+      <View style={{ paddingHorizontal: 14, paddingTop: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: '#374151' }}>
+            {stepsToday.toLocaleString()} steps
+          </Text>
+          <Text style={{ fontSize: 12, color: '#6b7280' }}>
+            Goal: {DAILY_STEP_GOAL.toLocaleString()}
+          </Text>
+        </View>
+        <View
+          style={{
+            height: 8,
+            backgroundColor: '#e5e7eb',
+            borderRadius: 4,
+            overflow: 'hidden',
+            marginBottom: 4,
+          }}
+        >
+          <View
+            style={{
+              height: '100%',
+              width: `${goalPct}%`,
+              backgroundColor: goalPct >= 100 ? '#22c55e' : '#0891b2',
+              borderRadius: 4,
+            }}
+          />
+        </View>
+        <Text style={{ fontSize: 11, color: '#9ca3af', marginBottom: 12 }}>
+          {goalPct >= 100
+            ? '🎉 Daily goal reached!'
+            : `${stepsLeft.toLocaleString()} steps to goal (${goalPct}%)`}
+        </Text>
+      </View>
+
+      {/* Metric tiles */}
+      <View
+        style={{
+          flexDirection: 'row',
+          borderTopWidth: 1,
+          borderTopColor: '#f3f4f6',
+        }}
+      >
+        {[
+          { icon: 'walk-outline' as const, label: 'Active', value: `${activeMinutes} min`, color: '#16a34a' },
+          { icon: 'map-outline' as const,  label: 'Distance', value: `${distKm} km`,       color: '#0891b2' },
+          { icon: 'flame-outline' as const, label: 'Calories', value: `${Math.round(calories)} kcal`, color: '#d97706' },
+        ].map((tile, i, arr) => (
+          <View
+            key={tile.label}
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              paddingVertical: 12,
+              borderRightWidth: i < arr.length - 1 ? 1 : 0,
+              borderRightColor: '#f3f4f6',
+            }}
+          >
+            <Ionicons name={tile.icon} size={18} color={tile.color} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827', marginTop: 4 }}>
+              {tile.value}
+            </Text>
+            <Text style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>{tile.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function PromotionsSection() {
   return (
     <View style={{ marginBottom: 16, paddingHorizontal: 16 }}>
@@ -863,6 +988,8 @@ export default function HealthDashboardScreen() {
           </View>
 
           <PromotionsSection />
+
+          <ActivityMonitorCard />
 
           {/* Recent Cases */}
           <View

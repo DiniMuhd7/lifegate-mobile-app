@@ -25,6 +25,7 @@ import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
 import { registerPatientPushToken, addNotificationResponseListener, addNotificationReceivedListener } from 'utils/pushNotifications';
 import { registerWebPush } from 'services/webPushRegistration';
+import { startHealthMonitoring, stopHealthMonitoring } from 'utils/backgroundHealthMonitor';
 
 function isHealthProfileIncomplete(user: User | null): boolean {
   if (!user || user.role !== 'user') return false;
@@ -110,6 +111,17 @@ export default function TabLayout() {
     registerPatientPushToken().catch(() => {/* best-effort */});
     registerWebPush().catch(() => {/* best-effort */});
   }, [isAuthenticated, user]);
+
+  // ── Continuous background health monitoring ────────────────────────────────
+  // Start when patient authenticates; stop on logout to release pedometer and
+  // unregister the background-fetch task.
+  useEffect(() => {
+    if (!isAuthenticated || !user || user.role !== 'user') return;
+    startHealthMonitoring().catch(() => {/* best-effort */});
+    return () => {
+      stopHealthMonitoring().catch(() => {/* best-effort */});
+    };
+  }, [isAuthenticated, user?.id]);
 
   // Handle push notification tap → navigate to diagnosis details
   useEffect(() => {
