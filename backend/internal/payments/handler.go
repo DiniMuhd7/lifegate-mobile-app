@@ -149,8 +149,10 @@ func (h *Handler) VerifyPayment(c *gin.Context) {
 	}
 
 	if pt.Status == "pending" {
+		// FIX #6: Return HTTP 202 (Accepted) for pending instead of 200 (OK)
+		// This helps clients distinguish "still processing, retry later" from "failed".
 		// Transaction not yet confirmed by Flutterwave — client should retry.
-		c.JSON(http.StatusOK, gin.H{
+		c.JSON(http.StatusAccepted, gin.H{
 			"success": false,
 			"message": "Payment is still processing. Please wait a moment and try again.",
 			"data":    pt,

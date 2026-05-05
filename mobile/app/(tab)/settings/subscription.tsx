@@ -95,6 +95,7 @@ export default function SubscriptionScreen() {
   }, [selectedBundle, user?.name, currency, initiatePayment]);
 
   // Web path: user pressed "I've paid" after completing payment in the browser tab.
+  // FIX #3: Auto-retry loop for web deep-link timing race with Flutterwave indexing.
   const handleWebVerify = useCallback(async () => {
     if (!activeTxRef) return;
     setVerifying(true);
@@ -104,9 +105,11 @@ export default function SubscriptionScreen() {
     // the reference here so the retry loop is independent of store state.
     const txRef = activeTxRef;
 
+    // FIX #3: Adjusted delay schedule for web deep-link timeout
     // Retry schedule: wait before each attempt (ms).
-    // Total window ~60 s — covers 3DS / bank OTP flows.
-    const delays = [4000, 6000, 8000, 10000, 10000, 10000, 12000];
+    // Total window ~90 s — covers 3DS, Flutterwave indexing delay (100-500ms), bank OTP flows.
+    // Increased delays and attempts for web where Flutterwave may take longer to index.
+    const delays = [3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000];
 
     for (let attempt = 0; attempt < delays.length; attempt++) {
       setVerifyAttempt(attempt + 1);

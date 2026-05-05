@@ -51,8 +51,7 @@ export const PaymentService = {
    * POST /payments/verify
    *
    * Returns the transaction regardless of status (success | pending | failed).
-   * HTTP 402 (failed) is caught so callers always get transaction data rather
-   * than a thrown error — callers are responsible for inspecting tx.status.
+   * FIX #5: Robust 402/202 error handling — validates response structure before extraction.
    */
   async verifyPayment(txRef: string, flwTxId: string): Promise<PaymentTransaction> {
     try {
@@ -62,12 +61,28 @@ export const PaymentService = {
       );
       return res.data.data;
     } catch (err: unknown) {
-      // Backend returns HTTP 402 with transaction data when the payment failed.
-      // Extract it so callers can inspect status instead of always throwing.
-      const axiosErr = err as { response?: { data?: { data?: PaymentTransaction } } };
-      if (axiosErr?.response?.data?.data) {
-        return axiosErr.response.data.data;
+      // FIX #5: Handle HTTP 402 failure payment response + HTTP 202 pending response
+      // Backend returns 402/202 with transaction data when payment failed/pending.
+      const axiosErr = err as { response?: { status?: number; data?: { data?: PaymentTransaction } } };
+      
+      // Validate status code and response structure before extraction
+      if (axiosErr?.response?.status === 402 && axiosErr?.response?.data?.data) {
+        const tx = axiosErr.response.data.data;
+        // Ensure it's a valid PaymentTransaction with status field
+        if (tx && typeof tx === 'object' && 'status' in tx) {
+          return tx as PaymentTransaction;
+        }
       }
+      
+      // FIX #5: Handle HTTP 202 (Accepted/pending) response
+      if (axiosErr?.response?.status === 202 && axiosErr?.response?.data?.data) {
+        const tx = axiosErr.response.data.data;
+        if (tx && typeof tx === 'object' && 'status' in tx) {
+          return tx as PaymentTransaction;
+        }
+      }
+      
+      // Re-throw if we can't extract transaction data
       throw err;
     }
   },
