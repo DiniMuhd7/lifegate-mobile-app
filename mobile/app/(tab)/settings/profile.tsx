@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
+import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { Dropdown } from 'components/DropDown';
@@ -615,6 +616,7 @@ export default function ManageProfileScreen() {
         </Modal>
 
       </SafeAreaView>
+      <PatientBottomTabBar activeTab="settings" />
     </View>
   );
 }
