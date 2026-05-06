@@ -73,6 +73,12 @@ export default function SettingsScreen() {
           onPress: () => router.push('/(tab)/settings/notification'),
         },
         {
+          icon: 'settings-outline',
+          label: 'Account Setting',
+          sublabel: 'Alternative account settings view',
+          onPress: () => router.push('/(tab)/settings/account-setting'),
+        },
+        {
           icon: 'card-outline',
           label: 'Subscription',
           sublabel: 'Credits & billing',

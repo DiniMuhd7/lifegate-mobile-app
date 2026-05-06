@@ -18,6 +18,7 @@ export default function UserSettingsLayout() {
         <Stack.Screen name="help-center" />
         <Stack.Screen name="payment-failed" />
         <Stack.Screen name="transactions" />
+        <Stack.Screen name="account-setting" />
     </Stack>
   );
 }
