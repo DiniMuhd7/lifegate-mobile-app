@@ -1,23 +1,34 @@
-import { View, Text, Pressable, ScrollView, Alert, Linking, TextInput, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Alert,
+  Linking,
+  TextInput,
+  StyleSheet,
+  Platform,
+} from 'react-native';
 import { useMemo, useState } from 'react';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
-type FaqEntry = {
-  q: string;
-  a: string;
-};
+// ── Brand tokens ────────────────────────────────────────────────────────────
+const T = '#0EA5A4';
+const T_DARK = '#0B8E8D';
+const T_LIGHT = '#E0F3F3';
+const BG = '#F0F8F8';
 
-type FaqSection = {
-  title: string;
-  items: FaqEntry[];
-};
+// ── FAQ data ─────────────────────────────────────────────────────────────────
+type FaqEntry = { q: string; a: string };
+type FaqSection = { title: string; icon: keyof typeof Ionicons.glyphMap; items: FaqEntry[] };
 
 const FAQ_SECTIONS: FaqSection[] = [
   {
-    title: 'Account & Access Issues',
+    title: 'Account & Access',
+    icon: 'person-circle-outline',
     items: [
       {
         q: 'I cannot log in. What should I do?',
@@ -34,7 +45,8 @@ const FAQ_SECTIONS: FaqSection[] = [
     ],
   },
   {
-    title: 'Subscription & Billing Complaints',
+    title: 'Subscription & Billing',
+    icon: 'card-outline',
     items: [
       {
         q: 'How do subscriptions and credits work?',
@@ -49,13 +61,14 @@ const FAQ_SECTIONS: FaqSection[] = [
         a: 'Credits are consumed when certain clinical workflows are completed. Check your recent sessions and transaction records. If the deduction looks incorrect, report it from Send Feedback with session details for investigation.',
       },
       {
-        q: 'Can I request a refund for a failed payment or duplicate debit?',
+        q: 'Can I request a refund for a failed payment?',
         a: 'Yes. Contact support with proof of payment, transaction reference, and timestamp. Refund and reversal eligibility depends on payment status verification and platform policy.',
       },
     ],
   },
   {
     title: 'Tests, Modes & Clinical Output',
+    icon: 'medkit-outline',
     items: [
       {
         q: 'How does the Vision Test work?',
@@ -75,7 +88,7 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         q: 'What is EDIS in LifeGate?',
-        a: 'EDIS is LifeGate\'s clinical interpretation and safety layer. It structures user input, applies guardrails, and prioritizes risk before recommendations are shown.',
+        a: "EDIS is LifeGate's clinical interpretation and safety layer. It structures user input, applies guardrails, and prioritizes risk before recommendations are shown.",
       },
       {
         q: 'How do I improve diagnosis quality?',
@@ -84,7 +97,8 @@ const FAQ_SECTIONS: FaqSection[] = [
     ],
   },
   {
-    title: 'Technical & App Performance Issues',
+    title: 'App Performance',
+    icon: 'phone-portrait-outline',
     items: [
       {
         q: 'The app is slow, freezing, or showing a blank screen.',
@@ -92,7 +106,7 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         q: 'Why am I not receiving notifications?',
-        a: 'Open Notifications in Settings and enable push access. If disabled at device level, tap Open Device Settings and grant permission. Also check battery optimization rules that may block background alerts.',
+        a: 'Open Notifications in Settings and enable push access. If disabled at device level, grant permission in device settings. Also check battery optimization rules that may block background alerts.',
       },
       {
         q: 'Some pages or actions fail to load.',
@@ -100,12 +114,13 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
       {
         q: 'My submitted feedback did not get a response.',
-        a: 'After submission, keep your reference ID. Support responses may take a short time depending on queue volume. If delayed, contact support directly and include the reference ID for faster tracking.',
+        a: 'After submission, keep your reference ID. Support responses may take some time depending on queue volume. If delayed, contact support directly and include the reference ID for faster tracking.',
       },
     ],
   },
   {
-    title: 'Safety, Emergencies & Care Boundaries',
+    title: 'Safety & Emergencies',
+    icon: 'shield-checkmark-outline',
     items: [
       {
         q: 'Does LifeGate replace my doctor?',
@@ -127,117 +142,113 @@ const FAQ_SECTIONS: FaqSection[] = [
   },
   {
     title: 'Lifecoins & Rewards',
+    icon: 'heart-outline',
     items: [
       {
         q: 'What are Lifecoins?',
-        a: 'Lifecoins are LifeGate\'s in-app reward currency. You earn them by completing health activities such as watching educational videos, completing check-ins, and engaging with the platform. They are stored in your Lifecoins wallet.',
+        a: "Lifecoins are LifeGate's in-app reward currency. You earn them by completing health activities such as watching educational videos, completing check-ins, and engaging with the platform.",
       },
       {
         q: 'How do I earn Lifecoins?',
-        a: 'You earn Lifecoins by watching health videos on the Explore screen until the required watch threshold is met, completing daily check-ins, and other in-app health activities. Each video shows the exact coin reward before you start.',
+        a: 'Earn Lifecoins by watching health videos on the Explore screen until the required watch threshold is met, completing daily check-ins, and other in-app health activities.',
       },
       {
-        q: 'Is there a daily limit on earning Lifecoins from videos?',
+        q: 'Is there a daily limit on earning Lifecoins?',
         a: `Yes. You can earn Lifecoins from up to ${5} videos per day. The daily count resets at midnight. You can still watch more videos, but coins are only awarded for the first ${5} completions each day.`,
       },
       {
-        q: 'What is the Lifecoins wallet?',
-        a: 'The Lifecoins wallet tracks your total balance, recent transactions, and earning history. Access it from the Health screen or your profile. Pending approvals are shown separately until confirmed.',
-      },
-      {
-        q: 'How do I redeem or use my Lifecoins?',
-        a: 'Redemption options are shown in the wallet screen. Eligibility criteria apply. If you believe a redemption failed or was processed incorrectly, contact support with your wallet transaction reference.',
-      },
-      {
-        q: 'My Lifecoins balance did not update after completing a video.',
-        a: 'Allow a short moment for the wallet to sync. Pull to refresh on the wallet screen. If the balance is still incorrect after a few minutes, report it from Send Feedback and include the video title, date, and time.',
+        q: 'My Lifecoins balance did not update.',
+        a: 'Allow a short moment for the wallet to sync. Pull to refresh on the wallet screen. If still incorrect, report it from Send Feedback and include the video title, date, and time.',
       },
     ],
   },
   {
-    title: 'Physician Assignment & Consultations',
+    title: 'Physician Consultations',
+    icon: 'person-add-outline',
     items: [
       {
         q: 'How does physician assignment work?',
-        a: 'When your case requires clinical review, LifeGate assigns an available licensed physician from the queue. Assignment happens automatically based on case urgency, specialty, and physician availability.',
+        a: 'When your case requires clinical review, LifeGate assigns an available licensed physician based on case urgency, specialty, and physician availability.',
       },
       {
-        q: 'When will a physician respond to my case?',
-        a: 'Response times depend on physician availability and your case urgency level. Urgent cases are prioritised. You will receive an in-app notification when a physician reviews or responds to your case.',
+        q: 'When will a physician respond?',
+        a: 'Response times depend on physician availability and your case urgency level. Urgent cases are prioritised. You will receive an in-app notification when a physician reviews or responds.',
       },
       {
         q: 'Can I message my assigned physician?',
-        a: 'Yes. Once a physician is assigned to your active case, a chat icon appears in the Diagnosis Report screen. Tap it to open the Instant Message panel and communicate directly with your physician.',
-      },
-      {
-        q: 'What is a follow-up consultation?',
-        a: 'After an initial consultation, you may request or receive a follow-up to review progress, update your condition, or address new symptoms. Follow-ups are linked to the original case record.',
+        a: 'Yes. Once a physician is assigned to your active case, a chat icon appears in the Diagnosis Report screen. Tap it to open the Instant Message panel.',
       },
       {
         q: 'My case shows Active but no physician has responded.',
-        a: 'Cases in the queue may take time depending on volume. If your case has been Active without any update for an unexpectedly long time, contact support with your case ID for a status check.',
-      },
-      {
-        q: 'Can I request a different physician?',
-        a: 'Physician re-assignment is not self-service. If you have a concern about the assigned physician or the consultation outcome, raise it through Send Feedback or Contact Support with your case details.',
+        a: 'Cases in the queue may take time depending on volume. If your case has been Active without any update for an unexpectedly long time, contact support with your case ID.',
       },
     ],
   },
   {
-    title: 'Privacy & Data Management',
+    title: 'Privacy & Data',
+    icon: 'lock-closed-outline',
     items: [
       {
         q: 'What health data does LifeGate store?',
-        a: 'LifeGate stores profile information, symptom reports, health metrics, test results, and consultation history needed to deliver clinical services safely. Data is used only for the purposes you engage with in the app.',
-      },
-      {
-        q: 'How is my data protected?',
-        a: 'LifeGate uses encrypted transmission and controlled access policies. Sensitive health records are only accessible to licensed personnel involved in your care pathway. Never share your login credentials.',
+        a: 'LifeGate stores profile information, symptom reports, health metrics, test results, and consultation history needed to deliver clinical services safely.',
       },
       {
         q: 'Can I delete my account and data?',
         a: 'Yes. Go to Settings and look for Account Deletion or contact support to initiate a deletion request. Deletion removes your personal data subject to applicable legal retention requirements.',
       },
       {
-        q: 'Can I export my health records?',
-        a: 'Data export requests can be submitted through the support channel. Include your patient ID and the type of records you need. The support team will guide you through the process.',
-      },
-      {
         q: 'Who can see my clinical information?',
-        a: 'Your clinical data is visible to assigned physicians in the context of active cases, and to authorised admin personnel for safety and compliance purposes. LifeGate does not sell personal health data.',
+        a: 'Your clinical data is visible to assigned physicians in the context of active cases, and to authorised admin personnel for safety purposes. LifeGate does not sell personal health data.',
       },
     ],
   },
 ];
 
-const HelpItem = ({
-  icon,
-  title,
-  subtitle,
-  onPress,
-}: {
-  icon: any;
-  title: string;
-  subtitle?: string;
-  onPress?: () => void;
-}) => (
-  <Pressable
-    onPress={onPress}
-    className="flex-row items-center px-4 py-4 rounded-xl bg-white border border-[#E4EEEE] mb-3 active:opacity-80"
-  >
-    <View className="w-9 h-9 rounded-full bg-[#E9F8F7] items-center justify-center">
-      {icon}
-    </View>
+// ── Sub-components ────────────────────────────────────────────────────────────
 
-    <View className="ml-3 flex-1">
-      <Text className="text-[15px] text-gray-800 font-semibold">{title}</Text>
-      {subtitle && (
-        <Text className="text-[12px] text-gray-500 mt-1">{subtitle}</Text>
-      )}
+function SectionLabel({ title }: { title: string }) {
+  return (
+    <View style={styles.sectionLabelRow}>
+      <View style={styles.sectionLabelAccent} />
+      <Text style={styles.sectionLabel}>{title}</Text>
     </View>
-    <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
-  </Pressable>
-);
+  );
+}
+
+function QuickActionButton({
+  icon,
+  label,
+  sublabel,
+  onPress,
+  last,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  sublabel?: string;
+  onPress: () => void;
+  last?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quickRow,
+        !last && styles.quickRowBorder,
+        pressed && Platform.OS === 'ios' && { opacity: 0.7 },
+      ]}
+      android_ripple={{ color: '#f0fafb' }}
+    >
+      <View style={styles.quickIcon}>
+        <Ionicons name={icon} size={18} color={T} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.quickLabel}>{label}</Text>
+        {sublabel ? <Text style={styles.quickSublabel}>{sublabel}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color="#C8D4D4" />
+    </Pressable>
+  );
+}
 
 function FaqItem({
   question,
@@ -253,27 +264,47 @@ function FaqItem({
   return (
     <Pressable
       onPress={onToggle}
-      className="rounded-xl bg-white border border-[#E4EEEE] px-4 py-4 mb-3 active:opacity-80"
+      style={({ pressed }) => [
+        styles.faqItem,
+        expanded && styles.faqItemExpanded,
+        pressed && Platform.OS === 'ios' && { opacity: 0.8 },
+      ]}
+      android_ripple={{ color: '#f0fafb' }}
     >
-      <View className="flex-row items-center">
-        <Text className="flex-1 text-sm font-semibold text-gray-900 pr-3">{question}</Text>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color="#6B7280"
-        />
+      <View style={styles.faqItemRow}>
+        <Text style={styles.faqQuestion} numberOfLines={expanded ? undefined : 2}>
+          {question}
+        </Text>
+        <View style={[styles.faqChevron, expanded && styles.faqChevronOpen]}>
+          <Ionicons name="chevron-down" size={14} color={expanded ? T_DARK : '#94A3B8'} />
+        </View>
       </View>
-      {expanded ? <Text className="text-sm text-gray-600 mt-3 leading-5">{answer}</Text> : null}
+      {expanded ? (
+        <Text style={styles.faqAnswer}>{answer}</Text>
+      ) : null}
     </Pressable>
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={1} ellipsizeMode="middle">
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 export default function HelpScreen() {
   const [openFaq, setOpenFaq] = useState<string | null>(null);
   const [faqQuery, setFaqQuery] = useState('');
   const params = useLocalSearchParams<{ feedback?: string; referenceId?: string }>();
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(true);
   const feedbackSent = params.feedback === 'sent' && showFeedbackSuccess;
+
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
   const appName = Constants.expoConfig?.name ?? 'LifeGate';
   const appWebsite = 'https://lifegate.dshub.com.ng';
@@ -281,286 +312,618 @@ export default function HelpScreen() {
   const iosBundleId = Constants.expoConfig?.ios?.bundleIdentifier ?? 'Not configured';
   const iosAppId = String(Constants.expoConfig?.extra?.iosAppId ?? '').trim();
 
+  // ── Helpers ─────────────────────────────────────────────────────────────────
   const openFirstSupportedUrl = async (urls: string[]) => {
     for (const url of urls) {
       try {
         const supported = await Linking.canOpenURL(url);
-        if (supported) {
-          await Linking.openURL(url);
-          return true;
-        }
-      } catch {
-        // Try next URL candidate.
-      }
+        if (supported) { await Linking.openURL(url); return true; }
+      } catch { /* try next */ }
     }
     return false;
   };
 
-  const handleOpenWebsite = async () => {
-    const ok = await openFirstSupportedUrl([appWebsite]);
-    if (!ok) Alert.alert('Unavailable', 'Unable to open website right now.');
-  };
+  const handleOpenWebsite = () =>
+    openFirstSupportedUrl([appWebsite]).then((ok) => {
+      if (!ok) Alert.alert('Unavailable', 'Unable to open website right now.');
+    });
 
-  const handleRateAndroid = async () => {
-    const opened = await openFirstSupportedUrl([
+  const handleRateAndroid = () =>
+    openFirstSupportedUrl([
       `market://details?id=${androidPackage}`,
       `https://play.google.com/store/apps/details?id=${androidPackage}`,
-    ]);
-    if (!opened) Alert.alert('Unavailable', 'Unable to open Play Store right now.');
-  };
+    ]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open Play Store.'); });
 
-  const handleRateIOS = async () => {
-    const opened = await openFirstSupportedUrl(
+  const handleRateIOS = () =>
+    openFirstSupportedUrl(
       iosAppId
-        ? [
-            `itms-apps://itunes.apple.com/app/id${iosAppId}?action=write-review`,
-            `https://apps.apple.com/app/id${iosAppId}?action=write-review`,
-          ]
-        : [
-            'itms-apps://apps.apple.com/ng/search?term=LifeGate%20DSHub',
-            'https://apps.apple.com/ng/search?term=LifeGate%20DSHub',
-          ]
-    );
-    if (!opened) Alert.alert('Unavailable', 'Unable to open App Store right now.');
-  };
+        ? [`itms-apps://itunes.apple.com/app/id${iosAppId}?action=write-review`,
+           `https://apps.apple.com/app/id${iosAppId}?action=write-review`]
+        : [`itms-apps://apps.apple.com/ng/search?term=LifeGate%20DSHub`,
+           `https://apps.apple.com/ng/search?term=LifeGate%20DSHub`]
+    ).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open App Store.'); });
 
-  const handleCallSupport = async () => {
-    const opened = await openFirstSupportedUrl(['tel:+2349013453490', 'tel:+2349110192583']);
-    if (!opened) Alert.alert('Unavailable', 'Unable to open dialer right now.');
-  };
+  const handleCallSupport = () =>
+    openFirstSupportedUrl(['tel:+2349013453490', 'tel:+2349110192583']).then((ok) => {
+      if (!ok) Alert.alert('Unavailable', 'Unable to open dialer right now.');
+    });
 
-  const handleEmailSupport = async () => {
-    const opened = await openFirstSupportedUrl(['mailto:contact@dshub.com.ng']);
-    if (!opened) Alert.alert('Unavailable', 'Unable to open email app right now.');
-  };
+  const handleEmailSupport = () =>
+    openFirstSupportedUrl(['mailto:contact@dshub.com.ng']).then((ok) => {
+      if (!ok) Alert.alert('Unavailable', 'Unable to open email app right now.');
+    });
 
+  // ── FAQ filter ───────────────────────────────────────────────────────────────
   const normalizedQuery = faqQuery.trim().toLowerCase();
-  const filteredFaqSections = useMemo(() => {
+  const filteredSections = useMemo(() => {
     if (!normalizedQuery) return FAQ_SECTIONS;
-
-    return FAQ_SECTIONS.map((section) => ({
-      ...section,
-      items: section.items.filter(
+    return FAQ_SECTIONS.map((s) => ({
+      ...s,
+      items: s.items.filter(
         (item) =>
           item.q.toLowerCase().includes(normalizedQuery) ||
           item.a.toLowerCase().includes(normalizedQuery) ||
-          section.title.toLowerCase().includes(normalizedQuery)
+          s.title.toLowerCase().includes(normalizedQuery),
       ),
-    })).filter((section) => section.items.length > 0);
+    })).filter((s) => s.items.length > 0);
   }, [normalizedQuery]);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F2F8F8]" edges={['top']}>
-      <View className="flex-row items-center justify-between px-4 pt-3 pb-4">
-        <Pressable onPress={() => router.back()} className="p-2 rounded-full bg-white">
-          <Ionicons name="chevron-back" size={24} color="#1f2937" />
-        </Pressable>
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-        <Text className="text-xl font-black text-gray-900">Help Center</Text>
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
+          </Pressable>
+          <Text style={styles.headerTitle}>Help Centre</Text>
+          <View style={styles.versionBadge}>
+            <Text style={styles.versionBadgeText}>v{appVersion}</Text>
+          </View>
+        </View>
 
-        <View className="w-10" />
-      </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 26 }}>
-        {feedbackSent ? (
-          <View className="rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] px-4 py-3 mb-4">
-            <View className="flex-row items-start">
-              <View className="flex-1 pr-2">
-                <Text className="text-sm font-semibold text-[#065F46]">Feedback sent successfully</Text>
-                <Text className="text-sm text-[#065F46] mt-1">
+          {/* ── Feedback success banner ── */}
+          {feedbackSent && (
+            <View style={styles.successBanner}>
+              <View style={styles.successIconWrap}>
+                <Ionicons name="checkmark-circle" size={20} color="#059669" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.successTitle}>Feedback sent</Text>
+                <Text style={styles.successSub}>
                   {params.referenceId
-                    ? `Reference ID: ${params.referenceId}`
+                    ? `Reference: ${params.referenceId}`
                     : 'Our support team will review your message shortly.'}
                 </Text>
               </View>
-              <Pressable onPress={() => setShowFeedbackSuccess(false)} className="p-1">
-                <Ionicons name="close" size={16} color="#065F46" />
+              <Pressable
+                onPress={() => setShowFeedbackSuccess(false)}
+                style={({ pressed }) => (pressed ? { opacity: 0.6 } : {})}
+              >
+                <Ionicons name="close-circle" size={20} color="#059669" />
+              </Pressable>
+            </View>
+          )}
+
+          {/* ── Hero card ── */}
+          <View style={styles.heroCard}>
+            <View style={styles.heroInner}>
+              <View style={styles.heroIconWrap}>
+                <Ionicons name="help-buoy-outline" size={26} color={T} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroTitle}>How can we help?</Text>
+                <Text style={styles.heroSub}>
+                  Browse FAQs, send feedback, or reach our support team directly.
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ── Quick Actions ── */}
+          <SectionLabel title="Support" />
+          <View style={styles.card}>
+            <QuickActionButton
+              icon="chatbubble-ellipses-outline"
+              label="Send Feedback"
+              sublabel="Report bugs or suggest improvements"
+              onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')}
+            />
+            <QuickActionButton
+              icon="headset-outline"
+              label="Contact Support"
+              sublabel="Call or email our support team"
+              onPress={() => router.push('/(tab)/settings/contact-us')}
+              last
+            />
+          </View>
+
+          {/* ── Urgent Help ── */}
+          <View style={styles.urgentCard}>
+            <View style={styles.urgentHeader}>
+              <View style={styles.urgentIconWrap}>
+                <Ionicons name="alert-circle" size={18} color="#DC2626" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.urgentTitle}>Need urgent help?</Text>
+                <Text style={styles.urgentSub}>
+                  Include your patient ID for the fastest resolution.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.urgentActions}>
+              <Pressable
+                onPress={() => void handleCallSupport()}
+                style={({ pressed }) => [styles.urgentBtn, pressed && { opacity: 0.85 }]}
+              >
+                <Ionicons name="call" size={15} color="#fff" />
+                <Text style={styles.urgentBtnText}>Call Support</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void handleEmailSupport()}
+                style={({ pressed }) => [styles.urgentBtnOutline, pressed && { opacity: 0.8 }]}
+              >
+                <Ionicons name="mail-outline" size={15} color="#DC2626" />
+                <Text style={styles.urgentBtnOutlineText}>Email</Text>
               </Pressable>
             </View>
           </View>
-        ) : null}
 
-        <View className="rounded-2xl bg-[#E9F8F7] border border-[#BEECE9] px-4 py-4 mb-4">
-          <Text className="text-sm text-gray-700 leading-5">
-            Find quick answers, report issues, and access practical app support.
-          </Text>
-        </View>
-
-        <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Support Actions</Text>
-        <HelpItem
-          title="Send Feedback"
-          onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')}
-          subtitle="Report bugs or suggest improvements"
-          icon={<Feather name="message-circle" size={18} color="#38887D" />}
-        />
-
-        <HelpItem
-          onPress={() => router.push('/(tab)/settings/contact-us')}
-          subtitle="Call or email our support team"
-          title="Contact Support"
-          icon={<Feather name="phone-call" size={18} color="#38887D" />}
-        />
-
-        <View className="rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] px-4 py-4 mb-4">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-[#9A3412] mb-2">Need Urgent Help?</Text>
-          <Text className="text-sm text-[#9A3412] leading-5 mb-3">
-            For urgent support issues, call directly or send an email and include your patient ID.
-          </Text>
-          <View className="flex-row gap-2">
+          {/* ── App Info ── */}
+          <SectionLabel title="App Info" />
+          <View style={styles.card}>
+            <InfoRow label="App name" value={appName} />
+            <InfoRow label="Version" value={appVersion} />
+            <InfoRow label="Android package" value={androidPackage} />
+            <InfoRow label="iOS bundle ID" value={iosBundleId} />
             <Pressable
-              onPress={() => void handleCallSupport()}
-              className="flex-1 h-10 rounded-xl bg-[#EA580C] items-center justify-center active:opacity-80"
+              onPress={() => void handleOpenWebsite()}
+              style={({ pressed }) => [styles.websiteRow, pressed && { opacity: 0.7 }]}
             >
-              <Text className="text-sm font-bold text-white">Call Support</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => void handleEmailSupport()}
-              className="flex-1 h-10 rounded-xl bg-white border border-[#FDBA74] items-center justify-center active:opacity-80"
-            >
-              <Text className="text-sm font-bold text-[#C2410C]">Email Support</Text>
+              <Ionicons name="globe-outline" size={15} color={T} />
+              <Text style={styles.websiteText}>lifegate.dshub.com.ng</Text>
+              <Ionicons name="open-outline" size={13} color={T_DARK} style={{ marginLeft: 'auto' }} />
             </Pressable>
           </View>
-        </View>
 
-        <View className="rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4 mb-4">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">App Info</Text>
-          <InfoTextRow label="App" value={appName} />
-          <InfoTextRow label="Version" value={appVersion} />
-          <InfoTextRow label="Android Package" value={androidPackage} />
-          <InfoTextRow label="iOS Bundle ID" value={iosBundleId} />
-          <Pressable onPress={() => void handleOpenWebsite()} className="mt-3 py-2 active:opacity-80">
-            <Text className="text-sm font-semibold text-[#0EA5A4]">Website: lifegate.dshub.com.ng</Text>
-          </Pressable>
-        </View>
-
-        <View className="rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4 mb-4">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Rate Us on the App Stores</Text>
-          <Text className="text-xs text-gray-400 mb-4 leading-4">Enjoying LifeGate? Leave us a review — it helps others find trusted health support.</Text>
-          <View className="flex-row gap-3">
-            {/* Google Play badge */}
-            <Pressable
-              onPress={() => void handleRateAndroid()}
-              style={styles.storeBadge}
-              className="active:opacity-80"
-            >
-              <View style={styles.storeBadgeLeft}>
-                <Ionicons name="logo-google-playstore" size={28} color="#fff" />
-              </View>
-              <View style={styles.storeBadgeText}>
-                <Text style={styles.storeBadgeSuper}>GET IT ON</Text>
-                <Text style={styles.storeBadgeName}>Google Play</Text>
-              </View>
-            </Pressable>
-
-            {/* App Store badge */}
-            <Pressable
-              onPress={() => void handleRateIOS()}
-              style={[styles.storeBadge, styles.storeBadgeApple]}
-              className="active:opacity-80"
-            >
-              <View style={styles.storeBadgeLeft}>
-                <Ionicons name="logo-apple" size={28} color="#fff" />
-              </View>
-              <View style={styles.storeBadgeText}>
-                <Text style={styles.storeBadgeSuper}>DOWNLOAD ON THE</Text>
-                <Text style={styles.storeBadgeName}>App Store</Text>
-              </View>
-            </Pressable>
+          {/* ── Rate Us ── */}
+          <SectionLabel title="Rate Us" />
+          <View style={styles.card}>
+            <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 }}>
+              <Text style={styles.rateHint}>
+                Enjoying LifeGate? A review helps others find trusted health support.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}>
+              <Pressable
+                onPress={() => void handleRateAndroid()}
+                style={({ pressed }) => [styles.storeBadge, pressed && { opacity: 0.85 }]}
+              >
+                <Ionicons name="logo-google-playstore" size={26} color="#fff" />
+                <View>
+                  <Text style={styles.storeBadgeSuper}>GET IT ON</Text>
+                  <Text style={styles.storeBadgeName}>Google Play</Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => void handleRateIOS()}
+                style={({ pressed }) => [styles.storeBadge, styles.storeBadgeApple, pressed && { opacity: 0.85 }]}
+              >
+                <Ionicons name="logo-apple" size={26} color="#fff" />
+                <View>
+                  <Text style={styles.storeBadgeSuper}>DOWNLOAD ON THE</Text>
+                  <Text style={styles.storeBadgeName}>App Store</Text>
+                </View>
+              </Pressable>
+            </View>
           </View>
-        </View>
 
-        <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 mt-2">FAQ</Text>
-        <View className="rounded-xl bg-white border border-[#E4EEEE] px-3 py-2 mb-3 flex-row items-center">
-          <Ionicons name="search-outline" size={16} color="#6B7280" />
-          <TextInput
-            value={faqQuery}
-            onChangeText={setFaqQuery}
-            placeholder="Search help topics"
-            placeholderTextColor="#9CA3AF"
-            className="ml-2 flex-1 text-sm text-gray-900"
-          />
-          {faqQuery ? (
-            <Pressable onPress={() => setFaqQuery('')} className="p-1">
-              <Ionicons name="close-circle" size={16} color="#9CA3AF" />
-            </Pressable>
+          {/* ── FAQ ── */}
+          <SectionLabel title="FAQ" />
+
+          {/* Search bar */}
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={16} color="#94A3B8" />
+            <TextInput
+              value={faqQuery}
+              onChangeText={setFaqQuery}
+              placeholder="Search help topics…"
+              placeholderTextColor="#94A3B8"
+              style={styles.searchInput}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {faqQuery ? (
+              <Pressable onPress={() => setFaqQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color="#94A3B8" />
+              </Pressable>
+            ) : null}
+          </View>
+
+          {filteredSections.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={32} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No results found</Text>
+              <Text style={styles.emptySub}>
+                Try a different keyword, or send us your question directly.
+              </Text>
+              <Pressable
+                onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')}
+                style={({ pressed }) => [styles.emptyAction, pressed && { opacity: 0.8 }]}
+              >
+                <Text style={styles.emptyActionText}>Send Feedback</Text>
+              </Pressable>
+            </View>
           ) : null}
-        </View>
 
-        <Text className="text-xs text-gray-500 mb-3">Issues are grouped by category to help you find complaints faster.</Text>
+          {filteredSections.map((section, sIdx) => (
+            <View key={section.title} style={{ marginBottom: sIdx === filteredSections.length - 1 ? 0 : 20 }}>
+              {/* Section header */}
+              <View style={styles.faqSectionHead}>
+                <View style={styles.faqSectionIcon}>
+                  <Ionicons name={section.icon} size={14} color={T_DARK} />
+                </View>
+                <Text style={styles.faqSectionTitle}>{section.title}</Text>
+                <View style={styles.faqSectionBadge}>
+                  <Text style={styles.faqSectionBadgeText}>{section.items.length}</Text>
+                </View>
+              </View>
 
-        {filteredFaqSections.length === 0 ? (
-          <View className="rounded-xl bg-white border border-[#E4EEEE] px-4 py-4 mb-3">
-            <Text className="text-sm font-semibold text-gray-800 mb-1">No matching FAQ found</Text>
-            <Text className="text-sm text-gray-600">Try a different keyword or send feedback to support.</Text>
-          </View>
-        ) : null}
-
-        {filteredFaqSections.map((section) => (
-          <View key={section.title} className="mb-1">
-            <View className="flex-row items-center justify-between px-1 mb-2 mt-1">
-              <Text className="text-xs font-bold uppercase tracking-wide text-[#0B8E8D]">{section.title}</Text>
-              <View className="px-2 py-0.5 rounded-full bg-[#E9F8F7]">
-                <Text className="text-[10px] font-semibold text-[#0B8E8D]">{section.items.length} items</Text>
+              {/* FAQ items */}
+              <View style={styles.card}>
+                {section.items.map((item, idx) => (
+                  <View key={item.q} style={idx < section.items.length - 1 && styles.faqDivider}>
+                    <FaqItem
+                      question={item.q}
+                      answer={item.a}
+                      expanded={openFaq === item.q}
+                      onToggle={() => setOpenFaq(openFaq === item.q ? null : item.q)}
+                    />
+                  </View>
+                ))}
               </View>
             </View>
-            {section.items.map((item) => (
-              <FaqItem
-                key={item.q}
-                question={item.q}
-                answer={item.a}
-                expanded={openFaq === item.q}
-                onToggle={() => setOpenFaq(openFaq === item.q ? null : item.q)}
-              />
-            ))}
-          </View>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
+          ))}
 
-function InfoTextRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="flex-row items-center justify-between py-2 border-b border-[#F1F5F9] last:border-b-0">
-      <Text className="text-sm text-gray-500">{label}</Text>
-      <Text className="text-sm font-semibold text-gray-900">{value}</Text>
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
 
-// ── App Store badge styles ──────────────────────────────────────────────────
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: BG,
+  },
+  backBtn: { padding: 4 },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  versionBadge: {
+    backgroundColor: T_LIGHT,
+    borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  versionBadgeText: { fontSize: 11, fontWeight: '700', color: T_DARK },
+
+  // scroll
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 },
+
+  // Section labels
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 10,
+    marginLeft: 2,
+  },
+  sectionLabelAccent: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: T,
+    marginRight: 8,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    letterSpacing: 0.2,
+  },
+
+  // Cards
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#EAF2F2',
+    shadowColor: T,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+
+  // Success banner
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  successIconWrap: { marginRight: 2 },
+  successTitle: { fontSize: 13, fontWeight: '700', color: '#065F46' },
+  successSub: { fontSize: 11, color: '#059669', marginTop: 2 },
+
+  // Hero
+  heroCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#DCEFEF',
+    shadowColor: T,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+    marginBottom: 4,
+  },
+  heroInner: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroIconWrap: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: T_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: { fontSize: 16, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  heroSub: { fontSize: 12, color: '#64748B', lineHeight: 17 },
+
+  // Quick actions
+  quickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 12,
+  },
+  quickRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F8F8' },
+  quickIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: T_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
+  quickSublabel: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
+
+  // Urgent
+  urgentCard: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 16,
+    marginTop: 16,
+    gap: 12,
+  },
+  urgentHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  urgentIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  urgentTitle: { fontSize: 14, fontWeight: '700', color: '#991B1B' },
+  urgentSub: { fontSize: 11, color: '#DC2626', marginTop: 2 },
+  urgentActions: { flexDirection: 'row', gap: 10 },
+  urgentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#DC2626',
+    borderRadius: 11,
+    paddingVertical: 12,
+  },
+  urgentBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  urgentBtnOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: '#fff',
+    borderRadius: 11,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  urgentBtnOutlineText: { fontSize: 13, fontWeight: '700', color: '#DC2626' },
+
+  // App info rows
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F8F8',
+  },
+  infoLabel: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
+  infoValue: { fontSize: 13, fontWeight: '600', color: '#1E293B', maxWidth: '65%' },
+  websiteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  websiteText: { fontSize: 13, fontWeight: '600', color: T },
+
+  // Rate Us
+  rateHint: { fontSize: 12, color: '#64748B', lineHeight: 18 },
   storeBadge: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#01875F', // Google Play green
-    borderRadius: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     gap: 10,
+    backgroundColor: '#01875F',
+    borderRadius: 13,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
   },
-  storeBadgeApple: {
-    backgroundColor: '#111111', // Apple black
-  },
-  storeBadgeLeft: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  storeBadgeText: {
-    flex: 1,
-  },
+  storeBadgeApple: { backgroundColor: '#111111' },
   storeBadgeSuper: {
     fontSize: 9,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.75)',
-    letterSpacing: 0.4,
+    color: 'rgba(255,255,255,0.70)',
+    letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
-  storeBadgeName: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginTop: 1,
+  storeBadgeName: { fontSize: 14, fontWeight: '800', color: '#fff', marginTop: 1 },
+
+  // Search bar
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#E2ECEC',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    shadowColor: T,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1E293B',
+    paddingVertical: 0,
+  },
+
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 4 },
+  emptySub: { fontSize: 12, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
+  emptyAction: {
+    marginTop: 8,
+    backgroundColor: T,
+    borderRadius: 11,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  emptyActionText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // FAQ section header
+  faqSectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    paddingLeft: 2,
+  },
+  faqSectionIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: T_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  faqSectionTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: '#374151' },
+  faqSectionBadge: {
+    backgroundColor: T_LIGHT,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  faqSectionBadgeText: { fontSize: 11, fontWeight: '700', color: T_DARK },
+
+  // FAQ items
+  faqDivider: { borderBottomWidth: 1, borderBottomColor: '#F1F8F8' },
+  faqItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  faqItemExpanded: { backgroundColor: '#FAFFFE' },
+  faqItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  faqQuestion: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+    lineHeight: 20,
+  },
+  faqChevron: {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 0,
+  },
+  faqChevronOpen: { backgroundColor: T_LIGHT, transform: [{ rotate: '180deg' }] },
+  faqAnswer: {
+    fontSize: 13,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginTop: 10,
+    paddingLeft: 0,
   },
 });

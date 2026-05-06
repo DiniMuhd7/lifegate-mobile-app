@@ -3,13 +3,14 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Modal,
   Alert,
   RefreshControl,
   ActivityIndicator,
   StyleSheet,
   Pressable,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -44,14 +45,25 @@ const GENDER_OPTIONS = [
   { label: 'Other', value: 'other' },
 ];
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Sub-components ──────────────────────────────────────────────────────────
 
 function SectionLabel({ title }: { title: string }) {
-  return <Text style={styles.sectionLabel}>{title}</Text>;
+  return (
+    <View style={styles.sectionLabelRow}>
+      <View style={styles.sectionLabelAccent} />
+      <Text style={styles.sectionLabel}>{title}</Text>
+    </View>
+  );
 }
 
 function InfoRow({
-  icon, label, value, editable, locked, onPress, last,
+  icon,
+  label,
+  value,
+  editable,
+  locked,
+  onPress,
+  last,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -67,23 +79,39 @@ function InfoRow({
         <Ionicons name={icon} size={16} color={T} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={styles.rowFieldLabel}>{label}</Text>
         <Text style={[styles.rowValue, !value && styles.rowEmpty]}>
-          {value || 'Not provided'}
+          {value || 'Not set'}
         </Text>
       </View>
-      {locked && <Ionicons name="lock-closed-outline" size={13} color="#C8D4D4" />}
-      {editable && !locked && <Ionicons name="chevron-forward" size={16} color="#C8D4D4" />}
+      {locked && <Ionicons name="lock-closed-outline" size={14} color="#CBD5E1" />}
+      {editable && !locked && (
+        <View style={styles.editChip}>
+          <Ionicons name="pencil" size={11} color={T_DARK} />
+        </View>
+      )}
     </View>
   );
   if (editable && onPress) {
-    return <Pressable onPress={onPress} android_ripple={{ color: '#f0fafb' }}>{inner}</Pressable>;
+    return (
+      <Pressable
+        onPress={onPress}
+        android_ripple={{ color: '#f0fafb' }}
+        style={({ pressed }) => (pressed && Platform.OS === 'ios' ? { opacity: 0.7 } : {})}
+      >
+        {inner}
+      </Pressable>
+    );
   }
   return inner;
 }
 
 function ActionRow({
-  icon, label, sublabel, onPress, last,
+  icon,
+  label,
+  sublabel,
+  onPress,
+  last,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -95,14 +123,18 @@ function ActionRow({
     <Pressable
       onPress={onPress}
       android_ripple={{ color: '#f0fafb' }}
-      style={[styles.infoRow, !last && styles.rowBorder]}
+      style={({ pressed }) => [
+        styles.infoRow,
+        !last && styles.rowBorder,
+        pressed && Platform.OS === 'ios' && { opacity: 0.7 },
+      ]}
     >
       <View style={styles.rowIcon}>
         <Ionicons name={icon} size={16} color={T} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowValue}>{label}</Text>
-        {sublabel ? <Text style={styles.rowLabel}>{sublabel}</Text> : null}
+        {sublabel ? <Text style={styles.rowFieldLabel}>{sublabel}</Text> : null}
       </View>
       <Ionicons name="chevron-forward" size={16} color="#C8D4D4" />
     </Pressable>
@@ -125,17 +157,6 @@ function formatDateToString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatDateDisplay(dateString: string): string {
-  if (!dateString) return '';
-  try {
-    const d = new Date(dateString);
-    if (Number.isNaN(d.getTime())) return dateString;
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch {
-    return dateString;
-  }
-}
-
 function parseDateFromYMD(value: string): Date | null {
   if (!value) return null;
   const [y, m, d] = value.split('-').map(Number);
@@ -145,11 +166,21 @@ function parseDateFromYMD(value: string): Date | null {
   return parsed;
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function ManageProfileScreen() {
   const { user } = useAuthStore();
-  const { changePassword, updateHealthProfile, updateBasicProfile, loading, getProfile, error, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
+  const {
+    changePassword,
+    updateHealthProfile,
+    updateBasicProfile,
+    loading,
+    getProfile,
+    error,
+    requestAccountDeletion,
+    cancelAccountDeletion,
+  } = useProfileStore();
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -166,7 +197,9 @@ export default function ManageProfileScreen() {
   });
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
 
-  useEffect(() => { getProfile(); }, [getProfile]);
+  useEffect(() => {
+    getProfile();
+  }, [getProfile]);
 
   useEffect(() => {
     if (user) {
@@ -199,14 +232,19 @@ export default function ManageProfileScreen() {
     );
   }
 
-  // Derived
+  // ── Derived values ──────────────────────────────────────────────────────
   const profileFields = [user.name, user.email, user.phone, user.gender, user.dob, user.language];
   const profileCompletion = Math.round(
     (profileFields.filter((v) => !!String(v ?? '').trim()).length / profileFields.length) * 100
   );
   const firstName = user.name?.split(' ')[0] || 'Patient';
   const initials =
-    user.name?.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'P';
+    user.name
+      ?.split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join('') || 'P';
   const formattedDob = (() => {
     if (!user.dob) return '';
     const d = new Date(user.dob);
@@ -214,6 +252,9 @@ export default function ManageProfileScreen() {
       ? user.dob
       : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   })();
+  const genderDisplay = user.gender
+    ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1)
+    : '';
   const passwordChecks = {
     minLength: passwordForm.new.length >= 6,
     hasUpper: /[A-Z]/.test(passwordForm.new),
@@ -224,20 +265,21 @@ export default function ManageProfileScreen() {
     profileCompletion >= 80 ? '#10B981' : profileCompletion >= 50 ? '#F59E0B' : '#EF4444';
   const completionLabel =
     profileCompletion >= 80 ? 'Complete' : profileCompletion >= 50 ? 'Almost there' : 'Incomplete';
-
   const isDeletionScheduled = !!user.deletion_scheduled_at;
   const deletionDate = isDeletionScheduled
     ? new Date(user.deletion_scheduled_at!).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'long', year: 'numeric',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
       })
     : null;
 
+  // ── Handlers ────────────────────────────────────────────────────────────
   const handleSaveEdit = async () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
       Alert.alert('Validation', 'Please fill in all required fields');
       return;
     }
-
     const dobValue = editForm.dob.trim();
     if (dobValue) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dobValue)) {
@@ -250,7 +292,6 @@ export default function ManageProfileScreen() {
         return;
       }
     }
-
     const fullName = [editForm.firstName.trim(), editForm.lastName.trim()].filter(Boolean).join(' ');
     const success = await updateBasicProfile({
       name: fullName,
@@ -315,91 +356,147 @@ export default function ManageProfileScreen() {
     setDeletionLoading(false);
     setShowCancelDeletionModal(false);
     if (ok) {
-      Alert.alert('Deletion Cancelled', 'Your account deletion has been cancelled. Your account is safe.', [{ text: 'OK' }]);
+      Alert.alert('Deletion Cancelled', 'Your account deletion has been cancelled. Your account is safe.', [
+        { text: 'OK' },
+      ]);
     } else {
       Alert.alert('Error', 'Failed to cancel deletion. Please try again.');
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, backgroundColor: '#F0F8F8' }}>
-          <Pressable onPress={() => router.back()} style={{ padding: 4 }} accessibilityLabel="Go back">
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.headerBack, pressed && { opacity: 0.6 }]}
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
           </Pressable>
-          <Text style={{ flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: '#111827' }}>Manage Profile</Text>
-          <View style={{ width: 32 }} />
+          <Text style={styles.headerTitle}>Manage Profile</Text>
+          <View style={{ width: 40 }} />
         </View>
 
-        {/* Body */}
+        {/* ── Body ── */}
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 56, paddingTop: 4 }}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={T} />}
         >
-          {/* Bio card */}
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#DCEFEF', shadowColor: '#0EA5A4', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
-              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#DFF4F3', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#A9E4E2' }}>
-                <Text style={{ fontSize: 20, fontWeight: '900', color: T_DARK }}>{initials}</Text>
-                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: '#10B981', borderWidth: 2, borderColor: '#fff' }} />
+
+          {/* ── Bio card ── */}
+          <View style={styles.bioCard}>
+            <View style={styles.bioRow}>
+              <View style={styles.avatarWrap}>
+                <Text style={styles.avatarText}>{initials}</Text>
+                <View style={styles.avatarOnline} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>{user.name || firstName}</Text>
-                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                <Text style={styles.bioName}>{user.name || firstName}</Text>
+                <Text style={styles.bioPID}>
                   {user.patient_id ? `Patient · ${user.patient_id}` : 'Patient account'}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setShowEditModal(true)} activeOpacity={0.7} style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F0FFFE', borderWidth: 1, borderColor: '#D1F2EF', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="create-outline" size={17} color={T} />
-              </TouchableOpacity>
+              <Pressable
+                onPress={() => setShowEditModal(true)}
+                style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7 }]}
+                accessibilityLabel="Edit profile"
+              >
+                <Ionicons name="pencil" size={16} color={T} />
+              </Pressable>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <Text style={{ fontSize: 11, fontWeight: '600', color: '#94A3B8' }}>Profile completeness</Text>
-              <View style={{ backgroundColor: completionColor + '20', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: completionColor }}>{profileCompletion}% · {completionLabel}</Text>
+
+            {/* Completion bar */}
+            <View style={styles.completionRow}>
+              <Text style={styles.completionLabel}>Profile completion</Text>
+              <View style={[styles.completionBadge, { backgroundColor: completionColor + '22' }]}>
+                <Text style={[styles.completionBadgeText, { color: completionColor }]}>
+                  {profileCompletion}% · {completionLabel}
+                </Text>
               </View>
             </View>
-            <View style={{ height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' }}>
-              <View style={{ height: '100%', width: `${profileCompletion}%` as any, backgroundColor: completionColor, borderRadius: 3 }} />
+            <View style={styles.completionTrack}>
+              <View
+                style={[
+                  styles.completionFill,
+                  { width: `${profileCompletion}%` as any, backgroundColor: completionColor },
+                ]}
+              />
             </View>
+            {profileCompletion < 100 && (
+              <Text style={styles.completionHint}>Tap any field below to complete your profile.</Text>
+            )}
           </View>
-          {/* Deletion pending banner */}
+
+          {/* ── Deletion pending banner ── */}
           {isDeletionScheduled && (
             <View style={styles.deletionBanner}>
               <Ionicons name="warning" size={18} color="#B91C1C" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.deletionBannerTitle}>Account scheduled for deletion</Text>
+                <Text style={styles.deletionBannerTitle}>Account deletion scheduled</Text>
                 <Text style={styles.deletionBannerSub}>
-                  Your account and all data will be permanently deleted on {deletionDate}.
+                  All data will be permanently deleted on {deletionDate}.
                 </Text>
               </View>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => setShowCancelDeletionModal(true)}
-                style={styles.deletionBannerBtn}
-                activeOpacity={0.8}
+                style={({ pressed }) => [styles.deletionBannerBtn, pressed && { opacity: 0.8 }]}
               >
                 <Text style={styles.deletionBannerBtnText}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
 
-          <SectionLabel title="PERSONAL INFORMATION" />
+          {/* ── Personal Information ── */}
+          <SectionLabel title="Personal Information" />
           <View style={styles.card}>
-            <InfoRow icon="person-outline" label="Full Name" value={user.name} editable onPress={() => setShowEditModal(true)} />
+            <InfoRow
+              icon="person-outline"
+              label="Full Name"
+              value={user.name}
+              editable
+              onPress={() => setShowEditModal(true)}
+            />
             <InfoRow icon="mail-outline" label="Email Address" value={user.email} locked />
-            <InfoRow icon="call-outline" label="Phone Number" value={user.phone} editable onPress={() => setShowEditModal(true)} />
-            <InfoRow icon="male-female-outline" label="Gender" value={user.gender} editable onPress={() => setShowEditModal(true)} />
-            <InfoRow icon="calendar-outline" label="Date of Birth" value={formattedDob || user.dob} editable onPress={() => setShowEditModal(true)} />
+            <InfoRow
+              icon="call-outline"
+              label="Phone Number"
+              value={user.phone}
+              editable
+              onPress={() => setShowEditModal(true)}
+            />
+            <InfoRow
+              icon="male-female-outline"
+              label="Gender"
+              value={genderDisplay}
+              editable
+              onPress={() => setShowEditModal(true)}
+            />
+            <InfoRow
+              icon="calendar-outline"
+              label="Date of Birth"
+              value={formattedDob || user.dob}
+              editable
+              onPress={() => setShowEditModal(true)}
+            />
             <InfoRow icon="id-card-outline" label="Patient ID" value={user.patient_id} locked last />
           </View>
 
-          <SectionLabel title="ACCOUNT & SECURITY" />
+          {/* ── Account & Security ── */}
+          <SectionLabel title="Account & Security" />
           <View style={styles.card}>
+            <ActionRow
+              icon="heart-outline"
+              label="Health Profile"
+              sublabel="Blood type, allergies, medications & emergency contact"
+              onPress={() => router.push('/(tab)/settings/manage-profile' as any)}
+            />
             <ActionRow
               icon="lock-closed-outline"
               label="Change Password"
@@ -409,64 +506,85 @@ export default function ManageProfileScreen() {
             />
           </View>
 
-          <SectionLabel title="PREFERENCES" />
-          <View style={[styles.card, { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 }}>
-              <View style={styles.rowIcon}>
+          {/* ── Preferences ── */}
+          <SectionLabel title="Preferences" />
+          <View style={styles.card}>
+            <View style={[styles.infoRow, { alignItems: 'flex-start', paddingVertical: 16 }]}>
+              <View style={[styles.rowIcon, { marginTop: 2 }]}>
                 <Ionicons name="globe-outline" size={16} color={T} />
               </View>
-              <Text style={[styles.rowValue, { flex: 1 }]}>Preferred Language</Text>
-              {languageSaving && <ActivityIndicator size="small" color={T} />}
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={[styles.rowValue, { flex: 1 }]}>Preferred Language</Text>
+                  {languageSaving && <ActivityIndicator size="small" color={T} />}
+                </View>
+                <Dropdown
+                  label=""
+                  options={LANGUAGE_OPTIONS}
+                  placeholder="Select language"
+                  selectedValue={user.language || ''}
+                  onChange={async (value) => {
+                    useAuthStore.setState((s) => ({
+                      user: s.user ? { ...s.user, language: value } : s.user,
+                    }));
+                    setLanguageSaving(true);
+                    const ok = await updateHealthProfile({ language: value });
+                    setLanguageSaving(false);
+                    if (!ok) {
+                      useAuthStore.setState((s) => ({
+                        user: s.user ? { ...s.user, language: user.language ?? '' } : s.user,
+                      }));
+                      Alert.alert('Error', 'Could not save language preference.');
+                    }
+                  }}
+                />
+              </View>
             </View>
-            <Dropdown
-              label=""
-              options={LANGUAGE_OPTIONS}
-              placeholder="Select language"
-              selectedValue={user.language || ''}
-              onChange={async (value) => {
-                useAuthStore.setState((s) => ({
-                  user: s.user ? { ...s.user, language: value } : s.user,
-                }));
-                setLanguageSaving(true);
-                const ok = await updateHealthProfile({ language: value });
-                setLanguageSaving(false);
-                if (!ok) {
-                  useAuthStore.setState((s) => ({
-                    user: s.user ? { ...s.user, language: user.language ?? '' } : s.user,
-                  }));
-                  Alert.alert('Error', 'Could not save language preference.');
-                }
-              }}
-            />
           </View>
 
-          {/* Danger Zone */}
-          <SectionLabel title="DANGER ZONE" />
+          {/* ── Danger Zone ── */}
+          <SectionLabel title="Danger Zone" />
           <View style={styles.dangerCard}>
-            <View style={styles.dangerRow}>
-              <View style={[styles.rowIcon, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="trash-outline" size={16} color="#DC2626" />
+            {isDeletionScheduled ? (
+              <View style={[styles.infoRow, { paddingHorizontal: 0 }]}>
+                <View style={[styles.rowIcon, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="time-outline" size={16} color="#DC2626" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.dangerLabel}>Deletion Pending</Text>
+                  <Text style={styles.dangerSub}>Scheduled for {deletionDate}</Text>
+                </View>
+                <Pressable
+                  onPress={() => setShowCancelDeletionModal(true)}
+                  style={({ pressed }) => [styles.undoBtn, pressed && { opacity: 0.75 }]}
+                >
+                  <Text style={styles.undoBtnText}>Undo</Text>
+                </Pressable>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.dangerLabel}>Delete Account</Text>
-                <Text style={styles.dangerSub}>
-                  {isDeletionScheduled
-                    ? `Scheduled for ${deletionDate}`
-                    : 'Permanently delete your account and all data'}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              style={[styles.dangerBtn, isDeletionScheduled && styles.dangerBtnDisabled]}
-              onPress={() => !isDeletionScheduled && setShowDeleteModal(true)}
-              activeOpacity={isDeletionScheduled ? 1 : 0.8}
-            >
-              <Ionicons name="trash-outline" size={15} color={isDeletionScheduled ? '#9CA3AF' : '#fff'} />
-              <Text style={[styles.dangerBtnText, isDeletionScheduled && { color: '#9CA3AF' }]}>
-                {isDeletionScheduled ? 'Deletion Pending' : 'Delete Account'}
-              </Text>
-            </TouchableOpacity>
+            ) : (
+              <>
+                <View style={styles.dangerRow}>
+                  <View style={[styles.rowIcon, { backgroundColor: '#FEE2E2' }]}>
+                    <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.dangerLabel}>Delete Account</Text>
+                    <Text style={styles.dangerSub}>
+                      Permanently remove your account and all associated data
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.85 }]}
+                  onPress={() => setShowDeleteModal(true)}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#fff" />
+                  <Text style={styles.dangerBtnText}>Delete Account</Text>
+                </Pressable>
+              </>
+            )}
           </View>
+
         </ScrollView>
 
         {/* ── Delete Account Confirmation Modal ── */}
@@ -481,29 +599,30 @@ export default function ManageProfileScreen() {
                 <Text style={styles.deleteModalTitle}>Delete Account?</Text>
                 <Text style={styles.deleteModalBody}>
                   Your account will be scheduled for permanent deletion in{' '}
-                  <Text style={{ fontWeight: '800' }}>90 days</Text>. During this period you can
-                  cancel the deletion at any time from your profile.{'\n\n'}After 90 days, your account, health records, diagnoses and all personal data will be{' '}
+                  <Text style={{ fontWeight: '800' }}>90 days</Text>. You can cancel at any time
+                  during this window.{'\n\n'}After 90 days, your account, health records, diagnoses
+                  and all personal data will be{' '}
                   <Text style={{ fontWeight: '800' }}>permanently and irrecoverably deleted</Text>.
                 </Text>
               </View>
-              <TouchableOpacity
-                style={styles.deleteConfirmBtn}
+              <Pressable
+                style={({ pressed }) => [styles.deleteConfirmBtn, pressed && { opacity: 0.85 }]}
                 onPress={handleConfirmDeleteAccount}
-                activeOpacity={0.85}
                 disabled={deletionLoading}
               >
-                {deletionLoading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.deleteConfirmBtnText}>Yes, Delete My Account</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteCancelBtn}
+                {deletionLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.deleteConfirmBtnText}>Yes, Delete My Account</Text>
+                )}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.deleteCancelBtn, pressed && { opacity: 0.8 }]}
                 onPress={() => setShowDeleteModal(false)}
-                activeOpacity={0.8}
                 disabled={deletionLoading}
               >
                 <Text style={styles.deleteCancelBtnText}>Keep My Account</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>
@@ -519,107 +638,170 @@ export default function ManageProfileScreen() {
                 </View>
                 <Text style={styles.deleteModalTitle}>Cancel Deletion?</Text>
                 <Text style={styles.deleteModalBody}>
-                  This will cancel the scheduled deletion of your account. Your account and all your data will remain active.
+                  This will cancel the scheduled deletion of your account. Your account and all
+                  your data will remain fully active.
                 </Text>
               </View>
-              <TouchableOpacity
-                style={[styles.deleteConfirmBtn, { backgroundColor: '#059669' }]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.deleteConfirmBtn,
+                  { backgroundColor: '#059669' },
+                  pressed && { opacity: 0.85 },
+                ]}
                 onPress={handleConfirmCancelDeletion}
-                activeOpacity={0.85}
                 disabled={deletionLoading}
               >
-                {deletionLoading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.deleteConfirmBtnText}>Yes, Keep My Account</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteCancelBtn}
+                {deletionLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.deleteConfirmBtnText}>Yes, Keep My Account</Text>
+                )}
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.deleteCancelBtn, pressed && { opacity: 0.8 }]}
                 onPress={() => setShowCancelDeletionModal(false)}
-                activeOpacity={0.8}
                 disabled={deletionLoading}
               >
                 <Text style={styles.deleteCancelBtnText}>Go Back</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>
 
-        {/* Edit Profile Sheet */}
+        {/* ── Edit Profile Sheet ── */}
         <Modal visible={showEditModal} transparent animationType="slide">
-          <View style={styles.overlay}>
-            <View style={styles.sheet}>
-              <View style={styles.handle} />
-              <View style={styles.sheetHead}>
-                <View style={styles.sheetBadge}>
-                  <Ionicons name="create-outline" size={17} color={T} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <View style={styles.overlay}>
+              <View style={styles.sheet}>
+                <View style={styles.handle} />
+                <View style={styles.sheetHead}>
+                  <View style={styles.sheetBadge}>
+                    <Ionicons name="pencil" size={17} color={T} />
+                  </View>
+                  <Text style={styles.sheetTitle}>Edit Profile</Text>
+                  <Pressable
+                    onPress={() => setShowEditModal(false)}
+                    style={({ pressed }) => (pressed ? { opacity: 0.6 } : {})}
+                  >
+                    <Ionicons name="close-circle" size={26} color="#CBD5E1" />
+                  </Pressable>
                 </View>
-                <Text style={styles.sheetTitle}>Edit Profile</Text>
-                <TouchableOpacity onPress={() => setShowEditModal(false)} activeOpacity={0.7}>
-                  <Ionicons name="close" size={22} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <LabeledInput label="First Name" required placeholder="First Name"
-                  value={editForm.firstName} onChangeText={(t) => setEditForm({ ...editForm, firstName: t })} />
-                <LabeledInput label="Last Name" required placeholder="Last Name"
-                  value={editForm.lastName} onChangeText={(t) => setEditForm({ ...editForm, lastName: t })} />
-                <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad"
-                  value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
-                <DOBInput
-                  label="Date of Birth"
-                  value={parseDateFromYMD(editForm.dob)}
-                  onChange={(date: Date) => setEditForm({ ...editForm, dob: formatDateToString(date) })}
-                />
-                <Dropdown
-                  label="Gender"
-                  options={GENDER_OPTIONS}
-                  placeholder="Select gender"
-                  selectedValue={editForm.gender}
-                  onChange={(value) => setEditForm({ ...editForm, gender: value })}
-                />
-              </ScrollView>
-              <View style={styles.sheetActions}>
-                <View style={{ flex: 1 }}><PrimaryButton title="Save Changes" onPress={handleSaveEdit} /></View>
-                <View style={{ flex: 1 }}><PrimaryButton title="Cancel" type="cancel" onPress={() => setShowEditModal(false)} /></View>
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <LabeledInput
+                    label="First Name"
+                    required
+                    placeholder="First Name"
+                    value={editForm.firstName}
+                    onChangeText={(t) => setEditForm({ ...editForm, firstName: t })}
+                  />
+                  <LabeledInput
+                    label="Last Name"
+                    required
+                    placeholder="Last Name"
+                    value={editForm.lastName}
+                    onChangeText={(t) => setEditForm({ ...editForm, lastName: t })}
+                  />
+                  <LabeledInput
+                    label="Phone Number"
+                    placeholder="Phone Number"
+                    keyboardType="phone-pad"
+                    value={editForm.phone}
+                    onChangeText={(t) => setEditForm({ ...editForm, phone: t })}
+                  />
+                  <DOBInput
+                    label="Date of Birth"
+                    value={parseDateFromYMD(editForm.dob)}
+                    onChange={(date: Date) => setEditForm({ ...editForm, dob: formatDateToString(date) })}
+                  />
+                  <Dropdown
+                    label="Gender"
+                    options={GENDER_OPTIONS}
+                    placeholder="Select gender"
+                    selectedValue={editForm.gender}
+                    onChange={(value) => setEditForm({ ...editForm, gender: value })}
+                  />
+                </ScrollView>
+                <View style={styles.sheetActions}>
+                  <View style={{ flex: 1 }}>
+                    <PrimaryButton title="Save Changes" onPress={handleSaveEdit} loading={loading} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowEditModal(false)} />
+                  </View>
+                </View>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
-        {/* Change Password Sheet */}
+        {/* ── Change Password Sheet ── */}
         <Modal visible={showPasswordModal} transparent animationType="slide">
-          <View style={styles.overlay}>
-            <View style={styles.sheet}>
-              <View style={styles.handle} />
-              <View style={styles.sheetHead}>
-                <View style={styles.sheetBadge}>
-                  <Ionicons name="shield-checkmark-outline" size={17} color={T} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+          >
+            <View style={styles.overlay}>
+              <View style={styles.sheet}>
+                <View style={styles.handle} />
+                <View style={styles.sheetHead}>
+                  <View style={styles.sheetBadge}>
+                    <Ionicons name="shield-checkmark-outline" size={17} color={T} />
+                  </View>
+                  <Text style={styles.sheetTitle}>Change Password</Text>
+                  <Pressable
+                    onPress={() => setShowPasswordModal(false)}
+                    style={({ pressed }) => (pressed ? { opacity: 0.6 } : {})}
+                  >
+                    <Ionicons name="close-circle" size={26} color="#CBD5E1" />
+                  </Pressable>
                 </View>
-                <Text style={styles.sheetTitle}>Change Password</Text>
-                <TouchableOpacity onPress={() => setShowPasswordModal(false)} activeOpacity={0.7}>
-                  <Ionicons name="close" size={22} color="#9CA3AF" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <LabeledInput label="Current Password" placeholder="Enter current password"
-                  value={passwordForm.current} onChangeText={(t) => setPasswordForm({ ...passwordForm, current: t })} secureToggle />
-                <LabeledInput label="New Password" placeholder="Enter new password"
-                  value={passwordForm.new} onChangeText={(t) => setPasswordForm({ ...passwordForm, new: t })} secureToggle />
-                <LabeledInput label="Confirm New Password" placeholder="Confirm new password"
-                  value={passwordForm.confirm} onChangeText={(t) => setPasswordForm({ ...passwordForm, confirm: t })} secureToggle />
-                <View style={styles.hintBox}>
-                  <PasswordHintRow label="At least 6 characters" ok={passwordChecks.minLength} />
-                  <PasswordHintRow label="Contains uppercase letter" ok={passwordChecks.hasUpper} />
-                  <PasswordHintRow label="Contains a number" ok={passwordChecks.hasNumber} />
-                  <PasswordHintRow label="Passwords match" ok={passwordChecks.matches} />
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <LabeledInput
+                    label="Current Password"
+                    placeholder="Enter current password"
+                    value={passwordForm.current}
+                    onChangeText={(t) => setPasswordForm({ ...passwordForm, current: t })}
+                    secureToggle
+                  />
+                  <LabeledInput
+                    label="New Password"
+                    placeholder="Enter new password"
+                    value={passwordForm.new}
+                    onChangeText={(t) => setPasswordForm({ ...passwordForm, new: t })}
+                    secureToggle
+                  />
+                  <LabeledInput
+                    label="Confirm New Password"
+                    placeholder="Confirm new password"
+                    value={passwordForm.confirm}
+                    onChangeText={(t) => setPasswordForm({ ...passwordForm, confirm: t })}
+                    secureToggle
+                  />
+                  <View style={styles.hintBox}>
+                    <PasswordHintRow label="At least 6 characters" ok={passwordChecks.minLength} />
+                    <PasswordHintRow label="Contains uppercase letter" ok={passwordChecks.hasUpper} />
+                    <PasswordHintRow label="Contains a number" ok={passwordChecks.hasNumber} />
+                    <PasswordHintRow label="Passwords match" ok={passwordChecks.matches} />
+                  </View>
+                </ScrollView>
+                <View style={styles.sheetActions}>
+                  <View style={{ flex: 1 }}>
+                    <PrimaryButton title="Update Password" onPress={handleChangePassword} loading={loading} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <PrimaryButton
+                      title="Cancel"
+                      type="cancel"
+                      onPress={() => setShowPasswordModal(false)}
+                    />
+                  </View>
                 </View>
-              </ScrollView>
-              <View style={styles.sheetActions}>
-                <View style={{ flex: 1 }}><PrimaryButton title="Update" onPress={handleChangePassword} loading={loading} /></View>
-                <View style={{ flex: 1 }}><PrimaryButton title="Cancel" type="cancel" onPress={() => setShowPasswordModal(false)} /></View>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
       </SafeAreaView>
@@ -628,18 +810,123 @@ export default function ManageProfileScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  sectionLabel: {
-    fontSize: 11,
+  // ── Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#F0F8F8',
+  },
+  headerBack: { padding: 4 },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
     fontWeight: '700',
-    color: '#94A3B8',
-    letterSpacing: 0.8,
-    marginTop: 22,
-    marginBottom: 6,
+    color: '#111827',
+  },
+
+  // ── Section labels
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 10,
     marginLeft: 2,
   },
+  sectionLabelAccent: {
+    width: 3,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: T,
+    marginRight: 8,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    letterSpacing: 0.2,
+  },
+
+  // ── Bio card
+  bioCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#DCEFEF',
+    shadowColor: '#0EA5A4',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  bioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 16,
+  },
+  avatarWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#DFF4F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#A9E4E2',
+  },
+  avatarText: { fontSize: 20, fontWeight: '900', color: T_DARK },
+  avatarOnline: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  bioName: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  bioPID: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
+  editBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    backgroundColor: '#F0FFFE',
+    borderWidth: 1,
+    borderColor: '#D1F2EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  completionLabel: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
+  completionBadge: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  completionBadgeText: { fontSize: 11, fontWeight: '700' },
+  completionTrack: {
+    height: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  completionFill: { height: '100%', borderRadius: 3 },
+  completionHint: { fontSize: 11, color: '#94A3B8', marginTop: 6 },
+
+  // ── Content cards
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -656,21 +943,91 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 13,
+    paddingVertical: 14,
     gap: 12,
   },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F8F8' },
   rowIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: T_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8', marginBottom: 2 },
+  rowFieldLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8', marginBottom: 3 },
   rowValue: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
   rowEmpty: { color: '#C8D4D4', fontStyle: 'italic' },
+  editChip: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: '#F0FFFE',
+    borderWidth: 1,
+    borderColor: '#D1F2EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Danger zone
+  dangerCard: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 16,
+    gap: 12,
+  },
+  dangerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dangerLabel: { fontSize: 14, fontWeight: '700', color: '#991B1B' },
+  dangerSub: { fontSize: 11, color: '#EF4444', marginTop: 2, lineHeight: 16 },
+  dangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+  dangerBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  undoBtn: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  undoBtnText: { fontSize: 12, fontWeight: '700', color: '#DC2626' },
+
+  // ── Deletion banner
+  deletionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    padding: 14,
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  deletionBannerTitle: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
+  deletionBannerSub: { fontSize: 11, color: '#DC2626', marginTop: 2, lineHeight: 16 },
+  deletionBannerBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  deletionBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+
+  // ── Modals
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.42)',
@@ -693,7 +1050,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 20,
   },
-  sheetHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 10 },
+  sheetHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 10,
+  },
   sheetBadge: {
     width: 36,
     height: 36,
@@ -712,61 +1074,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
   },
-  // ── Danger zone ──
-  dangerCard: {
-    backgroundColor: '#FFF5F5',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 16,
-    gap: 14,
-  },
-  dangerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dangerLabel: { fontSize: 14, fontWeight: '700', color: '#991B1B' },
-  dangerSub: { fontSize: 11, color: '#EF4444', marginTop: 2 },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#DC2626',
-    borderRadius: 12,
-    paddingVertical: 13,
-  },
-  dangerBtnDisabled: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  dangerBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  // ── Deletion banner ──
-  deletionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  deletionBannerTitle: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
-  deletionBannerSub: { fontSize: 11, color: '#DC2626', marginTop: 2, lineHeight: 16 },
-  deletionBannerBtn: {
-    backgroundColor: '#DC2626',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  deletionBannerBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  // ── Delete modal ──
+
+  // ── Delete modals
   deleteIconWrap: {
     width: 64,
     height: 64,
@@ -776,8 +1085,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  deleteModalTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B', marginBottom: 10, textAlign: 'center' },
-  deleteModalBody: { fontSize: 14, color: '#64748B', lineHeight: 22, textAlign: 'center', paddingHorizontal: 4 },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  deleteModalBody: {
+    fontSize: 14,
+    color: '#64748B',
+    lineHeight: 22,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
   deleteConfirmBtn: {
     backgroundColor: '#DC2626',
     borderRadius: 14,

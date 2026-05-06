@@ -357,24 +357,33 @@ function VideoPlayerModal({
 
   // ── Interstitial ad readiness ──────────────────────────────────────────────
   // Claim is gated: the patient may only claim after watching a live ad.
-  // adReady: a live ad has loaded and is waiting to be shown.
-  // adFailed: ad load failed (no fill / network) — gate is lifted so user isn’t blocked.
-  // claimPending: ad was shown, waiting for dismissal to execute claim.
+  // adReady:          a live ad has loaded and is waiting to be shown.
+  // adFailed:         ad load failed (no fill / network) — gate is lifted.
+  // claimPending:     ad was shown, waiting for dismissal to execute claim.
+  // noAdModalVisible: shown when ad inventory is empty so the user understands why.
   const [adReady, setAdReady] = useState(false);
   const [adFailed, setAdFailed] = useState(false);
   const [claimPending, setClaimPending] = useState(false);
+  const [noAdModalVisible, setNoAdModalVisible] = useState(false);
   const adFailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const claimTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Start an 8-second failsafe: if ad hasn’t loaded by then, lift the gate.
+  // 8-second failsafe: if ad hasn’t loaded by then, set adFailed.
   useEffect(() => {
     adFailTimeoutRef.current = setTimeout(() => {
-      if (!adReady) setAdFailed(true);
+      setAdFailed((prev) => { if (!prev) return true; return prev; });
     }, 8000);
     return () => {
       if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Clean up claim-safety timeout on unmount.
+  useEffect(() => () => {
+    if (claimTimeoutRef.current) clearTimeout(claimTimeoutRef.current);
+  }, []);
+
 
   useEffect(() => {
     if (preRollDone) return;
@@ -403,6 +412,13 @@ function VideoPlayerModal({
   const [playerReady, setPlayerReady] = useState(false);
   const [embedError, setEmbedError] = useState<number | null>(null);
   const [canClaim, setCanClaim] = useState(false);
+
+  // Show the no-ad info overlay once we know there are no live ads
+  // AND the user has satisfied the watch requirement.
+  // Must be declared AFTER canClaim so the dependency is in scope.
+  useEffect(() => {
+    if (adFailed && canClaim) setNoAdModalVisible(true);
+  }, [adFailed, canClaim]);
   const [claiming, setClaiming] = useState(false);
   const requiredSeconds = Math.ceil(video.durationSeconds * 0.7);
   const [secondsLeft, setSecondsLeft] = useState(requiredSeconds);
@@ -494,6 +510,12 @@ function VideoPlayerModal({
     return () => window.removeEventListener('message', listener);
   }, [handleMessage]);
 
+  const handleClaimDirectly = useCallback(async () => {
+    setClaiming(true);
+    await onClaim();
+    setClaiming(false);
+  }, [onClaim]);
+
   const handleClaim = async () => {
     // Gate: require a live ad to have loaded (or the failsafe to have fired).
     if (!adReady && !adFailed) return;
@@ -502,18 +524,29 @@ function VideoPlayerModal({
       // Mark that we're waiting for the ad to be dismissed before claiming.
       setClaimPending(true);
       setClaiming(true);
+      // Safety net: if the ad's CLOSED event never fires within 20 s
+      // (e.g. show() fails silently or ad SDK hangs), reset the loading
+      // state and show the no-ad overlay so the user isn't stuck.
+      claimTimeoutRef.current = setTimeout(() => {
+        setClaiming(false);
+        setClaimPending(false);
+        setNoAdModalVisible(true);
+      }, 20000);
       adRef.current?.show();
       // Actual onClaim() fires inside the onDismissed callback below.
     } else {
       // Ad failed to load — allow claim directly.
-      setClaiming(true);
-      await onClaim();
-      setClaiming(false);
+      await handleClaimDirectly();
     }
   };
 
   const handleAdDismissed = useCallback(async () => {
     if (!claimPending) return;
+    // Clear the safety timeout — ad completed normally.
+    if (claimTimeoutRef.current) {
+      clearTimeout(claimTimeoutRef.current);
+      claimTimeoutRef.current = null;
+    }
     setClaimPending(false);
     await onClaim();
     setClaiming(false);
@@ -855,6 +888,7 @@ function VideoPlayerModal({
           </Pressable>
 
           {/* Interstitial ad — loads silently; claim is gated on successful load */}
+          {/* Interstitial ad — loads silently; claim is gated on successful load */}
           <InterstitialAdSlot
             ref={adRef}
             onLoaded={() => setAdReady(true)}
@@ -862,6 +896,116 @@ function VideoPlayerModal({
             onDismissed={handleAdDismissed}
           />
         </View>
+
+
+          {/* ── No-ad available overlay ── */}
+          {noAdModalVisible && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.72)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: 24,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: '#1e2535',
+                  borderRadius: 24,
+                  padding: 28,
+                  width: '100%',
+                  maxWidth: 380,
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  alignItems: 'center',
+                }}
+              >
+                {/* Icon */}
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: 'rgba(251,191,36,0.1)',
+                    borderWidth: 1.5,
+                    borderColor: 'rgba(251,191,36,0.25)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 18,
+                  }}
+                >
+                  <Ionicons name="tv-outline" size={30} color="#fbbf24" />
+                </View>
+
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: '#f1f5f9',
+                    textAlign: 'center',
+                    marginBottom: 8,
+                  }}
+                >
+                  No Ad Available
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: 'rgba(255,255,255,0.5)',
+                    textAlign: 'center',
+                    lineHeight: 20,
+                    marginBottom: 24,
+                  }}
+                >
+                  We couldn{'\u2019'}t load an ad right now. This usually happens due to
+                  low ad inventory or network conditions.{'\n\n'}You can still claim
+                  your reward \u2014 no ad required.
+                </Text>
+
+                {/* Claim anyway */}
+                <Pressable
+                  onPress={async () => {
+                    setNoAdModalVisible(false);
+                    await handleClaimDirectly();
+                  }}
+                  style={({ pressed }) => ({
+                    backgroundColor: '#16a34a',
+                    borderRadius: 14,
+                    paddingVertical: 15,
+                    alignItems: 'center',
+                    width: '100%',
+                    marginBottom: 10,
+                    opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>
+                    Claim Reward
+                  </Text>
+                </Pressable>
+
+                {/* Try again later */}
+                <Pressable
+                  onPress={() => setNoAdModalVisible(false)}
+                  style={({ pressed }) => ({
+                    backgroundColor: 'transparent',
+                    borderRadius: 14,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    width: '100%',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.12)',
+                    opacity: pressed ? 0.7 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: 'rgba(255,255,255,0.45)' }}>
+                    Try Again Later
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
         </View>
         )}
       </View>
