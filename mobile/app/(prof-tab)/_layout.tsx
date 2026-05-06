@@ -12,6 +12,7 @@ import { registerPhysicianPushToken, addNotificationResponseListener, addNotific
 import { registerWebPush } from 'services/webPushRegistration';
 import { useAuthStore } from 'stores/auth-store';
 import wsService from 'services/websocket-service';
+import { playIMArrivalTone } from 'services/message-tone';
 import { getToken } from 'utils/tokenStorage';
 import { IMMessage } from 'types/im-types';
 
@@ -84,6 +85,8 @@ export default function ProfTabLayout() {
     const unsubIncomingIM = wsService.on('im.message', (data) => {
       const msg = data as IMMessage;
       if (!msg?.diagnosis_id) return;
+
+      playIMArrivalTone().catch(() => {});
 
       const now = Date.now();
       if (now - lastIMPopupAtRef.current < IM_POPUP_COOLDOWN_MS) return;
