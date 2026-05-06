@@ -208,6 +208,7 @@ const FAQ_SECTIONS: FaqSection[] = [
       },
     ],
   },
+];
 
 const HelpItem = ({
   icon,
