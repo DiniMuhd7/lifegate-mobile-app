@@ -146,29 +146,35 @@ func (h *Hub) BroadcastToRole(role, event string, data []byte) {
 //	{"action":"unsubscribe", "events":["diagnosis.update"]}
 func (h *Hub) Handler(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Require a valid JWT before upgrading. Reject unauthenticated
+		// connections to prevent anonymous clients from receiving broadcast events.
+		tokenStr := c.Query("token")
+		if tokenStr == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			return
+		}
+		type wsClaims struct {
+			UserID string `json:"user_id"`
+			Role   string `json:"role"`
+			jwt.RegisteredClaims
+		}
+		claims := &wsClaims{}
+		tok, parseErr := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+			return []byte(jwtSecret), nil
+		}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
+		if parseErr != nil || !tok.Valid || claims.UserID == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			return
+		}
+
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			log.Printf("WebSocket upgrade error: %v", err)
 			return
 		}
 
-		userID := ""
-		role := ""
-		if tokenStr := c.Query("token"); tokenStr != "" {
-			type wsClaims struct {
-				UserID string `json:"user_id"`
-				Role   string `json:"role"`
-				jwt.RegisteredClaims
-			}
-			claims := &wsClaims{}
-			tok, parseErr := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-				return []byte(jwtSecret), nil
-			}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
-			if parseErr == nil && tok.Valid {
-				userID = claims.UserID
-				role = claims.Role
-			}
-		}
+		userID := claims.UserID
+		role := claims.Role
 
 		client := &Client{
 			hub:    h,

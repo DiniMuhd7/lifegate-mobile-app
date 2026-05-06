@@ -77,6 +77,19 @@ func Load() *Config {
 		log.Println("No .env file found, reading environment variables directly")
 	}
 
+	// Production safety: refuse to start with known-insecure defaults.
+	// GIN_MODE=release is set in render.yaml and any production deployment.
+	if strings.ToLower(os.Getenv("GIN_MODE")) == "release" {
+		jwtSecret := os.Getenv("JWT_SECRET")
+		if jwtSecret == "" || jwtSecret == "changeme-secret" {
+			log.Fatal("FATAL: JWT_SECRET must be set to a strong random secret in production (GIN_MODE=release)")
+		}
+		healthKey := os.Getenv("HEALTH_DATA_KEY")
+		if healthKey == "" || healthKey == "changeme-secret" || healthKey == jwtSecret {
+			log.Fatal("FATAL: HEALTH_DATA_KEY must be set to a dedicated strong random secret in production, separate from JWT_SECRET")
+		}
+	}
+
 	provider := getEnv("AI_PROVIDER", "openai")
 	provider = strings.ToLower(strings.TrimSpace(provider))
 

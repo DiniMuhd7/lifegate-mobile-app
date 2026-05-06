@@ -2,6 +2,7 @@ package admin
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -275,7 +276,8 @@ func (h *Handler) UpdatePhysician(c *gin.Context) {
 func (h *Handler) DeletePhysician(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeletePhysician(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": err.Error()})
+		log.Printf("[admin] DeletePhysician %s: %v", id, err)
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Physician not found"})
 		return
 	}
 
@@ -311,7 +313,8 @@ func (h *Handler) SuspendPhysician(c *gin.Context) {
 	adminIDStr, _ := adminID.(string)
 
 	if err := h.svc.SuspendPhysician(id, adminIDStr, body.Reason); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": err.Error()})
+		log.Printf("[admin] SuspendPhysician %s: %v", id, err)
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Physician not found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Physician account suspended"})
@@ -335,7 +338,8 @@ func (h *Handler) UnsuspendPhysician(c *gin.Context) {
 	adminIDStr, _ := adminID.(string)
 
 	if err := h.svc.UnsuspendPhysician(id, adminIDStr); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": err.Error()})
+		log.Printf("[admin] UnsuspendPhysician %s: %v", id, err)
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Physician not found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Physician account reinstated"})
@@ -370,13 +374,17 @@ func (h *Handler) OverrideMDCN(c *gin.Context) {
 	adminIDStr, _ := adminID.(string)
 
 	if err := h.svc.OverrideMDCN(id, adminIDStr, body.Status); err != nil {
+		log.Printf("[admin] OverrideMDCN %s: %v", id, err)
 		status := http.StatusInternalServerError
+		msg := "An internal error occurred. Please try again."
 		if err.Error() == "physician not found" {
 			status = http.StatusNotFound
+			msg = "Physician not found"
 		} else if strings.HasPrefix(err.Error(), "invalid") {
 			status = http.StatusBadRequest
+			msg = "Invalid request"
 		}
-		c.JSON(status, gin.H{"success": false, "message": err.Error()})
+		c.JSON(status, gin.H{"success": false, "message": msg})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "MDCN verification override applied"})
@@ -774,11 +782,14 @@ func (h *Handler) UpdateAlertThreshold(c *gin.Context) {
 	adminIDStr, _ := adminID.(string)
 
 	if err := h.svc.UpdateAlertThreshold(adminIDStr, key, body.Value, enabled); err != nil {
+		log.Printf("[admin] UpdateAlertThreshold %s: %v", key, err)
 		status := http.StatusInternalServerError
-		if err.Error()[:9] == "threshold" {
+		msg := "An internal error occurred. Please try again."
+		if len(err.Error()) >= 9 && err.Error()[:9] == "threshold" {
 			status = http.StatusNotFound
+			msg = "Alert threshold not found"
 		}
-		c.JSON(status, gin.H{"success": false, "message": err.Error()})
+		c.JSON(status, gin.H{"success": false, "message": msg})
 		return
 	}
 

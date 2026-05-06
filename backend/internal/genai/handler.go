@@ -3,6 +3,7 @@ package genai
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -159,7 +160,8 @@ func (h *Handler) ChatSession(c *gin.Context) {
 
 	resp, err := h.svc.ChatInSession(c.Request.Context(), sessionID, uid, req.Message, req.Category)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": err.Error()})
+		log.Printf("[genai] ChatInSession %s: %v", sessionID, err)
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Session not found"})
 		return
 	}
 
@@ -194,7 +196,8 @@ func (h *Handler) FinalizeSession(c *gin.Context) {
 
 	result, err := h.svc.FinalizeSession(c.Request.Context(), sessionID, uid)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": err.Error()})
+		log.Printf("[genai] FinalizeSession %s: %v", sessionID, err)
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Session not found"})
 		return
 	}
 

@@ -1,6 +1,7 @@
 package support
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -47,7 +48,8 @@ func (h *Handler) ContactSupport(c *gin.Context) {
 		Description:  req.Description,
 	})
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"success": false, "message": err.Error()})
+		log.Printf("[support] SubmitContactRequest: %v", err)
+		c.JSON(http.StatusBadGateway, gin.H{"success": false, "message": "Failed to send support request. Please try again."})
 		return
 	}
 

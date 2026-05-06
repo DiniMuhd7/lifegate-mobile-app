@@ -88,6 +88,10 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     if (!paymentLink) return;
+    // Validate the URL is a legitimate HTTPS link before opening/loading it.
+    // paymentLink comes from our backend via Flutterwave, but we validate
+    // defensively to prevent open-redirect exploitation.
+    if (!paymentLink.startsWith('https://')) return;
     if (isWeb) {
       // Open Flutterwave in a new browser tab – WebView is unsupported on web.
       if (typeof window !== 'undefined') {
