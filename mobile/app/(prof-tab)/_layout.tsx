@@ -129,6 +129,11 @@ export default function ProfTabLayout() {
     }
   }, [navigationState?.key, isAuthenticated, authUser, sessionLoading]);
 
+  // Block all screen rendering until auth state is fully resolved.
+  if (!navigationState?.key || sessionLoading) {
+    return <View style={{ flex: 1, backgroundColor: '#fff' }} />;
+  }
+
   return (
     <View className="flex-1 bg-white">
       <Stack

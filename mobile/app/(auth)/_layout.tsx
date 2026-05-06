@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { Stack, router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 
@@ -25,6 +26,13 @@ export default function AuthLayout() {
       }
     }
   }, [navigationState?.key, isAuthenticated, user, sessionLoading]);
+
+  // Block auth screens from rendering while session state is loading.
+  // Prevents a briefly-authenticated user from seeing login/register screens,
+  // and prevents an unauthenticated deep-link from showing protected content.
+  if (!navigationState?.key || sessionLoading) {
+    return <View style={{ flex: 1, backgroundColor: '#043B3C' }} />;
+  }
 
   return (
     <Stack

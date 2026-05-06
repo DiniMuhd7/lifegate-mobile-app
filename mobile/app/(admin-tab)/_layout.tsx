@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { View } from 'react-native';
 import { Stack, router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useAdminWebSocket } from '../../utils/useWebSocket';
@@ -44,6 +45,11 @@ export default function AdminTabLayout() {
       }
     }
   }, [navigationState?.key, isAuthenticated, user, sessionLoading]);
+
+  // Block all screen rendering until auth state is fully resolved.
+  if (!navigationState?.key || sessionLoading) {
+    return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#f8fafc' } }}>

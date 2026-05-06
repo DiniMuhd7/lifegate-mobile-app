@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus, BackHandler, Platform } from 'react-native';
+import { AppState, AppStateStatus, BackHandler, Platform, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Drawer } from 'expo-router/drawer';
 import { router, useRootNavigationState } from 'expo-router';
@@ -274,6 +274,13 @@ export default function TabLayout() {
 
     return () => subscription.remove();
   }, []);
+
+  // Block all screen rendering until auth state is fully resolved.
+  // Without this guard, screen content renders immediately and is briefly visible
+  // during sessionLoading before the redirect useEffect has a chance to fire.
+  if (!navigationState?.key || sessionLoading) {
+    return <View style={{ flex: 1, backgroundColor: '#032C2C' }} />;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
