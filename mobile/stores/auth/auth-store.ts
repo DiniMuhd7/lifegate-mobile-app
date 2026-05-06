@@ -33,6 +33,10 @@ type AuthState = {
   // protected screens from flashing unauthenticated content on web refresh.
   sessionLoading: boolean;
 
+  // Set to true when restoreSession throws (e.g. network down at startup).
+  // Layouts use this to show a retry screen instead of a frozen blank view.
+  sessionError: boolean;
+
   // Actions
   setLoginField: (field: 'email' | 'password', value: string) => void;
   clearLoginDraft: () => void;
@@ -42,6 +46,7 @@ type AuthState = {
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
+  clearSessionError: () => void;
   markMdcnVerified: () => Promise<boolean>;
 };
 
@@ -60,6 +65,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   loading: false,
   error: null,
   sessionLoading: true,
+  sessionError: false,
 
   // -------- Actions --------
 
@@ -77,6 +83,9 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
   // Clear any error
   clearError: () => set({ error: null }),
+
+  // Clear session restore error (e.g. when user taps "Try Again")
+  clearSessionError: () => set({ sessionError: false }),
 
   // Restore session from secure storage and token
   restoreSession: async () => {
@@ -107,7 +116,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     } catch {
       await removeRefreshToken();
       setAccessToken(null);
-      set({ isAuthenticated: false, user: null, sessionLoading: false });
+      set({ isAuthenticated: false, user: null, sessionLoading: false, sessionError: true });
     } finally {
       _sessionRestoreInProgress = false;
     }

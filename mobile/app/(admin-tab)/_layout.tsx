@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { LoadingScreen } from 'components/LoadingScreen';
+import { SessionErrorScreen } from 'components/SessionErrorScreen';
 import { Stack, router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useAdminWebSocket } from '../../utils/useWebSocket';
@@ -12,6 +13,8 @@ export default function AdminTabLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const sessionError = useAuthStore((s) => s.sessionError);
+  const restoreSession = useAuthStore((s) => s.restoreSession);
   const navigationState = useRootNavigationState();
 
   // Connect wsService so the admin WebSocket hook can receive events
@@ -48,7 +51,17 @@ export default function AdminTabLayout() {
 
   // Block all screen rendering until auth state is fully resolved.
   if (!navigationState?.key || sessionLoading) {
-    return <View style={{ flex: 1, backgroundColor: '#f8fafc' }} />;
+    return <LoadingScreen backgroundColor="#f8fafc" tintColor="#0AADA2" message="Loading admin portal…" />;
+  }
+
+  if (sessionError) {
+    return (
+      <SessionErrorScreen
+        backgroundColor="#f8fafc"
+        darkText
+        onRetry={() => { restoreSession(); }}
+      />
+    );
   }
 
   return (

@@ -1,5 +1,6 @@
 import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
-import { View } from 'react-native';
+import { LoadingScreen } from 'components/LoadingScreen';
+import { SessionErrorScreen } from 'components/SessionErrorScreen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BottomTabBar } from '../../components/BottomTabBar';
 import { usePhysicianWebSocket } from '../../utils/useWebSocket';
@@ -110,6 +111,8 @@ export default function ProfTabLayout() {
   // ── Auth guard ────────────────────────────────────────────────────────────
   const authUser = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const sessionError = useAuthStore((s) => s.sessionError);
+  const restoreSession = useAuthStore((s) => s.restoreSession);
   const navigationState = useRootNavigationState();
 
   useEffect(() => {
@@ -131,7 +134,17 @@ export default function ProfTabLayout() {
 
   // Block all screen rendering until auth state is fully resolved.
   if (!navigationState?.key || sessionLoading) {
-    return <View style={{ flex: 1, backgroundColor: '#fff' }} />;
+    return <LoadingScreen backgroundColor="#fff" tintColor="#0AADA2" message="Loading physician portal…" />;
+  }
+
+  if (sessionError) {
+    return (
+      <SessionErrorScreen
+        backgroundColor="#fff"
+        darkText
+        onRetry={() => { restoreSession(); }}
+      />
+    );
   }
 
   return (

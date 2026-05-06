@@ -6,7 +6,9 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus, BackHandler, Platform, View } from 'react-native';
+import { AppState, AppStateStatus, BackHandler, Platform } from 'react-native';
+import { LoadingScreen } from 'components/LoadingScreen';
+import { SessionErrorScreen } from 'components/SessionErrorScreen';
 import * as Notifications from 'expo-notifications';
 import { Drawer } from 'expo-router/drawer';
 import { router, useRootNavigationState } from 'expo-router';
@@ -112,6 +114,8 @@ export default function TabLayout() {
 
   // ── Auth guard — redirect unauthenticated or wrong-role users ─────────────
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const sessionError = useAuthStore((s) => s.sessionError);
+  const restoreSession = useAuthStore((s) => s.restoreSession);
   const user = useAuthStore((s) => s.user);
   const navigationState = useRootNavigationState();
 
@@ -279,7 +283,16 @@ export default function TabLayout() {
   // Without this guard, screen content renders immediately and is briefly visible
   // during sessionLoading before the redirect useEffect has a chance to fire.
   if (!navigationState?.key || sessionLoading) {
-    return <View style={{ flex: 1, backgroundColor: '#032C2C' }} />;
+    return <LoadingScreen backgroundColor="#032C2C" tintColor="#ffffff" />;
+  }
+
+  if (sessionError) {
+    return (
+      <SessionErrorScreen
+        backgroundColor="#032C2C"
+        onRetry={() => { restoreSession(); }}
+      />
+    );
   }
 
   return (
