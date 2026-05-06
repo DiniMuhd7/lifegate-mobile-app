@@ -107,7 +107,7 @@ services:
         value: contact@dshub.com.ng
 
       # CORS — comma-separated list of allowed origins (Expo Go, web client, etc.)
-      # Example: https://lifegate-mobile-web.onrender.com,exp://...
+      # Example: https://mobile.dshub.com.ng,exp://...
       - key: ALLOWED_ORIGINS
         sync: false            # secret — enter production origin(s) in Render dashboard
 
