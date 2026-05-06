@@ -68,7 +68,7 @@ func (h *Handler) GetAnalysis(c *gin.Context) {
 
 	rows, err := h.svc.GetAnalysis(pid, start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 
@@ -130,7 +130,7 @@ func (h *Handler) GetDiagnoses(c *gin.Context) {
 
 	records, total, err := h.svc.GetDiagnoses(pid, status, search, page, pageSize, start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 
@@ -168,7 +168,7 @@ func (h *Handler) GetDiagnosisDetail(c *gin.Context) {
 
 	record, err := h.svc.GetDiagnosisDetail(pid, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	if record == nil {

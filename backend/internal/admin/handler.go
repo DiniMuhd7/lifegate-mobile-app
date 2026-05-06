@@ -621,7 +621,7 @@ func (h *Handler) AdjustCredit(c *gin.Context) {
 	adminID, _ := c.Get("userID")
 	adminIDStr, _ := adminID.(string)
 	if err := h.svc.AdjustCredit(body.UserID, body.Amount, body.Reason, adminIDStr); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Credit balance adjusted"})

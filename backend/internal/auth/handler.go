@@ -272,6 +272,11 @@ func (h *Handler) RegisterStart(c *gin.Context) {
 			respond(c, http.StatusBadRequest, false, "invalid certificate file type; accepted: PDF, JPEG, PNG, DOC, DOCX", nil)
 			return
 		}
+		const maxCertSize = 10 << 20 // 10 MB
+		if header.Size > maxCertSize {
+			respond(c, http.StatusBadRequest, false, "certificate file too large; maximum size is 10 MB", nil)
+			return
+		}
 		if mkErr := os.MkdirAll(h.uploadDir, 0750); mkErr != nil {
 			log.Printf("Failed to create upload dir: %v", mkErr)
 		} else {
@@ -283,7 +288,7 @@ func (h *Handler) RegisterStart(c *gin.Context) {
 				log.Printf("Failed to open upload file: %v", openErr)
 			} else {
 				defer f.Close()
-				if _, copyErr := io.Copy(f, file); copyErr != nil {
+				if _, copyErr := io.Copy(f, io.LimitReader(file, maxCertSize)); copyErr != nil {
 					log.Printf("Failed to save certificate: %v", copyErr)
 				} else {
 					payload.CertificateURL = dst
@@ -300,7 +305,8 @@ func (h *Handler) RegisterStart(c *gin.Context) {
 		case errors.Is(err, ErrOTPRateLimited):
 			respond(c, http.StatusTooManyRequests, false, err.Error(), nil)
 		default:
-			respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+			log.Printf("[auth] StartRegistration error: %v", err)
+			respond(c, http.StatusInternalServerError, false, "An internal error occurred. Please try again.", nil)
 		}
 		return
 	}
@@ -630,7 +636,7 @@ func (h *Handler) MarkMDCNVerified(c *gin.Context) {
 
 	user, err := h.svc.MarkMDCNVerified(c.Request.Context(), uid)
 	if err != nil {
-		respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+		respond(c, http.StatusInternalServerError, false, "An internal error occurred. Please try again.", nil)
 		return
 	}
 
@@ -712,7 +718,7 @@ func (h *Handler) RequestAccountDeletion(c *gin.Context) {
 	}
 	user, err := h.svc.ScheduleAccountDeletion(uid)
 	if err != nil {
-		respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+		respond(c, http.StatusInternalServerError, false, "An internal error occurred. Please try again.", nil)
 		return
 	}
 	respond(c, http.StatusOK, true, "Your account has been scheduled for deletion in 90 days. You can cancel this at any time before then.", gin.H{"user": user})
@@ -737,7 +743,7 @@ func (h *Handler) CancelAccountDeletion(c *gin.Context) {
 	}
 	user, err := h.svc.CancelAccountDeletion(uid)
 	if err != nil {
-		respond(c, http.StatusInternalServerError, false, err.Error(), nil)
+		respond(c, http.StatusInternalServerError, false, "An internal error occurred. Please try again.", nil)
 		return
 	}
 	respond(c, http.StatusOK, true, "Account deletion has been cancelled. Your account is safe.", gin.H{"user": user})

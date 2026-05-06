@@ -306,7 +306,13 @@ func main() {
 	r := gin.New()
 	r.Use(middleware.Logger())
 	r.Use(middleware.CORS())
+	r.Use(middleware.SecurityHeaders())
 	r.Use(gin.Recovery())
+	// Reject requests whose body exceeds 4 MB to prevent resource exhaustion.
+	r.Use(func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4<<20)
+		c.Next()
+	})
 	// Attach the audit writer to every request context.
 	r.Use(func(c *gin.Context) {
 		ctx := auditpkg.NewContext(c.Request.Context(), adminSvc)
@@ -678,18 +684,21 @@ func main() {
 	// WebSocket (supports optional ?token= for user-aware broadcasting)
 	r.GET("/ws", hub.Handler(cfg.JWTSecret))
 
-	// Swagger UI — /swagger and /swagger/ both redirect to /swagger/index.html
-	swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler)
-	r.GET("/swagger", func(c *gin.Context) {
-		c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
-	})
-	r.GET("/swagger/*any", func(c *gin.Context) {
-		if c.Param("any") == "/" {
+	// Swagger UI — disabled in production (GIN_MODE=release) to avoid exposing
+	// the full API schema to unauthenticated users.
+	if gin.Mode() != gin.ReleaseMode {
+		swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler)
+		r.GET("/swagger", func(c *gin.Context) {
 			c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
-			return
-		}
-		swaggerHandler(c)
-	})
+		})
+		r.GET("/swagger/*any", func(c *gin.Context) {
+			if c.Param("any") == "/" {
+				c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+				return
+			}
+			swaggerHandler(c)
+		})
+	}
 
 	// ── Health / readiness probes ─────────────────────────────────────────────
 	// GET /health  — liveness probe (Render, Docker, k8s)
@@ -737,7 +746,14 @@ func main() {
 
 	addr := ":" + cfg.Port
 	log.Printf("LifeGate server starting on %s", addr)
-	if err := r.Run(addr); err != nil {
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

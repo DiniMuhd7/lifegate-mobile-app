@@ -109,7 +109,13 @@ services:
       # CORS — comma-separated list of allowed origins (Expo Go, web client, etc.)
       # Example: https://lifegate-mobile-web.onrender.com,exp://...
       - key: ALLOWED_ORIGINS
-        sync: false
+        sync: false            # secret — enter production origin(s) in Render dashboard
+
+      # Admin account — override the seeded defaults with real credentials in Render dashboard
+      - key: ADMIN_EMAIL
+        sync: false            # secret — production admin email
+      - key: ADMIN_PASSWORD_HASH
+        sync: false            # secret — bcrypt hash of the production admin password
 
       # Upload directory (must match the disk mountPath above)
       - key: UPLOAD_DIR

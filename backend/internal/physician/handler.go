@@ -2,6 +2,7 @@ package physician
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +18,13 @@ type Handler struct {
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// internalError logs the real error and returns a generic 500 to the client
+// so that internal DB/system details are never leaked to the caller.
+func internalError(c *gin.Context, err error, context string) {
+	log.Printf("[physician] %s: %v", context, err)
+	c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 }
 
 // GetReports returns paginated physician reports.
@@ -45,7 +53,7 @@ func (h *Handler) GetReports(c *gin.Context) {
 
 	reports, total, err := h.svc.GetReports(pid, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 
@@ -76,7 +84,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 
 	stats, err := h.svc.GetStats(pid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Stats fetched", "data": stats})
@@ -139,7 +147,7 @@ func (h *Handler) ReviewReport(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 
@@ -174,7 +182,7 @@ func (h *Handler) GetCaseQueue(c *gin.Context) {
 
 	result, err := h.svc.GetCaseQueue(pid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Case queue fetched", "data": result})
@@ -205,7 +213,7 @@ func (h *Handler) TakeCase(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 
@@ -238,7 +246,7 @@ func (h *Handler) GetCaseDetail(c *gin.Context) {
 
 	detail, err := h.svc.GetCaseDetail(caseID, pid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	if detail == nil {
@@ -264,7 +272,7 @@ func (h *Handler) GetPatientProfile(c *gin.Context) {
 
 	profile, err := h.svc.GetPatientProfile(patientID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	if profile == nil {
@@ -289,7 +297,7 @@ func (h *Handler) GetPatientCheckins(c *gin.Context) {
 
 	checkins, err := h.svc.GetPatientCheckins(patientID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	if checkins == nil {
@@ -313,7 +321,7 @@ func (h *Handler) GetEarningsSummary(c *gin.Context) {
 
 	summary, err := h.svc.GetEarningsSummary(pid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Earnings summary fetched", "data": summary})
@@ -345,7 +353,7 @@ func (h *Handler) GetEarningsHistory(c *gin.Context) {
 
 	records, total, err := h.svc.GetEarningsHistory(pid, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -375,7 +383,7 @@ func (h *Handler) GetPayouts(c *gin.Context) {
 
 	payouts, err := h.svc.GetPayouts(pid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payouts fetched", "data": payouts})
@@ -426,7 +434,7 @@ func (h *Handler) AdminListPayoutRequests(c *gin.Context) {
 	status := c.Query("status")
 	items, err := h.svc.GetAdminPayoutRequests(status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "total": len(items)})
@@ -569,7 +577,7 @@ func (h *Handler) UpdateAIOutput(c *gin.Context) {
 			})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "AI output updated"})
@@ -605,7 +613,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	if err := h.svc.UpdateProfile(pid, req.Name, req.Phone); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		internalError(c, err, "handler")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile updated"})

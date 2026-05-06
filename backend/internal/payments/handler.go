@@ -70,7 +70,7 @@ func (h *Handler) GetCreditBalance(c *gin.Context) {
 
 	bal, err := h.svc.GetCreditBalance(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": bal})
@@ -150,7 +150,7 @@ func (h *Handler) VerifyPayment(c *gin.Context) {
 
 	pt, err := h.svc.VerifyAndCredit(uid, body.TxRef, body.FlwTxID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 
@@ -205,7 +205,7 @@ func (h *Handler) GetTransactions(c *gin.Context) {
 
 	txns, err := h.svc.GetTransactions(uid, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	if txns == nil {
@@ -234,7 +234,7 @@ func (h *Handler) GetLifecoinBalance(c *gin.Context) {
 	uid, _ := userID.(string)
 	bal, err := h.svc.GetLifecoinBalance(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": bal})
@@ -270,7 +270,7 @@ func (h *Handler) GetLifecoinTransactions(c *gin.Context) {
 
 	txns, err := h.svc.GetLifecoinTransactions(uid, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	if txns == nil {
@@ -343,7 +343,7 @@ func (h *Handler) SubmitCheckinAnswers(c *gin.Context) {
 		return
 	}
 	if err := h.svc.SubmitCheckinAnswers(uid, body.SlotID, body.Answers); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 
@@ -459,7 +459,7 @@ func (h *Handler) Webhook(c *gin.Context) {
 func (h *Handler) GetPendingRedemptions(c *gin.Context) {
 	redemptions, err := h.svc.GetPendingRedemptions()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	if redemptions == nil {

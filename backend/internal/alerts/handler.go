@@ -30,7 +30,7 @@ func (h *Handler) GetPatientAlerts(c *gin.Context) {
 
 	alts, err := h.svc.GetAlertsForPatient(uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	if alts == nil {
@@ -61,7 +61,7 @@ func (h *Handler) GetPhysicianAlerts(c *gin.Context) {
 
 	alts, err := h.svc.GetAlertsForPhysician(pid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
 		return
 	}
 	if alts == nil {
