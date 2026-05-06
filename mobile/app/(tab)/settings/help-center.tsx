@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ScrollView, Alert, Linking, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, Linking, TextInput, StyleSheet } from 'react-native';
 import { useMemo, useState } from 'react';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -126,23 +126,88 @@ const FAQ_SECTIONS: FaqSection[] = [
     ],
   },
   {
-    title: 'Support & Escalations',
+    title: 'Lifecoins & Rewards',
     items: [
       {
-        q: 'How do I contact support quickly?',
-        a: 'Use Contact Support, Call Support, or Email Support from this Help Center. For fastest resolution, include patient ID, affected feature, and a short issue timeline.',
+        q: 'What are Lifecoins?',
+        a: 'Lifecoins are LifeGate\'s in-app reward currency. You earn them by completing health activities such as watching educational videos, completing check-ins, and engaging with the platform. They are stored in your Lifecoins wallet.',
       },
       {
-        q: 'How do I report a serious complaint?',
-        a: 'Send a detailed message via Send Feedback and include screenshots, device details, date/time, and any payment or session references. Serious safety, billing, or access complaints are prioritized for escalation.',
+        q: 'How do I earn Lifecoins?',
+        a: 'You earn Lifecoins by watching health videos on the Explore screen until the required watch threshold is met, completing daily check-ins, and other in-app health activities. Each video shows the exact coin reward before you start.',
       },
       {
-        q: 'What details should I provide for faster support?',
-        a: 'Share patient ID, app version, device model, operating system, network type, exact steps to reproduce, and any visible error message. This helps support resolve your issue faster.',
+        q: 'Is there a daily limit on earning Lifecoins from videos?',
+        a: `Yes. You can earn Lifecoins from up to ${5} videos per day. The daily count resets at midnight. You can still watch more videos, but coins are only awarded for the first ${5} completions each day.`,
+      },
+      {
+        q: 'What is the Lifecoins wallet?',
+        a: 'The Lifecoins wallet tracks your total balance, recent transactions, and earning history. Access it from the Health screen or your profile. Pending approvals are shown separately until confirmed.',
+      },
+      {
+        q: 'How do I redeem or use my Lifecoins?',
+        a: 'Redemption options are shown in the wallet screen. Eligibility criteria apply. If you believe a redemption failed or was processed incorrectly, contact support with your wallet transaction reference.',
+      },
+      {
+        q: 'My Lifecoins balance did not update after completing a video.',
+        a: 'Allow a short moment for the wallet to sync. Pull to refresh on the wallet screen. If the balance is still incorrect after a few minutes, report it from Send Feedback and include the video title, date, and time.',
       },
     ],
   },
-];
+  {
+    title: 'Physician Assignment & Consultations',
+    items: [
+      {
+        q: 'How does physician assignment work?',
+        a: 'When your case requires clinical review, LifeGate assigns an available licensed physician from the queue. Assignment happens automatically based on case urgency, specialty, and physician availability.',
+      },
+      {
+        q: 'When will a physician respond to my case?',
+        a: 'Response times depend on physician availability and your case urgency level. Urgent cases are prioritised. You will receive an in-app notification when a physician reviews or responds to your case.',
+      },
+      {
+        q: 'Can I message my assigned physician?',
+        a: 'Yes. Once a physician is assigned to your active case, a chat icon appears in the Diagnosis Report screen. Tap it to open the Instant Message panel and communicate directly with your physician.',
+      },
+      {
+        q: 'What is a follow-up consultation?',
+        a: 'After an initial consultation, you may request or receive a follow-up to review progress, update your condition, or address new symptoms. Follow-ups are linked to the original case record.',
+      },
+      {
+        q: 'My case shows Active but no physician has responded.',
+        a: 'Cases in the queue may take time depending on volume. If your case has been Active without any update for an unexpectedly long time, contact support with your case ID for a status check.',
+      },
+      {
+        q: 'Can I request a different physician?',
+        a: 'Physician re-assignment is not self-service. If you have a concern about the assigned physician or the consultation outcome, raise it through Send Feedback or Contact Support with your case details.',
+      },
+    ],
+  },
+  {
+    title: 'Privacy & Data Management',
+    items: [
+      {
+        q: 'What health data does LifeGate store?',
+        a: 'LifeGate stores profile information, symptom reports, health metrics, test results, and consultation history needed to deliver clinical services safely. Data is used only for the purposes you engage with in the app.',
+      },
+      {
+        q: 'How is my data protected?',
+        a: 'LifeGate uses encrypted transmission and controlled access policies. Sensitive health records are only accessible to licensed personnel involved in your care pathway. Never share your login credentials.',
+      },
+      {
+        q: 'Can I delete my account and data?',
+        a: 'Yes. Go to Settings and look for Account Deletion or contact support to initiate a deletion request. Deletion removes your personal data subject to applicable legal retention requirements.',
+      },
+      {
+        q: 'Can I export my health records?',
+        a: 'Data export requests can be submitted through the support channel. Include your patient ID and the type of records you need. The support team will guide you through the process.',
+      },
+      {
+        q: 'Who can see my clinical information?',
+        a: 'Your clinical data is visible to assigned physicians in the context of active cases, and to authorised admin personnel for safety and compliance purposes. LifeGate does not sell personal health data.',
+      },
+    ],
+  },
 
 const HelpItem = ({
   icon,
@@ -368,19 +433,37 @@ export default function HelpScreen() {
         </View>
 
         <View className="rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4 mb-4">
-          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Rate Us</Text>
-          <View className="flex-row gap-2">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Rate Us on the App Stores</Text>
+          <Text className="text-xs text-gray-400 mb-4 leading-4">Enjoying LifeGate? Leave us a review — it helps others find trusted health support.</Text>
+          <View className="flex-row gap-3">
+            {/* Google Play badge */}
             <Pressable
               onPress={() => void handleRateAndroid()}
-              className="flex-1 h-11 rounded-xl bg-[#0EA5A4] items-center justify-center active:opacity-80"
+              style={styles.storeBadge}
+              className="active:opacity-80"
             >
-              <Text className="text-sm font-bold text-white">Android Play Store</Text>
+              <View style={styles.storeBadgeLeft}>
+                <Ionicons name="logo-google-playstore" size={28} color="#fff" />
+              </View>
+              <View style={styles.storeBadgeText}>
+                <Text style={styles.storeBadgeSuper}>GET IT ON</Text>
+                <Text style={styles.storeBadgeName}>Google Play</Text>
+              </View>
             </Pressable>
+
+            {/* App Store badge */}
             <Pressable
               onPress={() => void handleRateIOS()}
-              className="flex-1 h-11 rounded-xl bg-[#1D4ED8] items-center justify-center active:opacity-80"
+              style={[styles.storeBadge, styles.storeBadgeApple]}
+              className="active:opacity-80"
             >
-              <Text className="text-sm font-bold text-white">iOS App Store</Text>
+              <View style={styles.storeBadgeLeft}>
+                <Ionicons name="logo-apple" size={28} color="#fff" />
+              </View>
+              <View style={styles.storeBadgeText}>
+                <Text style={styles.storeBadgeSuper}>DOWNLOAD ON THE</Text>
+                <Text style={styles.storeBadgeName}>App Store</Text>
+              </View>
             </Pressable>
           </View>
         </View>
@@ -443,3 +526,40 @@ function InfoTextRow({ label, value }: { label: string; value: string }) {
     </View>
   );
 }
+
+// ── App Store badge styles ──────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  storeBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#01875F', // Google Play green
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  storeBadgeApple: {
+    backgroundColor: '#111111', // Apple black
+  },
+  storeBadgeLeft: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storeBadgeText: {
+    flex: 1,
+  },
+  storeBadgeSuper: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  storeBadgeName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginTop: 1,
+  },
+});
