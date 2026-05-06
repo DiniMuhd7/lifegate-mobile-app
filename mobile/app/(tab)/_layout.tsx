@@ -17,6 +17,7 @@ import { ConversationDrawer } from 'components/ConversationDrawer';
 import { ResumeSessionModal } from 'components/ResumeSessionModal';
 import { ProfileReminderBanner } from 'components/ProfileReminderBanner';
 import { InAppNotificationBanner } from 'components/InAppNotificationBanner';
+import { InstantMessageModal } from 'components/InstantMessageModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useDiagnosisWebSocket } from 'utils/useWebSocket';
 import { useChatStore } from '@/stores/chat-store';
@@ -27,6 +28,7 @@ import { useIMStore } from 'stores/im-store';
 import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
+import { IMMessage } from 'types/im-types';
 import { registerPatientPushToken, addNotificationResponseListener, addNotificationReceivedListener } from 'utils/pushNotifications';
 import { registerWebPush } from 'services/webPushRegistration';
 import { startHealthMonitoring, stopHealthMonitoring } from 'utils/backgroundHealthMonitor';
@@ -56,7 +58,13 @@ export default function TabLayout() {
 
   // ── In-app IM notification banner ─────────────────────────────────────────
   const [banner, setBanner] = useState<PhysicianNotification | null>(null);
+  const [liveIM, setLiveIM] = useState<{ diagnosisId: string; counterpartName: string } | null>(null);
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+  const lastIMPopupAtRef = useRef(0);
+
+  const IM_POPUP_COOLDOWN_MS = 3000;
 
   // ── Sync OS app-icon badge with total IM unread count ─────────────────────
   useEffect(() => {
@@ -93,8 +101,32 @@ export default function TabLayout() {
     setBanner(null);
   }, [banner]);
 
+  // ── Auto-open IM modal for incoming physician messages ──────────────────
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'user') return;
+
+    const unsubIncomingIM = wsService.on('im.message', (data) => {
+      const msg = data as IMMessage;
+      if (!msg?.diagnosis_id) return;
+
+      const now = Date.now();
+      if (now - lastIMPopupAtRef.current < IM_POPUP_COOLDOWN_MS) return;
+      lastIMPopupAtRef.current = now;
+
+      setLiveIM((prev) => {
+        // Keep existing modal if it's already open for this case.
+        if (prev?.diagnosisId === msg.diagnosis_id) return prev;
+        return {
+          diagnosisId: msg.diagnosis_id,
+          counterpartName: msg.sender_name || 'Physician',
+        };
+      });
+    });
+
+    return () => unsubIncomingIM();
+  }, [isAuthenticated, user?.role]);
+
   // ── Connect wsService so IM modal read-receipts and typing work ────────────
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const wsConnected = useRef(false);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -116,7 +148,6 @@ export default function TabLayout() {
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
   const sessionError = useAuthStore((s) => s.sessionError);
   const restoreSession = useAuthStore((s) => s.restoreSession);
-  const user = useAuthStore((s) => s.user);
   const navigationState = useRootNavigationState();
 
   useEffect(() => {
@@ -376,6 +407,14 @@ export default function TabLayout() {
       </Drawer>
       {/* In-app banner — rendered AFTER Drawer so it appears on top */}
       <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleBannerPress} />
+      {liveIM && (
+        <InstantMessageModal
+          diagnosisId={liveIM.diagnosisId}
+          counterpartName={liveIM.counterpartName}
+          perspective="patient"
+          onClose={() => setLiveIM(null)}
+        />
+      )}
     </GestureHandlerRootView>
   );
 }

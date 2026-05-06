@@ -12,7 +12,7 @@ import {
   Alert,
   SafeAreaView,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useProfessionalStore } from '../../stores/professional-store';
@@ -541,6 +541,7 @@ export default function CaseReviewScreen() {
   const imUnread = useIMStore(
     (s) => s.conversations[caseId as string]?.unreadCount ?? 0,
   );
+  const syncUnreadCount = useIMStore((s) => s.syncUnreadCount);
 
   // Load data on mount
   useEffect(() => {
@@ -548,6 +549,13 @@ export default function CaseReviewScreen() {
     loadCaseDetail(caseId);
     return () => clearCurrentCase();
   }, [caseId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!caseId) return;
+      syncUnreadCount(caseId);
+    }, [caseId, syncUnreadCount]),
+  );
 
   // Sync edit state when case is loaded
   useEffect(() => {

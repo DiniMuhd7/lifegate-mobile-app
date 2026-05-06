@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useDiagnosisStore } from 'stores/diagnosis-store';
 import { DiagnosisService } from 'services/diagnosis-service';
@@ -112,6 +112,7 @@ export default function DiagnosisReportScreen() {
   // Memoized — O(n×m) find+some only re-runs when conversations or id changes.
   const conversations = useChatStore((state) => state.conversations);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const syncUnreadCount = useIMStore((s) => s.syncUnreadCount);
   const imUnread = useIMStore((s) => (id ? (s.conversations[id]?.unreadCount ?? 0) : 0));
   const linkedConversation = useMemo(
     () => (id ? conversations.find((c) => c.messages.some((m) => m.diagnosisId === id)) : null),
@@ -137,6 +138,13 @@ export default function DiagnosisReportScreen() {
     // No cleanup — clearing selectedDiagnosis on unmount triggers a re-render
     // that blanks the screen during the back-navigation exit animation.
   }, [id]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!id) return;
+      syncUnreadCount(id);
+    }, [id, syncUnreadCount]),
+  );
 
   const d = selectedDiagnosis?.id === id ? selectedDiagnosis : null;
 

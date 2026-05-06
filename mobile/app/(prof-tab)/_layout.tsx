@@ -6,16 +6,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BottomTabBar } from '../../components/BottomTabBar';
 import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
+import { InstantMessageModal } from '../../components/InstantMessageModal';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
 import { registerPhysicianPushToken, addNotificationResponseListener, addNotificationReceivedListener } from '../../utils/pushNotifications';
 import { registerWebPush } from 'services/webPushRegistration';
 import { useAuthStore } from 'stores/auth-store';
 import wsService from 'services/websocket-service';
 import { getToken } from 'utils/tokenStorage';
+import { IMMessage } from 'types/im-types';
 
 export default function ProfTabLayout() {
   const router = useRouter();
   const [banner, setBanner] = useState<PhysicianNotification | null>(null);
+  const [liveIM, setLiveIM] = useState<{ diagnosisId: string; counterpartName: string } | null>(null);
+  const lastIMPopupAtRef = useRef(0);
+  const IM_POPUP_COOLDOWN_MS = 3000;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const addNotification = useNotificationStore((s) => s.addNotification);
 
@@ -71,6 +76,30 @@ export default function ProfTabLayout() {
     });
     return () => sub.remove();
   }, [addNotification]);
+
+  // Auto-open IM modal for incoming patient messages (debounced for bursts).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubIncomingIM = wsService.on('im.message', (data) => {
+      const msg = data as IMMessage;
+      if (!msg?.diagnosis_id) return;
+
+      const now = Date.now();
+      if (now - lastIMPopupAtRef.current < IM_POPUP_COOLDOWN_MS) return;
+      lastIMPopupAtRef.current = now;
+
+      setLiveIM((prev) => {
+        if (prev?.diagnosisId === msg.diagnosis_id) return prev;
+        return {
+          diagnosisId: msg.diagnosis_id,
+          counterpartName: msg.sender_name || 'Patient',
+        };
+      });
+    });
+
+    return () => unsubIncomingIM();
+  }, [isAuthenticated]);
 
   // Connect wsService so the IM modal read-receipts/typing work
   const wsConnected = useRef(false);
@@ -170,6 +199,15 @@ export default function ProfTabLayout() {
 
       {/* In-app notification banner (overlays content) */}
       <InAppNotificationBanner notification={banner} onDismiss={handleDismissBanner} onPress={handleBannerPress} />
+
+      {liveIM && (
+        <InstantMessageModal
+          diagnosisId={liveIM.diagnosisId}
+          counterpartName={liveIM.counterpartName}
+          perspective="physician"
+          onClose={() => setLiveIM(null)}
+        />
+      )}
 
       {/* Bottom Tab Bar — active tab is auto-detected from the current pathname */}
       <BottomTabBar />

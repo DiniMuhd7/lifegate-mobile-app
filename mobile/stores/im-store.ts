@@ -14,6 +14,9 @@ interface IMState {
   /** Pull-to-refresh: reload messages keeping existing ones visible. */
   refreshConversation: (diagnosisId: string) => Promise<void>;
 
+  /** Sync unread count from backend for a conversation. */
+  syncUnreadCount: (diagnosisId: string) => Promise<void>;
+
   /** Optimistically append a sent message, then confirm with the server. */
   sendMessage: (
     diagnosisId: string,
@@ -261,6 +264,20 @@ export const useIMStore = create<IMState>((set, get) => ({
     }
   },
 
+  // ── syncUnreadCount ──────────────────────────────────────────────────────
+  syncUnreadCount: async (diagnosisId) => {
+    try {
+      const count = await IMService.getUnreadCount(diagnosisId);
+      set((s) => ({
+        conversations: patchConversation(s.conversations, diagnosisId, {
+          unreadCount: count,
+        }),
+      }));
+    } catch {
+      // Best effort: keep existing in-memory unread count on transient failures.
+    }
+  },
+
   // ── receiveMessage ─────────────────────────────────────────────────────────
   receiveMessage: (msg) => {
     set((s) => {
@@ -290,6 +307,7 @@ export const useIMStore = create<IMState>((set, get) => ({
           messages: conv.messages.map((m) =>
             m.read_at ? m : { ...m, read_at: now },
           ),
+          unreadCount: 0,
         }),
       };
     });
