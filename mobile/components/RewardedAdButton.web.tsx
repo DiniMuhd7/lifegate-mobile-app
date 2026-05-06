@@ -12,8 +12,10 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const PUBLISHER_ID = 'ca-app-pub-3940256099942544'; // Google test publisher ID
-const AD_UNIT_ID   = 'ca-app-pub-3940256099942544/5224354917'; // Google test rewarded ad unit
+const PUBLISHER_ID =
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-3940256099942544';
+const AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID ?? 'ca-app-pub-3940256099942544/5224354917';
 
 declare global {
   interface Window {

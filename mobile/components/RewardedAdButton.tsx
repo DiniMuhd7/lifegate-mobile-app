@@ -10,7 +10,8 @@ import { Pressable, View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
 
-const AD_UNIT_ID = TestIds.REWARDED;
+const AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID ?? TestIds.REWARDED;
 
 export interface RewardedAdButtonProps {
   onRewarded: () => void;

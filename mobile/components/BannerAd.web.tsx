@@ -14,8 +14,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
-const PUBLISHER_ID = 'ca-app-pub-3940256099942544'; // Google test publisher ID
-const AD_SLOT    = '6300978111'; // Google test banner ad unit
+const PUBLISHER_ID =
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-3940256099942544';
+const AD_SLOT =
+  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '6300978111';
 
 // Extend window type for adsbygoogle
 declare global {

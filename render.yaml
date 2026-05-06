@@ -125,6 +125,13 @@ services:
     envVars:
       - key: EXPO_PUBLIC_API_URL
         value: https://lifegate-backend.onrender.com/api
+      # AdMob — Web (adsbygoogle / H5 Ads)
+      - key: EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID
+        value: ca-app-pub-3940256099942544
+      - key: EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT
+        value: "6300978111"
+      - key: EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID
+        value: ca-app-pub-3940256099942544/5224354917
 
     routes:
       - type: rewrite

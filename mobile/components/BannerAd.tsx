@@ -8,7 +8,8 @@
 import React from 'react';
 import { BannerAd as RNBannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 
-const AD_UNIT_ID = TestIds.BANNER;
+const AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID ?? TestIds.BANNER;
 
 export function BannerAd() {
   return (
