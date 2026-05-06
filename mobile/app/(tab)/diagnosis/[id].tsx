@@ -16,6 +16,7 @@ import { DiagnosisService } from 'services/diagnosis-service';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { InstantMessageModal } from 'components/InstantMessageModal';
 import { useChatStore } from 'stores/chat-store';
+import { useIMStore } from 'stores/im-store';
 
 // ─── Urgency config ──────────────────────────────────────────────────────────
 const URGENCY_CONFIG: Record<
@@ -111,6 +112,7 @@ export default function DiagnosisReportScreen() {
   // Memoized — O(n×m) find+some only re-runs when conversations or id changes.
   const conversations = useChatStore((state) => state.conversations);
   const setActiveConversation = useChatStore((state) => state.setActiveConversation);
+  const imUnread = useIMStore((s) => (id ? (s.conversations[id]?.unreadCount ?? 0) : 0));
   const linkedConversation = useMemo(
     () => (id ? conversations.find((c) => c.messages.some((m) => m.diagnosisId === id)) : null),
     [conversations, id],
@@ -179,6 +181,28 @@ export default function DiagnosisReportScreen() {
             hitSlop={8}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={19} color="#0AADA2" />
+            {imUnread > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: '#ef4444',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 3,
+                  borderWidth: 1.5,
+                  borderColor: '#fff',
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', lineHeight: 11 }}>
+                  {imUnread > 99 ? '99+' : imUnread}
+                </Text>
+              </View>
+            )}
           </Pressable>
         )}
       </View>
