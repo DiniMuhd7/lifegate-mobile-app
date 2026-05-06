@@ -355,6 +355,27 @@ function VideoPlayerModal({
   const skipRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const adRef = useRef<InterstitialAdSlotHandle>(null);
 
+  // ── Interstitial ad readiness ──────────────────────────────────────────────
+  // Claim is gated: the patient may only claim after watching a live ad.
+  // adReady: a live ad has loaded and is waiting to be shown.
+  // adFailed: ad load failed (no fill / network) — gate is lifted so user isn’t blocked.
+  // claimPending: ad was shown, waiting for dismissal to execute claim.
+  const [adReady, setAdReady] = useState(false);
+  const [adFailed, setAdFailed] = useState(false);
+  const [claimPending, setClaimPending] = useState(false);
+  const adFailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Start an 8-second failsafe: if ad hasn’t loaded by then, lift the gate.
+  useEffect(() => {
+    adFailTimeoutRef.current = setTimeout(() => {
+      if (!adReady) setAdFailed(true);
+    }, 8000);
+    return () => {
+      if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (preRollDone) return;
     skipRef.current = setInterval(() => {
@@ -474,12 +495,29 @@ function VideoPlayerModal({
   }, [handleMessage]);
 
   const handleClaim = async () => {
-    setClaiming(true);
+    // Gate: require a live ad to have loaded (or the failsafe to have fired).
+    if (!adReady && !adFailed) return;
+
+    if (adReady) {
+      // Mark that we're waiting for the ad to be dismissed before claiming.
+      setClaimPending(true);
+      setClaiming(true);
+      adRef.current?.show();
+      // Actual onClaim() fires inside the onDismissed callback below.
+    } else {
+      // Ad failed to load — allow claim directly.
+      setClaiming(true);
+      await onClaim();
+      setClaiming(false);
+    }
+  };
+
+  const handleAdDismissed = useCallback(async () => {
+    if (!claimPending) return;
+    setClaimPending(false);
     await onClaim();
     setClaiming(false);
-    // Show interstitial after a successful claim (post-conversion placement).
-    adRef.current?.show();
-  };
+  }, [claimPending, onClaim]);
 
   const circleSize = 44;
   const strokeWidth = 3;
@@ -759,14 +797,14 @@ function VideoPlayerModal({
 
           {/* Claim pill */}
           <Pressable
-            onPress={canClaim && !claiming ? handleClaim : undefined}
+            onPress={canClaim && !claiming && (adReady || adFailed) ? handleClaim : undefined}
             style={({ pressed }) => ({
               alignSelf: 'stretch',
-              opacity: !canClaim || claiming ? 0.45 : pressed ? 0.8 : 1,
+              opacity: !canClaim || claiming || (!adReady && !adFailed) ? 0.45 : pressed ? 0.8 : 1,
             })}
           >
             <LinearGradient
-              colors={canClaim ? ['#16a34a', '#15803d'] : ['#1e2535', '#1e2535']}
+              colors={canClaim && (adReady || adFailed) ? ['#16a34a', '#15803d'] : ['#1e2535', '#1e2535']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
@@ -777,16 +815,24 @@ function VideoPlayerModal({
                 paddingVertical: 16,
                 paddingHorizontal: 32,
                 borderRadius: 16,
-                borderWidth: canClaim ? 0 : 1,
+                borderWidth: canClaim && (adReady || adFailed) ? 0 : 1,
                 borderColor: 'rgba(255,255,255,0.08)',
               }}
             >
               {claiming ? (
                 <ActivityIndicator size="small" color="#fff" />
+              ) : canClaim && !adReady && !adFailed ? (
+                // Ad still loading — show spinner with contextual label
+                <>
+                  <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>
+                    Loading ad…
+                  </Text>
+                </>
               ) : (
                 <>
                   <Ionicons
-                    name={canClaim ? 'heart' : 'lock-closed-outline'}
+                    name={canClaim ? 'play-circle' : 'lock-closed-outline'}
                     size={20}
                     color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'}
                   />
@@ -797,15 +843,24 @@ function VideoPlayerModal({
                       color: canClaim ? '#fff' : 'rgba(255,255,255,0.3)',
                     }}
                   >
-                    {canClaim ? `Claim +${video.coins} Lifecoins` : `Keep watching to unlock`}
+                    {canClaim
+                      ? adFailed
+                        ? `Claim +${video.coins} Lifecoins`
+                        : `Watch ad → Claim +${video.coins} LC`
+                      : 'Keep watching to unlock'}
                   </Text>
                 </>
               )}
             </LinearGradient>
           </Pressable>
 
-          {/* Interstitial ad — loads silently, shown automatically after claim */}
-          <InterstitialAdSlot ref={adRef} />
+          {/* Interstitial ad — loads silently; claim is gated on successful load */}
+          <InterstitialAdSlot
+            ref={adRef}
+            onLoaded={() => setAdReady(true)}
+            onFailed={() => setAdFailed(true)}
+            onDismissed={handleAdDismissed}
+          />
         </View>
         </View>
         )}

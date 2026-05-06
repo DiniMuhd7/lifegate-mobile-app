@@ -2,8 +2,10 @@
  * InterstitialAdSlot.tsx — AdMob Interstitial Ad (native).
  *
  * Invisible component — loads a full-screen interstitial in the background.
- * Call `ref.current?.show()` to display it (e.g. after a reward is claimed).
- * The ad is pre-loaded on mount and automatically reloads after each dismissal.
+ * The parent gates the claim reward on a successful ad load:
+ *   1. Render <InterstitialAdSlot ref={adRef} onLoaded={...} onDismissed={...} onFailed={...} />
+ *   2. When adReady === true, enable the Claim button.
+ *   3. On press, call adRef.current?.show() — executes claim inside onDismissed.
  *
  * App ID  : ca-app-pub-3940256099942544~3347511713  (test — iOS)
  * App ID  : ca-app-pub-3940256099942544~1458002511  (test — Android)
@@ -16,17 +18,23 @@ const AD_UNIT_ID =
   process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_UNIT_ID ?? TestIds.INTERSTITIAL;
 
 export interface InterstitialAdSlotHandle {
-  /** Show the interstitial if loaded; silently skips if not yet ready. */
+  /** Show the interstitial. Only effective when an ad is loaded. */
   show: () => void;
+  /** Whether a live ad is currently loaded and ready to display. */
+  isLoaded: boolean;
 }
 
 export interface InterstitialAdSlotProps {
-  /** Called after the ad is dismissed. */
+  /** Called when an ad has loaded and is ready to show. */
+  onLoaded?: () => void;
+  /** Called when the ad load attempt fails (no fill or network error). */
+  onFailed?: () => void;
+  /** Called after the ad is dismissed by the user. */
   onDismissed?: () => void;
 }
 
 export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, InterstitialAdSlotProps>(
-  function InterstitialAdSlot({ onDismissed }, ref) {
+  function InterstitialAdSlot({ onLoaded, onFailed, onDismissed }, ref) {
     const interstitial = useRef(InterstitialAd.createForAdRequest(AD_UNIT_ID)).current;
     const [loaded, setLoaded] = useState(false);
 
@@ -34,11 +42,13 @@ export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, Interstit
       show: () => {
         if (loaded) interstitial.show();
       },
+      isLoaded: loaded,
     }), [loaded]);
 
     useEffect(() => {
       const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
         setLoaded(true);
+        onLoaded?.();
       });
       const unsubClosed = interstitial.addAdEventListener(AdEventType.CLOSED, () => {
         setLoaded(false);
@@ -47,6 +57,7 @@ export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, Interstit
       });
       const unsubError = interstitial.addAdEventListener(AdEventType.ERROR, () => {
         setLoaded(false);
+        onFailed?.();
       });
 
       interstitial.load();

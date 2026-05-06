@@ -51,19 +51,35 @@ function ensureAdConfig() {
 
 export interface InterstitialAdSlotHandle {
   show: () => void;
+  /** Always true on web — adBreak fires synchronously when called. */
+  isLoaded: boolean;
 }
 
 export interface InterstitialAdSlotProps {
+  onLoaded?: () => void;
+  onFailed?: () => void;
   onDismissed?: () => void;
 }
 
 export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, InterstitialAdSlotProps>(
-  function InterstitialAdSlot({ onDismissed }, ref) {
+  function InterstitialAdSlot({ onLoaded, onFailed, onDismissed }, ref) {
     const pendingRef = useRef(false);
 
+    // On web the adBreak API is always "ready" once the script is injected.
+    // Signal loaded on first render so the parent can enable the claim button.
+    useEffect(() => {
+      ensureAdConfig();
+      onLoaded?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useImperativeHandle(ref, () => ({
+      isLoaded: true,
       show: () => {
-        if (typeof window === 'undefined' || pendingRef.current) return;
+        if (typeof window === 'undefined' || pendingRef.current) {
+          onFailed?.();
+          return;
+        }
         pendingRef.current = true;
 
         const adBreak: (cfg: AdBreakConfig) => void =
@@ -84,10 +100,6 @@ export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, Interstit
         });
       },
     }));
-
-    useEffect(() => {
-      ensureAdConfig();
-    }, []);
 
     return null;
   }
