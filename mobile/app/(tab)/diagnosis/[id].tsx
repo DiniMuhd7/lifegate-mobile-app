@@ -185,8 +185,8 @@ export default function DiagnosisReportScreen() {
               <View
                 style={{
                   position: 'absolute',
-                  top: 0,
-                  right: 0,
+                  top: -4,
+                  right: -4,
                   minWidth: 16,
                   height: 16,
                   borderRadius: 8,
@@ -196,9 +196,10 @@ export default function DiagnosisReportScreen() {
                   paddingHorizontal: 3,
                   borderWidth: 1.5,
                   borderColor: '#fff',
+                  zIndex: 10,
                 }}
               >
-                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', lineHeight: 11 }}>
+                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 11 }}>
                   {imUnread > 99 ? '99+' : imUnread}
                 </Text>
               </View>
