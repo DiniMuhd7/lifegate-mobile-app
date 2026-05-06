@@ -871,11 +871,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     borderWidth: 1,
     borderColor: '#DCEFEF',
-    shadowColor: '#0EA5A4',
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   bioRow: {
     flexDirection: 'row',
@@ -942,11 +937,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#EAF2F2',
-    shadowColor: '#0EA5A4',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   infoRow: {
     flexDirection: 'row',
