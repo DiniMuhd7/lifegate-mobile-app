@@ -11,6 +11,7 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -24,13 +25,18 @@ import { Dropdown } from 'components/DropDown';
 import { DOBInput } from 'components/DobPicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// ── Tokens ────────────────────────────────────────────────────────────────────
-const T      = '#0EA5A4';
-const T_D    = '#0B8E8D';
-const T_L    = '#E0F3F3';
-const BG     = '#FAFAFA';
+// ── Dark dashboard palette ────────────────────────────────────────────────────
+const CANVAS    = '#111827';   // near-black canvas
+const SURFACE   = '#1F2937';   // card background
+const BORDER    = '#374151';   // subtle border
+const TEAL      = '#0EA5A4';   // brand accent
+const TEAL_D    = '#0B8E8D';
+const TEAL_L    = '#E0F3F3';
+const WHITE     = '#FFFFFF';
+const MID       = '#9CA3AF';   // muted text (on dark)
+const LIGHT_TX  = '#F9FAFB';   // primary text (on dark)
+const DANGER    = '#EF4444';
 
-// ── Data ──────────────────────────────────────────────────────────────────────
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
   { label: 'Hausa',   value: 'Hausa'   },
@@ -47,14 +53,9 @@ const GENDER_OPTIONS = [
   { label: 'Other',  value: 'other'  },
 ];
 
-type Tab = 'profile' | 'security' | 'preferences';
-const TABS: { id: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'profile',     label: 'Profile',     icon: 'person-outline'         },
-  { id: 'security',    label: 'Security',    icon: 'shield-outline'         },
-  { id: 'preferences', label: 'Preferences', icon: 'options-outline'        },
-];
+const TABS = ['Profile', 'Security', 'Preferences'] as const;
+type Tab = (typeof TABS)[number];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -71,83 +72,55 @@ function parseYMD(v: string): Date | null {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function InfoCard({
-  icon,
+/** Dark card floating on canvas */
+function DarkCard({ children, style }: { children: React.ReactNode; style?: any }) {
+  return <View style={[d.card, style]}>{children}</View>;
+}
+
+/** Section header inside a dark card */
+function CardSection({ title }: { title: string }) {
+  return <Text style={d.cardSection}>{title}</Text>;
+}
+
+/** A single data row inside a card — no icons, text-first */
+function DataRow({
   label,
   value,
-  actionLabel,
   onPress,
-  locked,
+  last,
+  danger,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string;
-  actionLabel?: string;
   onPress?: () => void;
-  locked?: boolean;
+  last?: boolean;
+  danger?: boolean;
 }) {
-  return (
-    <View style={s.infoCard}>
-      <View style={s.infoCardIconWrap}>
-        <Ionicons name={icon} size={17} color={T} />
-      </View>
+  const inner = (
+    <View style={[d.dataRow, !last && d.dataRowDivider]}>
       <View style={{ flex: 1 }}>
-        <Text style={s.infoCardLabel}>{label}</Text>
-        <Text style={[s.infoCardValue, !value && s.infoCardEmpty]}>
-          {value || 'Not set'}
-        </Text>
+        <Text style={d.dataLabel}>{label}</Text>
+        {value ? <Text style={[d.dataValue, danger && { color: DANGER }]} numberOfLines={2}>{value}</Text> : null}
       </View>
-      {locked && (
-        <Ionicons name="lock-closed" size={14} color="#D1D5DB" />
-      )}
-      {!locked && onPress && (
-        <Pressable
-          onPress={onPress}
-          style={({ pressed }) => [s.infoCardAction, pressed && { opacity: 0.7 }]}
-        >
-          <Text style={s.infoCardActionText}>{actionLabel ?? 'Edit'}</Text>
-        </Pressable>
-      )}
+      {onPress && <Ionicons name="chevron-forward" size={16} color={MID} />}
     </View>
   );
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} android_ripple={{ color: '#ffffff14' }} style={({ pressed }) => (pressed && Platform.OS === 'ios' ? { opacity: 0.65 } : {})}>
+        {inner}
+      </Pressable>
+    );
+  }
+  return inner;
 }
 
-function SecurityRow({
-  icon,
-  title,
-  subtitle,
-  color,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  color: string;
-  onPress: () => void;
-}) {
+/** Password strength hint */
+function PwdHint({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.secRow, pressed && { opacity: 0.8 }]}
-      android_ripple={{ color: '#F1F5F9' }}
-    >
-      <View style={[s.secRowIcon, { backgroundColor: color + '18' }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={s.secRowTitle}>{title}</Text>
-        <Text style={s.secRowSub}>{subtitle}</Text>
-      </View>
-      <Ionicons name="arrow-forward-circle-outline" size={22} color={color} />
-    </Pressable>
-  );
-}
-
-function HintRow({ label, ok }: { label: string; ok: boolean }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3 }}>
-      <Ionicons name={ok ? 'checkmark-circle' : 'radio-button-off-outline'} size={14} color={ok ? T : '#CBD5E1'} />
-      <Text style={{ marginLeft: 8, fontSize: 12, color: ok ? T_D : '#94A3B8' }}>{label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 }}>
+      <Ionicons name={ok ? 'checkmark-circle' : 'radio-button-off-outline'} size={14} color={ok ? TEAL : BORDER} />
+      <Text style={{ fontSize: 13, color: ok ? TEAL_L : MID }}>{label}</Text>
     </View>
   );
 }
@@ -157,28 +130,29 @@ export default function AccountSettingScreen() {
   const { user } = useAuthStore();
   const { changePassword, updateHealthProfile, updateBasicProfile, loading, getProfile, error, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
 
-  const [activeTab, setActiveTab]               = useState<Tab>('profile');
-  const [isRefreshing, setIsRefreshing]         = useState(false);
-  const [showEditModal, setShowEditModal]         = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal]     = useState(false);
-  const [showCancelModal, setShowCancelModal]     = useState(false);
-  const [deletionLoading, setDeletionLoading]     = useState(false);
-  const [languageSaving, setLanguageSaving]       = useState(false);
+  const [tab, setTab]                         = useState<Tab>('Profile');
+  const [isRefreshing, setIsRefreshing]       = useState(false);
+  const [showEditModal, setShowEditModal]     = useState(false);
+  const [showPwdModal, setShowPwdModal]       = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [delLoading, setDelLoading]           = useState(false);
+  const [langSaving, setLangSaving]           = useState(false);
+
   const [editForm, setEditForm] = useState({
-    firstName: user?.name?.split(' ')[0]            || '',
+    firstName: user?.name?.split(' ')[0] || '',
     lastName:  user?.name?.split(' ').slice(1).join(' ') || '',
     phone:     user?.phone  || '',
     dob:       user?.dob    || '',
     gender:    user?.gender || '',
   });
-  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
 
   useEffect(() => { getProfile(); }, [getProfile]);
   useEffect(() => {
     if (user) {
       setEditForm({
-        firstName: user?.name?.split(' ')[0]            || '',
+        firstName: user?.name?.split(' ')[0] || '',
         lastName:  user?.name?.split(' ').slice(1).join(' ') || '',
         phone:     user?.phone  || '',
         dob:       user?.dob    || '',
@@ -196,369 +170,298 @@ export default function AccountSettingScreen() {
   if (loading && !user) return <ProfileSkeleton />;
   if (!user) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: BG, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name="person-circle-outline" size={64} color="#CBD5E1" />
-        <Text style={{ color: '#64748B', marginTop: 12, marginBottom: 20 }}>Profile unavailable</Text>
+      <View style={{ flex: 1, backgroundColor: CANVAS, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="person-circle-outline" size={64} color={BORDER} />
+        <Text style={{ color: MID, marginTop: 12, marginBottom: 20 }}>Profile unavailable</Text>
         <PrimaryButton title="Retry" onPress={() => getProfile()} />
-      </SafeAreaView>
+      </View>
     );
   }
 
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // derived
   const profileFields     = [user.name, user.email, user.phone, user.gender, user.dob, user.language];
-  const profileCompletion = Math.round((profileFields.filter((v) => !!String(v ?? '').trim()).length / profileFields.length) * 100);
-  const initials = user.name?.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'P';
-  const firstName = user.name?.split(' ')[0] || 'Patient';
-  const formattedDob = (() => {
-    if (!user.dob) return '';
+  const completionPct     = Math.round((profileFields.filter((v) => !!String(v ?? '').trim()).length / profileFields.length) * 100);
+  const initials          = user.name?.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'P';
+  const formattedDob      = (() => {
+    if (!user.dob) return 'Not set';
     const d = new Date(user.dob);
     return isNaN(d.getTime()) ? user.dob : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   })();
-  const genderDisplay  = user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : '';
-  const completionColor = profileCompletion >= 80 ? '#10B981' : profileCompletion >= 50 ? '#F59E0B' : '#EF4444';
-  const isDeletionScheduled = !!user.deletion_scheduled_at;
-  const deletionDate = isDeletionScheduled
-    ? new Date(user.deletion_scheduled_at!).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
-    : null;
-  const passwordChecks = {
-    minLength: passwordForm.new.length >= 6,
-    hasUpper:  /[A-Z]/.test(passwordForm.new),
-    hasNumber: /\d/.test(passwordForm.new),
-    matches:   passwordForm.new.length > 0 && passwordForm.new === passwordForm.confirm,
+  const genderDisplay  = user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : 'Not set';
+  const isDel          = !!user.deletion_scheduled_at;
+  const delDate        = isDel ? new Date(user.deletion_scheduled_at!).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : null;
+  const completionColor = completionPct >= 80 ? '#10B981' : completionPct >= 50 ? '#F59E0B' : DANGER;
+
+  const pwdChecks = {
+    minLength: pwdForm.new.length >= 6,
+    hasUpper:  /[A-Z]/.test(pwdForm.new),
+    hasNumber: /\d/.test(pwdForm.new),
+    matches:   pwdForm.new.length > 0 && pwdForm.new === pwdForm.confirm,
   };
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // handlers
   const handleSaveEdit = async () => {
     if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
-      Alert.alert('Validation', 'Please fill in first and last name'); return;
+      Alert.alert('Validation', 'First and last name are required'); return;
     }
     const dobValue = editForm.dob.trim();
     if (dobValue && !/^\d{4}-\d{2}-\d{2}$/.test(dobValue)) {
       Alert.alert('Validation', 'Date of birth must be YYYY-MM-DD'); return;
     }
-    const success = await updateBasicProfile({
+    const ok = await updateBasicProfile({
       name:   [editForm.firstName.trim(), editForm.lastName.trim()].join(' '),
       phone:  editForm.phone.trim()  || undefined,
       dob:    dobValue               || undefined,
       gender: editForm.gender.trim() || undefined,
     });
-    if (success) { Alert.alert('Updated', 'Profile saved'); setShowEditModal(false); }
+    if (ok) { Alert.alert('Saved', 'Profile updated successfully'); setShowEditModal(false); }
     else Alert.alert('Error', 'Failed to update profile.');
   };
 
-  const handleChangePassword = async () => {
-    if (!passwordForm.current || !passwordForm.new || !passwordForm.confirm) {
+  const handleChangePwd = async () => {
+    if (!pwdForm.current || !pwdForm.new || !pwdForm.confirm) {
       Alert.alert('Validation', 'Please fill in all fields'); return;
     }
-    if (passwordForm.new !== passwordForm.confirm) {
-      Alert.alert('Validation', 'New passwords do not match'); return;
-    }
-    if (passwordForm.new.length < 6) {
-      Alert.alert('Validation', 'Password must be at least 6 characters'); return;
-    }
+    if (pwdForm.new !== pwdForm.confirm) { Alert.alert('Validation', 'Passwords do not match'); return; }
+    if (pwdForm.new.length < 6) { Alert.alert('Validation', 'Password must be at least 6 characters'); return; }
     try {
-      const success = await changePassword(passwordForm.current, passwordForm.new, passwordForm.confirm);
-      if (success) { Alert.alert('Done', 'Password updated'); setPasswordForm({ current: '', new: '', confirm: '' }); setShowPasswordModal(false); }
-      else Alert.alert('Error', 'Failed to change password.');
+      const ok = await changePassword(pwdForm.current, pwdForm.new, pwdForm.confirm);
+      if (ok) {
+        Alert.alert('Done', 'Password changed successfully');
+        setPwdForm({ current: '', new: '', confirm: '' });
+        setShowPwdModal(false);
+      } else Alert.alert('Error', 'Failed to change password.');
     } catch { Alert.alert('Error', 'An unexpected error occurred'); }
   };
 
   const handleConfirmDelete = async () => {
-    setDeletionLoading(true);
+    setDelLoading(true);
     const ok = await requestAccountDeletion();
-    setDeletionLoading(false);
+    setDelLoading(false);
     setShowDeleteModal(false);
-    if (ok) Alert.alert('Deletion Scheduled', 'Your account will be deleted in 90 days. You can cancel at any time.');
+    if (ok) Alert.alert('Deletion Scheduled', 'Account will be deleted in 90 days. You can cancel at any time.');
     else Alert.alert('Error', 'Failed to schedule deletion.');
   };
 
-  const handleConfirmCancelDeletion = async () => {
-    setDeletionLoading(true);
+  const handleConfirmCancelDel = async () => {
+    setDelLoading(true);
     const ok = await cancelAccountDeletion();
-    setDeletionLoading(false);
+    setDelLoading(false);
     setShowCancelModal(false);
-    if (ok) Alert.alert('Cancelled', 'Account deletion cancelled. Your account is safe.');
+    if (ok) Alert.alert('Cancelled', 'Account deletion cancelled.');
     else Alert.alert('Error', 'Failed to cancel deletion.');
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ──
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: CANVAS }}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [s.headerBack, pressed && { opacity: 0.6 }]}>
-            <Ionicons name="chevron-back" size={20} color="#1E293B" />
+        {/* ── Top bar ── */}
+        <View style={d.topBar}>
+          <Pressable onPress={() => router.back()} style={({ pressed }) => [d.topBarBack, pressed && { opacity: 0.55 }]}>
+            <Ionicons name="arrow-back" size={20} color={LIGHT_TX} />
           </Pressable>
-          <Text style={s.headerTitle}>Account Setting</Text>
-          <Pressable onPress={() => setShowEditModal(true)} style={({ pressed }) => [s.headerEdit, pressed && { opacity: 0.7 }]}>
-            <Ionicons name="pencil-outline" size={18} color={T} />
+          <Text style={d.topBarTitle}>Account Setting</Text>
+          <Pressable onPress={() => setShowEditModal(true)} style={({ pressed }) => [d.topBarEdit, pressed && { opacity: 0.7 }]}>
+            <Ionicons name="create-outline" size={18} color={WHITE} />
           </Pressable>
         </View>
 
-        {/* ── Profile card (centred avatar) ── */}
-        <View style={s.profileCard}>
-          {/* Avatar with completion ring */}
-          <View style={s.avatarWrap}>
-            <View style={[s.avatarRing, { borderColor: completionColor }]}>
-              <View style={s.avatarInner}>
-                <Text style={s.avatarInitials}>{initials}</Text>
-              </View>
-            </View>
-            <View style={[s.completionDot, { backgroundColor: completionColor }]}>
-              <Text style={s.completionDotText}>{profileCompletion}%</Text>
-            </View>
-          </View>
-
-          <Text style={s.profileName}>{user.name || firstName}</Text>
-          <Text style={s.profileEmail}>{user.email}</Text>
-          {user.patient_id && (
-            <View style={s.pidBadge}>
-              <Ionicons name="id-card-outline" size={12} color={T_D} />
-              <Text style={s.pidBadgeText}>{user.patient_id}</Text>
-            </View>
-          )}
-          {profileCompletion < 100 && (
-            <Pressable onPress={() => setShowEditModal(true)} style={({ pressed }) => [s.completePrompt, pressed && { opacity: 0.8 }]}>
-              <Ionicons name="alert-circle-outline" size={13} color="#F59E0B" />
-              <Text style={s.completePromptText}>Complete your profile</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* ── Deletion alert strip ── */}
-        {isDeletionScheduled && (
-          <View style={s.deletionStrip}>
-            <Ionicons name="warning" size={14} color="#B91C1C" />
-            <Text style={s.deletionStripText}>Account deletion scheduled · {deletionDate}</Text>
-            <Pressable onPress={() => setShowCancelModal(true)} style={({ pressed }) => [s.deletionStripBtn, pressed && { opacity: 0.8 }]}>
-              <Text style={s.deletionStripBtnText}>Cancel</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* ── Tab bar ── */}
-        <View style={s.tabBar}>
-          {TABS.map((tab) => (
-            <Pressable
-              key={tab.id}
-              onPress={() => setActiveTab(tab.id)}
-              style={({ pressed }) => [s.tabItem, activeTab === tab.id && s.tabItemActive, pressed && { opacity: 0.8 }]}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={16}
-                color={activeTab === tab.id ? T : '#9CA3AF'}
-              />
-              <Text style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}>{tab.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* ── Tab content ── */}
         <ScrollView
-          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={s.scrollContent}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={T} />}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={TEAL} />}
         >
 
-          {/* ── Profile tab ── */}
-          {activeTab === 'profile' && (
-            <View style={{ gap: 10 }}>
-              <Text style={s.tabSectionTitle}>Personal Details</Text>
-              <View style={s.cardGroup}>
-                <InfoCard icon="person-outline"     label="Full name"     value={user.name}       actionLabel="Edit"     onPress={() => setShowEditModal(true)} />
-                <View style={s.cardDivider} />
-                <InfoCard icon="mail-outline"        label="Email address" value={user.email}      locked />
-                <View style={s.cardDivider} />
-                <InfoCard icon="call-outline"        label="Phone number"  value={user.phone}      actionLabel="Edit"     onPress={() => setShowEditModal(true)} />
-                <View style={s.cardDivider} />
-                <InfoCard icon="male-female-outline" label="Gender"        value={genderDisplay}   actionLabel="Edit"     onPress={() => setShowEditModal(true)} />
-                <View style={s.cardDivider} />
-                <InfoCard icon="calendar-outline"    label="Date of birth" value={formattedDob || user.dob} actionLabel="Edit" onPress={() => setShowEditModal(true)} />
-                <View style={s.cardDivider} />
-                <InfoCard icon="id-card-outline"     label="Patient ID"    value={user.patient_id} locked />
+          {/* ── Profile hero block ── */}
+          <View style={d.heroBlock}>
+            {/* Avatar */}
+            <View style={d.avatarOuter}>
+              <View style={d.avatarInner}>
+                <Text style={d.avatarText}>{initials}</Text>
               </View>
+              {/* Completion ring segment */}
+              <View style={[d.completionChip, { backgroundColor: completionColor }]}>
+                <Text style={d.completionChipText}>{completionPct}%</Text>
+              </View>
+            </View>
+            <Text style={d.heroName}>{user.name || 'Patient'}</Text>
+            <Text style={d.heroEmail}>{user.email}</Text>
+
+            {/* Stat chips row */}
+            <View style={d.statRow}>
+              <View style={d.statChip}>
+                <Text style={d.statChipValue}>{completionPct}%</Text>
+                <Text style={d.statChipLabel}>Completion</Text>
+              </View>
+              <View style={d.statDivider} />
+              <View style={d.statChip}>
+                <Text style={d.statChipValue}>Patient</Text>
+                <Text style={d.statChipLabel}>Role</Text>
+              </View>
+              <View style={d.statDivider} />
+              <View style={d.statChip}>
+                <Text style={d.statChipValue} numberOfLines={1}>{user.patient_id ? `#${String(user.patient_id).slice(0, 6)}` : '–'}</Text>
+                <Text style={d.statChipLabel}>ID</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* ── Pill tab bar ── */}
+          <View style={d.tabRail}>
+            {TABS.map((t) => {
+              const active = tab === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => setTab(t)}
+                  style={[d.tabPill, active && d.tabPillActive]}
+                  android_ripple={{ color: '#00000020', borderless: true }}
+                >
+                  <Text style={[d.tabPillText, active && d.tabPillTextActive]}>{t}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* ── PROFILE TAB ── */}
+          {tab === 'Profile' && (
+            <View style={d.tabContent}>
+              <DarkCard>
+                <CardSection title="Basic Information" />
+                <DataRow label="Full Name"     value={user.name}       onPress={() => setShowEditModal(true)} />
+                <DataRow label="Email Address" value={user.email}                                             />
+                <DataRow label="Phone Number"  value={user.phone || 'Not set'}  onPress={() => setShowEditModal(true)} />
+                <DataRow label="Gender"        value={genderDisplay}   onPress={() => setShowEditModal(true)} />
+                <DataRow label="Date of Birth" value={formattedDob}    onPress={() => setShowEditModal(true)} last />
+              </DarkCard>
+              <DarkCard style={{ marginTop: 16 }}>
+                <CardSection title="Account Details" />
+                <DataRow label="Patient ID"    value={user.patient_id ? String(user.patient_id) : '–'}       />
+                <DataRow label="Health Profile" onPress={() => router.push('/(tab)/settings/manage-profile' as any)} last />
+              </DarkCard>
             </View>
           )}
 
-          {/* ── Security tab ── */}
-          {activeTab === 'security' && (
-            <View style={{ gap: 10 }}>
-              <Text style={s.tabSectionTitle}>Account Security</Text>
-              <View style={s.cardGroup}>
-                <SecurityRow
-                  icon="heart-outline"
-                  title="Health Profile"
-                  subtitle="Blood type, allergies, medications & emergency contact"
-                  color={T}
-                  onPress={() => router.push('/(tab)/settings/manage-profile' as any)}
-                />
-                <View style={s.cardDivider} />
-                <SecurityRow
-                  icon="lock-closed-outline"
-                  title="Change Password"
-                  subtitle="Update your login password"
-                  color="#7C3AED"
-                  onPress={() => setShowPasswordModal(true)}
-                />
-              </View>
-
-              <Text style={[s.tabSectionTitle, { marginTop: 12 }]}>Danger Zone</Text>
-              <View style={[s.cardGroup, s.dangerCard]}>
-                {isDeletionScheduled ? (
-                  <SecurityRow
-                    icon="time-outline"
-                    title="Deletion Pending"
-                    subtitle={`Scheduled for ${deletionDate}`}
-                    color="#DC2626"
-                    onPress={() => setShowCancelModal(true)}
-                  />
+          {/* ── SECURITY TAB ── */}
+          {tab === 'Security' && (
+            <View style={d.tabContent}>
+              <DarkCard>
+                <CardSection title="Password & Login" />
+                <DataRow label="Change Password" value="Update your login password" onPress={() => setShowPwdModal(true)} last />
+              </DarkCard>
+              <DarkCard style={{ marginTop: 16 }}>
+                <CardSection title="Danger Zone" />
+                {isDel ? (
+                  <DataRow label="Deletion Scheduled" value={`Account will be deleted on ${delDate}`} onPress={() => setShowCancelModal(true)} last />
                 ) : (
-                  <View style={{ padding: 16, gap: 14 }}>
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                      <Ionicons name="warning-outline" size={16} color="#DC2626" style={{ marginTop: 1 }} />
-                      <Text style={s.dangerText}>Deleting your account is permanent after the 90-day grace period. All health records and personal data will be removed.</Text>
-                    </View>
-                    <Pressable
-                      onPress={() => setShowDeleteModal(true)}
-                      style={({ pressed }) => [s.dangerBtn, pressed && { opacity: 0.85 }]}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#fff" />
-                      <Text style={s.dangerBtnText}>Delete Account</Text>
-                    </Pressable>
-                  </View>
+                  <DataRow label="Delete Account" value="Schedule permanent account deletion" onPress={() => setShowDeleteModal(true)} danger last />
                 )}
-              </View>
+              </DarkCard>
+              {isDel && (
+                <Pressable onPress={() => setShowCancelModal(true)} style={({ pressed }) => [d.cancelDelBtn, pressed && { opacity: 0.75 }]}>
+                  <Ionicons name="shield-checkmark-outline" size={16} color={TEAL} />
+                  <Text style={d.cancelDelText}>Cancel Scheduled Deletion</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
-          {/* ── Preferences tab ── */}
-          {activeTab === 'preferences' && (
-            <View style={{ gap: 10 }}>
-              <Text style={s.tabSectionTitle}>Language</Text>
-              <View style={s.cardGroup}>
-                <View style={s.prefRow}>
-                  <View style={s.prefIcon}>
-                    <Ionicons name="globe-outline" size={17} color={T} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.prefLabel}>Preferred Language</Text>
-                    {languageSaving && <ActivityIndicator size="small" color={T} style={{ marginTop: 6 }} />}
-                    <Dropdown
-                      label=""
-                      options={LANGUAGE_OPTIONS}
-                      placeholder="Select language"
-                      selectedValue={user.language || ''}
-                      onChange={async (value) => {
-                        useAuthStore.setState((st) => ({
-                          user: st.user ? { ...st.user, language: value } : st.user,
-                        }));
-                        setLanguageSaving(true);
-                        const ok = await updateHealthProfile({ language: value });
-                        setLanguageSaving(false);
-                        if (!ok) {
-                          useAuthStore.setState((st) => ({
-                            user: st.user ? { ...st.user, language: user.language ?? '' } : st.user,
-                          }));
-                          Alert.alert('Error', 'Could not save language preference.');
-                        }
-                      }}
-                    />
-                  </View>
+          {/* ── PREFERENCES TAB ── */}
+          {tab === 'Preferences' && (
+            <View style={d.tabContent}>
+              <DarkCard>
+                <CardSection title="Language" />
+                <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                  {langSaving && <ActivityIndicator size="small" color={TEAL} style={{ marginBottom: 8 }} />}
+                  <Dropdown
+                    label=""
+                    options={LANGUAGE_OPTIONS}
+                    placeholder="Select language"
+                    selectedValue={user.language || ''}
+                    onChange={async (value) => {
+                      useAuthStore.setState((st) => ({ user: st.user ? { ...st.user, language: value } : st.user }));
+                      setLangSaving(true);
+                      const ok = await updateHealthProfile({ language: value });
+                      setLangSaving(false);
+                      if (!ok) {
+                        useAuthStore.setState((st) => ({ user: st.user ? { ...st.user, language: user.language ?? '' } : st.user }));
+                        Alert.alert('Error', 'Could not save language preference.');
+                      }
+                    }}
+                  />
                 </View>
-              </View>
-
-              <Text style={[s.tabSectionTitle, { marginTop: 8 }]}>App</Text>
-              <View style={s.cardGroup}>
-                <SecurityRow
-                  icon="notifications-outline"
-                  title="Notification Settings"
-                  subtitle="Manage alerts and push preferences"
-                  color="#0891B2"
-                  onPress={() => router.push('/(tab)/settings/notification')}
-                />
-                <View style={s.cardDivider} />
-                <SecurityRow
-                  icon="card-outline"
-                  title="Subscription"
-                  subtitle="Credits, billing and payment history"
-                  color="#7C3AED"
-                  onPress={() => router.push('/(tab)/settings/subscription')}
-                />
-              </View>
+              </DarkCard>
             </View>
           )}
+
         </ScrollView>
 
-        {/* ── Delete Confirm Modal ── */}
-        <Modal visible={showDeleteModal} transparent animationType="fade">
-          <View style={s.overlay}>
-            <View style={s.sheet}>
-              <View style={s.sheetHandle} />
-              <View style={[s.sheetIcon, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons name="warning" size={28} color="#DC2626" />
+        {/* ── Modals ── */}
+
+        {/* Delete confirm */}
+        <Modal visible={showDeleteModal} transparent animationType="slide">
+          <View style={d.overlay}>
+            <View style={d.sheet}>
+              <View style={d.sheetHandle} />
+              <View style={[d.sheetIconCircle, { backgroundColor: '#2D1515' }]}>
+                <Ionicons name="warning" size={28} color={DANGER} />
               </View>
-              <Text style={s.sheetTitle}>Delete Account?</Text>
-              <Text style={s.sheetBody}>
-                Your account will be scheduled for deletion in{' '}
-                <Text style={{ fontWeight: '800' }}>90 days</Text>. All health records, diagnoses and personal data will be{' '}
-                <Text style={{ fontWeight: '800' }}>permanently deleted</Text> at the end of this window.
-              </Text>
-              <Pressable style={({ pressed }) => [s.sheetPrimary, { backgroundColor: '#DC2626' }, pressed && { opacity: 0.85 }]} onPress={handleConfirmDelete} disabled={deletionLoading}>
-                {deletionLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.sheetPrimaryText}>Yes, Delete My Account</Text>}
+              <Text style={d.sheetTitle}>Delete Account?</Text>
+              <Text style={d.sheetBody}>Your account will be permanently deleted after a 90-day grace period. This action can be reversed during the window.</Text>
+              <Pressable style={({ pressed }) => [d.sheetBtn, { backgroundColor: DANGER }, pressed && { opacity: 0.85 }]} onPress={handleConfirmDelete} disabled={delLoading}>
+                {delLoading ? <ActivityIndicator color="#fff" /> : <Text style={d.sheetBtnText}>Schedule Deletion</Text>}
               </Pressable>
-              <Pressable style={({ pressed }) => [s.sheetSecondary, pressed && { opacity: 0.8 }]} onPress={() => setShowDeleteModal(false)} disabled={deletionLoading}>
-                <Text style={s.sheetSecondaryText}>Keep My Account</Text>
+              <Pressable style={({ pressed }) => [d.sheetBtnGhost, pressed && { opacity: 0.7 }]} onPress={() => setShowDeleteModal(false)}>
+                <Text style={d.sheetBtnGhostText}>Keep Account</Text>
               </Pressable>
             </View>
           </View>
         </Modal>
 
-        {/* ── Cancel Deletion Modal ── */}
-        <Modal visible={showCancelModal} transparent animationType="fade">
-          <View style={s.overlay}>
-            <View style={s.sheet}>
-              <View style={s.sheetHandle} />
-              <View style={[s.sheetIcon, { backgroundColor: '#D1FAE5' }]}>
-                <Ionicons name="shield-checkmark" size={28} color="#059669" />
+        {/* Cancel deletion confirm */}
+        <Modal visible={showCancelModal} transparent animationType="slide">
+          <View style={d.overlay}>
+            <View style={d.sheet}>
+              <View style={d.sheetHandle} />
+              <View style={[d.sheetIconCircle, { backgroundColor: '#0D2620' }]}>
+                <Ionicons name="shield-checkmark" size={28} color="#10B981" />
               </View>
-              <Text style={s.sheetTitle}>Cancel Deletion?</Text>
-              <Text style={s.sheetBody}>This will restore your account to fully active. All your data will remain intact.</Text>
-              <Pressable style={({ pressed }) => [s.sheetPrimary, { backgroundColor: '#059669' }, pressed && { opacity: 0.85 }]} onPress={handleConfirmCancelDeletion} disabled={deletionLoading}>
-                {deletionLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.sheetPrimaryText}>Yes, Keep My Account</Text>}
+              <Text style={d.sheetTitle}>Cancel Deletion?</Text>
+              <Text style={d.sheetBody}>Your account will be restored to fully active status. All data remains intact.</Text>
+              <Pressable style={({ pressed }) => [d.sheetBtn, { backgroundColor: '#10B981' }, pressed && { opacity: 0.85 }]} onPress={handleConfirmCancelDel} disabled={delLoading}>
+                {delLoading ? <ActivityIndicator color="#fff" /> : <Text style={d.sheetBtnText}>Keep My Account</Text>}
               </Pressable>
-              <Pressable style={({ pressed }) => [s.sheetSecondary, pressed && { opacity: 0.8 }]} onPress={() => setShowCancelModal(false)} disabled={deletionLoading}>
-                <Text style={s.sheetSecondaryText}>Go Back</Text>
+              <Pressable style={({ pressed }) => [d.sheetBtnGhost, pressed && { opacity: 0.7 }]} onPress={() => setShowCancelModal(false)}>
+                <Text style={d.sheetBtnGhostText}>Go Back</Text>
               </Pressable>
             </View>
           </View>
         </Modal>
 
-        {/* ── Edit Profile Modal ── */}
+        {/* Edit Profile */}
         <Modal visible={showEditModal} transparent animationType="slide">
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <View style={s.overlay}>
-              <View style={s.sheet}>
-                <View style={s.sheetHandle} />
-                <View style={s.sheetRow}>
-                  <Text style={s.sheetTitle}>Edit Profile</Text>
-                  <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => (pressed ? { opacity: 0.6 } : {})}>
-                    <Ionicons name="close-circle" size={26} color="#CBD5E1" />
+            <View style={d.overlay}>
+              <View style={d.sheet}>
+                <View style={d.sheetHandle} />
+                <View style={d.sheetHeaderRow}>
+                  <Text style={d.sheetTitle}>Edit Profile</Text>
+                  <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => (pressed ? { opacity: 0.5 } : {})}>
+                    <Ionicons name="close-circle" size={24} color={BORDER} />
                   </Pressable>
                 </View>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                  <LabeledInput label="First Name" required placeholder="First Name" value={editForm.firstName} onChangeText={(t) => setEditForm({ ...editForm, firstName: t })} />
-                  <LabeledInput label="Last Name"  required placeholder="Last Name"  value={editForm.lastName}  onChangeText={(t) => setEditForm({ ...editForm, lastName: t })} />
-                  <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad" value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
+                  <LabeledInput label="First Name" required placeholder="First Name" value={editForm.firstName} onChangeText={(t: string) => setEditForm({ ...editForm, firstName: t })} />
+                  <LabeledInput label="Last Name"  required placeholder="Last Name"  value={editForm.lastName}  onChangeText={(t: string) => setEditForm({ ...editForm, lastName: t })} />
+                  <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad" value={editForm.phone} onChangeText={(t: string) => setEditForm({ ...editForm, phone: t })} />
                   <DOBInput label="Date of Birth" value={parseYMD(editForm.dob)} onChange={(date: Date) => setEditForm({ ...editForm, dob: fmt(date) })} />
-                  <Dropdown label="Gender" options={GENDER_OPTIONS} placeholder="Select gender" selectedValue={editForm.gender} onChange={(value) => setEditForm({ ...editForm, gender: value })} />
+                  <Dropdown label="Gender" options={GENDER_OPTIONS} placeholder="Select gender" selectedValue={editForm.gender} onChange={(value: string) => setEditForm({ ...editForm, gender: value })} />
                 </ScrollView>
-                <View style={s.sheetActions}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <PrimaryButton title="Save Changes" onPress={handleSaveEdit} loading={loading} />
+                <View style={d.sheetActions}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <PrimaryButton title="Save" onPress={handleSaveEdit} loading={loading} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowEditModal(false)} />
@@ -569,35 +472,35 @@ export default function AccountSettingScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
-        {/* ── Change Password Modal ── */}
-        <Modal visible={showPasswordModal} transparent animationType="slide">
+        {/* Change Password */}
+        <Modal visible={showPwdModal} transparent animationType="slide">
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <View style={s.overlay}>
-              <View style={s.sheet}>
-                <View style={s.sheetHandle} />
-                <View style={s.sheetRow}>
-                  <Text style={s.sheetTitle}>Change Password</Text>
-                  <Pressable onPress={() => setShowPasswordModal(false)} style={({ pressed }) => (pressed ? { opacity: 0.6 } : {})}>
-                    <Ionicons name="close-circle" size={26} color="#CBD5E1" />
+            <View style={d.overlay}>
+              <View style={d.sheet}>
+                <View style={d.sheetHandle} />
+                <View style={d.sheetHeaderRow}>
+                  <Text style={d.sheetTitle}>Change Password</Text>
+                  <Pressable onPress={() => setShowPwdModal(false)} style={({ pressed }) => (pressed ? { opacity: 0.5 } : {})}>
+                    <Ionicons name="close-circle" size={24} color={BORDER} />
                   </Pressable>
                 </View>
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                  <LabeledInput label="Current Password" placeholder="Enter current password" value={passwordForm.current} onChangeText={(t) => setPasswordForm({ ...passwordForm, current: t })} secureToggle />
-                  <LabeledInput label="New Password"     placeholder="Enter new password"     value={passwordForm.new}     onChangeText={(t) => setPasswordForm({ ...passwordForm, new: t })}     secureToggle />
-                  <LabeledInput label="Confirm Password" placeholder="Confirm new password"   value={passwordForm.confirm} onChangeText={(t) => setPasswordForm({ ...passwordForm, confirm: t })} secureToggle />
-                  <View style={s.hintBox}>
-                    <HintRow label="At least 6 characters"    ok={passwordChecks.minLength} />
-                    <HintRow label="Contains uppercase letter" ok={passwordChecks.hasUpper}  />
-                    <HintRow label="Contains a number"         ok={passwordChecks.hasNumber} />
-                    <HintRow label="Passwords match"          ok={passwordChecks.matches}   />
+                  <LabeledInput label="Current Password" placeholder="Current password" value={pwdForm.current} onChangeText={(t: string) => setPwdForm({ ...pwdForm, current: t })} secureToggle />
+                  <LabeledInput label="New Password"     placeholder="New password"     value={pwdForm.new}     onChangeText={(t: string) => setPwdForm({ ...pwdForm, new: t })}     secureToggle />
+                  <LabeledInput label="Confirm Password" placeholder="Confirm password" value={pwdForm.confirm} onChangeText={(t: string) => setPwdForm({ ...pwdForm, confirm: t })} secureToggle />
+                  <View style={d.hintBox}>
+                    <PwdHint label="At least 6 characters"    ok={pwdChecks.minLength} />
+                    <PwdHint label="Contains uppercase letter" ok={pwdChecks.hasUpper}  />
+                    <PwdHint label="Contains a number"         ok={pwdChecks.hasNumber} />
+                    <PwdHint label="Passwords match"          ok={pwdChecks.matches}   />
                   </View>
                 </ScrollView>
-                <View style={s.sheetActions}>
-                  <View style={{ flex: 1, marginRight: 12 }}>
-                    <PrimaryButton title="Update Password" onPress={handleChangePassword} loading={loading} />
+                <View style={d.sheetActions}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <PrimaryButton title="Update" onPress={handleChangePwd} loading={loading} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowPasswordModal(false)} />
+                    <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowPwdModal(false)} />
                   </View>
                 </View>
               </View>
@@ -612,257 +515,159 @@ export default function AccountSettingScreen() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
+const d = StyleSheet.create({
 
-  // Header
-  header: {
+  // Top bar
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    backgroundColor: CANVAS,
   },
-  headerBack: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
-  headerEdit: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: T_L,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  topBarBack: { width: 36, height: 36, borderRadius: 18, backgroundColor: SURFACE, alignItems: 'center', justifyContent: 'center' },
+  topBarTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: LIGHT_TX },
+  topBarEdit:  { width: 36, height: 36, borderRadius: 18, backgroundColor: TEAL, alignItems: 'center', justifyContent: 'center' },
 
-  // Profile card
-  profileCard: {
+  // Hero block
+  heroBlock: {
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingTop: 24,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 12,
   },
-  avatarWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  avatarRing: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  avatarOuter: { position: 'relative', marginBottom: 14 },
   avatarInner: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: T_L,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: SURFACE,
+    borderWidth: 3,
+    borderColor: TEAL,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitials: { fontSize: 26, fontWeight: '900', color: '#076F6E' },
-  completionDot: {
+  avatarText:    { fontSize: 34, fontWeight: '800', color: TEAL },
+  completionChip: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
-    borderRadius: 12,
-    paddingHorizontal: 6,
+    bottom: 0,
+    right: -4,
+    borderRadius: 30,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  completionDotText: { fontSize: 9, fontWeight: '800', color: '#fff' },
-  profileName:  { fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 2 },
-  profileEmail: { fontSize: 12, color: '#94A3B8', marginBottom: 10 },
-  pidBadge: {
-    flexDirection: 'row',
+    minWidth: 36,
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: T_L,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 8,
   },
-  pidBadgeText: { fontSize: 11, fontWeight: '700', color: T_D },
-  completePrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#FFFBEB',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  completePromptText: { fontSize: 11, fontWeight: '700', color: '#B45309' },
+  completionChipText: { fontSize: 11, fontWeight: '800', color: WHITE },
+  heroName:     { fontSize: 24, fontWeight: '800', color: WHITE, marginBottom: 4 },
+  heroEmail:    { fontSize: 14, color: MID, marginBottom: 20 },
 
-  // Deletion strip
-  deletionStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF2F2',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FECACA',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  deletionStripText: { flex: 1, fontSize: 12, fontWeight: '600', color: '#991B1B' },
-  deletionStripBtn: { backgroundColor: '#DC2626', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  deletionStripBtnText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  // Stat row
+  statRow:    { flexDirection: 'row', backgroundColor: SURFACE, borderRadius: 16, paddingVertical: 14, width: '100%' },
+  statChip:   { flex: 1, alignItems: 'center' },
+  statChipValue: { fontSize: 16, fontWeight: '700', color: WHITE, marginBottom: 2 },
+  statChipLabel: { fontSize: 11, color: MID, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statDivider: { width: StyleSheet.hairlineWidth, backgroundColor: BORDER },
 
-  // Tab bar
-  tabBar: {
+  // Pill tab bar
+  tabRail: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingHorizontal: 16,
+    backgroundColor: SURFACE,
+    borderRadius: 40,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 4,
   },
-  tabItem: {
+  tabPill: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 10,
+    borderRadius: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
   },
-  tabItemActive: { borderBottomColor: T },
-  tabLabel:      { fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
-  tabLabelActive: { color: T, fontWeight: '800' },
+  tabPillActive:    { backgroundColor: TEAL },
+  tabPillText:      { fontSize: 14, fontWeight: '600', color: MID },
+  tabPillTextActive: { color: WHITE },
 
-  // Scroll
-  scrollContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 60, gap: 0 },
-  tabSectionTitle: { fontSize: 11, fontWeight: '800', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+  // Tab content area
+  tabContent: { paddingHorizontal: 16 },
 
-  // Card group
-  cardGroup: {
-    backgroundColor: '#fff',
+  // Dark card
+  card: {
+    backgroundColor: SURFACE,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2EEF0',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    paddingTop: 12,
   },
-  cardDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#F1F8F8', marginHorizontal: 16 },
+  cardSection: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: MID,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
 
-  // Info card row
-  infoCard: {
+  // Data row (text-first, no icon chips)
+  dataRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    gap: 12,
+    minHeight: 56,
   },
-  infoCardIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: T_L,
-    alignItems: 'center',
-    justifyContent: 'center',
+  dataRowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
   },
-  infoCardLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
-  infoCardValue: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
-  infoCardEmpty: { color: '#CBD5E1', fontStyle: 'italic' },
-  infoCardAction: {
-    backgroundColor: T_L,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  infoCardActionText: { fontSize: 12, fontWeight: '700', color: T_D },
+  dataLabel: { fontSize: 14, color: MID, marginBottom: 3 },
+  dataValue: { fontSize: 16, fontWeight: '500', color: LIGHT_TX },
 
-  // Security row
-  secRow: {
+  // Cancel deletion button
+  cancelDelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 14,
-  },
-  secRowIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secRowTitle: { fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: 3 },
-  secRowSub:   { fontSize: 11, color: '#94A3B8', lineHeight: 16 },
-
-  // Danger
-  dangerCard: { borderColor: '#FEE2E2', backgroundColor: '#FFF8F8' },
-  dangerText: { flex: 1, fontSize: 12, color: '#991B1B', lineHeight: 18 },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#DC2626',
+    backgroundColor: SURFACE,
     borderRadius: 12,
-    paddingVertical: 13,
+    padding: 14,
+    marginTop: 12,
+    marginHorizontal: 0,
+    borderWidth: 1,
+    borderColor: TEAL,
   },
-  dangerBtnText: { fontSize: 14, fontWeight: '800', color: '#fff' },
-
-  // Preferences
-  prefRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  prefIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: T_L,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  prefLabel: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 6 },
+  cancelDelText: { fontSize: 14, fontWeight: '600', color: TEAL },
 
   // Modals
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#1F2937',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: 20,
-    paddingBottom: 36,
-    paddingTop: 16,
+    paddingBottom: 34,
+    paddingTop: 12,
     maxHeight: '88%',
   },
-  sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 20 },
-  sheetRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  sheetIcon:   { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 },
-  sheetTitle:  { fontSize: 20, fontWeight: '800', color: '#1E293B', textAlign: 'center', marginBottom: 8 },
-  sheetBody:   { fontSize: 14, color: '#64748B', lineHeight: 22, textAlign: 'center', marginBottom: 24 },
-  sheetPrimary: { borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginBottom: 10 },
-  sheetPrimaryText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  sheetSecondary: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', backgroundColor: '#F1F5F9' },
-  sheetSecondaryText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
-  sheetActions: { flexDirection: 'row', marginTop: 16 },
-  hintBox: { backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2EEF0', padding: 12, marginBottom: 20 },
+  sheetHandle:    { width: 36, height: 5, borderRadius: 3, backgroundColor: BORDER, alignSelf: 'center', marginBottom: 20 },
+  sheetHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  sheetIconCircle:{ width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 12 },
+  sheetTitle:     { fontSize: 20, fontWeight: '700', color: WHITE, textAlign: 'center', marginBottom: 8 },
+  sheetBody:      { fontSize: 15, color: MID, lineHeight: 22, textAlign: 'center', marginBottom: 24 },
+  sheetBtn: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sheetBtnText:      { fontSize: 17, fontWeight: '700', color: WHITE },
+  sheetBtnGhost:     { borderRadius: 14, paddingVertical: 16, alignItems: 'center', backgroundColor: '#374151' },
+  sheetBtnGhostText: { fontSize: 17, color: LIGHT_TX },
+  sheetActions:      { flexDirection: 'row', marginTop: 12 },
+  hintBox: {
+    backgroundColor: '#111827',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
 });
