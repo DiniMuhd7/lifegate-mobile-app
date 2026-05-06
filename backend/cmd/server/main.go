@@ -419,6 +419,7 @@ func main() {
 		physicianGroup.GET("/earnings", physicianHandler.GetEarningsSummary)
 		physicianGroup.GET("/earnings/history", physicianHandler.GetEarningsHistory)
 		physicianGroup.GET("/payouts", physicianHandler.GetPayouts)
+		physicianGroup.POST("/payouts/request", physicianHandler.RequestPayout)
 		physicianGroup.PATCH("/profile", physicianHandler.UpdateProfile)
 		// Register/update device push token for in-app notifications
 		physicianGroup.POST("/push-token", func(c *gin.Context) {
@@ -630,6 +631,11 @@ func main() {
 
 		// Explore catalogue management
 		adminGroup.POST("/explore/refresh", exploreHandler.TriggerRefresh)
+
+		// Physician payout request approval queue
+		adminGroup.GET("/physician-payouts", physicianHandler.AdminListPayoutRequests)
+		adminGroup.POST("/physician-payouts/:id/approve", physicianHandler.AdminApprovePayoutRequest)
+		adminGroup.POST("/physician-payouts/:id/reject", physicianHandler.AdminRejectPayoutRequest)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)

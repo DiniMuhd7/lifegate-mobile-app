@@ -52,6 +52,7 @@ export default function AdminTabLayout() {
       <Stack.Screen name="physician-detail" />
       <Stack.Screen name="alert-settings" />
       <Stack.Screen name="lifecoins-approvals" />
+      <Stack.Screen name="physician-payouts" />
     </Stack>
   );
 }

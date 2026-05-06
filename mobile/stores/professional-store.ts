@@ -28,17 +28,20 @@ interface EarningsState {
   earningsTotal: number;
   payouts: Payout[];
   isEarningsLoading: boolean;
+  isRequestingPayout: boolean;
   loadEarningsSummary: () => Promise<void>;
   loadEarningsHistory: (page?: number, pageSize?: number) => Promise<void>;
   loadPayouts: () => Promise<void>;
+  requestPayout: () => Promise<{ success: boolean; message: string }>;
 }
 
-export const useEarningsStore = create<EarningsState>((set) => ({
+export const useEarningsStore = create<EarningsState>((set, get) => ({
   earningsSummary: null,
   earningsHistory: [],
   earningsTotal: 0,
   payouts: [],
   isEarningsLoading: false,
+  isRequestingPayout: false,
 
   loadEarningsSummary: async () => {
     set({ isEarningsLoading: true });
@@ -65,6 +68,20 @@ export const useEarningsStore = create<EarningsState>((set) => ({
       set({ payouts });
     } catch {
       // silently fail
+    }
+  },
+
+  requestPayout: async () => {
+    set({ isRequestingPayout: true });
+    try {
+      const payout = await ProfessionalService.requestPayout();
+      // Prepend the new payout to the list and refresh summary
+      set((s) => ({ payouts: [payout, ...s.payouts], isRequestingPayout: false }));
+      await get().loadEarningsSummary();
+      return { success: true, message: 'Payout request submitted successfully' };
+    } catch (e) {
+      set({ isRequestingPayout: false });
+      return { success: false, message: e instanceof Error ? e.message : 'Failed to request payout' };
     }
   },
 }));

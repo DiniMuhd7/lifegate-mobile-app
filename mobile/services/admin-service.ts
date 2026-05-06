@@ -174,4 +174,19 @@ export const AdminService = {
   async triggerExploreRefresh(): Promise<void> {
     await api.post('/admin/explore/refresh');
   },
+
+  // ── Physician Payout Approvals ─────────────────────────────────────────────
+
+  async getPhysicianPayouts(status = 'requested'): Promise<import('../types/admin-types').AdminPayoutView[]> {
+    const { data } = await api.get('/admin/physician-payouts', { params: { status } });
+    return data.data as import('../types/admin-types').AdminPayoutView[];
+  },
+
+  async approvePhysicianPayout(id: string): Promise<void> {
+    await api.post(`/admin/physician-payouts/${id}/approve`);
+  },
+
+  async rejectPhysicianPayout(id: string, reason: string): Promise<void> {
+    await api.post(`/admin/physician-payouts/${id}/reject`, { reason });
+  },
 };

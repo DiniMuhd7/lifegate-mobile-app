@@ -195,7 +195,7 @@ export interface CaseQueue {
 // ── Earnings & Payouts ────────────────────────────────────────────────────────
 
 export type EarningStatus = 'pending' | 'paid';
-export type PayoutStatus = 'pending' | 'processing' | 'paid';
+export type PayoutStatus = 'pending' | 'requested' | 'processing' | 'paid' | 'rejected';
 
 export interface EarningsSummary {
   totalEarned: number;
@@ -229,5 +229,8 @@ export interface Payout {
   totalAmount: number;
   status: PayoutStatus;
   paidAt?: string;
+  requestedAt?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
   createdAt: string;
 }

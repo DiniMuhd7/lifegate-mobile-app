@@ -224,6 +224,26 @@ func (s *Service) GetPayouts(physicianID string) ([]Payout, error) {
 	return s.repo.GetPayouts(physicianID)
 }
 
+// RequestPayout creates a monthly payout request from the physician's pending earnings.
+func (s *Service) RequestPayout(physicianID string) (*Payout, error) {
+	return s.repo.RequestPayout(physicianID)
+}
+
+// GetAdminPayoutRequests returns all physician payout requests for admin review.
+func (s *Service) GetAdminPayoutRequests(status string) ([]AdminPayoutView, error) {
+	return s.repo.GetAdminPayoutRequests(status)
+}
+
+// ApprovePayoutRequest approves a physician's payout request.
+func (s *Service) ApprovePayoutRequest(payoutID, adminID string) error {
+	return s.repo.ApprovePayoutRequest(payoutID, adminID)
+}
+
+// RejectPayoutRequest rejects a physician's payout request with a reason.
+func (s *Service) RejectPayoutRequest(payoutID, adminID, reason string) error {
+	return s.repo.RejectPayoutRequest(payoutID, adminID, reason)
+}
+
 // UpdateProfile updates the physician's name and/or phone in the users table.
 func (s *Service) UpdateProfile(physicianID, name, phone string) error {
 	return s.repo.UpdateProfile(physicianID, name, phone)

@@ -289,4 +289,16 @@ export const ProfessionalService = {
     if (!res.data.success) throw new Error('Failed to fetch payouts');
     return res.data.data;
   },
+
+  /**
+   * Request a payout of the physician's pending earnings for the current month.
+   * POST /physician/payouts/request
+   */
+  async requestPayout(): Promise<Payout> {
+    const res = await api.post<{ success: boolean; data: Payout; message: string }>(
+      '/physician/payouts/request',
+    );
+    if (!res.data.success) throw new Error(res.data.message ?? 'Failed to request payout');
+    return res.data.data;
+  },
 };

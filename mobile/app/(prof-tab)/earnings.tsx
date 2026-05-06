@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   SafeAreaView,
+  Alert,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,8 +67,10 @@ function SummaryCard({
 
 const PAYOUT_STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
   pending:    { bg: '#fef9c3', text: '#854d0e', label: 'Pending' },
+  requested:  { bg: '#ede9fe', text: '#5b21b6', label: 'Requested' },
   processing: { bg: '#dbeafe', text: '#1e40af', label: 'Processing' },
   paid:       { bg: '#dcfce7', text: '#166534', label: 'Paid' },
+  rejected:   { bg: '#fee2e2', text: '#991b1b', label: 'Rejected' },
 };
 
 function PayoutRow({ item }: { item: Payout }) {
@@ -100,8 +104,10 @@ export default function EarningsScreen() {
     earningsSummary,
     payouts,
     isEarningsLoading,
+    isRequestingPayout,
     loadEarningsSummary,
     loadPayouts,
+    requestPayout,
   } = useEarningsStore();
 
   const refresh = useCallback(async () => {
@@ -111,6 +117,26 @@ export default function EarningsScreen() {
   useEffect(() => {
     refresh();
   }, []);
+
+  const handleRequestPayout = useCallback(async () => {
+    const hasPending = (earningsSummary?.pendingPayout ?? 0) > 0;
+    if (!hasPending) {
+      if (Platform.OS === 'web') {
+        // eslint-disable-next-line no-alert
+        window.alert('No pending earnings to request a payout for.');
+      } else {
+        Alert.alert('No Pending Earnings', 'You have no pending earnings to request a payout for.');
+      }
+      return;
+    }
+    const result = await requestPayout();
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      window.alert(result.message);
+    } else {
+      Alert.alert(result.success ? 'Payout Requested' : 'Error', result.message);
+    }
+  }, [earningsSummary, requestPayout]);
 
   if (isEarningsLoading && !earningsSummary) {
     return (
@@ -213,14 +239,39 @@ export default function EarningsScreen() {
           </View>
         )}
 
+        {/* ── Request Payout button ──────────────────────────────────── */}
+        <View className="mx-4 mb-5">
+          <TouchableOpacity
+            onPress={handleRequestPayout}
+            disabled={isRequestingPayout || (earningsSummary?.pendingPayout ?? 0) === 0}
+            className="flex-row items-center justify-center gap-2 py-3.5 rounded-2xl"
+            style={{ backgroundColor: (earningsSummary?.pendingPayout ?? 0) > 0 ? '#7c3aed' : '#e5e7eb' }}
+          >
+            {isRequestingPayout ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send-outline" size={18} color={(earningsSummary?.pendingPayout ?? 0) > 0 ? '#fff' : '#9ca3af'} />
+            )}
+            <Text
+              className="font-bold text-sm"
+              style={{ color: (earningsSummary?.pendingPayout ?? 0) > 0 ? '#fff' : '#9ca3af' }}
+            >
+              {isRequestingPayout ? 'Requesting…' : 'Request Payout'}
+            </Text>
+          </TouchableOpacity>
+          {(earningsSummary?.pendingPayout ?? 0) === 0 && (
+            <Text className="text-xs text-center text-gray-400 mt-1">No pending earnings to request a payout</Text>
+          )}
+        </View>
+
         {/* ── How it works ───────────────────────────────────────────── */}
         <View className="mx-4 mb-5 bg-blue-50 rounded-2xl p-4">
           <Text className="text-sm font-bold text-blue-800 mb-2">How Earnings Work</Text>
           <View className="gap-1.5">
             {[
               `Earn ₦${s?.perCaseRate ?? 500} for every case you approve`,
-              'Earnings accumulate weekly and are batched into payouts',
-              'Payouts are processed every Monday and transferred to your registered bank account',
+              'Earnings accumulate monthly and are batched into payouts',
+              'Request a payout whenever you have pending earnings — admin reviews and processes it on the 1st of each month',
               'Rejected cases do not generate earnings',
             ].map((line, i) => (
               <View key={i} className="flex-row gap-2">
@@ -242,7 +293,7 @@ export default function EarningsScreen() {
                 <Ionicons name="wallet-outline" size={36} color="#d1d5db" />
                 <Text className="text-gray-400 text-sm mt-2">No payouts yet</Text>
                 <Text className="text-gray-400 text-xs mt-1 text-center px-4">
-                  Your first payout will appear here after your approved cases are processed on Monday.
+                Request a payout once you have pending earnings — it will appear here after admin approval.
                 </Text>
               </View>
             ) : (
@@ -254,7 +305,7 @@ export default function EarningsScreen() {
         {/* ── CTA ────────────────────────────────────────────────────── */}
         <TouchableOpacity
           onPress={() => router.push('/(prof-tab)/caseHistory')}
-          className="mx-4 mt-5 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600"
+          className="mx-4 mt-5 mb-2 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl bg-blue-600"
         >
           <Ionicons name="list-outline" size={18} color="#fff" />
           <Text className="text-white font-bold text-sm">View Case History</Text>

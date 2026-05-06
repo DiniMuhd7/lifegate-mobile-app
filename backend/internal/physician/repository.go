@@ -565,27 +565,36 @@ type EarningRecord struct {
 	CreatedAt   string `json:"createdAt"`
 }
 
-// Payout is a single weekly payout record.
+// Payout is a single monthly payout record.
 type Payout struct {
-	ID          string `json:"id"`
-	PeriodStart string `json:"periodStart"`
-	PeriodEnd   string `json:"periodEnd"`
-	CaseCount   int    `json:"caseCount"`
-	TotalAmount int    `json:"totalAmount"`
-	Status      string `json:"status"`
-	PaidAt      string `json:"paidAt,omitempty"`
-	CreatedAt   string `json:"createdAt"`
+	ID              string `json:"id"`
+	PeriodStart     string `json:"periodStart"`
+	PeriodEnd       string `json:"periodEnd"`
+	CaseCount       int    `json:"caseCount"`
+	TotalAmount     int    `json:"totalAmount"`
+	Status          string `json:"status"`
+	PaidAt          string `json:"paidAt,omitempty"`
+	RequestedAt     string `json:"requestedAt,omitempty"`
+	ReviewedAt      string `json:"reviewedAt,omitempty"`
+	RejectionReason string `json:"rejectionReason,omitempty"`
+	CreatedAt       string `json:"createdAt"`
 }
 
-// nextMonday returns the date of the next Monday at 00:00 UTC.
-func nextMonday() time.Time {
+// AdminPayoutView is the admin-facing view of a payout request, enriched with
+// the requesting physician's name and email.
+type AdminPayoutView struct {
+	Payout
+	PhysicianName  string `json:"physicianName"`
+	PhysicianEmail string `json:"physicianEmail"`
+}
+
+// nextFirstOfMonth returns midnight UTC on the first day of the next calendar
+// month. This is the date physicians can expect their accumulated earnings to
+// be processed as a payout.
+func nextFirstOfMonth() time.Time {
 	now := time.Now().UTC()
-	daysUntilMonday := (8 - int(now.Weekday())) % 7
-	if daysUntilMonday == 0 {
-		daysUntilMonday = 7
-	}
-	next := now.AddDate(0, 0, daysUntilMonday)
-	return time.Date(next.Year(), next.Month(), next.Day(), 0, 0, 0, 0, time.UTC)
+	first := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+	return first
 }
 
 // CreditEarning inserts a physician_earnings row when a case is approved.
@@ -642,7 +651,7 @@ func (r *Repository) GetEarningsSummary(physicianID string) (*EarningsSummary, e
 	).Scan(&s.LastPayoutAmount)
 
 	s.PerCaseRate = EarningRate
-	s.NextPayoutDate = nextMonday().Format("2006-01-02")
+	s.NextPayoutDate = nextFirstOfMonth().Format("2006-01-02")
 	return &s, nil
 }
 
@@ -706,7 +715,8 @@ func (r *Repository) GetEarningsHistory(physicianID string, page, pageSize int) 
 func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
 	rows, err := r.db.Query(`
 		SELECT id, period_start, period_end, case_count, total_amount_naira,
-		       status, paid_at, created_at
+		       status, paid_at, requested_at, reviewed_at,
+		       COALESCE(rejection_reason, ''), created_at
 		FROM physician_payouts
 		WHERE physician_id = $1::uuid
 		ORDER BY period_start DESC`,
@@ -720,11 +730,11 @@ func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
 	var payouts []Payout
 	for rows.Next() {
 		var p Payout
-		var paidAt sql.NullTime
+		var paidAt, requestedAt, reviewedAt sql.NullTime
 		var periodStart, periodEnd, createdAt time.Time
 		if err := rows.Scan(
 			&p.ID, &periodStart, &periodEnd, &p.CaseCount, &p.TotalAmount,
-			&p.Status, &paidAt, &createdAt,
+			&p.Status, &paidAt, &requestedAt, &reviewedAt, &p.RejectionReason, &createdAt,
 		); err != nil {
 			return nil, err
 		}
@@ -734,12 +744,167 @@ func (r *Repository) GetPayouts(physicianID string) ([]Payout, error) {
 		if paidAt.Valid {
 			p.PaidAt = paidAt.Time.Format(time.RFC3339)
 		}
+		if requestedAt.Valid {
+			p.RequestedAt = requestedAt.Time.Format(time.RFC3339)
+		}
+		if reviewedAt.Valid {
+			p.ReviewedAt = reviewedAt.Time.Format(time.RFC3339)
+		}
 		payouts = append(payouts, p)
 	}
 	if payouts == nil {
 		payouts = []Payout{}
 	}
 	return payouts, rows.Err()
+}
+
+// RequestPayout creates a payout record for the current month's unpaid earnings
+// and marks it as "requested". Returns an error if the physician has no unpaid
+// earnings or has already requested a payout for this month.
+func (r *Repository) RequestPayout(physicianID string) (*Payout, error) {
+	now := time.Now().UTC()
+	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	periodEnd   := time.Date(now.Year(), now.Month()+1, 0, 23, 59, 59, 0, time.UTC)
+
+	// Tally pending earnings for this physician
+	var totalAmount, caseCount int
+	err := r.db.QueryRow(`
+		SELECT COALESCE(SUM(amount_naira),0), COUNT(*)
+		FROM physician_earnings
+		WHERE physician_id=$1::uuid AND status='pending'`,
+		physicianID,
+	).Scan(&totalAmount, &caseCount)
+	if err != nil {
+		return nil, err
+	}
+	if totalAmount == 0 {
+		return nil, fmt.Errorf("no pending earnings to request a payout for")
+	}
+
+	// Upsert: insert if not exists, update status/requested_at if already pending/rejected
+	var payoutID string
+	err = r.db.QueryRow(`
+		INSERT INTO physician_payouts
+		    (physician_id, period_start, period_end, case_count, total_amount_naira,
+		     status, requested_at)
+		VALUES ($1::uuid, $2, $3, $4, $5, 'requested', NOW())
+		ON CONFLICT (physician_id, period_start) DO UPDATE
+		    SET status        = EXCLUDED.status,
+		        case_count    = EXCLUDED.case_count,
+		        total_amount_naira = EXCLUDED.total_amount_naira,
+		        requested_at  = EXCLUDED.requested_at,
+		        reviewed_at   = NULL,
+		        rejection_reason = NULL
+		WHERE physician_payouts.status IN ('pending','rejected')
+		RETURNING id`,
+		physicianID, periodStart, periodEnd, caseCount, totalAmount,
+	).Scan(&payoutID)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("a payout request for this month is already pending review")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &Payout{
+		ID:          payoutID,
+		PeriodStart: periodStart.Format("2006-01-02"),
+		PeriodEnd:   periodEnd.Format("2006-01-02"),
+		CaseCount:   caseCount,
+		TotalAmount: totalAmount,
+		Status:      "requested",
+		RequestedAt: now.Format(time.RFC3339),
+		CreatedAt:   now.Format(time.RFC3339),
+	}, nil
+}
+
+// GetAdminPayoutRequests returns all physician payout requests visible to admin,
+// filtered by status. Pass empty string for all.
+func (r *Repository) GetAdminPayoutRequests(status string) ([]AdminPayoutView, error) {
+	query := `
+		SELECT pp.id, pp.period_start, pp.period_end, pp.case_count,
+		       pp.total_amount_naira, pp.status, pp.paid_at,
+		       pp.requested_at, pp.reviewed_at,
+		       COALESCE(pp.rejection_reason,''), pp.created_at,
+		       COALESCE(u.name,''), COALESCE(u.email,'')
+		FROM physician_payouts pp
+		JOIN users u ON u.id = pp.physician_id
+		WHERE pp.requested_at IS NOT NULL`
+	args := []interface{}{}
+	if status != "" {
+		query += ` AND pp.status = $1`
+		args = append(args, status)
+	}
+	query += ` ORDER BY pp.requested_at DESC`
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []AdminPayoutView
+	for rows.Next() {
+		var v AdminPayoutView
+		var paidAt, requestedAt, reviewedAt sql.NullTime
+		var periodStart, periodEnd, createdAt time.Time
+		if err := rows.Scan(
+			&v.ID, &periodStart, &periodEnd, &v.CaseCount,
+			&v.TotalAmount, &v.Status, &paidAt,
+			&requestedAt, &reviewedAt, &v.RejectionReason, &createdAt,
+			&v.PhysicianName, &v.PhysicianEmail,
+		); err != nil {
+			return nil, err
+		}
+		v.PeriodStart = periodStart.Format("2006-01-02")
+		v.PeriodEnd   = periodEnd.Format("2006-01-02")
+		v.CreatedAt   = createdAt.Format(time.RFC3339)
+		if paidAt.Valid      { v.PaidAt      = paidAt.Time.Format(time.RFC3339) }
+		if requestedAt.Valid { v.RequestedAt = requestedAt.Time.Format(time.RFC3339) }
+		if reviewedAt.Valid  { v.ReviewedAt  = reviewedAt.Time.Format(time.RFC3339) }
+		results = append(results, v)
+	}
+	if results == nil {
+		results = []AdminPayoutView{}
+	}
+	return results, rows.Err()
+}
+
+// ApprovePayoutRequest moves a payout from 'requested' → 'processing' and
+// records the reviewing admin.
+func (r *Repository) ApprovePayoutRequest(payoutID, adminID string) error {
+	res, err := r.db.Exec(`
+		UPDATE physician_payouts
+		SET status='processing', reviewed_by=$2::uuid, reviewed_at=NOW()
+		WHERE id=$1::uuid AND status='requested'`,
+		payoutID, adminID,
+	)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("payout not found or not in 'requested' state")
+	}
+	return nil
+}
+
+// RejectPayoutRequest moves a payout from 'requested' → 'pending' (so the
+// physician may fix and re-request) and stores the admin's reason.
+func (r *Repository) RejectPayoutRequest(payoutID, adminID, reason string) error {
+	res, err := r.db.Exec(`
+		UPDATE physician_payouts
+		SET status='rejected', reviewed_by=$2::uuid, reviewed_at=NOW(),
+		    rejection_reason=$3
+		WHERE id=$1::uuid AND status='requested'`,
+		payoutID, adminID, reason,
+	)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return fmt.Errorf("payout not found or not in 'requested' state")
+	}
+	return nil
 }
 
 // ── AI Output ─────────────────────────────────────────────────────────────────

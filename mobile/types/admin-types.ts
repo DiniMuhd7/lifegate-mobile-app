@@ -242,3 +242,20 @@ export type LifecoinRedemptionRequest = {
   adminNote?: string;
   createdAt: string;
 };
+
+export type AdminPayoutView = {
+  id: string;
+  physicianId: string;
+  physicianName: string;
+  physicianEmail: string;
+  periodStart: string;
+  periodEnd: string;
+  caseCount: number;
+  totalAmount: number;
+  status: 'pending' | 'requested' | 'processing' | 'paid' | 'rejected';
+  requestedAt?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  paidAt?: string;
+  createdAt: string;
+};

@@ -618,6 +618,30 @@ export default function AdminDashboardScreen() {
         <SectionHeader title="Quick Actions" icon="flash" accent="#d97706" />
         <View style={{ gap: 10 }}>
           <TouchableOpacity
+            onPress={() => router.push('/(admin-tab)/physician-payouts')}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+            }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#ede9fe', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="medkit-outline" size={20} color="#7c3aed" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Physician Payouts</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Review &amp; approve physician payout requests</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => router.push('/(admin-tab)/lifecoins-approvals')}
             style={{
               backgroundColor: '#fff',

@@ -357,6 +357,102 @@ func (h *Handler) GetPayouts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payouts fetched", "data": payouts})
 }
 
+// RequestPayout lets a physician request a payout of their pending earnings.
+//
+// @Summary      Request payout
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Failure      409  {object}  object{success=bool,message=string}
+// @Router       /physician/payouts/request [post]
+func (h *Handler) RequestPayout(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	payout, err := h.svc.RequestPayout(pid)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "no pending earnings to request a payout for" ||
+			err.Error() == "a payout request for this month is already pending review" {
+			status = http.StatusConflict
+		}
+		c.JSON(status, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payout request submitted", "data": payout})
+}
+
+// AdminListPayoutRequests returns all physician payout requests for admin review.
+//
+// @Summary      List physician payout requests
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status  query  string  false  "Filter by status (requested|processing|paid|rejected)"
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/physician-payouts [get]
+func (h *Handler) AdminListPayoutRequests(c *gin.Context) {
+	status := c.Query("status")
+	items, err := h.svc.GetAdminPayoutRequests(status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": items, "total": len(items)})
+}
+
+// AdminApprovePayoutRequest approves a physician payout request.
+//
+// @Summary      Approve physician payout
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Payout ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Router       /admin/physician-payouts/:id/approve [post]
+func (h *Handler) AdminApprovePayoutRequest(c *gin.Context) {
+	payoutID := c.Param("id")
+	adminID, _ := c.Get("userID")
+	aid, _ := adminID.(string)
+
+	if err := h.svc.ApprovePayoutRequest(payoutID, aid); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payout request approved"})
+}
+
+// AdminRejectPayoutRequest rejects a physician payout request.
+//
+// @Summary      Reject physician payout
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Payout ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Router       /admin/physician-payouts/:id/reject [post]
+func (h *Handler) AdminRejectPayoutRequest(c *gin.Context) {
+	payoutID := c.Param("id")
+	adminID, _ := c.Get("userID")
+	aid, _ := adminID.(string)
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	if err := h.svc.RejectPayoutRequest(payoutID, aid, req.Reason); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payout request rejected"})
+}
+
 // UpdateAIOutput lets a physician edit the AI-generated diagnosis inline.
 //
 // @Summary      Update AI output
