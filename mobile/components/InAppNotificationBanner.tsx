@@ -98,6 +98,8 @@ export function InAppNotificationBanner({ notification, onDismiss, onPress }: Pr
               ? '🔔 New Case Assigned'
               : notification.type === 'im_message'
               ? '💬 New Message'
+              : notification.type === 'checkin_update'
+              ? '📋 Patient Check-in'
               : '📋 Case Updated'}
           </Text>
           <Text style={{ color: '#bfdbfe', fontSize: 12 }} numberOfLines={2}>

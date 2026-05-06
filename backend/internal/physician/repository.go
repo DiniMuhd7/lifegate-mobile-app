@@ -1036,3 +1036,61 @@ func (r *Repository) UpdateProfile(physicianID, name, phone string) error {
 	return err
 }
 
+// PatientCheckin represents one check-in answer record from the checkin_answers table.
+type PatientCheckin struct {
+	ID          string          `json:"id"`
+	SlotID      int             `json:"slotId"`
+	SlotLabel   string          `json:"slotLabel"`
+	SlotDate    string          `json:"slotDate"`
+	Answers     json.RawMessage `json:"answers"`
+	SubmittedAt string          `json:"submittedAt"`
+}
+
+// slotLabels maps slot IDs to human-readable names (must stay in sync with lifecoins.go).
+var slotLabels = map[int]string{
+	1: "Morning",
+	3: "Noon",
+	5: "Evening",
+	6: "Night",
+}
+
+// GetPatientCheckins returns up to 90 check-in answer records for the given patient,
+// ordered most-recent first.
+func (r *Repository) GetPatientCheckins(patientID string) ([]PatientCheckin, error) {
+	rows, err := r.db.Query(`
+		SELECT id, slot_id, slot_date, answers, submitted_at
+		FROM   checkin_answers
+		WHERE  user_id = $1::uuid
+		ORDER  BY slot_date DESC, submitted_at DESC
+		LIMIT  90`,
+		patientID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []PatientCheckin
+	for rows.Next() {
+		var c PatientCheckin
+		var rawAnswers []byte
+		var submittedAt time.Time
+		var slotDate string
+		if err := rows.Scan(&c.ID, &c.SlotID, &slotDate, &rawAnswers, &submittedAt); err != nil {
+			return nil, err
+		}
+		c.SlotDate = slotDate
+		c.Answers = json.RawMessage(rawAnswers)
+		c.SubmittedAt = submittedAt.UTC().Format(time.RFC3339)
+		if label, ok := slotLabels[c.SlotID]; ok {
+			c.SlotLabel = label
+		} else {
+			c.SlotLabel = fmt.Sprintf("Slot %d", c.SlotID)
+		}
+		results = append(results, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return results, nil
+}

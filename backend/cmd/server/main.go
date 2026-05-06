@@ -415,6 +415,8 @@ func main() {
 		physicianGroup.PATCH("/cases/:id/ai", physicianHandler.UpdateAIOutput)
 		// Patient profile for inline display during case review
 		physicianGroup.GET("/patients/:id", physicianHandler.GetPatientProfile)
+		// Patient check-in history for physician review
+		physicianGroup.GET("/patients/:id/checkins", physicianHandler.GetPatientCheckins)
 		// Earnings dashboard and history
 		physicianGroup.GET("/earnings", physicianHandler.GetEarningsSummary)
 		physicianGroup.GET("/earnings/history", physicianHandler.GetEarningsHistory)

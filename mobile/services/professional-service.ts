@@ -6,6 +6,7 @@ import {
   CaseQueueItem,
   CaseDetail,
   PatientProfile,
+  PatientCheckin,
   EarningsSummary,
   EarningRecord,
   Payout,
@@ -193,6 +194,18 @@ export const ProfessionalService = {
       { timeout: 20_000 }
     );
     if (!response.data.success) throw new Error('Failed to fetch patient profile');
+    return response.data.data;
+  },
+
+  /**
+   * GET /physician/patients/:id/checkins
+   */
+  async getPatientCheckins(patientId: string): Promise<PatientCheckin[]> {
+    const response = await api.get<{ success: boolean; data: PatientCheckin[] }>(
+      `/physician/patients/${patientId}/checkins`,
+      { timeout: 20_000 }
+    );
+    if (!response.data.success) throw new Error('Failed to fetch patient check-ins');
     return response.data.data;
   },
 

@@ -249,6 +249,11 @@ func (s *Service) UpdateProfile(physicianID, name, phone string) error {
 	return s.repo.UpdateProfile(physicianID, name, phone)
 }
 
+// GetPatientCheckins returns the check-in answer history for the given patient.
+func (s *Service) GetPatientCheckins(patientID string) ([]PatientCheckin, error) {
+	return s.repo.GetPatientCheckins(patientID)
+}
+
 // broadcastQueueChange sends a physician.review.status event to all connected
 // WebSocket clients (all physicians pick this up via the physician WS hook).
 func (s *Service) broadcastQueueChange(caseID, physicianID, status string) {

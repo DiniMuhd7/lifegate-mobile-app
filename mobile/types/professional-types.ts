@@ -170,6 +170,15 @@ export interface PatientProfile {
   createdAt: string;
 }
 
+export interface PatientCheckin {
+  id: string;
+  slotId: number;
+  slotLabel: string;
+  slotDate: string;
+  answers: Record<string, unknown>;
+  submittedAt: string;
+}
+
 export interface CaseQueueItem {
   id: string;
   patientName: string;

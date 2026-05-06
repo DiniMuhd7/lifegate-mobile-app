@@ -127,15 +127,16 @@ export function usePhysicianWebSocket() {
     });
 
     const unsubCheckin = wsService.on('physician.checkin.update', (data) => {
-      const { patientName, slotLabel, message } = data as {
+      const { patientId, patientName, slotLabel, message } = data as {
         patientId: string;
         patientName: string;
         slotLabel: string;
         message: string;
       };
       addNotification({
-        type: 'im_message',
+        type: 'checkin_update',
         caseId: '',
+        patientId,
         message: message || `${patientName} completed their ${slotLabel} check-in`,
       });
     });

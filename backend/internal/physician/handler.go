@@ -274,6 +274,30 @@ func (h *Handler) GetPatientProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient profile fetched", "data": profile})
 }
 
+// GetPatientCheckins returns the check-in answer history for a patient.
+//
+// @Summary      Get patient check-in history
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Patient ID"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/patients/{id}/checkins [get]
+func (h *Handler) GetPatientCheckins(c *gin.Context) {
+	patientID := c.Param("id")
+
+	checkins, err := h.svc.GetPatientCheckins(patientID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	if checkins == nil {
+		checkins = []PatientCheckin{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": checkins})
+}
+
 // GetEarningsSummary returns the physician's aggregated earnings dashboard.
 //
 // @Summary      Earnings summary

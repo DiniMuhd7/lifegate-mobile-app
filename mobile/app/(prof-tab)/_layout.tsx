@@ -23,6 +23,7 @@ export default function ProfTabLayout() {
   // Subscribe to new notifications so we can show the banner.
   // For IM messages, prefer the most recent unread im_message even if a
   // newer non-IM notification has been prepended ahead of it.
+  // For checkin_update, surface it like any other notification.
   useEffect(() => {
     const unsub = useNotificationStore.subscribe((state) => {
       const latestIM = state.notifications.find(
@@ -94,6 +95,11 @@ export default function ProfTabLayout() {
       router.push({
         pathname: '/(prof-tab)/caseReview',
         params: { id: banner.caseId, openIM: 'true' },
+      });
+    } else if (banner?.type === 'checkin_update' && banner.patientId) {
+      router.push({
+        pathname: '/(prof-tab)/patientProfile',
+        params: { patientId: banner.patientId },
       });
     } else if (banner?.caseId) {
       router.push({ pathname: '/(prof-tab)/caseQueue', params: { caseId: banner.caseId } });
