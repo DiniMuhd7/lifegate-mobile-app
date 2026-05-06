@@ -1,9 +1,22 @@
-import { View, Text, ScrollView, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Pressable, TouchableOpacity, Linking, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from 'stores/auth-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+
+const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL ?? '';
+const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? '';
+
+async function openUrl(url: string) {
+  if (!url) return;
+  const supported = await Linking.canOpenURL(url);
+  if (supported) {
+    await Linking.openURL(url);
+  } else if (Platform.OS !== 'web') {
+    Alert.alert('Cannot open link', url);
+  }
+}
 
 const TEAL = '#0AADA2';
 const TEAL_LIGHT = '#f0fdfb';
@@ -94,6 +107,24 @@ export default function SettingsScreen() {
           label: 'Help Center',
           sublabel: 'FAQs & guides',
           onPress: () => router.push('/(tab)/settings/help-center'),
+        },
+      ],
+    },
+    {
+      title: 'Legal',
+      color: '#6b7280',
+      items: [
+        {
+          icon: 'document-text-outline',
+          label: 'Terms & Conditions',
+          sublabel: 'Read our terms of use',
+          onPress: () => openUrl(TERMS_URL),
+        },
+        {
+          icon: 'shield-checkmark-outline',
+          label: 'Privacy Policy',
+          sublabel: 'How we handle your data',
+          onPress: () => openUrl(PRIVACY_URL),
         },
       ],
     },
