@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BannerAd } from 'components/BannerAd';
 import { RewardedAdButton } from 'components/RewardedAdButton';
-import { InterstitialAdSlot } from 'components/InterstitialAdSlot';
+import { InterstitialAdSlot, InterstitialAdSlotHandle } from 'components/InterstitialAdSlot';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -353,6 +353,7 @@ function VideoPlayerModal({
   const [preRollDone, setPreRollDone] = useState(false);
   const [skipCountdown, setSkipCountdown] = useState(5);
   const skipRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const adRef = useRef<InterstitialAdSlotHandle>(null);
 
   useEffect(() => {
     if (preRollDone) return;
@@ -476,6 +477,8 @@ function VideoPlayerModal({
     setClaiming(true);
     await onClaim();
     setClaiming(false);
+    // Show interstitial after a successful claim (post-conversion placement).
+    adRef.current?.show();
   };
 
   const circleSize = 44;
@@ -801,12 +804,8 @@ function VideoPlayerModal({
             </LinearGradient>
           </Pressable>
 
-          {/* Interstitial ad slot — visible while the video is still being watched */}
-          {!canClaim && (
-            <View style={{ marginTop: 10 }}>
-              <InterstitialAdSlot />
-            </View>
-          )}
+          {/* Interstitial ad — loads silently, shown automatically after claim */}
+          <InterstitialAdSlot ref={adRef} />
         </View>
         </View>
         )}
