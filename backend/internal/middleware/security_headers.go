@@ -14,7 +14,7 @@ func SecurityHeaders() gin.HandlerFunc {
 		c.Header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		c.Header("Content-Security-Policy",
 			"default-src 'self'; "+
-				"connect-src 'self' https://lifegate-backend.onrender.com wss://lifegate-backend.onrender.com; "+
+				"connect-src 'self' https://edis.dshub.com.ng wss://edis.dshub.com.ng; "+
 				"img-src 'self' data: https:; "+
 				"style-src 'self' 'unsafe-inline'; "+
 				"script-src 'self' https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net; "+

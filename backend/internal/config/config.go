@@ -60,7 +60,7 @@ type Config struct {
 	HealthDataKey string
 
 	// SwaggerHost overrides the Swagger UI host. Set to the public domain in
-	// production (e.g. lifegate-backend.onrender.com). Leave empty to
+   // production (e.g. edis.dshub.com.ng). Leave empty to
 	// auto-detect localhost for local development.
 	SwaggerHost string
 

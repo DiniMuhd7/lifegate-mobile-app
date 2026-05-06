@@ -187,7 +187,7 @@ If you also use Expo Go or another frontend origin, add them as a comma-separate
 Open the public URL and confirm:
 
 - The app shell loads without a blank screen.
-- API requests go to `https://lifegate-backend.onrender.com/api`.
+- API requests go to `https://edis.dshub.com.ng/api`.
 - Refreshing a nested route still resolves correctly.
 
 ---
@@ -297,7 +297,7 @@ After the build completes (~10–15 min), EAS prints a download URL. Install the
 
 | Variable | Value | Description |
 |---|---|---|
-| `EXPO_PUBLIC_API_URL` | `https://lifegate-backend.onrender.com/api` | Backend API base URL embedded into the static web build |
+| `EXPO_PUBLIC_API_URL` | `https://edis.dshub.com.ng/api` | Backend API base URL embedded into the static web build |
 
 ### Mobile (`mobile/.env.production`)
 

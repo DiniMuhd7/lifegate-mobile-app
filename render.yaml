@@ -56,7 +56,7 @@ services:
 
       # Swagger UI host — set to the public Render URL so "Try it out" works in production
       - key: SWAGGER_HOST
-        value: lifegate-backend.onrender.com
+        value: edis.dshub.com.ng
 
       # AI — set the provider and fill in the key(s) via Render dashboard
       - key: AI_PROVIDER
@@ -80,7 +80,7 @@ services:
 
       # Payments — Flutterwave
       # Configure webhook URL in Flutterwave dashboard → Settings → Webhooks:
-      #   https://lifegate-backend.onrender.com/api/payments/webhook
+      #   https://edis.dshub.com.ng/api/payments/webhook
       - key: FLW_SECRET_KEY
         sync: false            # secret — get from dashboard.flutterwave.com
       - key: FLW_PUBLIC_KEY
@@ -130,7 +130,7 @@ services:
 
     envVars:
       - key: EXPO_PUBLIC_API_URL
-        value: https://lifegate-backend.onrender.com/api
+        value: https://edis.dshub.com.ng/api
       # AdMob — Web (adsbygoogle / H5 Ads)
       - key: EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID
         value: ca-app-pub-3940256099942544

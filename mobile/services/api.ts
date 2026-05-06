@@ -23,7 +23,7 @@ function resolveBaseUrl(): string {
 
   // Native (React Native) — no window object
   if (typeof window === 'undefined') {
-    return envUrl ?? 'https://lifegate-backend.onrender.com/api';
+    return envUrl ?? 'https://edis.dshub.com.ng/api';
   }
 
   const hostname = window.location.hostname;

@@ -10,7 +10,7 @@
 //
 // @license.name               Proprietary
 //
-// @host                       lifegate-backend.onrender.com
+// @host                       edis.dshub.com.ng
 // @BasePath                   /api
 // @schemes                    https http
 //

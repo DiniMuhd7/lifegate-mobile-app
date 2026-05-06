@@ -16,7 +16,7 @@
         },
         "version": "1.0"
     },
-    "host": "lifegate-backend.onrender.com",
+    "host": "edis.dshub.com.ng",
     "basePath": "/api",
     "paths": {
         "/admin/audit": {

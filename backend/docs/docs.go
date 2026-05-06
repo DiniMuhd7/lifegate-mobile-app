@@ -4915,7 +4915,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "lifegate-backend.onrender.com",
+	Host:             "edis.dshub.com.ng",
 	BasePath:         "/api",
 	Schemes:          []string{"https"},
 	Title:            "LifeGate API",

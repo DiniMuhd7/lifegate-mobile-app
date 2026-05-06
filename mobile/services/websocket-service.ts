@@ -31,7 +31,7 @@ function resolveWsUrl(): string {
 
   if (typeof window === 'undefined') {
     // Native fallback
-    return 'wss://lifegate-backend.onrender.com/ws';
+    return 'wss://edis.dshub.com.ng/ws';
   }
 
   const { hostname, protocol } = window.location;
