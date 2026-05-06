@@ -143,10 +143,11 @@ export default function SettingsScreen() {
           borderBottomColor: '#f3f4f6',
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: 12,
         }}
       >
-        <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827' }}>Settings</Text>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: '#111827', textAlign: 'center' }}>Settings</Text>
       </View>
 
       <ScrollView

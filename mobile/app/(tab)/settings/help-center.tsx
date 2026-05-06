@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useMemo, useState } from 'react';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -381,10 +381,8 @@ export default function HelpScreen() {
           >
             <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
           </Pressable>
-          <Text style={styles.headerTitle}>Help Centre</Text>
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionBadgeText}>v{appVersion}</Text>
-          </View>
+          <Text style={styles.headerTitle}>Help Center</Text>
+          <View style={{ width: 36 }} />
         </View>
 
         <ScrollView
@@ -615,7 +613,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: BG,
   },
-  backBtn: { padding: 4 },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2ECEC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
@@ -623,13 +630,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
-  versionBadge: {
-    backgroundColor: T_LIGHT,
-    borderRadius: 20,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  versionBadgeText: { fontSize: 11, fontWeight: '700', color: T_DARK },
 
   // scroll
   scrollContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 },

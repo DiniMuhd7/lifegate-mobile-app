@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -203,7 +203,7 @@ export default function ManageProfileScreen() {
 
   useEffect(() => {
     getProfile();
-  }, []);
+  }, [getProfile]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -247,14 +247,17 @@ export default function ManageProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
-    <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-[#F0F8F8]" edges={['top']}>
       {/* ── Header ── */}
       <View className="flex-row items-center justify-between px-4 pt-3 pb-3 bg-[#F0F8F8]">
-        <Pressable onPress={() => router.back()} className="p-1" accessibilityLabel="Go back">
+        <Pressable
+          onPress={() => router.back()}
+          className="w-9 h-9 rounded-xl bg-white border border-[#E2ECEC] items-center justify-center"
+          accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
         </Pressable>
-        <Text className="flex-1 text-center text-xl font-bold text-gray-900">Health Profile</Text>
-        <View style={{ width: 30 }} />
+        <Text className="flex-1 text-center text-xl font-bold text-gray-900">Manage Health Profile</Text>
+        <View style={{ width: 36 }} />
       </View>
 
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -303,7 +306,7 @@ export default function ManageProfileScreen() {
           />
 
           {/* ── Blood Type & Genotype ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+          <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
             <SectionHeader icon="water-outline" title="Blood Type & Genotype" />
 
             <FieldLabel label="Blood Type" hint="Used by the AI for transfusion flags and drug risk assessments." />
@@ -374,7 +377,7 @@ export default function ManageProfileScreen() {
           </View>
 
           {/* ── Health Details ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+          <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
             <SectionHeader icon="medkit-outline" title="Health Details" />
 
             <FieldLabel
@@ -428,7 +431,7 @@ export default function ManageProfileScreen() {
           </View>
 
           {/* ── Emergency Contact ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+          <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
             <SectionHeader icon="call-outline" title="Emergency Contact" />
             <FieldLabel label="Name & Phone Number" hint="Surfaced to the physician if your case is escalated to CRITICAL." />
             <FocusableInput
@@ -472,8 +475,8 @@ export default function ManageProfileScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
-    <PatientBottomTabBar activeTab="settings" />
+      </SafeAreaView>
+      <PatientBottomTabBar activeTab="settings" />
     </View>
   );
 }
