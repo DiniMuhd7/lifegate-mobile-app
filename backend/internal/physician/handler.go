@@ -374,11 +374,15 @@ func (h *Handler) RequestPayout(c *gin.Context) {
 	payout, err := h.svc.RequestPayout(pid)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err.Error() == "no pending earnings to request a payout for" ||
-			err.Error() == "a payout request for this month is already pending review" {
-			status = http.StatusConflict
+		msg := err.Error()
+		switch {
+		case strings.HasPrefix(msg, "no pending earnings"),
+			strings.HasPrefix(msg, "minimum payout threshold"),
+			strings.HasPrefix(msg, "payout requests are only accepted"),
+			strings.HasPrefix(msg, "a payout request for this month"):
+			status = http.StatusUnprocessableEntity
 		}
-		c.JSON(status, gin.H{"success": false, "message": err.Error()})
+		c.JSON(status, gin.H{"success": false, "message": msg})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Payout request submitted", "data": payout})

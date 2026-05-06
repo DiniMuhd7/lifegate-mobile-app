@@ -18,6 +18,23 @@ import { Payout } from '../../types/professional-types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Minimum pending earnings (₦) before a payout request is unlocked. */
+const MIN_PAYOUT_THRESHOLD = 5000;
+
+/** Returns true only when today is the last calendar day of the month. */
+function isLastDayOfMonth(): boolean {
+  const today = new Date();
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  return tomorrow.getDate() === 1;
+}
+
+/** Returns the last day of the current month as a formatted string, e.g. "31 May". */
+function lastDayLabel(): string {
+  const now = new Date();
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return last.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+}
+
 function formatNaira(amount: number) {
   return `₦${amount.toLocaleString('en-NG')}`;
 }
@@ -119,14 +136,27 @@ export default function EarningsScreen() {
   }, []);
 
   const handleRequestPayout = useCallback(async () => {
-    const hasPending = (earningsSummary?.pendingPayout ?? 0) > 0;
-    if (!hasPending) {
+    const pending = earningsSummary?.pendingPayout ?? 0;
+    const show = (title: string, msg: string) => {
       if (Platform.OS === 'web') {
         // eslint-disable-next-line no-alert
-        window.alert('No pending earnings to request a payout for.');
+        window.alert(`${title}\n\n${msg}`);
       } else {
-        Alert.alert('No Pending Earnings', 'You have no pending earnings to request a payout for.');
+        Alert.alert(title, msg);
       }
+    };
+    if (pending < MIN_PAYOUT_THRESHOLD) {
+      show(
+        'Threshold Not Met',
+        `You need at least ₦${MIN_PAYOUT_THRESHOLD.toLocaleString('en-NG')} in pending earnings to request a payout. You have ₦${pending.toLocaleString('en-NG')} so far.`,
+      );
+      return;
+    }
+    if (!isLastDayOfMonth()) {
+      show(
+        'Not Available Yet',
+        `Payout requests open on the last day of the month (${lastDayLabel()}). Keep approving cases until then!`,
+      );
       return;
     }
     const result = await requestPayout();
@@ -240,29 +270,76 @@ export default function EarningsScreen() {
         )}
 
         {/* ── Request Payout button ──────────────────────────────────── */}
-        <View className="mx-4 mb-5">
-          <TouchableOpacity
-            onPress={handleRequestPayout}
-            disabled={isRequestingPayout || (earningsSummary?.pendingPayout ?? 0) === 0}
-            className="flex-row items-center justify-center gap-2 py-3.5 rounded-2xl"
-            style={{ backgroundColor: (earningsSummary?.pendingPayout ?? 0) > 0 ? '#7c3aed' : '#e5e7eb' }}
-          >
-            {isRequestingPayout ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons name="send-outline" size={18} color={(earningsSummary?.pendingPayout ?? 0) > 0 ? '#fff' : '#9ca3af'} />
-            )}
-            <Text
-              className="font-bold text-sm"
-              style={{ color: (earningsSummary?.pendingPayout ?? 0) > 0 ? '#fff' : '#9ca3af' }}
-            >
-              {isRequestingPayout ? 'Requesting…' : 'Request Payout'}
-            </Text>
-          </TouchableOpacity>
-          {(earningsSummary?.pendingPayout ?? 0) === 0 && (
-            <Text className="text-xs text-center text-gray-400 mt-1">No pending earnings to request a payout</Text>
-          )}
-        </View>
+        {(() => {
+          const pending = s?.pendingPayout ?? 0;
+          const meetsThreshold = pending >= MIN_PAYOUT_THRESHOLD;
+          const isLastDay = isLastDayOfMonth();
+          const canRequest = meetsThreshold && isLastDay;
+          const active = canRequest && !isRequestingPayout;
+
+          return (
+            <View className="mx-4 mb-5">
+              {/* Progress bar toward threshold */}
+              <View className="mb-3 bg-white rounded-2xl p-4" style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4 }}>
+                <View className="flex-row justify-between mb-1.5">
+                  <Text className="text-xs font-semibold text-gray-600">Payout threshold</Text>
+                  <Text className="text-xs font-bold" style={{ color: meetsThreshold ? '#16a34a' : '#7c3aed' }}>
+                    ₦{pending.toLocaleString('en-NG')} / ₦{MIN_PAYOUT_THRESHOLD.toLocaleString('en-NG')}
+                  </Text>
+                </View>
+                <View className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <View
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, Math.round((pending / MIN_PAYOUT_THRESHOLD) * 100))}%`,
+                      backgroundColor: meetsThreshold ? '#16a34a' : '#7c3aed',
+                    }}
+                  />
+                </View>
+                {/* Last-day indicator */}
+                <View className="flex-row items-center mt-2 gap-1.5">
+                  <View
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: isLastDay ? '#16a34a' : '#f59e0b' }}
+                  />
+                  <Text className="text-xs" style={{ color: isLastDay ? '#166534' : '#92400e' }}>
+                    {isLastDay
+                      ? 'Payout window open today (last day of month)'
+                      : `Payout window opens on ${lastDayLabel()}`}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleRequestPayout}
+                disabled={!active}
+                className="flex-row items-center justify-center gap-2 py-3.5 rounded-2xl"
+                style={{ backgroundColor: active ? '#7c3aed' : '#e5e7eb' }}
+              >
+                {isRequestingPayout ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send-outline" size={18} color={active ? '#fff' : '#9ca3af'} />
+                )}
+                <Text className="font-bold text-sm" style={{ color: active ? '#fff' : '#9ca3af' }}>
+                  {isRequestingPayout ? 'Requesting…' : 'Request Payout'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Hint text — show the first unmet condition */}
+              {!meetsThreshold && (
+                <Text className="text-xs text-center text-gray-400 mt-1.5">
+                  Need ₦{(MIN_PAYOUT_THRESHOLD - pending).toLocaleString('en-NG')} more to reach the ₦{MIN_PAYOUT_THRESHOLD.toLocaleString('en-NG')} minimum
+                </Text>
+              )}
+              {meetsThreshold && !isLastDay && (
+                <Text className="text-xs text-center text-gray-400 mt-1.5">
+                  Request window opens on {lastDayLabel()}
+                </Text>
+              )}
+            </View>
+          );
+        })()}
 
         {/* ── How it works ───────────────────────────────────────────── */}
         <View className="mx-4 mb-5 bg-blue-50 rounded-2xl p-4">
@@ -270,8 +347,9 @@ export default function EarningsScreen() {
           <View className="gap-1.5">
             {[
               `Earn ₦${s?.perCaseRate ?? 500} for every case you approve`,
-              'Earnings accumulate monthly and are batched into payouts',
-              'Request a payout whenever you have pending earnings — admin reviews and processes it on the 1st of each month',
+              `Accumulate at least ₦${MIN_PAYOUT_THRESHOLD.toLocaleString('en-NG')} in pending earnings before requesting a payout`,
+              'Request a payout on the last day of each month — admin reviews and processes it',
+              'Approved payouts are transferred to your registered bank account on the 1st',
               'Rejected cases do not generate earnings',
             ].map((line, i) => (
               <View key={i} className="flex-row gap-2">

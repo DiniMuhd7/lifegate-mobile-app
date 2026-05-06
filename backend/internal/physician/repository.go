@@ -539,6 +539,10 @@ func (r *Repository) GetPatientProfile(patientID string) (*PatientProfile, error
 // EarningRate is the fixed per-case payout amount in Nigerian Naira.
 const EarningRate = 500
 
+// MinPayoutThreshold is the minimum accumulated earnings (in Naira) required
+// before a physician may submit a payout request.
+const MinPayoutThreshold = 5000
+
 // EarningsSummary is the aggregate view returned by the earnings dashboard.
 type EarningsSummary struct {
 	TotalEarned      int    `json:"totalEarned"`
@@ -779,6 +783,17 @@ func (r *Repository) RequestPayout(physicianID string) (*Payout, error) {
 	}
 	if totalAmount == 0 {
 		return nil, fmt.Errorf("no pending earnings to request a payout for")
+	}
+	if totalAmount < MinPayoutThreshold {
+		return nil, fmt.Errorf("minimum payout threshold of \u20a6%d not reached (\u20a6%d earned so far)", MinPayoutThreshold, totalAmount)
+	}
+
+	// Only accept payout requests on the last calendar day of the month.
+	tomorrow := now.AddDate(0, 0, 1)
+	if tomorrow.Day() != 1 {
+		lastDay := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		return nil, fmt.Errorf("payout requests are only accepted on the last day of the month (%d %s %d)",
+			lastDay.Day(), now.Month().String()[:3], now.Year())
 	}
 
 	// Upsert: insert if not exists, update status/requested_at if already pending/rejected
