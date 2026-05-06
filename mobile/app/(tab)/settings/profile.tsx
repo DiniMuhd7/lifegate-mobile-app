@@ -12,7 +12,6 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
@@ -323,45 +322,52 @@ export default function ManageProfileScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F4F9F9' }}>
+    <View style={{ flex: 1, backgroundColor: '#F0F8F8' }}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
-        {/* Hero */}
-        <LinearGradient colors={['#0EA5A4', '#0B7A79']} style={styles.hero}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </TouchableOpacity>
-
-          <View style={styles.avatarRing}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-            <View style={styles.onlineDot} />
-          </View>
-
-          <Text style={styles.heroName}>{user.name || firstName}</Text>
-          <Text style={styles.heroSub}>{user.patient_id ? `Patient · ${user.patient_id}` : 'Patient account'}</Text>
-
-          <View style={styles.chip}>
-            <View style={[styles.chipDot, { backgroundColor: completionColor }]} />
-            <Text style={styles.chipText}>{profileCompletion}% · {completionLabel}</Text>
-          </View>
-        </LinearGradient>
-
-        {/* Progress bar */}
-        <View style={styles.progressWrap}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${profileCompletion}%` as any, backgroundColor: completionColor }]} />
-          </View>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, backgroundColor: '#F0F8F8' }}>
+          <Pressable onPress={() => router.back()} style={{ padding: 4 }} accessibilityLabel="Go back">
+            <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
+          </Pressable>
+          <Text style={{ flex: 1, textAlign: 'center', fontSize: 20, fontWeight: '700', color: '#111827' }}>Manage Profile</Text>
+          <View style={{ width: 32 }} />
         </View>
 
         {/* Body */}
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48, paddingTop: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 }}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={T} />}
         >
+          {/* Bio card */}
+          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#DCEFEF', shadowColor: '#0EA5A4', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+              <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#DFF4F3', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#A9E4E2' }}>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: T_DARK }}>{initials}</Text>
+                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: '#10B981', borderWidth: 2, borderColor: '#fff' }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>{user.name || firstName}</Text>
+                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                  {user.patient_id ? `Patient · ${user.patient_id}` : 'Patient account'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowEditModal(true)} activeOpacity={0.7} style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F0FFFE', borderWidth: 1, borderColor: '#D1F2EF', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="create-outline" size={17} color={T} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: '#94A3B8' }}>Profile completeness</Text>
+              <View style={{ backgroundColor: completionColor + '20', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: completionColor }}>{profileCompletion}% · {completionLabel}</Text>
+              </View>
+            </View>
+            <View style={{ height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' }}>
+              <View style={{ height: '100%', width: `${profileCompletion}%` as any, backgroundColor: completionColor, borderRadius: 3 }} />
+            </View>
+          </View>
           {/* Deletion pending banner */}
           {isDeletionScheduled && (
             <View style={styles.deletionBanner}>
@@ -625,87 +631,6 @@ export default function ManageProfileScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  hero: {
-    paddingTop: 14,
-    paddingBottom: 30,
-    alignItems: 'center',
-  },
-  backBtn: {
-    position: 'absolute',
-    top: 12,
-    left: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    marginTop: 6,
-  },
-  avatar: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: T_DARK,
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#10B981',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  heroName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 3,
-  },
-  heroSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.68)',
-    marginBottom: 14,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderRadius: 20,
-    paddingHorizontal: 13,
-    paddingVertical: 5,
-    gap: 6,
-  },
-  chipDot: { width: 6, height: 6, borderRadius: 3 },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  progressWrap: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF4F4',
-  },
-  progressTrack: { height: 4, borderRadius: 2, backgroundColor: '#DFF0F0', overflow: 'hidden' },
-  progressFill: { height: 4, borderRadius: 2 },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
