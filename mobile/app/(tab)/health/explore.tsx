@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BannerAd } from 'components/BannerAd';
 import { RewardedAdButton } from 'components/RewardedAdButton';
+import { InterstitialAdSlot } from 'components/InterstitialAdSlot';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -799,6 +800,13 @@ function VideoPlayerModal({
               )}
             </LinearGradient>
           </Pressable>
+
+          {/* Interstitial ad slot — visible while the video is still being watched */}
+          {!canClaim && (
+            <View style={{ marginTop: 10 }}>
+              <InterstitialAdSlot />
+            </View>
+          )}
         </View>
         </View>
         )}
