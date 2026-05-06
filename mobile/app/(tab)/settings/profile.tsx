@@ -437,7 +437,7 @@ export default function ManageProfileScreen() {
           {/* ── Deletion pending banner ── */}
           {isDeletionScheduled && (
             <View style={styles.deletionBanner}>
-              <Ionicons name="warning" size={18} color="#B91C1C" />
+              <Ionicons name="warning" size={18} color="#B91C1C" style={styles.deletionBannerIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.deletionBannerTitle}>Account deletion scheduled</Text>
                 <Text style={styles.deletionBannerSub}>
@@ -578,7 +578,7 @@ export default function ManageProfileScreen() {
                   style={({ pressed }) => [styles.dangerBtn, pressed && { opacity: 0.85 }]}
                   onPress={() => setShowDeleteModal(true)}
                 >
-                  <Ionicons name="trash-outline" size={15} color="#fff" />
+                  <Ionicons name="trash-outline" size={15} color="#fff" style={styles.dangerBtnIcon} />
                   <Text style={styles.dangerBtnText}>Delete Account</Text>
                 </Pressable>
               </>
@@ -725,7 +725,7 @@ export default function ManageProfileScreen() {
                   />
                 </ScrollView>
                 <View style={styles.sheetActions}>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.sheetActionLeft}>
                     <PrimaryButton title="Save Changes" onPress={handleSaveEdit} loading={loading} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -788,7 +788,7 @@ export default function ManageProfileScreen() {
                   </View>
                 </ScrollView>
                 <View style={styles.sheetActions}>
-                  <View style={{ flex: 1 }}>
+                  <View style={styles.sheetActionLeft}>
                     <PrimaryButton title="Update Password" onPress={handleChangePassword} loading={loading} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -880,7 +880,6 @@ const styles = StyleSheet.create({
   bioRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
     marginBottom: 16,
   },
   avatarWrap: {
@@ -892,6 +891,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#A9E4E2',
+    marginRight: 14,
   },
   avatarText: { fontSize: 20, fontWeight: '900', color: T_DARK },
   avatarOnline: {
@@ -953,7 +953,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    gap: 12,
   },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F8F8' },
   rowIcon: {
@@ -963,6 +962,7 @@ const styles = StyleSheet.create({
     backgroundColor: T_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
   rowFieldLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8', marginBottom: 3 },
   rowValue: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
@@ -976,6 +976,7 @@ const styles = StyleSheet.create({
     borderColor: '#D1F2EF',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
   },
 
   // ── Danger zone
@@ -986,12 +987,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FECACA',
     padding: 16,
-    gap: 12,
   },
   dangerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 12,
   },
   dangerLabel: { fontSize: 14, fontWeight: '700', color: '#991B1B' },
   dangerSub: { fontSize: 11, color: '#EF4444', marginTop: 2, lineHeight: 16 },
@@ -999,11 +999,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     backgroundColor: '#DC2626',
     borderRadius: 12,
     paddingVertical: 13,
   },
+  dangerBtnIcon: { marginRight: 8 },
   dangerBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
   undoBtn: {
     backgroundColor: '#FEE2E2',
@@ -1017,7 +1017,6 @@ const styles = StyleSheet.create({
   deletionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     backgroundColor: '#FEF2F2',
     borderRadius: 14,
     borderWidth: 1,
@@ -1026,6 +1025,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 8,
   },
+  deletionBannerIcon: { marginRight: 10 },
   deletionBannerTitle: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
   deletionBannerSub: { fontSize: 11, color: '#DC2626', marginTop: 2, lineHeight: 16 },
   deletionBannerBtn: {
@@ -1063,7 +1063,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 20,
-    gap: 10,
   },
   sheetBadge: {
     width: 36,
@@ -1072,9 +1071,11 @@ const styles = StyleSheet.create({
     backgroundColor: T_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
   sheetTitle: { flex: 1, fontSize: 18, fontWeight: '800', color: '#1E293B' },
-  sheetActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  sheetActions: { flexDirection: 'row', marginTop: 16 },
+  sheetActionLeft: { flex: 1, marginRight: 12 },
   hintBox: {
     backgroundColor: '#F8FAFC',
     borderRadius: 12,

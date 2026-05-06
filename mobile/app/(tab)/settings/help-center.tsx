@@ -504,12 +504,12 @@ export default function HelpScreen() {
                 Enjoying LifeGate? A review helps others find trusted health support.
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 14 }}>
+            <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14 }}>
               <Pressable
                 onPress={() => void handleRateAndroid()}
-                style={({ pressed }) => [styles.storeBadge, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [styles.storeBadge, styles.storeBadgeFirst, pressed && { opacity: 0.85 }]}
               >
-                <Ionicons name="logo-google-playstore" size={26} color="#fff" />
+                <Ionicons name="logo-google-playstore" size={26} color="#fff" style={styles.storeBadgeIcon} />
                 <View>
                   <Text style={styles.storeBadgeSuper}>GET IT ON</Text>
                   <Text style={styles.storeBadgeName}>Google Play</Text>
@@ -519,7 +519,7 @@ export default function HelpScreen() {
                 onPress={() => void handleRateIOS()}
                 style={({ pressed }) => [styles.storeBadge, styles.storeBadgeApple, pressed && { opacity: 0.85 }]}
               >
-                <Ionicons name="logo-apple" size={26} color="#fff" />
+                <Ionicons name="logo-apple" size={26} color="#fff" style={styles.storeBadgeIcon} />
                 <View>
                   <Text style={styles.storeBadgeSuper}>DOWNLOAD ON THE</Text>
                   <Text style={styles.storeBadgeName}>App Store</Text>
@@ -533,7 +533,7 @@ export default function HelpScreen() {
 
           {/* Search bar */}
           <View style={styles.searchBar}>
-            <Ionicons name="search-outline" size={16} color="#94A3B8" />
+            <Ionicons name="search-outline" size={16} color="#94A3B8" style={styles.searchIcon} />
             <TextInput
               value={faqQuery}
               onChangeText={setFaqQuery}
@@ -674,7 +674,6 @@ const styles = StyleSheet.create({
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
@@ -682,7 +681,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
-  successIconWrap: { marginRight: 2 },
+  successIconWrap: { marginRight: 10 },
   successTitle: { fontSize: 13, fontWeight: '700', color: '#065F46' },
   successSub: { fontSize: 11, color: '#059669', marginTop: 2 },
 
@@ -700,7 +699,7 @@ const styles = StyleSheet.create({
     elevation: 1,
     marginBottom: 4,
   },
-  heroInner: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroInner: { flexDirection: 'row', alignItems: 'center' },
   heroIconWrap: {
     width: 50,
     height: 50,
@@ -708,6 +707,7 @@ const styles = StyleSheet.create({
     backgroundColor: T_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
   heroTitle: { fontSize: 16, fontWeight: '800', color: '#111827', marginBottom: 4 },
   heroSub: { fontSize: 12, color: '#64748B', lineHeight: 17 },
@@ -718,7 +718,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 15,
-    gap: 12,
   },
   quickRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F1F8F8' },
   quickIcon: {
@@ -728,6 +727,7 @@ const styles = StyleSheet.create({
     backgroundColor: T_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
   quickLabel: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
   quickSublabel: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
@@ -740,9 +740,8 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
     padding: 16,
     marginTop: 16,
-    gap: 12,
   },
-  urgentHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  urgentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   urgentIconWrap: {
     width: 34,
     height: 34,
@@ -750,19 +749,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEE2E2',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
   urgentTitle: { fontSize: 14, fontWeight: '700', color: '#991B1B' },
   urgentSub: { fontSize: 11, color: '#DC2626', marginTop: 2 },
-  urgentActions: { flexDirection: 'row', gap: 10 },
+  urgentActions: { flexDirection: 'row' },
   urgentBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
     backgroundColor: '#DC2626',
     borderRadius: 11,
     paddingVertical: 12,
+    marginRight: 10,
   },
   urgentBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   urgentBtnOutline: {
@@ -770,7 +770,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
     backgroundColor: '#fff',
     borderRadius: 11,
     paddingVertical: 12,
@@ -794,7 +793,6 @@ const styles = StyleSheet.create({
   websiteRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 13,
   },
@@ -806,12 +804,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     backgroundColor: '#01875F',
     borderRadius: 13,
     paddingVertical: 11,
     paddingHorizontal: 14,
   },
+  storeBadgeFirst: { marginRight: 12 },
+  storeBadgeIcon: { marginRight: 10 },
   storeBadgeApple: { backgroundColor: '#111111' },
   storeBadgeSuper: {
     fontSize: 9,
@@ -826,7 +825,6 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     backgroundColor: '#fff',
     borderRadius: 13,
     borderWidth: 1,
@@ -840,6 +838,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  searchIcon: { marginRight: 10 },
   searchInput: {
     flex: 1,
     fontSize: 14,
@@ -852,7 +851,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 36,
     paddingHorizontal: 24,
-    gap: 8,
   },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 4 },
   emptySub: { fontSize: 12, color: '#94A3B8', textAlign: 'center', lineHeight: 18 },
@@ -869,7 +867,6 @@ const styles = StyleSheet.create({
   faqSectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 8,
     paddingLeft: 2,
   },
@@ -880,6 +877,7 @@ const styles = StyleSheet.create({
     backgroundColor: T_LIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 8,
   },
   faqSectionTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: '#374151' },
   faqSectionBadge: {
@@ -900,7 +898,6 @@ const styles = StyleSheet.create({
   faqItemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
   },
   faqQuestion: {
     flex: 1,
@@ -916,6 +913,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
     marginTop: 0,
   },
   faqChevronOpen: { backgroundColor: T_LIGHT, transform: [{ rotate: '180deg' }] },

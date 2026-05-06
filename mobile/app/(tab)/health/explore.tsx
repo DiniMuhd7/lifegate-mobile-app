@@ -510,15 +510,12 @@ function VideoPlayerModal({
     return () => window.removeEventListener('message', listener);
   }, [handleMessage]);
 
-  const handleClaimDirectly = useCallback(async () => {
-    setClaiming(true);
-    await onClaim();
-    setClaiming(false);
-  }, [onClaim]);
-
   const handleClaim = async () => {
-    // Gate: require a live ad to have loaded (or the failsafe to have fired).
-    if (!adReady && !adFailed) return;
+    // Gate: reward is granted only when a live ad is available.
+    if (!adReady) {
+      setNoAdModalVisible(true);
+      return;
+    }
 
     if (adReady) {
       // Mark that we're waiting for the ad to be dismissed before claiming.
@@ -534,9 +531,6 @@ function VideoPlayerModal({
       }, 20000);
       adRef.current?.show();
       // Actual onClaim() fires inside the onDismissed callback below.
-    } else {
-      // Ad failed to load — allow claim directly.
-      await handleClaimDirectly();
     }
   };
 
@@ -830,14 +824,14 @@ function VideoPlayerModal({
 
           {/* Claim pill */}
           <Pressable
-            onPress={canClaim && !claiming && (adReady || adFailed) ? handleClaim : undefined}
+            onPress={canClaim && !claiming && adReady ? handleClaim : undefined}
             style={({ pressed }) => ({
               alignSelf: 'stretch',
-              opacity: !canClaim || claiming || (!adReady && !adFailed) ? 0.45 : pressed ? 0.8 : 1,
+              opacity: !canClaim || claiming || !adReady ? 0.45 : pressed ? 0.8 : 1,
             })}
           >
             <LinearGradient
-              colors={canClaim && (adReady || adFailed) ? ['#16a34a', '#15803d'] : ['#1e2535', '#1e2535']}
+              colors={canClaim && adReady ? ['#16a34a', '#15803d'] : ['#1e2535', '#1e2535']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
@@ -848,13 +842,13 @@ function VideoPlayerModal({
                 paddingVertical: 16,
                 paddingHorizontal: 32,
                 borderRadius: 16,
-                borderWidth: canClaim && (adReady || adFailed) ? 0 : 1,
+                borderWidth: canClaim && adReady ? 0 : 1,
                 borderColor: 'rgba(255,255,255,0.08)',
               }}
             >
               {claiming ? (
                 <ActivityIndicator size="small" color="#fff" />
-              ) : canClaim && !adReady && !adFailed ? (
+              ) : canClaim && !adReady ? (
                 // Ad still loading — show spinner with contextual label
                 <>
                   <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
@@ -877,9 +871,7 @@ function VideoPlayerModal({
                     }}
                   >
                     {canClaim
-                      ? adFailed
-                        ? `Claim +${video.coins} Lifecoins`
-                        : `Watch ad → Claim +${video.coins} LC`
+                      ? `Watch ad → Claim +${video.coins} LC`
                       : 'Keep watching to unlock'}
                   </Text>
                 </>
@@ -892,7 +884,10 @@ function VideoPlayerModal({
           <InterstitialAdSlot
             ref={adRef}
             onLoaded={() => setAdReady(true)}
-            onFailed={() => setAdFailed(true)}
+            onFailed={() => {
+              setAdReady(false);
+              setAdFailed(true);
+            }}
             onDismissed={handleAdDismissed}
           />
         </View>
@@ -903,7 +898,10 @@ function VideoPlayerModal({
             <View
               style={{
                 position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 backgroundColor: 'rgba(0,0,0,0.72)',
                 justifyContent: 'center',
                 alignItems: 'center',
@@ -922,7 +920,6 @@ function VideoPlayerModal({
                   alignItems: 'center',
                 }}
               >
-                {/* Icon */}
                 <View
                   style={{
                     width: 64,
@@ -948,8 +945,9 @@ function VideoPlayerModal({
                     marginBottom: 8,
                   }}
                 >
-                  No Ad Available
+                  Ads Inventory Empty
                 </Text>
+
                 <Text
                   style={{
                     fontSize: 13,
@@ -959,33 +957,9 @@ function VideoPlayerModal({
                     marginBottom: 24,
                   }}
                 >
-                  We couldn{'\u2019'}t load an ad right now. This usually happens due to
-                  low ad inventory or network conditions.{'\n\n'}You can still claim
-                  your reward \u2014 no ad required.
+                  Ads inventory is empty right now. Please try again later.
                 </Text>
 
-                {/* Claim anyway */}
-                <Pressable
-                  onPress={async () => {
-                    setNoAdModalVisible(false);
-                    await handleClaimDirectly();
-                  }}
-                  style={({ pressed }) => ({
-                    backgroundColor: '#16a34a',
-                    borderRadius: 14,
-                    paddingVertical: 15,
-                    alignItems: 'center',
-                    width: '100%',
-                    marginBottom: 10,
-                    opacity: pressed ? 0.8 : 1,
-                  })}
-                >
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>
-                    Claim Reward
-                  </Text>
-                </Pressable>
-
-                {/* Try again later */}
                 <Pressable
                   onPress={() => setNoAdModalVisible(false)}
                   style={({ pressed }) => ({

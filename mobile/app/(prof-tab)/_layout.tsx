@@ -1,4 +1,5 @@
 import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
+import { View } from 'react-native';
 import { LoadingScreen } from 'components/LoadingScreen';
 import { SessionErrorScreen } from 'components/SessionErrorScreen';
 import { useCallback, useEffect, useRef, useState } from 'react';
