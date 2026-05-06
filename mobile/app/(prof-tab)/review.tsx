@@ -231,6 +231,7 @@ export default function ReviewScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           className="flex-1"
+          contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -257,8 +258,6 @@ export default function ReviewScreen() {
               }
             }}
           />
-
-          <View className="h-8" />
         </ScrollView>
       )}
     </View>

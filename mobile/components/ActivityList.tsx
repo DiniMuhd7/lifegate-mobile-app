@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Activity, ActivityType } from '../types/professional-types';
 
@@ -121,15 +121,11 @@ export const ActivityList = ({ activities, onActivityPress }: ActivityListProps)
 
       {/* List */}
       {filtered.length > 0 ? (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ActivityRow item={item} onPress={() => onActivityPress?.(item)} />
-          )}
-          scrollEnabled={false}
-          contentContainerStyle={{ paddingBottom: 8 }}
-        />
+        <View style={{ paddingBottom: 8 }}>
+          {filtered.map((item) => (
+            <ActivityRow key={item.id} item={item} onPress={() => onActivityPress?.(item)} />
+          ))}
+        </View>
       ) : (
         <View className="items-center py-10 px-6">
           <View className="w-14 h-14 rounded-2xl bg-gray-100 items-center justify-center mb-3">
