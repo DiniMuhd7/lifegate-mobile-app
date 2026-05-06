@@ -116,12 +116,25 @@ export default function PhysicianPendingScreen() {
   const [checkMsg, setCheckMsg] = useState<string | null>(null);
 
   // If the physician's account becomes verified (e.g. admin approves while app
-  // is open), auto-redirect them without needing to tap anything.
+  // is open), auto-redirect them without needing to tap anything. Also guard
+  // against unauthenticated or wrong-role users landing on this screen.
   useEffect(() => {
-    if (isAuthenticated && user?.role === 'professional' && user.mdcn_verified) {
+    if (!isAuthenticated) {
+      router.replace('/(auth)/login');
+      return;
+    }
+    if (user?.role !== 'professional') {
+      if (user?.role === 'admin') {
+        router.replace('/(admin-tab)/dashboard');
+      } else {
+        router.replace('/(tab)/health');
+      }
+      return;
+    }
+    if (user?.mdcn_verified) {
       router.replace('/(prof-tab)/review');
     }
-  }, [isAuthenticated, user?.mdcn_verified]);
+  }, [isAuthenticated, user]);
 
   const handleCheckStatus = async () => {
     setChecking(true);

@@ -112,6 +112,7 @@ export default function TabLayout() {
 
   // ── Auth guard — redirect unauthenticated or wrong-role users ─────────────
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
+  const user = useAuthStore((s) => s.user);
   const navigationState = useRootNavigationState();
 
   useEffect(() => {
@@ -119,11 +120,18 @@ export default function TabLayout() {
     if (sessionLoading) return;
     if (!isAuthenticated) {
       router.replace('/(auth)/login');
+    } else if (user?.role === 'admin') {
+      router.replace('/(admin-tab)/dashboard');
+    } else if (user?.role === 'professional') {
+      if (user.mdcn_verified) {
+        router.replace('/(prof-tab)/review');
+      } else {
+        router.replace('/physician-pending');
+      }
     }
-  }, [navigationState?.key, isAuthenticated, sessionLoading]);
+  }, [navigationState?.key, isAuthenticated, user, sessionLoading]);
 
   // ── Patient push token registration ───────────────────────────────────────
-  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (!isAuthenticated || !user || user.role !== 'user') return;

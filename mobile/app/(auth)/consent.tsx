@@ -59,6 +59,11 @@ export default function ConsentScreen() {
 
   const handleAccept = () => {
     if (!agreed) return;
+    if (role !== 'user' && role !== 'professional') {
+      // Unexpected role param — abort rather than silently falling through
+      router.back();
+      return;
+    }
     if (role === 'professional') {
       router.push('/(auth)/(health-professional)');
     } else {
