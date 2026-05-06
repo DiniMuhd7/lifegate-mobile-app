@@ -62,8 +62,8 @@ export default function SettingsScreen() {
       items: [
         {
           icon: 'person-outline',
-          label: 'Manage Profile',
-          sublabel: 'Edit name, photo & info',
+          label: 'Account Settings',
+          sublabel: 'Edit name, email & password',
           onPress: () => router.push('/(tab)/settings/profile'),
         },
         {
@@ -86,8 +86,8 @@ export default function SettingsScreen() {
       items: [
         {
           icon: 'fitness-outline',
-          label: 'Health Profile',
-          sublabel: 'Blood type, allergies & medications',
+          label: 'Health Data',
+          sublabel: 'Blood type, genotype, allergies & medications',
           onPress: () => router.push('/(tab)/settings/manage-profile'),
         },
       ],

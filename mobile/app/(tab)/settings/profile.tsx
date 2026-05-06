@@ -373,12 +373,12 @@ export default function ManageProfileScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
-            style={({ pressed }) => [styles.headerBack, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.headerBackBtn, pressed && { opacity: 0.6 }]}
             accessibilityLabel="Go back"
           >
             <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
           </Pressable>
-          <Text style={styles.headerTitle}>Manage Profile</Text>
+          <Text style={styles.headerTitle}>Account Settings</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -823,7 +823,16 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#F0F8F8',
   },
-  headerBack: { padding: 4 },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2ECEC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     flex: 1,
     textAlign: 'center',

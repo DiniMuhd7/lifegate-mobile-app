@@ -256,7 +256,7 @@ export default function ManageProfileScreen() {
           accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color="#1A1A2E" />
         </Pressable>
-        <Text className="flex-1 text-center text-xl font-bold text-gray-900">Manage Health Profile</Text>
+        <Text className="flex-1 text-center text-xl font-bold text-gray-900">Health Data</Text>
         <View style={{ width: 36 }} />
       </View>
 
