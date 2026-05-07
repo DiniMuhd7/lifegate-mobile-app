@@ -8,12 +8,18 @@ import {
   TextInput,
   StyleSheet,
   Platform,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import { useAuthStore } from 'stores/auth/auth-store';
+import { useProfileStore } from 'stores/auth/profile-store';
+import { LabeledInput } from 'components/LabeledInput';
+import { Dropdown } from 'components/DropDown';
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 const TEAL      = '#0EA5A4';
@@ -116,6 +122,54 @@ const FAQ_SECTIONS: FaqSection[] = [
     ],
   },
 ];
+
+const LANGUAGE_OPTIONS = [
+  { label: 'English', value: 'English' },
+  { label: 'Hausa', value: 'Hausa' },
+  { label: 'Yoruba', value: 'Yoruba' },
+  { label: 'Igbo', value: 'Igbo' },
+  { label: 'Pidgin', value: 'Pidgin' },
+  { label: 'French', value: 'French' },
+  { label: 'Swahili', value: 'Swahili' },
+  { label: 'Arabic', value: 'Arabic' },
+];
+
+function HelpActionModal({
+  visible,
+  onClose,
+  title,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        onPress={onClose}
+      >
+        <Pressable
+          style={{
+            width: '100%',
+            maxWidth: 420,
+            backgroundColor: '#fff',
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: '#D1EAE9',
+            padding: 18,
+          }}
+          onPress={() => {}}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 14 }}>{title}</Text>
+          {children}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -223,6 +277,96 @@ export default function HelpScreen() {
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(true);
   const feedbackSent = params.feedback === 'sent' && showFeedbackSuccess;
 
+  const user = useAuthStore((s) => s.user);
+  const { updateBasicProfile, updateHealthProfile, changePassword, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
+
+  const [showEditModal, setShowEditModal]     = useState(false);
+  const [showPwdModal, setShowPwdModal]       = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [langSaving, setLangSaving]           = useState(false);
+  const [pwdSaving, setPwdSaving]             = useState(false);
+  const [delLoading, setDelLoading]           = useState(false);
+
+  const [editForm, setEditForm] = useState({
+    firstName: user?.name?.split(' ')[0] ?? '',
+    lastName: user?.name?.split(' ').slice(1).join(' ') ?? '',
+    phone: user?.phone ?? '',
+    dob: user?.dob ?? '',
+    gender: user?.gender ?? '',
+  });
+  const [language, setLanguage]           = useState(user?.language ?? '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword]         = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const isDeletionScheduled = !!user?.deletion_scheduled_at;
+  const deletionDate = isDeletionScheduled
+    ? new Date(user!.deletion_scheduled_at as string).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    : null;
+
+  const handleSaveEdit = async () => {
+    if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
+      Alert.alert('Validation', 'First and last name are required.'); return;
+    }
+    if (editForm.dob.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(editForm.dob.trim())) {
+      Alert.alert('Validation', 'Date of birth must be YYYY-MM-DD.'); return;
+    }
+    const ok = await updateBasicProfile({
+      name: `${editForm.firstName.trim()} ${editForm.lastName.trim()}`,
+      phone: editForm.phone.trim() || undefined,
+      dob: editForm.dob.trim() || undefined,
+      gender: editForm.gender.trim() || undefined,
+    });
+    if (ok) { setShowEditModal(false); Alert.alert('Saved', 'Profile updated.'); }
+    else Alert.alert('Error', 'Could not update profile.');
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Validation', 'Fill in all password fields.'); return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Validation', 'Passwords do not match.'); return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Validation', 'Password must be at least 6 characters.'); return;
+    }
+    setPwdSaving(true);
+    const ok = await changePassword(currentPassword, newPassword, confirmPassword);
+    setPwdSaving(false);
+    if (ok) {
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      setShowPwdModal(false); Alert.alert('Saved', 'Password changed successfully.');
+    } else Alert.alert('Error', 'Could not change password.');
+  };
+
+  const handleSaveLanguage = async () => {
+    setLangSaving(true);
+    const ok = await updateHealthProfile({ language: language || null });
+    setLangSaving(false);
+    if (ok) Alert.alert('Saved', 'Language preference updated.');
+    else Alert.alert('Error', 'Could not save language preference.');
+  };
+
+  const handleRequestDelete = async () => {
+    setDelLoading(true);
+    const ok = await requestAccountDeletion();
+    setDelLoading(false);
+    setShowDeleteModal(false);
+    if (ok) Alert.alert('Deletion Scheduled', 'Account scheduled for deletion in 90 days.');
+    else Alert.alert('Error', 'Failed to schedule account deletion.');
+  };
+
+  const handleCancelDelete = async () => {
+    setDelLoading(true);
+    const ok = await cancelAccountDeletion();
+    setDelLoading(false);
+    setShowCancelModal(false);
+    if (ok) Alert.alert('Cancelled', 'Account deletion cancelled.');
+    else Alert.alert('Error', 'Failed to cancel account deletion.');
+  };
+
   const appVersion     = Constants.expoConfig?.version ?? '1.0.0';
   const appName        = Constants.expoConfig?.name ?? 'LifeGate';
   const appWebsite     = 'https://lifegate.dshub.com.ng';
@@ -268,6 +412,58 @@ export default function HelpScreen() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
+
+      {/* ── Account modals ── */}
+      <HelpActionModal visible={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Profile">
+        <LabeledInput label="First Name" value={editForm.firstName} onChangeText={(t: string) => setEditForm({ ...editForm, firstName: t })} placeholder="First name" />
+        <LabeledInput label="Last Name" value={editForm.lastName} onChangeText={(t: string) => setEditForm({ ...editForm, lastName: t })} placeholder="Last name" />
+        <LabeledInput label="Phone" value={editForm.phone} onChangeText={(t: string) => setEditForm({ ...editForm, phone: t })} placeholder="Phone number" keyboardType="phone-pad" />
+        <LabeledInput label="Date of Birth" value={editForm.dob} onChangeText={(t: string) => setEditForm({ ...editForm, dob: t })} placeholder="YYYY-MM-DD" />
+        <LabeledInput label="Gender" value={editForm.gender} onChangeText={(t: string) => setEditForm({ ...editForm, gender: t })} placeholder="male / female / other" />
+        <Pressable onPress={handleSaveEdit} style={({ pressed }) => [s.modalBtn, pressed && { opacity: 0.85 }]}>
+          <Text style={s.modalBtnText}>Save Changes</Text>
+        </Pressable>
+        <Pressable onPress={() => setShowEditModal(false)} style={({ pressed }) => [s.modalBtnGhost, pressed && { opacity: 0.7 }]}>
+          <Text style={s.modalBtnGhostText}>Cancel</Text>
+        </Pressable>
+      </HelpActionModal>
+
+      <HelpActionModal visible={showPwdModal} onClose={() => setShowPwdModal(false)} title="Change Password">
+        <LabeledInput label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Current password" secureToggle />
+        <LabeledInput label="New Password" value={newPassword} onChangeText={setNewPassword} placeholder="New password" secureToggle />
+        <LabeledInput label="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm password" secureToggle />
+        <Pressable onPress={handleChangePassword} disabled={pwdSaving} style={({ pressed }) => [s.modalBtn, pressed && { opacity: 0.85 }]}>
+          {pwdSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>Update Password</Text>}
+        </Pressable>
+        <Pressable onPress={() => setShowPwdModal(false)} style={({ pressed }) => [s.modalBtnGhost, pressed && { opacity: 0.7 }]}>
+          <Text style={s.modalBtnGhostText}>Cancel</Text>
+        </Pressable>
+      </HelpActionModal>
+
+      <HelpActionModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account?">
+        <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 16, lineHeight: 21 }}>
+          Your account will be permanently deleted after a 90-day grace period. You can cancel anytime before then.
+        </Text>
+        <Pressable onPress={handleRequestDelete} disabled={delLoading} style={({ pressed }) => [s.modalBtn, { backgroundColor: '#DC2626' }, pressed && { opacity: 0.85 }]}>
+          {delLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>Schedule Deletion</Text>}
+        </Pressable>
+        <Pressable onPress={() => setShowDeleteModal(false)} style={({ pressed }) => [s.modalBtnGhost, pressed && { opacity: 0.7 }]}>
+          <Text style={s.modalBtnGhostText}>Keep Account</Text>
+        </Pressable>
+      </HelpActionModal>
+
+      <HelpActionModal visible={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancel Deletion?">
+        <Text style={{ fontSize: 14, color: '#64748B', marginBottom: 16, lineHeight: 21 }}>
+          This will restore your account to active status and stop the scheduled deletion.
+        </Text>
+        <Pressable onPress={handleCancelDelete} disabled={delLoading} style={({ pressed }) => [s.modalBtn, pressed && { opacity: 0.85 }]}>
+          {delLoading ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>Keep My Account</Text>}
+        </Pressable>
+        <Pressable onPress={() => setShowCancelModal(false)} style={({ pressed }) => [s.modalBtnGhost, pressed && { opacity: 0.7 }]}>
+          <Text style={s.modalBtnGhostText}>Go Back</Text>
+        </Pressable>
+      </HelpActionModal>
+
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
 
         {/* ── Dark teal hero banner ── */}
@@ -331,6 +527,100 @@ export default function HelpScreen() {
               <Pressable onPress={() => setShowFeedbackSuccess(false)} hitSlop={8}>
                 <Ionicons name="close" size={16} color="#059669" />
               </Pressable>
+            </View>
+          )}
+
+          {/* ── Account section ── */}
+          {user && (
+            <View style={s.sectionBlock}>
+              <Text style={s.blockTitle}>Account</Text>
+
+              {/* Profile identity row */}
+              <View style={s.accountCard}>
+                <View style={s.accountAvatar}>
+                  <Text style={s.accountAvatarText}>
+                    {(user.name ?? 'P').split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'P'}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.accountName}>{user.name || 'Patient'}</Text>
+                  <Text style={s.accountEmail} numberOfLines={1}>{user.email}</Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    setEditForm({
+                      firstName: user.name?.split(' ')[0] ?? '',
+                      lastName: user.name?.split(' ').slice(1).join(' ') ?? '',
+                      phone: user.phone ?? '',
+                      dob: user.dob ?? '',
+                      gender: user.gender ?? '',
+                    });
+                    setShowEditModal(true);
+                  }}
+                  style={({ pressed }) => [s.accountEditBtn, pressed && { opacity: 0.7 }]}
+                >
+                  <Ionicons name="create-outline" size={16} color="#fff" />
+                </Pressable>
+              </View>
+
+              {/* Action rows */}
+              <View style={s.accountRows}>
+                <Pressable onPress={() => setShowPwdModal(true)} style={({ pressed }) => [s.accountRow, pressed && { backgroundColor: '#F7FFFE' }]}>
+                  <View style={[s.accountRowIcon, { backgroundColor: '#7C3AED18' }]}>
+                    <Ionicons name="lock-closed-outline" size={16} color="#7C3AED" />
+                  </View>
+                  <Text style={s.accountRowLabel}>Change Password</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                </Pressable>
+
+                <Pressable onPress={() => router.push('/(tab)/settings/manage-profile')} style={({ pressed }) => [s.accountRow, pressed && { backgroundColor: '#F7FFFE' }]}>
+                  <View style={[s.accountRowIcon, { backgroundColor: TEAL + '18' }]}>
+                    <Ionicons name="fitness-outline" size={16} color={TEAL} />
+                  </View>
+                  <Text style={s.accountRowLabel}>Health Profile</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                </Pressable>
+
+                {isDeletionScheduled ? (
+                  <Pressable onPress={() => setShowCancelModal(true)} style={({ pressed }) => [s.accountRow, pressed && { backgroundColor: '#F7FFFE' }]}>
+                    <View style={[s.accountRowIcon, { backgroundColor: '#DC262618' }]}>
+                      <Ionicons name="warning-outline" size={16} color="#DC2626" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.accountRowLabel, { color: '#DC2626' }]}>Deletion Scheduled</Text>
+                      <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>Deletes on {deletionDate}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={() => setShowDeleteModal(true)} style={({ pressed }) => [s.accountRow, { borderBottomWidth: 0 }, pressed && { backgroundColor: '#FFF5F5' }]}>
+                    <View style={[s.accountRowIcon, { backgroundColor: '#DC262618' }]}>
+                      <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                    </View>
+                    <Text style={[s.accountRowLabel, { color: '#DC2626' }]}>Delete Account</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#CBD5E1" />
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Language preference */}
+              <View style={[s.accountRows, { marginTop: 10, paddingHorizontal: 12, paddingBottom: 4 }]}>
+                <Text style={[s.blockTitle, { marginBottom: 8 }]}>Language</Text>
+                <Dropdown
+                  label=""
+                  options={LANGUAGE_OPTIONS}
+                  placeholder="Select language"
+                  selectedValue={language}
+                  onChange={(value: string) => setLanguage(value)}
+                />
+                <Pressable
+                  onPress={handleSaveLanguage}
+                  disabled={langSaving}
+                  style={({ pressed }) => [s.modalBtn, { marginTop: 4 }, pressed && { opacity: 0.85 }]}
+                >
+                  {langSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>Save Language</Text>}
+                </Pressable>
+              </View>
             </View>
           )}
 
@@ -698,6 +988,81 @@ const s = StyleSheet.create({
     borderBottomColor: '#EAF2F2',
   },
   accordionItemOpen: { backgroundColor: '#F7FFFE' },
+
+  // Account section
+  accountCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EAF2F2',
+    padding: 14,
+    marginBottom: 10,
+  },
+  accountAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#DFF4F3',
+    borderWidth: 2,
+    borderColor: '#A9E4E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  accountAvatarText: { fontSize: 15, fontWeight: '900', color: TEAL_D },
+  accountName: { fontSize: 15, fontWeight: '800', color: '#1E293B' },
+  accountEmail: { fontSize: 12, color: '#94A3B8', marginTop: 1 },
+  accountEditBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: TEAL_D,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountRows: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EAF2F2',
+    overflow: 'hidden',
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#EAF2F2',
+  },
+  accountRowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  accountRowLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1E293B' },
+
+  // Modal buttons (light themed)
+  modalBtn: {
+    backgroundColor: TEAL_D,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalBtnText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  modalBtnGhost: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  modalBtnGhostText: { fontSize: 15, fontWeight: '700', color: '#374151' },
   accordionRow:      { flexDirection: 'row', alignItems: 'flex-start' },
   accordionNum: {
     width: 28,
