@@ -70,6 +70,12 @@ export default function SettingsScreen() {
       color: '#0891b2',
       items: [
         {
+          icon: 'id-card-outline',
+          label: 'Account',
+          sublabel: 'Profile, security & preferences overview',
+          onPress: () => router.push('/(tab)/settings/account'),
+        },
+        {
           icon: 'person-outline',
           label: 'Account Settings',
           sublabel: 'Edit name, email & password',
