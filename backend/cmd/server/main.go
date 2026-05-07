@@ -745,6 +745,69 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"ready": true})
 	})
 
+	// /payment-callback — Flutterwave redirects here after checkout on web.
+	// Serves a small HTML page that tells the user to return to the app and
+	// confirms or reports the payment status. No authentication required.
+	r.GET("/payment-callback", func(c *gin.Context) {
+		status := c.Query("status")     // "successful" | "cancelled" | "failed"
+		txRef := c.Query("tx_ref")
+		_ = txRef // available for future use (e.g. logging)
+
+		var heading, body, iconColor, iconSVG string
+		switch status {
+		case "cancelled":
+			heading = "Payment Cancelled"
+			body = "You cancelled the payment. No charges were made.<br>You can close this tab and try again."
+			iconColor = "#f59e0b"
+			iconSVG = `<circle cx="50" cy="50" r="45" fill="#fef3c7"/><line x1="33" y1="33" x2="67" y2="67" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/><line x1="67" y1="33" x2="33" y2="67" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>`
+		case "failed":
+			heading = "Payment Failed"
+			body = "The payment could not be processed. No charges were made.<br>You can close this tab and try again."
+			iconColor = "#ef4444"
+			iconSVG = `<circle cx="50" cy="50" r="45" fill="#fee2e2"/><line x1="33" y1="33" x2="67" y2="67" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><line x1="67" y1="33" x2="33" y2="67" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/>`
+		default: // "successful" or any other value
+			heading = "Payment Received"
+			body = "Your payment was received successfully.<br>Return to the LifeGate app and press <strong>&#34;I&#39;ve Completed Payment&#34;</strong> to receive your credits."
+			iconColor = "#0AADA2"
+			iconSVG = `<circle cx="50" cy="50" r="45" fill="#ccfbf1"/><polyline points="28,50 44,66 72,36" fill="none" stroke="#0AADA2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`
+		}
+
+		html := `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LifeGate Payment</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0faf9;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+.card{background:#fff;border-radius:20px;padding:40px 32px;max-width:420px;width:100%;
+  text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+svg{margin-bottom:20px}
+h1{font-size:22px;font-weight:800;color:#111827;margin-bottom:12px}
+p{font-size:15px;color:#6b7280;line-height:1.6;margin-bottom:28px}
+button{background:` + iconColor + `;color:#fff;border:none;border-radius:12px;
+  padding:14px 32px;font-size:15px;font-weight:700;cursor:pointer;width:100%}
+button:hover{opacity:.88}
+.note{margin-top:14px;font-size:13px;color:#9ca3af}
+</style></head><body>
+<div class="card">
+  <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">` +
+			iconSVG + `</svg>
+  <h1>` + heading + `</h1>
+  <p>` + body + `</p>
+  <button onclick="window.close()">Close this tab</button>
+  <p class="note" id="cd"></p>
+</div>
+<script>
+var s=5;var t=setInterval(function(){
+  document.getElementById('cd').textContent='Closing in '+s+'s\u2026';
+  if(--s<0){clearInterval(t);window.close();}
+},1000);
+</script>
+</body></html>`
+
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+	})
+
 	addr := ":" + cfg.Port
 	log.Printf("LifeGate server starting on %s", addr)
 	srv := &http.Server{
