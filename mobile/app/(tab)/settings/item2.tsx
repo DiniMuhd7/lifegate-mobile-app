@@ -2,34 +2,19 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
+  Pressable,
   ScrollView,
   Alert,
   Linking,
   TextInput,
-  StyleSheet,
-  Pressable,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
-// ── iOS system palette (same as profile.tsx) ──────────────────────────────────
-const SYS_BG     = '#F2F2F7';
-const SYS_WHITE  = '#FFFFFF';
-const SYS_LABEL  = '#000000';
-const SYS_SECOND = '#3C3C43';
-const SYS_THIRD  = '#8E8E93';
-const SYS_FILL   = '#E5E5EA';
-const SYS_TEAL   = '#0EA5A4';
-const SYS_RED    = '#FF3B30';
-const SYS_BLUE   = '#34AADC';
-const SYS_GREEN  = '#34C759';
-const SYS_PURPLE = '#AF52DE';
-
-// ── FAQ data (same as help-center.tsx) ────────────────────────────────────────
+// ── FAQ data ─────────────────────────────────────────────────────────────────
 type FaqEntry   = { q: string; a: string };
 type FaqSection = { id: string; title: string; icon: keyof typeof Ionicons.glyphMap; items: FaqEntry[] };
 
@@ -124,62 +109,20 @@ const FAQ_SECTIONS: FaqSection[] = [
   },
 ];
 
-// ── Sub-components (iOS style, same as profile.tsx) ───────────────────────────
-
-function SysHeader({ title }: { title: string }) {
-  return <Text style={s.sysHeader}>{title.toUpperCase()}</Text>;
-}
-
-function SysRow({
-  icon,
-  iconBg,
-  label,
-  value,
-  chevron,
-  last,
-  onPress,
-  children,
-}: {
-  icon?: keyof typeof Ionicons.glyphMap;
-  iconBg?: string;
-  label: string;
-  value?: string;
-  chevron?: boolean;
-  last?: boolean;
-  onPress?: () => void;
-  children?: React.ReactNode;
-}) {
-  const inner = (
-    <View style={[s.sysRow, !last && s.sysRowDivider]}>
-      {icon && (
-        <View style={[s.sysRowIcon, { backgroundColor: iconBg ?? SYS_TEAL }]}>
-          <Ionicons name={icon} size={14} color="#fff" />
-        </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={s.sysRowLabel}>{label}</Text>
-        {children}
-      </View>
-      {value ? <Text style={s.sysRowValue} numberOfLines={1}>{value}</Text> : null}
-      {chevron && <Ionicons name="chevron-forward" size={14} color={SYS_THIRD} style={{ marginLeft: 4 }} />}
-    </View>
-  );
-  if (onPress) {
-    return (
-      <Pressable
-        onPress={onPress}
-        android_ripple={{ color: '#E5E5EA' }}
-        style={({ pressed }) => (pressed && Platform.OS === 'ios' ? { opacity: 0.5 } : {})}
-      >
-        {inner}
-      </Pressable>
-    );
+// ── Helpers ───────────────────────────────────────────────────────────────────
+async function openFirstSupportedUrl(urls: string[]): Promise<boolean> {
+  for (const url of urls) {
+    try {
+      const ok = await Linking.canOpenURL(url);
+      if (ok) { await Linking.openURL(url); return true; }
+    } catch { /* try next */ }
   }
-  return inner;
+  return false;
 }
 
-/** Expandable FAQ row in iOS inset-grouped style */
-function FaqRow({
+// ── Sub-components (About screen pattern) ─────────────────────────────────────
+
+function FaqItem({
   index,
   question,
   answer,
@@ -197,32 +140,64 @@ function FaqRow({
   return (
     <Pressable
       onPress={onToggle}
-      android_ripple={{ color: '#E5E5EA' }}
-      style={({ pressed }) => (pressed && Platform.OS === 'ios' ? { opacity: 0.5 } : {})}
+      className={`flex-row items-start py-3 ${!last ? 'border-b border-[#F1F5F9]' : ''} active:opacity-70`}
     >
-      <View style={[s.sysRow, { alignItems: 'flex-start', paddingVertical: 14 }, !last && s.sysRowDivider]}>
-        <View style={[s.sysRowIcon, { backgroundColor: SYS_FILL, marginTop: 2 }]}>
-          <Text style={s.faqNum}>{String(index + 1).padStart(2, '0')}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.sysRowLabel, expanded && { color: SYS_TEAL }]}>{question}</Text>
-          {expanded && (
-            <Text style={s.faqAnswer}>{answer}</Text>
-          )}
-        </View>
-        <Ionicons
-          name={expanded ? 'remove-circle-outline' : 'add-circle-outline'}
-          size={18}
-          color={expanded ? SYS_TEAL : SYS_FILL}
-          style={{ marginLeft: 8, marginTop: 2 }}
-        />
+      <View className="h-8 w-8 rounded-full bg-[#E9F8F7] items-center justify-center mr-3 mt-0.5 flex-shrink-0">
+        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0B8E8D' }}>
+          {String(index + 1).padStart(2, '0')}
+        </Text>
       </View>
+      <View className="flex-1">
+        <Text className={`text-sm font-semibold leading-5 ${expanded ? 'text-[#0EA5A4]' : 'text-gray-900'}`}>
+          {question}
+        </Text>
+        {expanded && (
+          <Text className="text-sm text-gray-600 leading-5 mt-2">{answer}</Text>
+        )}
+      </View>
+      <Ionicons
+        name={expanded ? 'remove-circle-outline' : 'add-circle-outline'}
+        size={18}
+        color={expanded ? '#0EA5A4' : '#CBD5DB'}
+        style={{ marginLeft: 8, marginTop: 2 }}
+      />
     </Pressable>
+  );
+}
+
+function ContactRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80 mb-3"
+    >
+      <Ionicons name={icon} size={20} color="#14A8A8" />
+      <Text className="ml-3 text-base text-gray-900 font-medium flex-1">{label}</Text>
+      <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
+    </Pressable>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row items-center justify-between py-2.5 border-b border-[#F1F5F9]">
+      <Text className="text-sm text-gray-500">{label}</Text>
+      <Text className="text-sm font-semibold text-gray-900">{value}</Text>
+    </View>
   );
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function Item2Screen() {
+  const insets = useSafeAreaInsets();
   const [openFaq, setOpenFaq]               = useState<string | null>(null);
   const [faqQuery, setFaqQuery]             = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -231,32 +206,19 @@ export default function Item2Screen() {
   const feedbackSent = params.feedback === 'sent' && showFeedbackBanner;
 
   const appVersion     = Constants.expoConfig?.version ?? '1.0.0';
-  const appName        = Constants.expoConfig?.name ?? 'LifeGate';
-  const appWebsite     = 'https://lifegate.dshub.com.ng';
   const androidPackage = Constants.expoConfig?.android?.package ?? 'com.lazyapp.lifegatemobile';
   const iosAppId       = String(Constants.expoConfig?.extra?.iosAppId ?? '').trim();
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const openFirstSupportedUrl = async (urls: string[]) => {
-    for (const url of urls) {
-      try {
-        const supported = await Linking.canOpenURL(url);
-        if (supported) { await Linking.openURL(url); return true; }
-      } catch { /* try next */ }
-    }
-    return false;
-  };
-  const handleOpenWebsite  = () => openFirstSupportedUrl([appWebsite]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open website.'); });
   const handleCallSupport  = () => openFirstSupportedUrl(['tel:+2349013453490', 'tel:+2349110192583']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open dialer.'); });
   const handleEmailSupport = () => openFirstSupportedUrl(['mailto:contact@dshub.com.ng']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open email.'); });
+  const handleOpenWebsite  = () => openFirstSupportedUrl(['https://lifegate.dshub.com.ng']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open website.'); });
   const handleRateAndroid  = () => openFirstSupportedUrl([`market://details?id=${androidPackage}`, `https://play.google.com/store/apps/details?id=${androidPackage}`]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open Play Store.'); });
-  const handleRateIOS      = () => openFirstSupportedUrl(iosAppId ? [`itms-apps://itunes.apple.com/app/id${iosAppId}?action=write-review`, `https://apps.apple.com/app/id${iosAppId}?action=write-review`] : [`itms-apps://apps.apple.com/ng/search?term=LifeGate%20DSHub`, `https://apps.apple.com/ng/search?term=LifeGate%20DSHub`]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open App Store.'); });
+  const handleRateIOS      = () => openFirstSupportedUrl(iosAppId ? [`itms-apps://itunes.apple.com/app/id${iosAppId}?action=write-review`, `https://apps.apple.com/app/id${iosAppId}?action=write-review`] : ['itms-apps://apps.apple.com/ng/search?term=LifeGate%20DSHub']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open App Store.'); });
 
-  // ── FAQ filtering (same as help-center.tsx) ────────────────────────────────
   const normalizedQuery = faqQuery.trim().toLowerCase();
   const filteredSections = useMemo(() => {
     let sections = FAQ_SECTIONS;
-    if (activeCategory) sections = sections.filter((sec) => sec.id === activeCategory);
+    if (activeCategory) sections = sections.filter((s) => s.id === activeCategory);
     if (!normalizedQuery) return sections;
     return sections
       .map((sec) => ({
@@ -271,329 +233,188 @@ export default function Item2Screen() {
       .filter((sec) => sec.items.length > 0);
   }, [normalizedQuery, activeCategory]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1, backgroundColor: SYS_BG }}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+    <SafeAreaView className="flex-1 bg-[#F2F8F8]" edges={['top']}>
 
-        {/* ── iOS navigation bar ── */}
-        <View style={s.navBar}>
-          <Pressable onPress={() => router.back()} style={({ pressed }) => [s.navBack, pressed && { opacity: 0.5 }]}>
-            <Ionicons name="chevron-back" size={20} color={SYS_TEAL} />
-            <Text style={s.navBackText}>Settings</Text>
-          </Pressable>
-          <Text style={s.navTitle}>Help Centre</Text>
-          <View style={s.navAction} />
+      {/* ── Header (About screen pattern) ── */}
+      <View className="flex-row items-center justify-between px-4 pt-3 pb-4">
+        <Pressable onPress={() => router.back()} className="p-2 rounded-full bg-white">
+          <Ionicons name="chevron-back" size={22} color="#111827" />
+        </Pressable>
+        <Text className="text-xl font-black text-gray-900">Help Centre</Text>
+        <View className="w-10" />
+      </View>
+
+      <ScrollView
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+
+        {/* ── Hero card (About screen pattern) ── */}
+        <View className="mb-4 rounded-3xl bg-white border border-[#DCEFEF] p-5 overflow-hidden">
+          <View className="absolute -top-8 -right-4 h-24 w-24 rounded-full bg-[#E7F8F7]" />
+          <Text className="text-xs font-semibold uppercase tracking-wide text-[#0EA5A4] mb-1">LifeGate</Text>
+          <Text className="text-2xl font-black text-gray-900 mb-2">Help Centre</Text>
+          <Text className="text-sm text-gray-600 leading-5">
+            Find answers to common questions, contact support, and learn how to get the most from LifeGate.
+          </Text>
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 60 }}
-          keyboardShouldPersistTaps="handled"
-        >
-
-          {/* ── Feedback success banner ── */}
-          {feedbackSent && (
-            <View style={s.feedbackBanner}>
-              <Ionicons name="checkmark-circle" size={18} color={SYS_GREEN} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={s.feedbackBannerTitle}>Feedback sent</Text>
-                <Text style={s.feedbackBannerSub}>
-                  {params.referenceId ? `Ref: ${params.referenceId}` : 'Our team will review your message shortly.'}
-                </Text>
-              </View>
-              <Pressable onPress={() => setShowFeedbackBanner(false)} hitSlop={8}>
-                <Ionicons name="close" size={16} color={SYS_GREEN} />
-              </Pressable>
+        {/* ── Feedback success banner ── */}
+        {feedbackSent && (
+          <View className="mb-3 flex-row items-center rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] px-4 py-3">
+            <Ionicons name="checkmark-circle" size={18} color="#059669" />
+            <View className="flex-1 ml-3">
+              <Text className="text-sm font-bold text-[#065F46]">Feedback sent</Text>
+              <Text className="text-xs text-[#059669] mt-0.5">
+                {params.referenceId ? `Ref: ${params.referenceId}` : 'Our team will review your message shortly.'}
+              </Text>
             </View>
-          )}
-
-          {/* ── Search ── */}
-          <View style={s.searchWrap}>
-            <View style={s.searchBar}>
-              <Ionicons name="search" size={15} color={SYS_THIRD} style={{ marginRight: 8 }} />
-              <TextInput
-                value={faqQuery}
-                onChangeText={(t) => { setFaqQuery(t); setActiveCategory(null); }}
-                placeholder="Search help topics"
-                placeholderTextColor={SYS_THIRD}
-                style={s.searchInput}
-                returnKeyType="search"
-                autoCorrect={false}
-              />
-              {faqQuery ? (
-                <Pressable onPress={() => setFaqQuery('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={15} color={SYS_THIRD} />
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-
-          {/* ── Get Support ── */}
-          <SysHeader title="Get Support" />
-          <View style={s.sysGroup}>
-            <SysRow icon="chatbubble-ellipses-outline" iconBg={SYS_TEAL}   label="Send Feedback" value="Report bugs"        chevron onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')} />
-            <SysRow icon="headset-outline"              iconBg={SYS_PURPLE} label="Contact Us"    value="Talk to support"    chevron onPress={() => router.push('/(tab)/settings/contact-us')} />
-            <SysRow icon="call-outline"                 iconBg={SYS_RED}    label="Call Now"      value="Urgent help"        chevron onPress={() => void handleCallSupport()} />
-            <SysRow icon="mail-outline"                 iconBg={SYS_BLUE}   label="Email Us"      value="contact@dshub.com.ng" chevron onPress={() => void handleEmailSupport()} last />
-          </View>
-
-          {/* ── App Info ── */}
-          <SysHeader title="App Info" />
-          <View style={s.sysGroup}>
-            <SysRow icon="information-circle-outline" iconBg="#5856D6" label="Version"  value={`v${appVersion}`} />
-            <SysRow icon="phone-portrait-outline"     iconBg="#8E8E93" label="Platform" value={androidPackage.split('.').pop()} />
-            <SysRow icon="globe-outline"              iconBg={SYS_BLUE} label="Website" value="Open" chevron onPress={() => void handleOpenWebsite()} last />
-          </View>
-
-          {/* ── Rate the App ── */}
-          <SysHeader title="Rate the App" />
-          <View style={s.sysGroup}>
-            <SysRow icon="logo-google-playstore" iconBg="#01875F" label="Google Play" value="Rate us"     chevron onPress={() => void handleRateAndroid()} />
-            <SysRow icon="logo-apple"            iconBg="#000000" label="App Store"   value="Rate us"     chevron onPress={() => void handleRateIOS()}     last />
-          </View>
-
-          {/* ── FAQ Category filter chips ── */}
-          <SysHeader title="Frequently Asked" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
-            <Pressable
-              onPress={() => { setActiveCategory(null); setFaqQuery(''); }}
-              style={({ pressed }) => [s.chip, !activeCategory && s.chipActive, pressed && activeCategory && { opacity: 0.7 }]}
-            >
-              <Ionicons name="apps-outline" size={12} color={!activeCategory ? SYS_WHITE : SYS_TEAL} />
-              <Text style={[s.chipText, !activeCategory && s.chipTextActive]}>All</Text>
+            <Pressable onPress={() => setShowFeedbackBanner(false)} hitSlop={8}>
+              <Ionicons name="close" size={16} color="#059669" />
             </Pressable>
-            {FAQ_SECTIONS.map((sec) => {
-              const active = activeCategory === sec.id;
-              return (
-                <Pressable
-                  key={sec.id}
-                  onPress={() => { setActiveCategory(active ? null : sec.id); setFaqQuery(''); }}
-                  style={({ pressed }) => [s.chip, active && s.chipActive, pressed && !active && { opacity: 0.7 }]}
-                >
-                  <Ionicons name={sec.icon} size={12} color={active ? SYS_WHITE : SYS_TEAL} />
-                  <Text style={[s.chipText, active && s.chipTextActive]}>{sec.title}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          </View>
+        )}
 
-          {/* ── FAQ sections as inset grouped lists ── */}
-          {filteredSections.length === 0 ? (
-            <View style={s.emptyState}>
-              <Ionicons name="search-outline" size={36} color={SYS_FILL} />
-              <Text style={s.emptyTitle}>No results</Text>
-              <Text style={s.emptySub}>Try a different keyword or send us your question.</Text>
+        {/* ── Search ── */}
+        <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-3 flex-row items-center">
+          <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+          <TextInput
+            value={faqQuery}
+            onChangeText={(t) => { setFaqQuery(t); setActiveCategory(null); }}
+            placeholder="Search help topics"
+            placeholderTextColor="#9CA3AF"
+            className="flex-1 text-sm text-gray-900 ml-2"
+            style={{ paddingVertical: 2 }}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+          {faqQuery ? (
+            <Pressable onPress={() => setFaqQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#9CA3AF" />
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* ── Get Support ── */}
+        <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Get Support</Text>
+          <ContactRow icon="chatbubble-ellipses-outline" label="Send Feedback" onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')} />
+          <ContactRow icon="headset-outline"             label="Contact Us"    onPress={() => router.push('/(tab)/settings/contact-us')} />
+          <ContactRow icon="call-outline"                label="Call Support"  onPress={() => void handleCallSupport()} />
+          <ContactRow icon="mail-outline"                label="Email Us — contact@dshub.com.ng" onPress={() => void handleEmailSupport()} />
+        </View>
+
+        {/* ── App Info ── */}
+        <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">App Info</Text>
+          <InfoRow label="Version"  value={`v${appVersion}`} />
+          <InfoRow label="Platform" value={androidPackage.split('.').pop() ?? 'mobile'} />
+          <View className="flex-row items-center justify-between py-2.5">
+            <Text className="text-sm text-gray-500">Website</Text>
+            <Pressable onPress={() => void handleOpenWebsite()} className="flex-row items-center active:opacity-70">
+              <Text className="text-sm font-semibold text-[#0EA5A4] mr-1">lifegate.dshub.com.ng</Text>
+              <Ionicons name="open-outline" size={14} color="#0EA5A4" />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ── Rate the App ── */}
+        <View className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Rate the App</Text>
+          <Pressable onPress={() => void handleRateAndroid()} className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80 mb-3">
+            <Ionicons name="logo-google-playstore" size={20} color="#01875F" />
+            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">Google Play</Text>
+            <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
+          </Pressable>
+          <Pressable onPress={() => void handleRateIOS()} className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80">
+            <Ionicons name="logo-apple" size={20} color="#000000" />
+            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">App Store</Text>
+            <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
+          </Pressable>
+        </View>
+
+        {/* ── FAQ Category chips ── */}
+        <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 mt-1">
+          Frequently Asked
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3" contentContainerStyle={{ gap: 8, paddingRight: 4 }}>
+          <Pressable
+            onPress={() => { setActiveCategory(null); setFaqQuery(''); }}
+            className={`flex-row items-center rounded-full px-3 py-1.5 border ${!activeCategory ? 'bg-[#0EA5A4] border-[#0EA5A4]' : 'bg-white border-[#E4EEEE]'}`}
+          >
+            <Ionicons name="apps-outline" size={12} color={!activeCategory ? '#fff' : '#0EA5A4'} />
+            <Text className={`text-xs font-semibold ml-1 ${!activeCategory ? 'text-white' : 'text-[#0EA5A4]'}`}>All</Text>
+          </Pressable>
+          {FAQ_SECTIONS.map((sec) => {
+            const active = activeCategory === sec.id;
+            return (
               <Pressable
-                onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')}
-                style={({ pressed }) => [s.emptyBtn, pressed && { opacity: 0.85 }]}
+                key={sec.id}
+                onPress={() => { setActiveCategory(active ? null : sec.id); setFaqQuery(''); }}
+                className={`flex-row items-center rounded-full px-3 py-1.5 border ${active ? 'bg-[#0EA5A4] border-[#0EA5A4]' : 'bg-white border-[#E4EEEE]'}`}
               >
-                <Text style={s.emptyBtnText}>Send Feedback</Text>
+                <Ionicons name={sec.icon} size={12} color={active ? '#fff' : '#0EA5A4'} />
+                <Text className={`text-xs font-semibold ml-1 ${active ? 'text-white' : 'text-[#0EA5A4]'}`}>{sec.title}</Text>
               </Pressable>
-            </View>
-          ) : (
-            filteredSections.map((section) => (
-              <View key={section.id}>
-                <View style={s.faqSectionHeader}>
-                  <View style={[s.sysRowIcon, { backgroundColor: SYS_TEAL, marginRight: 8 }]}>
-                    <Ionicons name={section.icon} size={14} color="#fff" />
-                  </View>
-                  <Text style={s.faqSectionTitle}>{section.title}</Text>
-                  <View style={s.faqCountPill}>
-                    <Text style={s.faqCountText}>{section.items.length}</Text>
-                  </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* ── FAQ sections ── */}
+        {filteredSections.length === 0 ? (
+          <View className="rounded-2xl bg-white border border-[#E4EEEE] px-4 py-10 items-center mb-3">
+            <Ionicons name="search-outline" size={36} color="#CBD5DB" />
+            <Text className="text-base font-semibold text-gray-900 mt-3">No results</Text>
+            <Text className="text-sm text-gray-500 text-center leading-5 mt-1 max-w-xs">
+              Try a different keyword or send us your question directly.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/(tab)/settings/(extra)/sendFeedback')}
+              className="mt-5 bg-[#0EA5A4] rounded-xl px-6 py-2.5 active:opacity-85"
+            >
+              <Text className="text-sm font-bold text-white">Send Feedback</Text>
+            </Pressable>
+          </View>
+        ) : (
+          filteredSections.map((section) => (
+            <View key={section.id} className="mb-3 rounded-2xl bg-white border border-[#E4EEEE] px-4 py-4">
+              {/* Section header (About FeatureRow label style) */}
+              <View className="flex-row items-center mb-3">
+                <View className="h-8 w-8 rounded-full bg-[#E9F8F7] items-center justify-center mr-3">
+                  <Ionicons name={section.icon} size={16} color="#0EA5A4" />
                 </View>
-                <View style={s.sysGroup}>
-                  {section.items.map((item, idx) => (
-                    <FaqRow
-                      key={item.q}
-                      index={idx}
-                      question={item.q}
-                      answer={item.a}
-                      expanded={openFaq === item.q}
-                      onToggle={() => setOpenFaq(openFaq === item.q ? null : item.q)}
-                      last={idx === section.items.length - 1}
-                    />
-                  ))}
+                <Text className="text-sm font-semibold text-gray-900 flex-1">{section.title}</Text>
+                <View className="rounded-full bg-[#E9F8F7] px-2 py-0.5">
+                  <Text className="text-xs font-bold text-[#0B8E8D]">{section.items.length}</Text>
                 </View>
               </View>
-            ))
-          )}
+              {/* FAQ accordion items */}
+              {section.items.map((item, idx) => (
+                <FaqItem
+                  key={item.q}
+                  index={idx}
+                  question={item.q}
+                  answer={item.a}
+                  expanded={openFaq === item.q}
+                  onToggle={() => setOpenFaq(openFaq === item.q ? null : item.q)}
+                  last={idx === section.items.length - 1}
+                />
+              ))}
+            </View>
+          ))
+        )}
 
-        </ScrollView>
-      </SafeAreaView>
-      <PatientBottomTabBar activeTab="settings" />
-    </View>
+        {/* ── Disclaimer (About screen footer pattern) ── */}
+        <View className="mb-2 px-2">
+          <Text className="text-xs text-gray-500 text-center leading-5">
+            LifeGate provides digital health support and triage guidance. It is not a substitute for emergency medical services or professional clinical advice.
+          </Text>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-// ── Styles (iOS native system pattern, same as profile.tsx) ──────────────────
-const s = StyleSheet.create({
-
-  // Navigation bar
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: SYS_WHITE,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
-  },
-  navBack:     { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 60 },
-  navBackText: { fontSize: 17, color: SYS_TEAL },
-  navTitle:    { fontSize: 17, fontWeight: '600', color: SYS_LABEL, textAlign: 'center', flex: 1 },
-  navAction:   { minWidth: 60 },
-
-  // Feedback success banner
-  feedbackBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 12,
-  },
-  feedbackBannerTitle: { fontSize: 13, fontWeight: '700', color: '#065F46' },
-  feedbackBannerSub:   { fontSize: 11, color: '#059669', marginTop: 1 },
-
-  // Search
-  searchWrap: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 4,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: SYS_WHITE,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#C6C6C8',
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: SYS_LABEL,
-    paddingVertical: 0,
-  },
-
-  // Inset grouped section header (same as profile.tsx)
-  sysHeader: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: SYS_THIRD,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-    marginTop: 24,
-  },
-
-  // Grouped section container (same as profile.tsx)
-  sysGroup: {
-    backgroundColor: SYS_WHITE,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#C6C6C8',
-    marginBottom: 0,
-  },
-
-  // Single row (same as profile.tsx)
-  sysRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    backgroundColor: SYS_WHITE,
-    minHeight: 44,
-  },
-  sysRowDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#C6C6C8',
-    marginLeft: 16 + 28 + 12,
-  },
-  sysRowIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  sysRowLabel: { fontSize: 17, fontWeight: '400', color: SYS_LABEL, flex: 1 },
-  sysRowValue: { fontSize: 17, color: SYS_THIRD, maxWidth: '45%' },
-
-  // FAQ section header row (above each SysGroup)
-  faqSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 8,
-  },
-  faqSectionTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '400',
-    color: SYS_THIRD,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  faqCountPill: {
-    backgroundColor: SYS_FILL,
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  faqCountText: { fontSize: 11, fontWeight: '700', color: SYS_THIRD },
-
-  // FAQ number badge inside row icon slot
-  faqNum: { fontSize: 9, fontWeight: '800', color: SYS_SECOND },
-
-  // FAQ expanded answer text
-  faqAnswer: {
-    fontSize: 13,
-    color: SYS_SECOND,
-    lineHeight: 19,
-    marginTop: 8,
-  },
-
-  // Category chips
-  chipsRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-    paddingTop: 8,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: SYS_WHITE,
-    borderRadius: 20,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#C6C6C8',
-  },
-  chipActive:     { backgroundColor: SYS_TEAL, borderColor: SYS_TEAL },
-  chipText:       { fontSize: 12, fontWeight: '600', color: SYS_TEAL },
-  chipTextActive: { color: SYS_WHITE },
-
-  // Empty state
-  emptyState:  { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 40 },
-  emptyTitle:  { fontSize: 15, fontWeight: '600', color: SYS_LABEL, marginTop: 8 },
-  emptySub:    { fontSize: 13, color: SYS_THIRD, textAlign: 'center', lineHeight: 18, marginTop: 6 },
-  emptyBtn:    { marginTop: 16, backgroundColor: SYS_TEAL, borderRadius: 10, paddingVertical: 11, paddingHorizontal: 24 },
-  emptyBtnText: { fontSize: 13, fontWeight: '600', color: SYS_WHITE },
-});

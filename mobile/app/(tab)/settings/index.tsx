@@ -88,6 +88,12 @@ export default function SettingsScreen() {
           onPress: () => router.push('/(tab)/settings/item'),
         },
         {
+          icon: 'help-circle-outline',
+          label: 'Item2',
+          sublabel: 'Help centre information & FAQs',
+          onPress: () => router.push('/(tab)/settings/item2'),
+        },
+        {
           icon: 'card-outline',
           label: 'Subscription',
           sublabel: 'Credits & billing',
