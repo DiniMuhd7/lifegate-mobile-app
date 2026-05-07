@@ -21,6 +21,7 @@ export default function UserSettingsLayout() {
         <Stack.Screen name="transactions" />
         <Stack.Screen name="account-setting" />
         <Stack.Screen name="item" />
+        <Stack.Screen name="item2" />
         <Stack.Screen name="accessibility" />
     </Stack>
   );
