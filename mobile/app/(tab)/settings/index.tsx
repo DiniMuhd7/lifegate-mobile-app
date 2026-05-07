@@ -70,28 +70,10 @@ export default function SettingsScreen() {
       color: '#0891b2',
       items: [
         {
-          icon: 'id-card-outline',
-          label: 'Account',
-          sublabel: 'Profile, security & preferences overview',
-          onPress: () => router.push('/(tab)/settings/account'),
-        },
-        {
-          icon: 'person-outline',
-          label: 'Account Settings',
-          sublabel: 'Edit name, email & password',
-          onPress: () => router.push('/(tab)/settings/profile'),
-        },
-        {
           icon: 'notifications-outline',
           label: 'Notifications',
           sublabel: 'Alerts & push preferences',
           onPress: () => router.push('/(tab)/settings/notification'),
-        },
-        {
-          icon: 'lock-closed-outline',
-          label: 'Change Password',
-          sublabel: 'Update your login password',
-          onPress: () => router.push('/(tab)/settings/profile'),
         },
         {
           icon: 'settings-outline',
@@ -104,12 +86,6 @@ export default function SettingsScreen() {
           label: 'Item',
           sublabel: 'Update your personal details',
           onPress: () => router.push('/(tab)/settings/item'),
-        },
-        {
-          icon: 'help-circle-outline',
-          label: 'Item2',
-          sublabel: 'Help centre information & FAQs',
-          onPress: () => router.push('/(tab)/settings/item2'),
         },
         {
           icon: 'card-outline',
