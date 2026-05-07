@@ -76,22 +76,10 @@ export default function SettingsScreen() {
           onPress: () => router.push('/(tab)/settings/notification'),
         },
         {
-          icon: 'settings-outline',
-          label: 'Account Setting',
-          sublabel: 'Alternative account settings view',
-          onPress: () => router.push('/(tab)/settings/account-setting'),
-        },
-        {
           icon: 'create-outline',
-          label: 'Item',
+          label: 'Manage',
           sublabel: 'Update your personal details',
           onPress: () => router.push('/(tab)/settings/item'),
-        },
-        {
-          icon: 'help-circle-outline',
-          label: 'Item2',
-          sublabel: 'Help centre information & FAQs',
-          onPress: () => router.push('/(tab)/settings/item2'),
         },
         {
           icon: 'card-outline',
@@ -135,9 +123,9 @@ export default function SettingsScreen() {
         },
         {
           icon: 'help-circle-outline',
-          label: 'Help Center',
+          label: 'Help Centre',
           sublabel: 'FAQs & guides',
-          onPress: () => router.push('/(tab)/settings/help-center'),
+          onPress: () => router.push('/(tab)/settings/item2'),
         },
       ],
     },
