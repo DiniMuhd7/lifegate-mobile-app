@@ -100,6 +100,12 @@ export default function SettingsScreen() {
           onPress: () => router.push('/(tab)/settings/account-setting'),
         },
         {
+          icon: 'create-outline',
+          label: 'Item',
+          sublabel: 'Update your personal details',
+          onPress: () => router.push('/(tab)/settings/item'),
+        },
+        {
           icon: 'card-outline',
           label: 'Subscription',
           sublabel: 'Credits & billing',
