@@ -10,6 +10,7 @@ import {
   Platform,
   StyleSheet,
   useWindowDimensions,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BannerAd } from 'components/BannerAd';
@@ -550,12 +551,23 @@ function VideoPlayerModal({
   const strokeWidth = 3;
   const progress = canClaim ? 1 : (requiredSeconds - secondsLeft) / requiredSeconds;
 
+  // Safe close: stop the WebView and pause the watch timer before letting the
+  // parent unmount this component. Abruptly unmounting an active WebView can
+  // crash on Android; stopping it first gives the native layer time to clean up.
+  const handleClose = useCallback(() => {
+    pauseTimer();
+    if (videoRef.current) {
+      try { videoRef.current.stopLoading(); } catch (_) {}
+    }
+    onClose();
+  }, [onClose, pauseTimer]);
+
   return (
     <Modal
       visible
       animationType="slide"
       presentationStyle="fullScreen"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       statusBarTranslucent
     >
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -572,7 +584,7 @@ function VideoPlayerModal({
 
             {/* Close button */}
             <Pressable
-              onPress={onClose}
+              onPress={handleClose}
               hitSlop={12}
               style={{ position: 'absolute', top: 52, left: 20 }}
             >
@@ -737,7 +749,7 @@ function VideoPlayerModal({
               pointerEvents="none"
             />
             <Pressable
-              onPress={onClose}
+              onPress={handleClose}
               hitSlop={12}
               style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, marginRight: 10, zIndex: 10 })}
             >
@@ -1054,6 +1066,21 @@ export default function ExploreScreen() {
     setAdRewarded(true);
     showToast(`+${AD_BONUS_COINS} bonus Lifecoins earned!`, AD_BONUS_COINS);
   }, [showToast]);
+
+  // Intercept Android hardware back button.
+  // If the video player modal is open, close it instead of letting Expo Router
+  // navigate away — prevents the race condition between Modal.onRequestClose
+  // and the navigator unmounting the screen simultaneously.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (activeVideo) {
+        setActiveVideo(null);
+        return true; // event consumed — do not propagate to navigator
+      }
+      return false; // let Expo Router handle normally
+    });
+    return () => sub.remove();
+  }, [activeVideo]);
 
   const handleWatch = useCallback(
     (video: ExploreVideo) => {

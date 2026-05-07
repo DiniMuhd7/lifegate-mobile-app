@@ -419,6 +419,47 @@ func isInsufficientBalance(err error) bool {
 	return len(msg) >= 22 && msg[:22] == "insufficient balance: "
 }
 
+// TxStatus returns the current status of a transaction from the database only,
+// without calling Flutterwave. Used by the client to poll for webhook delivery.
+//
+// @Summary      Transaction status (DB-only poll)
+// @Tags         payments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        txRef  query     string  true  "Transaction reference"
+// @Success      200    {object}  object{success=bool,data=object}
+// @Success      202    {object}  object{success=bool,data=object}
+// @Failure      400    {object}  object{success=bool,message=string}
+// @Failure      404    {object}  object{success=bool,message=string}
+// @Router       /payments/tx-status [get]
+func (h *Handler) TxStatus(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	txRef := c.Query("txRef")
+	if txRef == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "txRef is required"})
+		return
+	}
+
+	pt, err := h.svc.GetTxStatus(uid, txRef)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred."})
+		return
+	}
+	if pt == nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Transaction not found."})
+		return
+	}
+
+	if pt.Status == "success" {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": pt})
+		return
+	}
+	// pending or failed — return 202 so the client knows to keep polling or escalate.
+	c.JSON(http.StatusAccepted, gin.H{"success": false, "data": pt})
+}
+
 // Webhook receives Flutterwave payment event notifications and auto-credits
 // users when a charge.completed event arrives with status "successful".
 //

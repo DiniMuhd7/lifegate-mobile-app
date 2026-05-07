@@ -118,7 +118,7 @@ export default function AboutScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.push('/(tab)/settings/help-center')}
+            onPress={() => router.push('/(tab)/settings/item2')}
             className="h-11 rounded-xl bg-[#0EA5A4] items-center justify-center active:opacity-80"
           >
             <Text className="text-sm font-bold text-white">Open Help Center</Text>

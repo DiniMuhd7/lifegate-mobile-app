@@ -21,6 +21,7 @@ interface PaymentState {
   fetchBalance: () => Promise<void>;
   fetchBundles: () => Promise<void>;
   initiatePayment: (bundleId: string, name?: string, currency?: PaymentCurrency) => Promise<void>;
+  getTxStatus: (txRef: string) => Promise<PaymentTransaction>;
   verifyPayment: (txRef: string, flwTxId: string) => Promise<PaymentTransaction>;
   fetchTransactions: (limit?: number) => Promise<void>;
   clearError: () => void;
@@ -71,6 +72,10 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
       const msg = e instanceof Error ? e.message : 'Failed to initiate payment';
       set({ error: msg, paymentLoading: false, loading: false });
     }
+  },
+
+  getTxStatus: async (txRef: string) => {
+    return PaymentService.getTxStatus(txRef);
   },
 
   verifyPayment: async (txRef: string, flwTxId: string) => {

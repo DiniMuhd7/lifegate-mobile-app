@@ -643,6 +643,31 @@ func (s *Service) ProcessWebhook(payload WebhookPayload, hashHeader string) erro
 	return err
 }
 
+// GetTxStatus returns the current status of a transaction owned by userID
+// directly from the database without calling Flutterwave.
+// This is the lightweight poll target used by the client to detect webhook delivery.
+// Returns (nil, nil) when no matching transaction exists.
+func (s *Service) GetTxStatus(userID, txRef string) (*PaymentTransaction, error) {
+	var pt PaymentTransaction
+	err := s.db.QueryRow(
+		`SELECT id, user_id, tx_ref, COALESCE(flw_tx_id,''), amount,
+		        COALESCE(currency,'NGN'), credits_granted, status, bundle_id,
+		        created_at::text, updated_at::text
+		 FROM payment_transactions
+		 WHERE tx_ref = $1 AND user_id = $2::uuid`,
+		txRef, userID,
+	).Scan(&pt.ID, &pt.UserID, &pt.TxRef, &pt.FlwTxID, &pt.Amount,
+		&pt.Currency, &pt.CreditsGranted, &pt.Status, &pt.BundleID,
+		&pt.CreatedAt, &pt.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &pt, nil
+}
+
 // VerifyAndCredit verifies a completed Flutterwave payment and credits the user.
 // FIX #1: Double credit race condition — use memory + DB-level locking.
 func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransaction, error) {

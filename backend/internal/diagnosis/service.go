@@ -200,6 +200,15 @@ func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON string) {
 			}
 		}
 	}
+
+	// Redact prescription from the API response unless the physician has
+	// formally approved the case. This enforces the gate server-side so that
+	// clients inspecting raw API traffic cannot read prescription data before
+	// approval.
+	if !(d.Status == "Completed" && d.PhysicianDecision == "Approved") {
+		d.Prescription = nil
+		d.Prescriptions = nil
+	}
 }
 
 // SubmitOutcome records the patient's self-reported follow-up outcome.

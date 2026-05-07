@@ -483,6 +483,7 @@ export default function IntroScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         bounces={false}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { x: scrollX } } }],
           { useNativeDriver: false },
@@ -492,29 +493,6 @@ export default function IntroScreen() {
         viewabilityConfig={viewabilityConfig}
         style={{ flex: 1 }}
       />
-
-      {/* ── Skip button – top right ── */}
-      {!isLast && (
-        <Pressable
-          onPress={completeIntro}
-          hitSlop={16}
-          accessibilityRole="button"
-          accessibilityLabel="Skip intro"
-          style={{
-            position: 'absolute',
-            top: insets.top + 14,
-            right: 24,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderRadius: 20,
-            backgroundColor: 'rgba(255,255,255,0.15)',
-          }}
-        >
-          <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-            Skip
-          </Text>
-        </Pressable>
-      )}
 
       {/* ── Slide counter – top left ── */}
       <View

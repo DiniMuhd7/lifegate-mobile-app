@@ -474,6 +474,7 @@ func main() {
 	api.POST("/payments/webhook", paymentsHandler.Webhook)
 	api.GET("/payments/bundles", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetBundles)
 	api.POST("/payments/initiate", middleware.Auth(cfg.JWTSecret), paymentsHandler.InitiatePayment)
+	api.GET("/payments/tx-status", middleware.Auth(cfg.JWTSecret), paymentsHandler.TxStatus)
 	api.POST("/payments/verify", middleware.Auth(cfg.JWTSecret), paymentsHandler.VerifyPayment)
 	api.GET("/payments/transactions", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetTransactions)
 	api.GET("/credits/balance", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditBalance)

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,7 @@ export default function SubscriptionScreen() {
     fetchBalance,
     fetchBundles,
     initiatePayment,
+    getTxStatus,
     verifyPayment,
     clearError,
     clearPaymentLink,
@@ -54,11 +55,17 @@ export default function SubscriptionScreen() {
   const [currency, setCurrency] = useState<PaymentCurrency>('NGN');
   const [showWebView, setShowWebView] = useState(false);
   const [cancelledMsg, setCancelledMsg] = useState(false);
+  // Holds a pre-opened blank tab (opened synchronously during the button press
+  // so the browser does not block it as an unsolicited popup). Navigated to
+  // the payment URL once the backend returns the link.
+  const webTabRef = useRef<Window | null>(null);
   // Web-only: shown after the payment tab is opened so the user can confirm
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  // 0 = not started, 1–7 = attempt in progress
+  // 0 = not started; positive = polling phase step; negative = fallback verify step
   const [verifyAttempt, setVerifyAttempt] = useState(0);
+  // Label shown in the modal during verification
+  const [verifyLabel, setVerifyLabel] = useState('');
 
   useEffect(() => {
     fetchBalance();
@@ -93,9 +100,19 @@ export default function SubscriptionScreen() {
     // defensively to prevent open-redirect exploitation.
     if (!paymentLink.startsWith('https://')) return;
     if (isWeb) {
-      // Open Flutterwave in a new browser tab – WebView is unsupported on web.
       if (typeof window !== 'undefined') {
-        window.open(paymentLink, '_blank', 'noopener,noreferrer');
+        if (webTabRef.current && !webTabRef.current.closed) {
+          // Navigate the pre-opened blank tab to the Flutterwave payment URL.
+          // This is allowed because the tab was opened synchronously from the
+          // button press, bypassing the browser's popup blocker.
+          webTabRef.current.location.href = paymentLink;
+          webTabRef.current = null;
+        } else {
+          // Fallback: the pre-opened tab was lost (e.g. the user navigated
+          // away and back before the API responded). Try opening a new one;
+          // it may be blocked, but it is the best we can do at this point.
+          window.open(paymentLink, '_blank', 'noopener,noreferrer');
+        }
       } else {
         Linking.openURL(paymentLink);
       }
@@ -107,64 +124,89 @@ export default function SubscriptionScreen() {
 
   const handleBuyCredits = useCallback(() => {
     if (!selectedBundle) return;
+    // On web, open a blank tab NOW — synchronously inside the user gesture —
+    // so the browser does not block it as an unsolicited popup. The effect
+    // below will navigate it to the Flutterwave URL once the backend responds.
+    if (isWeb && typeof window !== 'undefined') {
+      webTabRef.current = window.open('', '_blank') ?? null;
+    }
     initiatePayment(selectedBundle, user?.name ?? undefined, currency);
   }, [selectedBundle, user?.name, currency, initiatePayment]);
 
-  // Web path: user pressed "I've paid" after completing payment in the browser tab.
-  // FIX #3: Auto-retry loop for web deep-link timing race with Flutterwave indexing.
+  // Web path: user pressed "I've paid".
+  // Strategy: poll GET /payments/tx-status (DB-only, no Flutterwave call) so the
+  // webhook is the primary confirmation path. Only call POST /payments/verify
+  // (which contacts Flutterwave directly) once as a fallback if the webhook
+  // hasn't arrived after ~30 s of polling.
   const handleWebVerify = useCallback(async () => {
     if (!activeTxRef) return;
     setVerifying(true);
     setVerifyAttempt(0);
+    setVerifyLabel('');
 
-    // Capture txRef locally — store clears it only on success, but we hold
-    // the reference here so the retry loop is independent of store state.
     const txRef = activeTxRef;
 
-    // FIX #3: Adjusted delay schedule for web deep-link timeout
-    // Retry schedule: wait before each attempt (ms).
-    // Total window ~90 s — covers 3DS, Flutterwave indexing delay (100-500ms), bank OTP flows.
-    // Increased delays and attempts for web where Flutterwave may take longer to index.
-    const delays = [3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000];
+    const navigate = (tx: { txRef: string; amount: number; creditsGranted: number; createdAt: string }) => {
+      setShowVerifyPrompt(false);
+      setVerifying(false);
+      setVerifyAttempt(0);
+      setVerifyLabel('');
+      switchActiveChatToClinical();
+      router.push({
+        pathname: '/(tab)/settings/checkOutScreen',
+        params: {
+          txRef: tx.txRef,
+          amount: String(tx.amount),
+          creditsGranted: String(tx.creditsGranted),
+          createdAt: tx.createdAt,
+        },
+      });
+    };
 
-    for (let attempt = 0; attempt < delays.length; attempt++) {
-      setVerifyAttempt(attempt + 1);
-      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+    // ── Phase 1: Poll DB status (webhook path) ───────────────────────────────
+    // Poll every 3 s for up to 30 s. If the webhook has already credited the
+    // account the very first poll will return success instantly.
+    const pollIntervals = [1000, 2000, 3000, 3000, 3000, 4000, 4000, 5000, 5000, 6000];
+    for (let i = 0; i < pollIntervals.length; i++) {
+      setVerifyAttempt(i + 1);
+      setVerifyLabel(`Waiting for payment confirmation… (${i + 1}/${pollIntervals.length})`);
+      await new Promise<void>((resolve) => setTimeout(resolve, pollIntervals[i]));
       try {
-        const tx = await verifyPayment(txRef, '');
-        if (tx.status === 'success') {
-          setShowVerifyPrompt(false);
-          setVerifying(false);
-          setVerifyAttempt(0);
-          switchActiveChatToClinical();
-          router.push({
-            pathname: '/(tab)/settings/checkOutScreen',
-            params: {
-              txRef: tx.txRef,
-              amount: String(tx.amount),
-              creditsGranted: String(tx.creditsGranted),
-              createdAt: tx.createdAt,
-            },
-          });
-          return;
-        }
-        // 'pending' → Flutterwave hasn't confirmed yet, keep retrying.
-        // 'failed'  → payment genuinely declined by bank/card, stop immediately.
+        const tx = await getTxStatus(txRef);
+        if (tx.status === 'success') { navigate(tx); return; }
         if (tx.status === 'failed') break;
-      } catch (_) {
-        // Network / API error — keep retrying until attempts exhausted.
-      }
+      } catch (_) { /* network hiccup — keep polling */ }
     }
 
+    // ── Phase 2: Fallback — active Flutterwave verify (once) ─────────────────
+    // Webhook either hasn't arrived yet or was delayed. Call verify directly
+    // so the user isn't left waiting indefinitely.
+    setVerifyLabel('Confirming with payment provider…');
+    try {
+      const tx = await verifyPayment(txRef, '');
+      if (tx.status === 'success') { navigate(tx); return; }
+      if (tx.status === 'pending') {
+        // Still pending after active verify — wait a final 10 s then check DB once more.
+        setVerifyLabel('Still processing — finalising…');
+        await new Promise<void>((resolve) => setTimeout(resolve, 10000));
+        try {
+          const tx2 = await getTxStatus(txRef);
+          if (tx2.status === 'success') { navigate(tx2); return; }
+        } catch (_) {}
+      }
+    } catch (_) { /* verify call failed — fall through to failure screen */ }
+
+    // ── All paths exhausted ──────────────────────────────────────────────────
     setVerifying(false);
     setVerifyAttempt(0);
+    setVerifyLabel('');
     setShowVerifyPrompt(false);
     clearPaymentLink();
     router.push({
       pathname: '/(tab)/settings/payment-failed',
       params: { bundleId: selectedBundle ?? '' },
     });
-  }, [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink, switchActiveChatToClinical]);
+  }, [activeTxRef, selectedBundle, getTxStatus, verifyPayment, clearPaymentLink, switchActiveChatToClinical]);
 
   const handleNavChange = useCallback(
     async (nav: WebViewNavigation) => {
@@ -474,9 +516,7 @@ export default function SubscriptionScreen() {
                   <View className="items-center gap-1.5">
                     <ActivityIndicator color="white" size="small" />
                     <Text className="text-xs text-white/90">
-                      {verifyAttempt > 0
-                        ? `Checking with Flutterwave (${verifyAttempt} of 8)…`
-                        : 'Preparing…'}
+                      {verifyLabel || 'Preparing…'}
                     </Text>
                   </View>
                 ) : (

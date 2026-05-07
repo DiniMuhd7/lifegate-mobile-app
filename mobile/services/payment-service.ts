@@ -88,6 +88,34 @@ export const PaymentService = {
   },
 
   /**
+   * Poll transaction status from the DB without calling Flutterwave.
+   * GET /payments/tx-status?txRef=...
+   *
+   * Returns the transaction regardless of status.
+   * HTTP 200 → status='success' (webhook already credited)
+   * HTTP 202 → status='pending'|'failed' (webhook not yet arrived)
+   */
+  async getTxStatus(txRef: string): Promise<PaymentTransaction> {
+    try {
+      const res = await api.get<{ success: boolean; data: PaymentTransaction }>(
+        '/payments/tx-status',
+        { params: { txRef } }
+      );
+      return res.data.data;
+    } catch (err: unknown) {
+      // 202 is returned as an Axios error when validateStatus is strict.
+      const axiosErr = err as { response?: { status?: number; data?: { data?: PaymentTransaction } } };
+      if (axiosErr?.response?.status === 202 && axiosErr?.response?.data?.data) {
+        const tx = axiosErr.response.data.data;
+        if (tx && typeof tx === 'object' && 'status' in tx) {
+          return tx as PaymentTransaction;
+        }
+      }
+      throw err;
+    }
+  },
+
+  /**
    * Fetch the authenticated user's payment transaction history.
    * GET /payments/transactions
    */
