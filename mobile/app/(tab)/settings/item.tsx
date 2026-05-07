@@ -362,7 +362,7 @@ export default function ItemScreen() {
               >
                 <Ionicons name="arrow-back" size={18} color="#111827" />
               </TouchableOpacity>
-              <Text className="flex-1 text-center text-2xl font-black text-gray-900 mr-10">Item</Text>
+              <Text className="flex-1 text-center text-2xl font-black text-gray-900 mr-10">Manage</Text>
             </View>
 
             <View className="bg-white rounded-3xl p-5 shadow-sm border border-[#DCEFEF] overflow-hidden mb-4">
@@ -407,11 +407,16 @@ export default function ItemScreen() {
                 value={dob}
                 onChange={(date) => setDob(date)}
               />
-              <LabeledInput
+              <Dropdown
                 label="Gender"
-                value={gender}
-                onChangeText={setGender}
-                placeholder="male / female / other"
+                options={[
+                  { label: 'Male', value: 'male' },
+                  { label: 'Female', value: 'female' },
+                  { label: 'Other', value: 'other' },
+                ]}
+                placeholder="Select gender"
+                selectedValue={gender}
+                onChange={(value: string) => setGender(value)}
               />
 
               <TouchableOpacity
