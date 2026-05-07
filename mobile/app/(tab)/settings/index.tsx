@@ -2,7 +2,9 @@ import { View, Text, ScrollView, Pressable, TouchableOpacity, Linking, Alert, Pl
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect } from 'react';
 import { useAuthStore } from 'stores/auth-store';
+import { useAccessibilityStore } from 'stores/accessibility-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL ?? '';
@@ -35,6 +37,13 @@ type SectionItem = {
 export default function SettingsScreen() {
   const { logout, user } = useAuthStore();
   const insets = useSafeAreaInsets();
+  const { initialize, largerText, highContrast, reduceMotion } = useAccessibilityStore();
+
+  useEffect(() => {
+    initialize();
+  }, []);
+
+  const hasCustomAccessibilityPreferences = largerText || highContrast || !reduceMotion;
 
   const handleLogout = async () => {
     await logout();
@@ -83,6 +92,16 @@ export default function SettingsScreen() {
           label: 'Subscription',
           sublabel: 'Credits & billing',
           onPress: () => router.push('/(tab)/settings/subscription'),
+        },
+        {
+          icon: 'accessibility-outline',
+          label: 'Accessibility',
+          sublabel: hasCustomAccessibilityPreferences
+            ? 'Custom accessibility preferences enabled'
+            : 'Text size, contrast & reduced motion',
+          onPress: () => router.push('/(tab)/settings/accessibility'),
+          badge: hasCustomAccessibilityPreferences ? 'Custom' : undefined,
+          badgeColor: hasCustomAccessibilityPreferences ? '#0AADA2' : undefined,
         },
       ],
     },
