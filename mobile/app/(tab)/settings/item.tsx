@@ -18,6 +18,7 @@ import { useProfileStore } from 'stores/auth/profile-store';
 import { ProfileSkeleton } from 'components/ProfileSkeleton';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
+import { DOBInput } from 'components/DobPicker';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 
 const LANGUAGE_OPTIONS = [
@@ -97,7 +98,7 @@ export default function ItemScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [dob, setDob] = useState('');
+  const [dob, setDob] = useState<Date | null>(null);
   const [gender, setGender] = useState('');
   const [language, setLanguage] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -114,7 +115,7 @@ export default function ItemScreen() {
     setFirstName(first);
     setLastName(rest.join(' '));
     setPhone(user.phone ?? '');
-    setDob(user.dob ?? '');
+    setDob(user.dob ? (() => { const [y,m,d] = user.dob!.split('-').map(Number); const p = new Date(y, m-1, d); return isNaN(p.getTime()) ? null : p; })() : null);
     setGender(user.gender ?? '');
     setLanguage(user.language ?? '');
   }, [user]);
@@ -144,16 +145,13 @@ export default function ItemScreen() {
       Alert.alert('Validation', 'First and last name are required.');
       return;
     }
-    if (dob.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(dob.trim())) {
-      Alert.alert('Validation', 'Date of birth must use YYYY-MM-DD format.');
-      return;
-    }
+    const dobStr = dob ? `${dob.getFullYear()}-${String(dob.getMonth()+1).padStart(2,'0')}-${String(dob.getDate()).padStart(2,'0')}` : undefined;
 
     setIsSaving(true);
     const ok = await updateBasicProfile({
       name: `${firstName.trim()} ${lastName.trim()}`,
       phone: phone.trim() || undefined,
-      dob: dob.trim() || undefined,
+      dob: dobStr || undefined,
       gender: gender.trim() || undefined,
     });
     setIsSaving(false);
@@ -404,11 +402,10 @@ export default function ItemScreen() {
                 placeholder="Enter phone number"
                 keyboardType="phone-pad"
               />
-              <LabeledInput
+              <DOBInput
                 label="Date of Birth"
                 value={dob}
-                onChangeText={setDob}
-                placeholder="YYYY-MM-DD"
+                onChange={(date) => setDob(date)}
               />
               <LabeledInput
                 label="Gender"
