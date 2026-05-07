@@ -102,16 +102,13 @@ export default function SubscriptionScreen() {
     if (isWeb) {
       if (typeof window !== 'undefined') {
         if (webTabRef.current && !webTabRef.current.closed) {
-          // Navigate the pre-opened blank tab to the Flutterwave payment URL.
-          // This is allowed because the tab was opened synchronously from the
-          // button press, bypassing the browser's popup blocker.
+          // Navigate the pre-opened tab to the Flutterwave payment URL.
           webTabRef.current.location.href = paymentLink;
           webTabRef.current = null;
         } else {
-          // Fallback: the pre-opened tab was lost (e.g. the user navigated
-          // away and back before the API responded). Try opening a new one;
-          // it may be blocked, but it is the best we can do at this point.
-          window.open(paymentLink, '_blank', 'noopener,noreferrer');
+          // Pre-opened tab was lost, blocked, or unavailable — fall back to
+          // Linking so at least a best-effort open is attempted.
+          Linking.openURL(paymentLink);
         }
       } else {
         Linking.openURL(paymentLink);
@@ -128,7 +125,30 @@ export default function SubscriptionScreen() {
     // so the browser does not block it as an unsolicited popup. The effect
     // below will navigate it to the Flutterwave URL once the backend responds.
     if (isWeb && typeof window !== 'undefined') {
-      webTabRef.current = window.open('', '_blank') ?? null;
+      const newTab = window.open('', '_blank');
+      // Only store the ref if a *new* tab was actually opened.
+      // Some browsers (mobile Safari, popup-blocked contexts) return the current
+      // window itself when they cannot open a new tab. Navigating location.href
+      // on window would redirect the subscription screen away — causing the blank page.
+      if (newTab && newTab !== window) {
+        webTabRef.current = newTab;
+        // Write a loading message into the blank tab so the user sees feedback
+        // instead of a white/blank page while the API call is in-flight.
+        try {
+          newTab.document.write(
+            '<html><head><title>Loading payment…</title></head>' +
+            '<body style="background:#0D2137;display:flex;flex-direction:column;align-items:center;' +
+            'justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:white;gap:10px">' +
+            '<p style="font-size:18px;font-weight:700;margin:0">Preparing secure payment…</p>' +
+            '<p style="font-size:14px;opacity:0.55;margin:0">You will be redirected to Flutterwave shortly</p>' +
+            '</body></html>'
+          );
+        } catch (_) { /* cross-origin guard, safe to ignore */ }
+      } else {
+        // Popup was blocked or the browser reused the current window — do not
+        // store the ref. The effect below will fall back to Linking.openURL.
+        webTabRef.current = null;
+      }
     }
     initiatePayment(selectedBundle, user?.name ?? undefined, currency);
   }, [selectedBundle, user?.name, currency, initiatePayment]);
