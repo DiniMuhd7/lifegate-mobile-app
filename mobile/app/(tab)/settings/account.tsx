@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -260,69 +261,75 @@ export default function AccountScreen() {
           ) : null}
         </ScrollView>
 
-        <Modal visible={showEdit} transparent animationType="slide" onRequestClose={() => setShowEdit(false)}>
-          <View style={s.modalOverlay}>
-            <View style={s.modalCard}>
+        <BottomSheet visible={showEdit} onClose={() => setShowEdit(false)}>
               <Text style={s.modalTitle}>Edit Profile</Text>
               <TextInput style={s.input} value={firstName} onChangeText={setFirstName} placeholder="First Name" placeholderTextColor="#9CA3AF" />
               <TextInput style={s.input} value={lastName} onChangeText={setLastName} placeholder="Last Name" placeholderTextColor="#9CA3AF" />
               <TextInput style={s.input} value={phone} onChangeText={setPhone} placeholder="Phone Number" placeholderTextColor="#9CA3AF" keyboardType="phone-pad" />
               <View style={s.modalActions}>
                 <Pressable style={[s.actionBtn, s.actionSecondary]} onPress={() => setShowEdit(false)}><Text style={s.actionSecondaryText}>Cancel</Text></Pressable>
-                <Pressable style={[s.actionBtn, s.actionPrimary]} onPress={onSaveProfile}><Text style={s.actionPrimaryText}>Save</Text></Pressable>
+                <Pressable style={[s.actionBtn, s.actionBtnSecondary, s.actionPrimary]} onPress={onSaveProfile}><Text style={s.actionPrimaryText}>Save</Text></Pressable>
               </View>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
 
-        <Modal visible={showPassword} transparent animationType="slide" onRequestClose={() => setShowPassword(false)}>
-          <View style={s.modalOverlay}>
-            <View style={s.modalCard}>
+        <BottomSheet visible={showPassword} onClose={() => setShowPassword(false)}>
               <Text style={s.modalTitle}>Change Password</Text>
               <TextInput style={s.input} value={pwdCurrent} onChangeText={setPwdCurrent} placeholder="Current Password" placeholderTextColor="#9CA3AF" secureTextEntry />
               <TextInput style={s.input} value={pwdNew} onChangeText={setPwdNew} placeholder="New Password" placeholderTextColor="#9CA3AF" secureTextEntry />
               <TextInput style={s.input} value={pwdConfirm} onChangeText={setPwdConfirm} placeholder="Confirm Password" placeholderTextColor="#9CA3AF" secureTextEntry />
               <View style={s.modalActions}>
                 <Pressable style={[s.actionBtn, s.actionSecondary]} onPress={() => setShowPassword(false)}><Text style={s.actionSecondaryText}>Cancel</Text></Pressable>
-                <Pressable style={[s.actionBtn, s.actionPrimary]} onPress={onChangePassword}><Text style={s.actionPrimaryText}>Update</Text></Pressable>
+                <Pressable style={[s.actionBtn, s.actionBtnSecondary, s.actionPrimary]} onPress={onChangePassword}><Text style={s.actionPrimaryText}>Update</Text></Pressable>
               </View>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
 
-        <Modal visible={showDelete} transparent animationType="slide" onRequestClose={() => setShowDelete(false)}>
-          <View style={s.modalOverlay}>
-            <View style={s.modalCard}>
+        <BottomSheet visible={showDelete} onClose={() => setShowDelete(false)}>
               <Text style={s.modalTitle}>Delete Account?</Text>
               <Text style={s.modalBody}>Your account will be permanently deleted after a 90-day grace period.</Text>
               <View style={s.modalActions}>
                 <Pressable style={[s.actionBtn, s.actionSecondary]} onPress={() => setShowDelete(false)}><Text style={s.actionSecondaryText}>Cancel</Text></Pressable>
-                <Pressable style={[s.actionBtn, s.actionDanger]} onPress={onScheduleDeletion} disabled={deletionBusy}>
+                <Pressable style={[s.actionBtn, s.actionBtnSecondary, s.actionDanger]} onPress={onScheduleDeletion} disabled={deletionBusy}>
                   {deletionBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.actionPrimaryText}>Schedule</Text>}
                 </Pressable>
               </View>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
 
-        <Modal visible={showCancelDelete} transparent animationType="slide" onRequestClose={() => setShowCancelDelete(false)}>
-          <View style={s.modalOverlay}>
-            <View style={s.modalCard}>
+        <BottomSheet visible={showCancelDelete} onClose={() => setShowCancelDelete(false)}>
               <Text style={s.modalTitle}>Cancel Deletion?</Text>
               <Text style={s.modalBody}>Your account will remain active and all data stays intact.</Text>
               <View style={s.modalActions}>
                 <Pressable style={[s.actionBtn, s.actionSecondary]} onPress={() => setShowCancelDelete(false)}><Text style={s.actionSecondaryText}>Go Back</Text></Pressable>
-                <Pressable style={[s.actionBtn, s.actionPrimary]} onPress={onCancelDeletion} disabled={deletionBusy}>
+                <Pressable style={[s.actionBtn, s.actionBtnSecondary, s.actionPrimary]} onPress={onCancelDeletion} disabled={deletionBusy}>
                   {deletionBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.actionPrimaryText}>Keep Account</Text>}
                 </Pressable>
               </View>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
       </SafeAreaView>
 
       <PatientBottomTabBar activeTab="settings" />
     </View>
+  );
+}
+
+function BottomSheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: React.ReactNode }) {
+  if (!visible) return null;
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[s.modalOverlay, s.modalOverlayWeb]}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={s.modalCard}>{children}</View>
+      </View>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.modalOverlay}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <View style={s.modalCard}>{children}</View>
+      </View>
+    </Modal>
   );
 }
 
@@ -388,12 +395,14 @@ const s = StyleSheet.create({
   languageRow: { minHeight: 52, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   languageText: { color: '#F9FAFB', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: '#00000088', justifyContent: 'flex-end' },
+  modalOverlayWeb: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 },
   modalCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16 },
   modalTitle: { color: '#111827', fontSize: 18, fontWeight: '700', marginBottom: 12 },
   modalBody: { color: '#4B5563', fontSize: 14, lineHeight: 21 },
   input: { height: 46, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingHorizontal: 12, marginBottom: 10, color: '#111827' },
-  modalActions: { marginTop: 14, flexDirection: 'row', gap: 10 },
+  modalActions: { marginTop: 14, flexDirection: 'row' },
   actionBtn: { flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionBtnSecondary: { marginLeft: 10 },
   actionPrimary: { backgroundColor: '#0EA5A4' },
   actionDanger: { backgroundColor: '#EF4444' },
   actionSecondary: { backgroundColor: '#F3F4F6' },

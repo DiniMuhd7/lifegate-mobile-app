@@ -138,7 +138,7 @@ function CategoryChip({
       ]}
     >
       <Ionicons name={section.icon} size={13} color={active ? '#fff' : TEAL_D} />
-      <Text style={[s.chipText, active && s.chipTextActive]}>{section.title}</Text>
+      <Text style={[s.chipText, active && s.chipTextActive, { marginLeft: 6 }]}>{section.title}</Text>
     </Pressable>
   );
 }
@@ -388,8 +388,8 @@ export default function HelpScreen() {
                 onPress={() => void handleOpenWebsite()}
               >
                 <Text style={s.infoStripLabel}>Website</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={[s.infoStripValue, { color: TEAL }]}>Open</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[s.infoStripValue, { color: TEAL, marginRight: 4 }]}>Open</Text>
                   <Ionicons name="open-outline" size={11} color={TEAL} />
                 </View>
               </Pressable>
@@ -404,7 +404,7 @@ export default function HelpScreen() {
                 onPress={() => void handleRateAndroid()}
                 style={({ pressed }) => [s.storeBadge, { backgroundColor: '#01875F' }, pressed && { opacity: 0.85 }]}
               >
-                <Ionicons name="logo-google-playstore" size={22} color="#fff" />
+                <Ionicons name="logo-google-playstore" size={22} color="#fff" style={{ marginRight: 10 }} />
                 <View>
                   <Text style={s.storeBadgeSuper}>GET IT ON</Text>
                   <Text style={s.storeBadgeName}>Google Play</Text>
@@ -414,7 +414,7 @@ export default function HelpScreen() {
                 onPress={() => void handleRateIOS()}
                 style={({ pressed }) => [s.storeBadge, { backgroundColor: '#111' }, pressed && { opacity: 0.85 }]}
               >
-                <Ionicons name="logo-apple" size={22} color="#fff" />
+                <Ionicons name="logo-apple" size={22} color="#fff" style={{ marginRight: 10 }} />
                 <View>
                   <Text style={s.storeBadgeSuper}>DOWNLOAD ON THE</Text>
                   <Text style={s.storeBadgeName}>App Store</Text>
@@ -438,7 +438,7 @@ export default function HelpScreen() {
                 style={({ pressed }) => [s.chip, !activeCategory && s.chipActive, pressed && activeCategory && { opacity: 0.7 }]}
               >
                 <Ionicons name="apps-outline" size={13} color={!activeCategory ? '#fff' : TEAL_D} />
-                <Text style={[s.chipText, !activeCategory && s.chipTextActive]}>All</Text>
+                <Text style={[s.chipText, !activeCategory && s.chipTextActive, { marginLeft: 6 }]}>All</Text>
               </Pressable>
               {FAQ_SECTIONS.map((sec) => (
                 <CategoryChip
@@ -584,9 +584,10 @@ const s = StyleSheet.create({
   },
 
   // Contact grid
-  contactGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  contactGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   contactTile: {
-    width: '47.5%',
+    width: '48%',
+    marginBottom: 10,
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
@@ -624,12 +625,11 @@ const s = StyleSheet.create({
   infoStripValue:   { fontSize: 13, fontWeight: '700', color: '#1E293B' },
 
   // Store badges
-  storeRow: { flexDirection: 'row', gap: 10 },
+  storeRow: { flexDirection: 'row', justifyContent: 'space-between' },
   storeBadge: {
-    flex: 1,
+    width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     borderRadius: 13,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -638,11 +638,11 @@ const s = StyleSheet.create({
   storeBadgeName:  { fontSize: 14, fontWeight: '800', color: '#fff', marginTop: 1 },
 
   // Category chips
-  chipsRow: { paddingRight: 16, paddingBottom: 14, gap: 8, flexDirection: 'row' },
+  chipsRow: { paddingRight: 16, paddingBottom: 14, flexDirection: 'row' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginRight: 8,
     backgroundColor: '#fff',
     borderRadius: 20,
     paddingHorizontal: 12,
@@ -664,7 +664,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 8,
-    gap: 10,
   },
   faqSectionIconWrap: {
     width: 26,
@@ -673,6 +672,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
   faqSectionTitle: { flex: 1, fontSize: 13, fontWeight: '700', color: '#fff' },
   faqCountBadge: {
@@ -698,7 +698,7 @@ const s = StyleSheet.create({
     borderBottomColor: '#EAF2F2',
   },
   accordionItemOpen: { backgroundColor: '#F7FFFE' },
-  accordionRow:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  accordionRow:      { flexDirection: 'row', alignItems: 'flex-start' },
   accordionNum: {
     width: 28,
     height: 28,
@@ -707,6 +707,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginRight: 12,
   },
   accordionNumOpen:     { backgroundColor: TEAL_L },
   accordionNumText:     { fontSize: 11, fontWeight: '800', color: '#94A3B8' },
@@ -723,9 +724,9 @@ const s = StyleSheet.create({
   accordionAnswerText: { fontSize: 13, color: '#374151', lineHeight: 20 },
 
   // Empty state
-  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: '#374151', marginTop: 4 },
-  emptySub:   { fontSize: 12, color: '#94A3B8', textAlign: 'center', maxWidth: 240, lineHeight: 18 },
+  emptySub:   { fontSize: 12, color: '#94A3B8', textAlign: 'center', maxWidth: 240, lineHeight: 18, marginTop: 8 },
   emptyBtn:   { marginTop: 8, backgroundColor: TEAL, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 24 },
   emptyBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
 });
