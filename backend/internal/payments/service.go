@@ -489,7 +489,7 @@ func (s *Service) DeductCredit(userID, diagnosisID string) (bool, error) {
 
 // InitiatePayment creates a pending transaction and returns a Flutterwave payment link.
 // currency must be "NGN" or "USD"; it defaults to "NGN" when empty.
-func (s *Service) InitiatePayment(userID, email, name, bundleID, currency string) (string, string, error) {
+func (s *Service) InitiatePayment(userID, email, name, bundleID, currency, redirectURLOverride string) (string, string, error) {
 	if currency != "USD" {
 		currency = "NGN"
 	}
@@ -543,11 +543,16 @@ func (s *Service) InitiatePayment(userID, email, name, bundleID, currency string
 		label = bundle.Label
 	}
 
+	redirectURL := s.redirectURL
+	if redirectURLOverride != "" {
+		redirectURL = redirectURLOverride
+	}
+
 	reqBody := flwInitiateRequest{
 		TxRef:       txRef,
 		Amount:      chargeAmount,
 		Currency:    currency,
-		RedirectURL: s.redirectURL,
+		RedirectURL: redirectURL,
 	}
 	reqBody.Customer.Email = email
 	reqBody.Customer.Name = name

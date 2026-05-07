@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
 	"github.com/gin-gonic/gin"
@@ -94,12 +95,19 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 	emailStr, _ := email.(string)
 
 	var body struct {
-		BundleID string `json:"bundleId" binding:"required"`
-		Name     string `json:"name"`
-		Currency string `json:"currency"` // "NGN" or "USD"; defaults to "NGN"
+		BundleID    string `json:"bundleId" binding:"required"`
+		Name        string `json:"name"`
+		Currency    string `json:"currency"`    // "NGN" or "USD"; defaults to "NGN"
+		RedirectURL string `json:"redirectUrl"` // optional per-request override (must be HTTPS)
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	// Validate the optional redirect URL to prevent open-redirect abuse.
+	if body.RedirectURL != "" && !strings.HasPrefix(body.RedirectURL, "https://") {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "redirectUrl must use HTTPS"})
 		return
 	}
 
@@ -108,7 +116,7 @@ func (h *Handler) InitiatePayment(c *gin.Context) {
 		name = "LifeGate User"
 	}
 
-	txRef, link, err := h.svc.InitiatePayment(uid, emailStr, name, body.BundleID, body.Currency)
+	txRef, link, err := h.svc.InitiatePayment(uid, emailStr, name, body.BundleID, body.Currency, body.RedirectURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return

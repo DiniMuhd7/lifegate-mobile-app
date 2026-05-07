@@ -25,6 +25,7 @@ import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CALLBACK_PREFIX = 'lifegate://payment/callback';
+const WEB_CALLBACK_URL = 'https://edis.dshub.com.ng/payment-callback';
 const DEV_PREFIX = 'lifegate://payment/dev';
 
 export default function SubscriptionScreen() {
@@ -231,7 +232,7 @@ export default function SubscriptionScreen() {
   const handleNavChange = useCallback(
     async (nav: WebViewNavigation) => {
       const url = nav.url;
-      const isCallback = url.startsWith(CALLBACK_PREFIX);
+      const isCallback = url.startsWith(CALLBACK_PREFIX) || url.startsWith(WEB_CALLBACK_URL);
       const isDev = url.startsWith(DEV_PREFIX);
       if (!isCallback && !isDev) return;
 
@@ -494,10 +495,27 @@ export default function SubscriptionScreen() {
               <WebView
                 source={{ uri: paymentLink }}
                 onNavigationStateChange={handleNavChange}
+                // Required for Flutterwave's payment page to render correctly.
+                javaScriptEnabled
+                domStorageEnabled
+                thirdPartyCookiesEnabled
+                // Spoof a standard mobile browser UA — many payment providers
+                // block or serve blank pages to detected WebView user agents.
+                userAgent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                // Prevent new-window targets breaking the WebView flow.
+                setSupportMultipleWindows={false}
+                // Allow mixed content on Android (some payment redirects use HTTP internally).
+                mixedContentMode="compatibility"
                 startInLoadingState
                 renderLoading={() => (
-                  <View className="flex-1 items-center justify-center">
+                  <View
+                    style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                      alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+                    }}
+                  >
                     <ActivityIndicator color="#0EA5A4" size="large" />
+                    <Text style={{ marginTop: 12, fontSize: 14, color: '#6b7280' }}>Loading payment page…</Text>
                   </View>
                 )}
               />
