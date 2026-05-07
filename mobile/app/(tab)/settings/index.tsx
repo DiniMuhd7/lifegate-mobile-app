@@ -82,6 +82,12 @@ export default function SettingsScreen() {
           onPress: () => router.push('/(tab)/settings/notification'),
         },
         {
+          icon: 'lock-closed-outline',
+          label: 'Change Password',
+          sublabel: 'Update your login password',
+          onPress: () => router.push('/(tab)/settings/profile'),
+        },
+        {
           icon: 'settings-outline',
           label: 'Account Setting',
           sublabel: 'Alternative account settings view',
