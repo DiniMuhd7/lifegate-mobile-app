@@ -118,10 +118,48 @@ function DataRow({
 /** Password strength hint */
 function PwdHint({ label, ok }: { label: string; ok: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 3 }}>
-      <Ionicons name={ok ? 'checkmark-circle' : 'radio-button-off-outline'} size={14} color={ok ? TEAL : BORDER} />
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3 }}>
+      <Ionicons name={ok ? 'checkmark-circle' : 'radio-button-off-outline'} size={14} color={ok ? TEAL : BORDER} style={{ marginRight: 8 }} />
       <Text style={{ fontSize: 13, color: ok ? TEAL_L : MID }}>{label}</Text>
     </View>
+  );
+}
+
+function BottomSheet({
+  visible,
+  onClose,
+  keyboardAware,
+  children,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  keyboardAware?: boolean;
+  children: React.ReactNode;
+}) {
+  if (!visible) return null;
+
+  const sheet = <View style={d.sheet}>{children}</View>;
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[d.overlay, d.overlayWeb]}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        {keyboardAware ? <KeyboardAvoidingView behavior="height">{sheet}</KeyboardAvoidingView> : sheet}
+      </View>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={d.overlay}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        {keyboardAware ? (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>{sheet}</KeyboardAvoidingView>
+        ) : (
+          sheet
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -361,7 +399,7 @@ export default function AccountSettingScreen() {
               </DarkCard>
               {isDel && (
                 <Pressable onPress={() => setShowCancelModal(true)} style={({ pressed }) => [d.cancelDelBtn, pressed && { opacity: 0.75 }]}>
-                  <Ionicons name="shield-checkmark-outline" size={16} color={TEAL} />
+                  <Ionicons name="shield-checkmark-outline" size={16} color={TEAL} style={{ marginRight: 8 }} />
                   <Text style={d.cancelDelText}>Cancel Scheduled Deletion</Text>
                 </Pressable>
               )}
@@ -401,9 +439,7 @@ export default function AccountSettingScreen() {
         {/* ── Modals ── */}
 
         {/* Delete confirm */}
-        <Modal visible={showDeleteModal} transparent animationType="slide">
-          <View style={d.overlay}>
-            <View style={d.sheet}>
+        <BottomSheet visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
               <View style={d.sheetHandle} />
               <View style={[d.sheetIconCircle, { backgroundColor: '#2D1515' }]}>
                 <Ionicons name="warning" size={28} color={DANGER} />
@@ -416,14 +452,10 @@ export default function AccountSettingScreen() {
               <Pressable style={({ pressed }) => [d.sheetBtnGhost, pressed && { opacity: 0.7 }]} onPress={() => setShowDeleteModal(false)}>
                 <Text style={d.sheetBtnGhostText}>Keep Account</Text>
               </Pressable>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
 
         {/* Cancel deletion confirm */}
-        <Modal visible={showCancelModal} transparent animationType="slide">
-          <View style={d.overlay}>
-            <View style={d.sheet}>
+        <BottomSheet visible={showCancelModal} onClose={() => setShowCancelModal(false)}>
               <View style={d.sheetHandle} />
               <View style={[d.sheetIconCircle, { backgroundColor: '#0D2620' }]}>
                 <Ionicons name="shield-checkmark" size={28} color="#10B981" />
@@ -436,15 +468,10 @@ export default function AccountSettingScreen() {
               <Pressable style={({ pressed }) => [d.sheetBtnGhost, pressed && { opacity: 0.7 }]} onPress={() => setShowCancelModal(false)}>
                 <Text style={d.sheetBtnGhostText}>Go Back</Text>
               </Pressable>
-            </View>
-          </View>
-        </Modal>
+        </BottomSheet>
 
         {/* Edit Profile */}
-        <Modal visible={showEditModal} transparent animationType="slide">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <View style={d.overlay}>
-              <View style={d.sheet}>
+        <BottomSheet visible={showEditModal} onClose={() => setShowEditModal(false)} keyboardAware>
                 <View style={d.sheetHandle} />
                 <View style={d.sheetHeaderRow}>
                   <Text style={d.sheetTitle}>Edit Profile</Text>
@@ -467,16 +494,10 @@ export default function AccountSettingScreen() {
                     <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowEditModal(false)} />
                   </View>
                 </View>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        </BottomSheet>
 
         {/* Change Password */}
-        <Modal visible={showPwdModal} transparent animationType="slide">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <View style={d.overlay}>
-              <View style={d.sheet}>
+        <BottomSheet visible={showPwdModal} onClose={() => setShowPwdModal(false)} keyboardAware>
                 <View style={d.sheetHandle} />
                 <View style={d.sheetHeaderRow}>
                   <Text style={d.sheetTitle}>Change Password</Text>
@@ -503,10 +524,7 @@ export default function AccountSettingScreen() {
                     <PrimaryButton title="Cancel" type="cancel" onPress={() => setShowPwdModal(false)} />
                   </View>
                 </View>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </Modal>
+        </BottomSheet>
 
       </SafeAreaView>
       <PatientBottomTabBar activeTab="settings" />
@@ -627,7 +645,6 @@ const d = StyleSheet.create({
   cancelDelBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     backgroundColor: SURFACE,
     borderRadius: 12,
     padding: 14,
@@ -640,6 +657,7 @@ const d = StyleSheet.create({
 
   // Modals
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
+  overlayWeb: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50 },
   sheet: {
     backgroundColor: '#1F2937',
     borderTopLeftRadius: 20,
