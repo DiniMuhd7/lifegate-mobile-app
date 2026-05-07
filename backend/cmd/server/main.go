@@ -767,7 +767,7 @@ func main() {
 			iconSVG = `<circle cx="50" cy="50" r="45" fill="#fee2e2"/><line x1="33" y1="33" x2="67" y2="67" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><line x1="67" y1="33" x2="33" y2="67" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/>`
 		default: // "successful" or any other value
 			heading = "Payment Received"
-			body = "Your payment was received successfully.<br>Return to the LifeGate app and press <strong>&#34;I&#39;ve Completed Payment&#34;</strong> to receive your credits."
+			body = "Your payment was received successfully. Your credits are being updated — you can close this tab."
 			iconColor = "#0AADA2"
 			iconSVG = `<circle cx="50" cy="50" r="45" fill="#ccfbf1"/><polyline points="28,50 44,66 72,36" fill="none" stroke="#0AADA2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`
 		}
@@ -798,10 +798,14 @@ button:hover{opacity:.88}
   <p class="note" id="cd"></p>
 </div>
 <script>
-var s=5;var t=setInterval(function(){
-  document.getElementById('cd').textContent='Closing in '+s+'s\u2026';
-  if(--s<0){clearInterval(t);window.close();}
-},1000);
+(function(){
+  var st="` + status + `"||"successful";
+  if(window.opener){try{window.opener.postMessage({type:'payment_complete',status:st},'*');}catch(e){}}
+  var s=5;var t=setInterval(function(){
+    document.getElementById('cd').textContent='Closing in '+s+'s\u2026';
+    if(--s<0){clearInterval(t);window.close();}
+  },1000);
+})();
 </script>
 </body></html>`
 

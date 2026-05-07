@@ -229,6 +229,33 @@ export default function SubscriptionScreen() {
     });
   }, [activeTxRef, selectedBundle, getTxStatus, verifyPayment, clearPaymentLink, switchActiveChatToClinical]);
 
+  // Auto-trigger handleWebVerify when the payment tab posts a completion message
+  // (posted by the backend /payment-callback HTML page via window.opener.postMessage).
+  useEffect(() => {
+    if (!showVerifyPrompt || !isWeb) return;
+    if (typeof window === 'undefined') return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type !== 'payment_complete') return;
+      const msgStatus: string = event.data?.status ?? 'successful';
+      if (msgStatus === 'cancelled') {
+        setShowVerifyPrompt(false);
+        clearPaymentLink();
+        setCancelledMsg(true);
+        return;
+      }
+      if (msgStatus === 'failed') {
+        setShowVerifyPrompt(false);
+        clearPaymentLink();
+        router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
+        return;
+      }
+      // successful — start verification automatically
+      handleWebVerify();
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [showVerifyPrompt, handleWebVerify, clearPaymentLink, selectedBundle]);
+
   const handleNavChange = useCallback(
     async (nav: WebViewNavigation) => {
       const url = nav.url;
@@ -524,13 +551,14 @@ export default function SubscriptionScreen() {
         </Modal>
       )}
 
-      {/* Web-only: prompt user to confirm payment after browser tab */}
+      {/* Web-only: waiting modal — auto-confirmed via postMessage from the callback page */}
       {isWeb && (
         <Modal
           visible={showVerifyPrompt}
           animationType="fade"
           transparent
           onRequestClose={() => {
+            if (verifying) return;
             setShowVerifyPrompt(false);
             clearPaymentLink();
           }}>
@@ -540,30 +568,30 @@ export default function SubscriptionScreen() {
                 <Ionicons name="open-outline" size={40} color="#0EA5A4" />
               </View>
               <Text className="text-xl font-bold text-gray-900 text-center mb-2">
-                Complete Payment
+                {verifying ? 'Confirming Payment' : 'Awaiting Payment'}
               </Text>
-              <Text className="text-sm text-gray-600 text-center mb-6 leading-5">
-                A new browser tab has been opened with the Flutterwave payment page.
-                Once you have completed the payment, press the button below to confirm.
+              <Text className="text-sm text-gray-600 text-center mb-5 leading-5">
+                {verifying
+                  ? verifyLabel || 'Waiting for payment confirmation…'
+                  : 'Complete your payment in the browser tab. Your credits will be added automatically once done.'}
               </Text>
-              <Pressable
-                onPress={handleWebVerify}
-                disabled={verifying}
-                className={`rounded-xl py-4 items-center mb-3 ${verifying ? 'bg-[#0EA5A4]/70' : 'bg-[#0EA5A4]'}`}>
-                {verifying ? (
-                  <View className="items-center gap-1.5">
-                    <ActivityIndicator color="white" size="small" />
-                    <Text className="text-xs text-white/90">
-                      {verifyLabel || 'Preparing…'}
-                    </Text>
-                  </View>
-                ) : (
-                  <Text className="text-base font-semibold text-white">I&apos;ve Completed Payment</Text>
+              <View className="items-center py-3 mb-4">
+                <ActivityIndicator color="#0EA5A4" size="large" />
+                {!verifying && (
+                  <Text className="text-xs text-gray-400 mt-2">Waiting for payment to complete…</Text>
                 )}
-              </Pressable>
+              </View>
+              {/* Fallback: manual trigger if postMessage never arrives (e.g. opener lost) */}
+              {!verifying && (
+                <Pressable
+                  onPress={handleWebVerify}
+                  className="rounded-xl py-3 items-center mb-3 border border-[#0EA5A4]">
+                  <Text className="text-sm font-semibold text-[#0EA5A4]">Already paid? Confirm manually</Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={() => {
-                  if (verifying) return; // block cancel mid-retry
+                  if (verifying) return;
                   setShowVerifyPrompt(false);
                   clearPaymentLink();
                 }}
