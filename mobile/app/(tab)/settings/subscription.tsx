@@ -147,6 +147,17 @@ export default function SubscriptionScreen() {
     initiatePayment(selectedBundle, user?.name ?? undefined, currency);
   }, [selectedBundle, user?.name, currency, initiatePayment]);
 
+  // Called when the user taps "Open Payment Page" in the modal.
+  // Running inside a Pressable onPress means it IS a user gesture — no popup block.
+  const handleOpenPaymentPage = useCallback(() => {
+    if (!paymentLink) return;
+    setPaymentPageOpened(true);
+    Linking.openURL(paymentLink).catch(() => {
+      // If Linking fails, flip back so the button remains visible.
+      setPaymentPageOpened(false);
+    });
+  }, [paymentLink]);
+
   // Web path: user pressed "I've paid".
   // Strategy: poll GET /payments/tx-status (DB-only, no Flutterwave call) so the
   // webhook is the primary confirmation path. Only call POST /payments/verify
