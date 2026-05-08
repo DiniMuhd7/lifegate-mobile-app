@@ -502,8 +502,7 @@ export default function SubscriptionScreen() {
       </SafeAreaView>
 
       {/* Payment waiting modal — shown on all platforms after opening the external browser / payment tab */}
-      {
-        <Modal
+      <Modal
           visible={showVerifyPrompt}
           animationType="fade"
           transparent
@@ -553,7 +552,6 @@ export default function SubscriptionScreen() {
             </View>
           </View>
         </Modal>
-      )}
       <PatientBottomTabBar activeTab="settings" />
     </View>
   );
