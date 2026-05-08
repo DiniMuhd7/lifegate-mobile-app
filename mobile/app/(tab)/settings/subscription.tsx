@@ -11,8 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-// WebView is only loaded on native to avoid the "platform not supported" error on web.
-const isWeb = Platform.OS === 'web';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
 import { useChatStore } from 'stores/chat-store';
@@ -20,8 +18,8 @@ import type { CreditBundle, PaymentCurrency } from 'types/payment-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const isWeb = Platform.OS === 'web';
 const CALLBACK_PREFIX = 'lifegate://payment/callback';
-const WEB_CALLBACK_URL = 'https://edis.dshub.com.ng/payment-callback';
 const DEV_PREFIX = 'lifegate://payment/dev';
 
 export default function SubscriptionScreen() {
