@@ -61,6 +61,34 @@ export default function SubscriptionScreen() {
   const [verifyAttempt, setVerifyAttempt] = useState(0);
   // Label shown in the modal during verification
   const [verifyLabel, setVerifyLabel] = useState('');
+  const [openPaymentError, setOpenPaymentError] = useState<string | null>(null);
+
+  const normalizePaymentUrl = useCallback((url: string | null) => {
+    if (!url) return null;
+    const clean = url.trim();
+    if (!clean) return null;
+    try {
+      const parsed = new URL(clean);
+      // Allow secure URLs and localhost/dev callbacks used in staging.
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return clean;
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const openPaymentInExternalBrowser = useCallback(async (url: string) => {
+    const normalized = normalizePaymentUrl(url);
+    if (!normalized) return false;
+    try {
+      const supported = await Linking.canOpenURL(normalized);
+      if (!supported) return false;
+      await Linking.openURL(normalized);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [normalizePaymentUrl]);
 
   useEffect(() => {
     fetchBalance();
@@ -90,16 +118,19 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     if (!paymentLink) return;
-    // Validate the URL is a legitimate HTTPS link before opening/loading it.
-    // paymentLink comes from our backend via Flutterwave, but we validate
-    // defensively to prevent open-redirect exploitation.
-    if (!paymentLink.startsWith('https://')) return;
+    const normalized = normalizePaymentUrl(paymentLink);
+    if (!normalized) {
+      setOpenPaymentError('Invalid payment URL returned. Please try again.');
+      clearPaymentLink();
+      return;
+    }
+    setOpenPaymentError(null);
     setPaymentPageOpened(false);
     if (isWeb) {
       if (typeof window !== 'undefined') {
         if (webTabRef.current && !webTabRef.current.closed) {
           // Navigate the pre-opened tab to the Flutterwave payment URL.
-          webTabRef.current.location.href = paymentLink;
+          webTabRef.current.location.href = normalized;
           webTabRef.current = null;
           // Tab was opened — skip the manual-open step.
           setPaymentPageOpened(true);
@@ -109,13 +140,16 @@ export default function SubscriptionScreen() {
       }
     } else {
       // Native: always open Flutterwave checkout in external browser.
-      Linking.openURL(paymentLink)
-        .then(() => setPaymentPageOpened(true))
-        .catch(() => setPaymentPageOpened(false));
+      openPaymentInExternalBrowser(normalized).then((ok) => {
+        setPaymentPageOpened(ok);
+        if (!ok) {
+          setOpenPaymentError('Could not open your browser. Tap "Open Payment Page" to retry.');
+        }
+      });
     }
     // Always show the modal across platforms.
     setShowVerifyPrompt(true);
-  }, [paymentLink]);
+  }, [paymentLink, clearPaymentLink, normalizePaymentUrl, openPaymentInExternalBrowser]);
 
   const handleBuyCredits = useCallback(() => {
     if (!selectedBundle) return;
@@ -155,12 +189,11 @@ export default function SubscriptionScreen() {
   // Running inside a Pressable onPress means it IS a user gesture — no popup block.
   const handleOpenPaymentPage = useCallback(() => {
     if (!paymentLink) return;
-    setPaymentPageOpened(true);
-    Linking.openURL(paymentLink).catch(() => {
-      // If Linking fails, flip back so the button remains visible.
-      setPaymentPageOpened(false);
+    openPaymentInExternalBrowser(paymentLink).then((ok) => {
+      setPaymentPageOpened(ok);
+      setOpenPaymentError(ok ? null : 'Could not open your browser. Please check browser availability and try again.');
     });
-  }, [paymentLink]);
+  }, [paymentLink, openPaymentInExternalBrowser]);
 
   // Web path: user pressed "I've paid".
   // Strategy: poll GET /payments/tx-status (DB-only, no Flutterwave call) so the
@@ -534,6 +567,7 @@ export default function SubscriptionScreen() {
             if (verifying) return;
             setShowVerifyPrompt(false);
             setPaymentPageOpened(false);
+            setOpenPaymentError(null);
             clearPaymentLink();
           }}>
           <View className="flex-1 bg-black/50 items-center justify-center px-6">
@@ -555,6 +589,9 @@ export default function SubscriptionScreen() {
                     <Ionicons name="open-outline" size={18} color="white" />
                     <Text className="text-base font-semibold text-white">Open Payment Page</Text>
                   </Pressable>
+                  {openPaymentError ? (
+                    <Text className="text-xs text-red-600 text-center mb-3">{openPaymentError}</Text>
+                  ) : null}
                 </>
               ) : (
                 /* Step 2 — browser opened or verifying: show spinner */
@@ -587,6 +624,9 @@ export default function SubscriptionScreen() {
                       <Text className="text-sm font-semibold text-gray-500">Re-open payment page</Text>
                     </Pressable>
                   )}
+                  {openPaymentError ? (
+                    <Text className="text-xs text-red-600 text-center mb-3">{openPaymentError}</Text>
+                  ) : null}
                 </>
               )}
               <Pressable
@@ -594,6 +634,7 @@ export default function SubscriptionScreen() {
                   if (verifying) return;
                   setShowVerifyPrompt(false);
                   setPaymentPageOpened(false);
+                  setOpenPaymentError(null);
                   clearPaymentLink();
                 }}
                 className={`rounded-xl py-4 items-center border ${
