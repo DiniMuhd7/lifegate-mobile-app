@@ -794,16 +794,22 @@ button:hover{opacity:.88}
 			iconSVG + `</svg>
   <h1>` + heading + `</h1>
   <p>` + body + `</p>
-  <button onclick="window.close()">Close this tab</button>
+  <button id="btn">Return to LifeGate</button>
   <p class="note" id="cd"></p>
 </div>
 <script>
 (function(){
   var st="` + status + `"||"successful";
+  var txRef="` + txRef + `";
+  var dl='lifegate://payment/callback?status='+encodeURIComponent(st)+'&tx_ref='+encodeURIComponent(txRef);
+  // Notify opener tab (web flow opened via window.open).
   if(window.opener){try{window.opener.postMessage({type:'payment_complete',status:st},'*');}catch(e){}}
+  // Button: redirect to deep-link (switches to app on mobile; harmless on desktop).
+  document.getElementById('btn').onclick=function(){window.location.href=dl;};
+  // Auto-redirect countdown.
   var s=5;var t=setInterval(function(){
-    document.getElementById('cd').textContent='Closing in '+s+'s\u2026';
-    if(--s<0){clearInterval(t);window.close();}
+    document.getElementById('cd').textContent='Returning to app in '+s+'s\u2026';
+    if(--s<0){clearInterval(t);window.location.href=dl;}
   },1000);
 })();
 </script>
