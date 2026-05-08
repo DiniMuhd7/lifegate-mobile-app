@@ -34,8 +34,14 @@ export const DiagnosisService = {
   ): Promise<{ success: boolean; message: string; escalated: boolean }> {
     const response = await api.post<{
       success: boolean;
-      data: { success: boolean; message: string; escalated: boolean };
+      message: string;
+      escalated: boolean;
     }>(`/diagnoses/${id}/outcome`, { outcome });
-    return response.data.data;
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to submit follow-up outcome');
+    }
+
+    return response.data;
   },
 };
