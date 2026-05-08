@@ -25,6 +25,19 @@ export default function PaymentCallbackPage() {
 
   const [countdown, setCountdown] = useState(5);
 
+  // Notify the subscription screen via postMessage (web opener path)
+  // and attempt deep-link redirect for native browser path.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    if (typeof window === 'undefined') return;
+    // Notify parent tab if opened via window.open.
+    if (window.opener) {
+      try {
+        window.opener.postMessage({ type: 'payment_complete', status }, '*');
+      } catch (_) {}
+    }
+  }, [status]);
+
   // Auto-close the tab after 5 seconds.
   useEffect(() => {
     if (Platform.OS !== 'web') return;

@@ -371,11 +371,19 @@ export default function SubscriptionScreen() {
     if (isWeb) return;
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
-      if (!showVerifyPrompt || !paymentPageOpened || !activeTxRef || verifying) return;
+      // Verify whenever there is an active tx reference — even if modal was
+      // dismissed — so credits are credited after system-back from browser.
+      if (!activeTxRef || verifying) return;
+      if (!showVerifyPrompt) {
+        // Modal was dismissed but payment may have completed. Re-show it
+        // so the user sees verification in progress.
+        setShowVerifyPrompt(true);
+        setPaymentPageOpened(true);
+      }
       handleWebVerify();
     });
     return () => sub.remove();
-  }, [showVerifyPrompt, paymentPageOpened, activeTxRef, verifying, handleWebVerify]);
+  }, [activeTxRef, verifying, showVerifyPrompt, handleWebVerify]);
 
   const displayBundles: CreditBundle[] = bundles;
 

@@ -38,12 +38,14 @@ export const PaymentService = {
     name?: string,
     currency: PaymentCurrency = 'NGN'
   ): Promise<InitiatePaymentResponse> {
-    // On web the deep-link scheme (lifegate://) is unresolvable in a browser tab.
-    // Pass the HTTPS payment-callback URL so Flutterwave redirects there instead.
-    const redirectUrl =
-      typeof window !== 'undefined' && window?.document !== undefined
-        ? 'https://edis.dshub.com.ng/payment-callback'
-        : undefined;
+    // Pass the correct redirect URL depending on platform:
+    // - Web: HTTPS callback page (lifegate:// is unresolvable in browsers)
+    // - Native: lifegate:// deep-link so Flutterwave redirects directly back to the app
+    const isNative = typeof window === 'undefined' || window?.document === undefined;
+    const isWebBrowser = !isNative;
+    const redirectUrl = isWebBrowser
+      ? 'https://edis.dshub.com.ng/payment-callback'
+      : 'lifegate://payment/callback';
 
     const res = await api.post<{ success: boolean; data: InitiatePaymentResponse }>(
       '/payments/initiate',
