@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -49,10 +49,6 @@ export default function SubscriptionScreen() {
   const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
   const [currency, setCurrency] = useState<PaymentCurrency>('NGN');
   const [cancelledMsg, setCancelledMsg] = useState(false);
-  // Holds a pre-opened blank tab (opened synchronously during the button press
-  // so the browser does not block it as an unsolicited popup). Navigated to
-  // the payment URL once the backend returns the link.
-  const webTabRef = useRef<Window | null>(null);
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
   // Native: true once the user has tapped "Open Payment Page" in the modal
   const [paymentPageOpened, setPaymentPageOpened] = useState(false);
@@ -80,7 +76,33 @@ export default function SubscriptionScreen() {
   const openPaymentInExternalBrowser = useCallback(async (url: string) => {
     const normalized = normalizePaymentUrl(url);
     if (!normalized) return false;
+
     try {
+      // Force a real browser app (Chrome/Safari) when possible.
+      if (!isWeb) {
+        const parsed = new URL(normalized);
+        const withoutScheme = normalized.replace(/^https?:\/\//, '');
+
+        if (Platform.OS === 'android') {
+          const chromeUrl = `googlechrome://${withoutScheme}`;
+          const canChrome = await Linking.canOpenURL(chromeUrl);
+          if (canChrome) {
+            await Linking.openURL(chromeUrl);
+            return true;
+          }
+        }
+
+        if (Platform.OS === 'ios') {
+          const chromeScheme = parsed.protocol === 'https:' ? 'googlechromes://' : 'googlechrome://';
+          const chromeUrl = `${chromeScheme}${withoutScheme}`;
+          const canChrome = await Linking.canOpenURL(chromeUrl);
+          if (canChrome) {
+            await Linking.openURL(chromeUrl);
+            return true;
+          }
+        }
+      }
+
       const supported = await Linking.canOpenURL(normalized);
       if (!supported) return false;
       await Linking.openURL(normalized);
@@ -126,62 +148,19 @@ export default function SubscriptionScreen() {
     }
     setOpenPaymentError(null);
     setPaymentPageOpened(false);
-    if (isWeb) {
-      if (typeof window !== 'undefined') {
-        if (webTabRef.current && !webTabRef.current.closed) {
-          // Navigate the pre-opened tab to the Flutterwave payment URL.
-          webTabRef.current.location.href = normalized;
-          webTabRef.current = null;
-          // Tab was opened — skip the manual-open step.
-          setPaymentPageOpened(true);
-        }
-        // If the tab was blocked, paymentPageOpened stays false and the modal
-        // shows an "Open Payment Page" button instead.
+    // Always open checkout in an external browser app/tab handled by the OS.
+    openPaymentInExternalBrowser(normalized).then((ok) => {
+      setPaymentPageOpened(ok);
+      if (!ok) {
+        setOpenPaymentError('Could not open your browser. Tap "Open Payment Page" to retry.');
       }
-    } else {
-      // Native: always open Flutterwave checkout in external browser.
-      openPaymentInExternalBrowser(normalized).then((ok) => {
-        setPaymentPageOpened(ok);
-        if (!ok) {
-          setOpenPaymentError('Could not open your browser. Tap "Open Payment Page" to retry.');
-        }
-      });
-    }
+    });
     // Always show the modal across platforms.
     setShowVerifyPrompt(true);
   }, [paymentLink, clearPaymentLink, normalizePaymentUrl, openPaymentInExternalBrowser]);
 
   const handleBuyCredits = useCallback(() => {
     if (!selectedBundle) return;
-    // On web, open a blank tab NOW — synchronously inside the user gesture —
-    // so the browser does not block it as an unsolicited popup. The effect
-    // below will navigate it to the Flutterwave URL once the backend responds.
-    if (isWeb && typeof window !== 'undefined') {
-      const newTab = window.open('', '_blank');
-      // Only store the ref if a *new* tab was actually opened.
-      // Some browsers (mobile Safari, popup-blocked contexts) return the current
-      // window itself when they cannot open a new tab. Navigating location.href
-      // on window would redirect the subscription screen away — causing the blank page.
-      if (newTab && newTab !== window) {
-        webTabRef.current = newTab;
-        // Write a loading message into the blank tab so the user sees feedback
-        // instead of a white/blank page while the API call is in-flight.
-        try {
-          newTab.document.write(
-            '<html><head><title>Loading payment…</title></head>' +
-            '<body style="background:#0D2137;display:flex;flex-direction:column;align-items:center;' +
-            'justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:white;gap:10px">' +
-            '<p style="font-size:18px;font-weight:700;margin:0">Preparing secure payment…</p>' +
-            '<p style="font-size:14px;opacity:0.55;margin:0">You will be redirected to Flutterwave shortly</p>' +
-            '</body></html>'
-          );
-        } catch (_) { /* cross-origin guard, safe to ignore */ }
-      } else {
-        // Popup was blocked or the browser reused the current window — do not
-        // store the ref. The effect below will fall back to Linking.openURL.
-        webTabRef.current = null;
-      }
-    }
     initiatePayment(selectedBundle, user?.name ?? undefined, currency);
   }, [selectedBundle, user?.name, currency, initiatePayment]);
 
