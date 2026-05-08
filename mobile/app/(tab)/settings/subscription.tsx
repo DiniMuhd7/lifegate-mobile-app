@@ -107,9 +107,13 @@ export default function SubscriptionScreen() {
         // If the tab was blocked, paymentPageOpened stays false and the modal
         // shows an "Open Payment Page" button instead.
       }
+    } else {
+      // Native: always open Flutterwave checkout in external browser.
+      Linking.openURL(paymentLink)
+        .then(() => setPaymentPageOpened(true))
+        .catch(() => setPaymentPageOpened(false));
     }
-    // Always show the modal — on native it shows an "Open Payment Page" button
-    // (user gesture) so the OS never blocks it as an unsolicited popup.
+    // Always show the modal across platforms.
     setShowVerifyPrompt(true);
   }, [paymentLink]);
 
@@ -260,10 +264,38 @@ export default function SubscriptionScreen() {
     return () => window.removeEventListener('message', handler);
   }, [showVerifyPrompt, handleWebVerify, clearPaymentLink, selectedBundle]);
 
-  // Native path: handle Flutterwave deep-link callback (lifegate://payment/callback?...).
-  // Called when the external browser redirects back to the app after payment.
+  // Native path: handle Flutterwave deep-link callback
+  // (lifegate://payment/callback?... or lifegate://payment/dev?...).
   const handleDeepLinkVerify = useCallback(
-    async (txRef: string, flwTxId: string) => {
+    async (url: string) => {
+      if (!url.startsWith(CALLBACK_PREFIX) && !url.startsWith(DEV_PREFIX)) return;
+
+      let params: URLSearchParams;
+      try {
+        params = new URL(url.replace('lifegate://', 'https://dummy.host/')).searchParams;
+      } catch {
+        return;
+      }
+
+      const status = params.get('status') ?? '';
+      const txRef = params.get('tx_ref') ?? activeTxRef ?? '';
+      const flwTxId = params.get('transaction_id') ?? params.get('flw_tx_id') ?? '';
+
+      if (status === 'cancelled') {
+        setShowVerifyPrompt(false);
+        clearPaymentLink();
+        setCancelledMsg(true);
+        return;
+      }
+
+      if (status === 'failed') {
+        setShowVerifyPrompt(false);
+        clearPaymentLink();
+        router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
+        return;
+      }
+
+      // successful or dev shortcut
       setVerifying(true);
       setVerifyLabel('Confirming payment…');
       try {
@@ -291,38 +323,24 @@ export default function SubscriptionScreen() {
       clearPaymentLink();
       router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
     },
-    [verifyPayment, clearPaymentLink, switchActiveChatToClinical, selectedBundle]
+    [activeTxRef, verifyPayment, clearPaymentLink, switchActiveChatToClinical, selectedBundle]
   );
 
   // Native path: listen for the deep-link URL when the external browser returns.
   useEffect(() => {
-    if (!showVerifyPrompt || isWeb) return;
+    if (isWeb) return;
+
+    // Handle cold-start return from external browser.
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLinkVerify(url);
+    }).catch(() => {});
+
     const sub = Linking.addEventListener('url', ({ url }) => {
-      if (!url.startsWith(CALLBACK_PREFIX) && !url.startsWith(DEV_PREFIX)) return;
-      let params: URLSearchParams;
-      try {
-        params = new URL(url.replace('lifegate://', 'https://dummy.host/')).searchParams;
-      } catch { return; }
-      const status = params.get('status') ?? '';
-      const txRef = params.get('tx_ref') ?? activeTxRef ?? '';
-      const flwTxId = params.get('transaction_id') ?? params.get('flw_tx_id') ?? '';
-      if (status === 'cancelled') {
-        setShowVerifyPrompt(false);
-        clearPaymentLink();
-        setCancelledMsg(true);
-        return;
-      }
-      if (status === 'failed') {
-        setShowVerifyPrompt(false);
-        clearPaymentLink();
-        router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
-        return;
-      }
-      // successful or dev shortcut
-      handleDeepLinkVerify(txRef, flwTxId);
+      handleDeepLinkVerify(url);
     });
+
     return () => sub.remove();
-  }, [showVerifyPrompt, activeTxRef, selectedBundle, clearPaymentLink, handleDeepLinkVerify]);
+  }, [handleDeepLinkVerify]);
 
   const displayBundles: CreditBundle[] = bundles;
 
