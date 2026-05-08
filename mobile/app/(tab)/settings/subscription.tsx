@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   Linking,
+  AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -249,6 +250,16 @@ export default function SubscriptionScreen() {
     });
   }, [activeTxRef, selectedBundle, getTxStatus, verifyPayment, clearPaymentLink, switchActiveChatToClinical]);
 
+  // Resume path: user returned from external browser without deep-link callback.
+  // When subscription regains focus, auto-run verification for active tx.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isWeb && showVerifyPrompt && paymentPageOpened && activeTxRef && !verifying) {
+        handleWebVerify();
+      }
+    }, [showVerifyPrompt, paymentPageOpened, activeTxRef, verifying, handleWebVerify])
+  );
+
   // Auto-trigger handleWebVerify when the payment tab posts a completion message
   // (posted by the backend /payment-callback HTML page via window.opener.postMessage).
   useEffect(() => {
@@ -353,6 +364,18 @@ export default function SubscriptionScreen() {
 
     return () => sub.remove();
   }, [handleDeepLinkVerify]);
+
+  // Native fallback: if app becomes active without deep-link callback,
+  // auto-verify the last active tx reference.
+  useEffect(() => {
+    if (isWeb) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      if (!showVerifyPrompt || !paymentPageOpened || !activeTxRef || verifying) return;
+      handleWebVerify();
+    });
+    return () => sub.remove();
+  }, [showVerifyPrompt, paymentPageOpened, activeTxRef, verifying, handleWebVerify]);
 
   const displayBundles: CreditBundle[] = bundles;
 
