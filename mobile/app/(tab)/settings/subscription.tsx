@@ -11,12 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { type WebViewNavigation } from 'react-native-webview';
-
 // WebView is only loaded on native to avoid the "platform not supported" error on web.
 const isWeb = Platform.OS === 'web';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const WebView = isWeb ? null : require('react-native-webview').default;
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
 import { useChatStore } from 'stores/chat-store';
@@ -54,7 +50,6 @@ export default function SubscriptionScreen() {
 
   const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
   const [currency, setCurrency] = useState<PaymentCurrency>('NGN');
-  const [showWebView, setShowWebView] = useState(false);
   const [cancelledMsg, setCancelledMsg] = useState(false);
   // Holds a pre-opened blank tab (opened synchronously during the button press
   // so the browser does not block it as an unsolicited popup). Navigated to
@@ -116,7 +111,10 @@ export default function SubscriptionScreen() {
       }
       setShowVerifyPrompt(true);
     } else {
-      setShowWebView(true);
+      // Native: open payment link in the device's external browser.
+      // Flutterwave will deep-link back to lifegate://payment/callback when done.
+      Linking.openURL(paymentLink);
+      setShowVerifyPrompt(true);
     }
   }, [paymentLink]);
 
@@ -256,60 +254,69 @@ export default function SubscriptionScreen() {
     return () => window.removeEventListener('message', handler);
   }, [showVerifyPrompt, handleWebVerify, clearPaymentLink, selectedBundle]);
 
-  const handleNavChange = useCallback(
-    async (nav: WebViewNavigation) => {
-      const url = nav.url;
-      const isCallback = url.startsWith(CALLBACK_PREFIX) || url.startsWith(WEB_CALLBACK_URL);
-      const isDev = url.startsWith(DEV_PREFIX);
-      if (!isCallback && !isDev) return;
-
-      setShowWebView(false);
+  // Native path: handle Flutterwave deep-link callback (lifegate://payment/callback?...).
+  // Called when the external browser redirects back to the app after payment.
+  const handleDeepLinkVerify = useCallback(
+    async (txRef: string, flwTxId: string) => {
+      setVerifying(true);
+      setVerifyLabel('Confirming payment…');
+      try {
+        const tx = await verifyPayment(txRef, flwTxId);
+        if (tx.status === 'success') {
+          setShowVerifyPrompt(false);
+          setVerifying(false);
+          setVerifyLabel('');
+          switchActiveChatToClinical();
+          router.push({
+            pathname: '/(tab)/settings/checkOutScreen',
+            params: {
+              txRef: tx.txRef,
+              amount: String(tx.amount),
+              creditsGranted: String(tx.creditsGranted),
+              createdAt: tx.createdAt,
+            },
+          });
+          return;
+        }
+      } catch (_) {}
+      setVerifying(false);
+      setVerifyLabel('');
+      setShowVerifyPrompt(false);
       clearPaymentLink();
+      router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
+    },
+    [verifyPayment, clearPaymentLink, switchActiveChatToClinical, selectedBundle]
+  );
 
+  // Native path: listen for the deep-link URL when the external browser returns.
+  useEffect(() => {
+    if (!showVerifyPrompt || isWeb) return;
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (!url.startsWith(CALLBACK_PREFIX) && !url.startsWith(DEV_PREFIX)) return;
       let params: URLSearchParams;
       try {
         params = new URL(url.replace('lifegate://', 'https://dummy.host/')).searchParams;
-      } catch {
-        // Malformed deep-link URL — treat as failure
-        router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
-        return;
-      }
+      } catch { return; }
       const status = params.get('status') ?? '';
       const txRef = params.get('tx_ref') ?? activeTxRef ?? '';
       const flwTxId = params.get('transaction_id') ?? params.get('flw_tx_id') ?? '';
-
-      // User explicitly cancelled — return quietly without a failure screen
       if (status === 'cancelled') {
+        setShowVerifyPrompt(false);
+        clearPaymentLink();
         setCancelledMsg(true);
         return;
       }
-
-      if ((status === 'successful' || isDev) && txRef) {
-        try {
-          const tx = await verifyPayment(txRef, flwTxId);
-          if (tx.status === 'success') {
-            switchActiveChatToClinical();
-            router.push({
-              pathname: '/(tab)/settings/checkOutScreen',
-              params: {
-                txRef: tx.txRef,
-                amount: String(tx.amount),
-                creditsGranted: String(tx.creditsGranted),
-                createdAt: tx.createdAt,
-              },
-            });
-            return;
-          }
-        } catch (_) {}
+      if (status === 'failed') {
+        setShowVerifyPrompt(false);
+        clearPaymentLink();
+        router.push({ pathname: '/(tab)/settings/payment-failed', params: { bundleId: selectedBundle ?? '' } });
+        return;
       }
-
-      router.push({
-        pathname: '/(tab)/settings/payment-failed',
-        params: { bundleId: selectedBundle ?? '' },
-      });
-    },
-    [activeTxRef, selectedBundle, verifyPayment, clearPaymentLink, switchActiveChatToClinical]
-  );
+      // successful or dev shortcut
+      handleDeepLinkVerify(txRef, flwTxId);
+    });
+    return () => sub.remove();
+  }, [showVerifyPrompt, activeTxRef, selectedBundle, clearPaymentLink, handleDeepLinkVerify]);
 
   const displayBundles: CreditBundle[] = bundles;
 
@@ -494,65 +501,8 @@ export default function SubscriptionScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Flutterwave payment WebView — native only */}
-      {!isWeb && (
-        <Modal
-          visible={showWebView}
-          animationType="slide"
-          onRequestClose={() => {
-            setShowWebView(false);
-            clearPaymentLink();
-          }}>
-          <View className="flex-1">
-            <View className="flex-row items-center px-4 pt-12 pb-3 bg-white border-b border-gray-100">
-              <Pressable
-                onPress={() => {
-                  setShowWebView(false);
-                  clearPaymentLink();
-                }}
-                className="p-2">
-                <Ionicons name="close" size={24} color="black" />
-              </Pressable>
-              <Text className="ml-3 text-base font-semibold text-gray-900">Secure Payment</Text>
-              <View className="ml-auto">
-                <Ionicons name="lock-closed" size={16} color="#0EA5A4" />
-              </View>
-            </View>
-            {paymentLink && WebView ? (
-              <WebView
-                source={{ uri: paymentLink }}
-                onNavigationStateChange={handleNavChange}
-                // Required for Flutterwave's payment page to render correctly.
-                javaScriptEnabled
-                domStorageEnabled
-                thirdPartyCookiesEnabled
-                // Spoof a standard mobile browser UA — many payment providers
-                // block or serve blank pages to detected WebView user agents.
-                userAgent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-                // Prevent new-window targets breaking the WebView flow.
-                setSupportMultipleWindows={false}
-                // Allow mixed content on Android (some payment redirects use HTTP internally).
-                mixedContentMode="compatibility"
-                startInLoadingState
-                renderLoading={() => (
-                  <View
-                    style={{
-                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                      alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
-                    }}
-                  >
-                    <ActivityIndicator color="#0EA5A4" size="large" />
-                    <Text style={{ marginTop: 12, fontSize: 14, color: '#6b7280' }}>Loading payment page…</Text>
-                  </View>
-                )}
-              />
-            ) : null}
-          </View>
-        </Modal>
-      )}
-
-      {/* Web-only: waiting modal — auto-confirmed via postMessage from the callback page */}
-      {isWeb && (
+      {/* Payment waiting modal — shown on all platforms after opening the external browser / payment tab */}
+      {
         <Modal
           visible={showVerifyPrompt}
           animationType="fade"
