@@ -751,7 +751,18 @@ func main() {
 	r.GET("/payment-callback", func(c *gin.Context) {
 		status := c.Query("status")     // "successful" | "cancelled" | "failed"
 		txRef := c.Query("tx_ref")
-		_ = txRef // available for future use (e.g. logging)
+		flwTxID := c.Query("transaction_id")
+		verificationPending := false
+
+		if status == "successful" && txRef != "" {
+			pt, err := paymentsSvc.VerifyAndCreditByTxRef(txRef, flwTxID)
+			if err != nil {
+				log.Printf("payment callback verification failed tx_ref=%s transaction_id=%s: %v", txRef, flwTxID, err)
+				verificationPending = true
+			} else if pt == nil || pt.Status != "success" {
+				verificationPending = true
+			}
+		}
 
 		var heading, body, iconColor, iconSVG string
 		switch status {
@@ -766,10 +777,17 @@ func main() {
 			iconColor = "#ef4444"
 			iconSVG = `<circle cx="50" cy="50" r="45" fill="#fee2e2"/><line x1="33" y1="33" x2="67" y2="67" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/><line x1="67" y1="33" x2="33" y2="67" stroke="#ef4444" stroke-width="7" stroke-linecap="round"/>`
 		default: // "successful" or any other value
-			heading = "Payment Received"
-			body = "Your payment was received successfully. Your credits are being updated — you can close this tab."
-			iconColor = "#0AADA2"
-			iconSVG = `<circle cx="50" cy="50" r="45" fill="#ccfbf1"/><polyline points="28,50 44,66 72,36" fill="none" stroke="#0AADA2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`
+			if verificationPending {
+				heading = "Payment Received"
+				body = "Your payment was received successfully, but confirmation is still processing. Return to the app to refresh your balance or use manual confirmation if it does not update yet."
+				iconColor = "#f59e0b"
+				iconSVG = `<circle cx="50" cy="50" r="45" fill="#fef3c7"/><path d="M50 26 L72 68 H28 Z" fill="#f59e0b"/><line x1="50" y1="40" x2="50" y2="55" stroke="#fff" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="62" r="3.5" fill="#fff"/>`
+			} else {
+				heading = "Payment Confirmed"
+				body = "Your payment was confirmed successfully and your credits have already been added. Return to the app to see the updated balance."
+				iconColor = "#0AADA2"
+				iconSVG = `<circle cx="50" cy="50" r="45" fill="#ccfbf1"/><polyline points="28,50 44,66 72,36" fill="none" stroke="#0AADA2" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`
+			}
 		}
 
 		html := `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">

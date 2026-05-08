@@ -673,6 +673,24 @@ func (s *Service) GetTxStatus(userID, txRef string) (*PaymentTransaction, error)
 	return &pt, nil
 }
 
+// VerifyAndCreditByTxRef resolves the owning user from tx_ref and then
+// finalizes the payment idempotently.
+func (s *Service) VerifyAndCreditByTxRef(txRef, flwTxID string) (*PaymentTransaction, error) {
+	var userID string
+	err := s.db.QueryRow(
+		`SELECT user_id::text FROM payment_transactions WHERE tx_ref = $1`,
+		txRef,
+	).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("transaction not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return s.VerifyAndCredit(userID, txRef, flwTxID)
+}
+
 // VerifyAndCredit verifies a completed Flutterwave payment and credits the user.
 // FIX #1: Double credit race condition — use memory + DB-level locking.
 func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransaction, error) {
