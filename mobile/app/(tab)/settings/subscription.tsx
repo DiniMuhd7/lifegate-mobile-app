@@ -55,8 +55,9 @@ export default function SubscriptionScreen() {
   // so the browser does not block it as an unsolicited popup). Navigated to
   // the payment URL once the backend returns the link.
   const webTabRef = useRef<Window | null>(null);
-  // Web-only: shown after the payment tab is opened so the user can confirm
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
+  // Native: true once the user has tapped "Open Payment Page" in the modal
+  const [paymentPageOpened, setPaymentPageOpened] = useState(false);
   const [verifying, setVerifying] = useState(false);
   // 0 = not started; positive = polling phase step; negative = fallback verify step
   const [verifyAttempt, setVerifyAttempt] = useState(0);
@@ -95,27 +96,23 @@ export default function SubscriptionScreen() {
     // paymentLink comes from our backend via Flutterwave, but we validate
     // defensively to prevent open-redirect exploitation.
     if (!paymentLink.startsWith('https://')) return;
+    setPaymentPageOpened(false);
     if (isWeb) {
       if (typeof window !== 'undefined') {
         if (webTabRef.current && !webTabRef.current.closed) {
           // Navigate the pre-opened tab to the Flutterwave payment URL.
           webTabRef.current.location.href = paymentLink;
           webTabRef.current = null;
-        } else {
-          // Pre-opened tab was lost, blocked, or unavailable — fall back to
-          // Linking so at least a best-effort open is attempted.
-          Linking.openURL(paymentLink);
+          // Tab was opened — skip the manual-open step.
+          setPaymentPageOpened(true);
         }
-      } else {
-        Linking.openURL(paymentLink);
+        // If the tab was blocked, paymentPageOpened stays false and the modal
+        // shows an "Open Payment Page" button instead.
       }
-      setShowVerifyPrompt(true);
-    } else {
-      // Native: open payment link in the device's external browser.
-      // Flutterwave will deep-link back to lifegate://payment/callback when done.
-      Linking.openURL(paymentLink);
-      setShowVerifyPrompt(true);
     }
+    // Always show the modal — on native it shows an "Open Payment Page" button
+    // (user gesture) so the OS never blocks it as an unsolicited popup.
+    setShowVerifyPrompt(true);
   }, [paymentLink]);
 
   const handleBuyCredits = useCallback(() => {
@@ -509,6 +506,7 @@ export default function SubscriptionScreen() {
           onRequestClose={() => {
             if (verifying) return;
             setShowVerifyPrompt(false);
+            setPaymentPageOpened(false);
             clearPaymentLink();
           }}>
           <View className="flex-1 bg-black/50 items-center justify-center px-6">
@@ -516,32 +514,59 @@ export default function SubscriptionScreen() {
               <View className="items-center mb-4">
                 <Ionicons name="open-outline" size={40} color="#0EA5A4" />
               </View>
-              <Text className="text-xl font-bold text-gray-900 text-center mb-2">
-                {verifying ? 'Confirming Payment' : 'Awaiting Payment'}
-              </Text>
-              <Text className="text-sm text-gray-600 text-center mb-5 leading-5">
-                {verifying
-                  ? verifyLabel || 'Waiting for payment confirmation…'
-                  : 'Complete your payment in the browser tab. Your credits will be added automatically once done.'}
-              </Text>
-              <View className="items-center py-3 mb-4">
-                <ActivityIndicator color="#0EA5A4" size="large" />
-                {!verifying && (
-                  <Text className="text-xs text-gray-400 mt-2">Waiting for payment to complete…</Text>
-                )}
-              </View>
-              {/* Fallback: manual trigger if postMessage never arrives (e.g. opener lost) */}
-              {!verifying && (
-                <Pressable
-                  onPress={handleWebVerify}
-                  className="rounded-xl py-3 items-center mb-3 border border-[#0EA5A4]">
-                  <Text className="text-sm font-semibold text-[#0EA5A4]">Already paid? Confirm manually</Text>
-                </Pressable>
+              {/* Step 1 — not yet opened: show the Open button */}
+              {!paymentPageOpened && !verifying ? (
+                <>
+                  <Text className="text-xl font-bold text-gray-900 text-center mb-2">Secure Checkout</Text>
+                  <Text className="text-sm text-gray-600 text-center mb-6 leading-5">
+                    Tap the button below to open the Flutterwave payment page in your browser.
+                    Your credits will be added automatically once payment is complete.
+                  </Text>
+                  <Pressable
+                    onPress={handleOpenPaymentPage}
+                    className="rounded-xl py-4 items-center mb-3 bg-[#0EA5A4] flex-row justify-center gap-2">
+                    <Ionicons name="open-outline" size={18} color="white" />
+                    <Text className="text-base font-semibold text-white">Open Payment Page</Text>
+                  </Pressable>
+                </>
+              ) : (
+                /* Step 2 — browser opened or verifying: show spinner */
+                <>
+                  <Text className="text-xl font-bold text-gray-900 text-center mb-2">
+                    {verifying ? 'Confirming Payment' : 'Awaiting Payment'}
+                  </Text>
+                  <Text className="text-sm text-gray-600 text-center mb-5 leading-5">
+                    {verifying
+                      ? verifyLabel || 'Waiting for payment confirmation…'
+                      : 'Complete your payment in the browser. Your credits will be added automatically.'}
+                  </Text>
+                  <View className="items-center py-3 mb-4">
+                    <ActivityIndicator color="#0EA5A4" size="large" />
+                    {!verifying && (
+                      <Text className="text-xs text-gray-400 mt-2">Waiting for payment to complete…</Text>
+                    )}
+                  </View>
+                  {!verifying && (
+                    <Pressable
+                      onPress={handleWebVerify}
+                      className="rounded-xl py-3 items-center mb-3 border border-[#0EA5A4]">
+                      <Text className="text-sm font-semibold text-[#0EA5A4]">Already paid? Confirm manually</Text>
+                    </Pressable>
+                  )}
+                  {!verifying && (
+                    <Pressable
+                      onPress={handleOpenPaymentPage}
+                      className="rounded-xl py-3 items-center mb-3 border border-gray-200">
+                      <Text className="text-sm font-semibold text-gray-500">Re-open payment page</Text>
+                    </Pressable>
+                  )}
+                </>
               )}
               <Pressable
                 onPress={() => {
                   if (verifying) return;
                   setShowVerifyPrompt(false);
+                  setPaymentPageOpened(false);
                   clearPaymentLink();
                 }}
                 className={`rounded-xl py-4 items-center border ${
