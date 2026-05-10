@@ -17,9 +17,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
-import { CountryPicker } from 'components/CountryPicker';
-import { SuggestInput } from 'components/SuggestInput';
-import { NIGERIA_STATES } from 'constants/geo';
+
 
 const TEAL = '#0EA5A4';
 
@@ -183,8 +181,6 @@ export default function ManageProfileScreen() {
   const [medicalHistory, setMedicalHistory] = useState(user?.medical_history ?? '');
   const [currentMedications, setCurrentMedications] = useState(user?.current_medications ?? '');
   const [emergencyContact, setEmergencyContact] = useState(user?.emergency_contact ?? '');
-  const [country, setCountry] = useState(user?.country ?? '');
-  const [state, setState] = useState(user?.state ?? '');
   const [refreshing, setRefreshing] = useState(false);
 
   // Track whether the user has made any changes
@@ -194,9 +190,7 @@ export default function ManageProfileScreen() {
     (allergies ?? '') !== (user?.allergies ?? '') ||
     (medicalHistory ?? '') !== (user?.medical_history ?? '') ||
     (currentMedications ?? '') !== (user?.current_medications ?? '') ||
-    (emergencyContact ?? '') !== (user?.emergency_contact ?? '') ||
-    (country ?? '') !== (user?.country ?? '') ||
-    (state ?? '') !== (user?.state ?? '');
+    (emergencyContact ?? '') !== (user?.emergency_contact ?? '');
 
   // Sync form whenever the auth store user updates (e.g. after save)
   useEffect(() => {
@@ -206,8 +200,6 @@ export default function ManageProfileScreen() {
     setMedicalHistory(user?.medical_history ?? '');
     setCurrentMedications(user?.current_medications ?? '');
     setEmergencyContact(user?.emergency_contact ?? '');
-    setCountry(user?.country ?? '');
-    setState(user?.state ?? '');
   }, [user]);
 
   useEffect(() => {
@@ -229,8 +221,6 @@ export default function ManageProfileScreen() {
       medical_history: medicalHistory.trim() || null,
       current_medications: currentMedications.trim() || null,
       emergency_contact: emergencyContact.trim() || null,
-      country: country.trim() || null,
-      state: state.trim() || null,
     });
     if (ok) {
       Alert.alert('Saved', 'Your health profile has been updated.');
@@ -450,28 +440,6 @@ export default function ManageProfileScreen() {
               onChangeText={setEmergencyContact}
               placeholder="e.g. Jane Doe · 08012345678"
               accessibilityLabel="Emergency contact"
-            />
-          </View>
-
-          {/* ── Location ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
-            <SectionHeader icon="location-outline" title="Location" />
-
-            <FieldLabel label="Country" hint="Helps tailor care guidelines to your healthcare system." />
-            <CountryPicker
-              value={country}
-              onChange={(v) => { setCountry(v); if (v !== 'Nigeria') setState(''); }}
-              placeholder="Select your country…"
-            />
-
-            <FieldLabel label="State / Province" hint="Used to surface region-specific health resources." />
-            <SuggestInput
-              value={state}
-              onChangeText={setState}
-              suggestions={country === 'Nigeria' ? NIGERIA_STATES : []}
-              placeholder={country === 'Nigeria' ? 'Search state…' : 'Enter your state or province'}
-              placeholderTextColor="#9CA3AF"
-              inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
             />
           </View>
 
