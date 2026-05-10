@@ -20,6 +20,9 @@ import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { DOBInput } from 'components/DobPicker';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { CountryPicker } from 'components/CountryPicker';
+import { SuggestInput } from 'components/SuggestInput';
+import { NIGERIA_STATES } from 'constants/geo';
 
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
@@ -101,6 +104,8 @@ export default function ItemScreen() {
   const [dob, setDob] = useState<Date | null>(null);
   const [gender, setGender] = useState('');
   const [language, setLanguage] = useState('');
+  const [country, setCountry] = useState('');
+  const [state, setState] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -118,6 +123,8 @@ export default function ItemScreen() {
     setDob(user.dob ? (() => { const [y,m,d] = user.dob!.split('-').map(Number); const p = new Date(y, m-1, d); return isNaN(p.getTime()) ? null : p; })() : null);
     setGender(user.gender ?? '');
     setLanguage(user.language ?? '');
+    setCountry(user.country ?? '');
+    setState(user.state ?? '');
   }, [user]);
 
   const initials = useMemo(
@@ -154,6 +161,12 @@ export default function ItemScreen() {
       dob: dobStr || undefined,
       gender: gender.trim() || undefined,
     });
+    if (ok) {
+      await updateHealthProfile({
+        country: country.trim() || null,
+        state: state.trim() || null,
+      });
+    }
     setIsSaving(false);
 
     if (ok) {
@@ -418,6 +431,25 @@ export default function ItemScreen() {
                 selectedValue={gender}
                 onChange={(value: string) => setGender(value)}
               />
+
+              <CountryPicker
+                label="Country"
+                value={country}
+                onChange={(v) => { setCountry(v); if (v !== 'Nigeria') setState(''); }}
+                placeholder="Select your country…"
+              />
+
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>State / Province</Text>
+                <SuggestInput
+                  value={state}
+                  onChangeText={setState}
+                  suggestions={country === 'Nigeria' ? NIGERIA_STATES : []}
+                  placeholder={country === 'Nigeria' ? 'Search state…' : 'Enter your state or province'}
+                  placeholderTextColor="#9CA3AF"
+                  inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
+                />
+              </View>
 
               <TouchableOpacity
                 onPress={handleSave}
