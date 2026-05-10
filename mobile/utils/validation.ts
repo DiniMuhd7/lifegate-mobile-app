@@ -106,8 +106,9 @@ const validatePhone = (phone: string): ValidationError[] => {
     return errors;
   }
 
-  const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
-  if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+  // Accepts international format: optional +, 6–15 digits (strips spaces/hyphens first)
+  const phoneRegex = /^\+?[0-9]{6,15}$/;
+  if (!phoneRegex.test(phone.replace(/[\s\-().]/g, ''))) {
     errors.push({ field: 'phone', message: 'Invalid phone number' });
   }
 

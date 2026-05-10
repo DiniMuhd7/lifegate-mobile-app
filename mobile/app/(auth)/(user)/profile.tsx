@@ -5,20 +5,18 @@ import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
-import { NIGERIA_STATES } from 'constants/geo';
+import { NIGERIA_STATES, PHONE_CODES, COUNTRIES } from 'constants/geo';
 import { useRegistrationStore } from 'stores/auth-store';
 import { router, useFocusEffect } from 'expo-router';
 import { DOBInput } from 'components/DobPicker';
-import { PhoneNumberInput } from 'components/PhoneInput';
 import { validateSingleField } from 'utils/validation';
-import { CountryPicker } from 'components/CountryPicker';
+import { SearchableDropdown } from 'components/SearchableDropdown';
 import { SuggestInput } from 'components/SuggestInput';
 
 const VALID_FIELDS = {
   phone: true,
   dob: true,
   gender: true,
-  healthHistory: true,
   language: true,
   referredByCode: true,
   state: true,
@@ -34,6 +32,8 @@ const isValidField = (fieldName: string): fieldName is ValidFieldName => {
 export default function UserProfileStep() {
   const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [dialCode, setDialCode] = useState('+234');
+  const [phoneNum, setPhoneNum] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -66,15 +66,39 @@ export default function UserProfileStep() {
     !!userDraft.phone && !!userDraft.dob && !!userDraft.gender &&
     !fieldErrors.phone && !fieldErrors.dob && !fieldErrors.gender;
 
+  const updatePhone = (code: string, num: string) => {
+    const digits = num.replace(/\D/g, '');
+    const full = digits ? code + digits : '';
+    handleFieldChange('phone', full);
+  };
+
   return (
     <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
       <View className="py-2">
-        <PhoneNumberInput
+        <SearchableDropdown
+          label="Phone Country Code"
+          required
+          options={PHONE_CODES}
+          selectedValue={dialCode}
+          onChange={(code) => {
+            setDialCode(code);
+            updatePhone(code, phoneNum);
+          }}
+          searchPlaceholder="Search country or code…"
+          hasError={!!fieldErrors.phone}
+        />
+
+        <LabeledInput
           label="Phone Number"
           required
-          value={userDraft.phone}
-          onChangePhoneNumber={(value) => handleFieldChange('phone', value)}
-          error={fieldErrors.phone}
+          placeholder="Enter phone number"
+          keyboardType="phone-pad"
+          value={phoneNum}
+          hasError={!!fieldErrors.phone}
+          onChangeText={(v) => {
+            setPhoneNum(v);
+            updatePhone(dialCode, v);
+          }}
         />
         <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
 
@@ -107,11 +131,13 @@ export default function UserProfileStep() {
         />
         <ErrorMessage fieldName="language" fieldErrors={fieldErrors} />
 
-        <CountryPicker
+        <SearchableDropdown
           label="Country"
-          value={userDraft.country || ''}
+          options={COUNTRIES.map((c) => ({ label: c, value: c }))}
+          selectedValue={userDraft.country || ''}
           onChange={(v) => handleFieldChange('country', v)}
           hasError={!!fieldErrors.country}
+          searchPlaceholder="Search country…"
         />
         <ErrorMessage fieldName="country" fieldErrors={fieldErrors} />
 
@@ -143,29 +169,6 @@ export default function UserProfileStep() {
             autoCapitalize="characters"
             className="rounded-xl p-3 text-sm text-gray-800 bg-[#F2F4F7]"
           />
-        </View>
-
-        <View className="mb-2 mt-1">
-          <Text className="mb-1.5 font-medium text-gray-700">
-            Health History{' '}
-            <Text className="text-xs font-normal text-gray-400">(optional)</Text>
-          </Text>
-          <TextInput
-            value={userDraft.healthHistory}
-            onChangeText={(value: string) => handleFieldChange('healthHistory', value)}
-            placeholder="Briefly describe your medical history, conditions, or allergies"
-            placeholderTextColor="#9CA3AF"
-            multiline
-            numberOfLines={5}
-            textAlignVertical="top"
-            className={`rounded-xl p-3 text-sm text-gray-800 ${
-              fieldErrors.healthHistory
-                ? 'border border-red-300 bg-red-50'
-                : 'bg-[#F2F4F7]'
-            }`}
-            style={{ minHeight: 100, paddingVertical: 12 }}
-          />
-          <ErrorMessage fieldName="healthHistory" fieldErrors={fieldErrors} />
         </View>
 
         <View className="mt-6 mb-4">
