@@ -143,7 +143,7 @@ export default function SettingsScreen() {
           icon: 'shield-checkmark-outline',
           label: 'Privacy Policy',
           sublabel: 'How we handle your data',
-          onPress: () => router.push('/policy'),
+          onPress: () => router.push('/privacy'),
         },
       ],
     },

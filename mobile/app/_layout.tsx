@@ -32,7 +32,7 @@ export default function RootLayout() {
           <Stack.Screen name="physician-pending" options={{ gestureEnabled: false, animation: 'fade' }} />
           {/* Legal pages — publicly accessible, no auth required */}
           <Stack.Screen name="terms" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="policy" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="privacy" options={{ animation: 'slide_from_right' }} />
           {/* Auth group — gestures disabled; replace() clears history on login success */}
           <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
         </Stack>

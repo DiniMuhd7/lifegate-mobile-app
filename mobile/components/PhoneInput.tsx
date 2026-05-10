@@ -43,6 +43,7 @@ export const PhoneNumberInput: React.FC<PhoneInputProps> = ({
           onChangePhoneNumber={handleInputValue}
           selectedCountry={selectedCountry}
           onChangeSelectedCountry={handleSelectedCountry}
+          defaultCountry="NG"
           defaultValue=""
           className='bg-[#F2F4F7] border-none'
         />

@@ -15,6 +15,8 @@ export type User = {
   dob?: string;
   gender?: string;
   language?: string;
+  country?: string | null;
+  state?: string | null;
   
   // Health information
   health_history?: string;

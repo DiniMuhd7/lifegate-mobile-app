@@ -22,6 +22,9 @@ import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { Dropdown } from 'components/DropDown';
 import { DOBInput } from 'components/DobPicker';
+import { CountryPicker } from 'components/CountryPicker';
+import { SuggestInput } from 'components/SuggestInput';
+import { NIGERIA_STATES } from 'constants/geo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // iOS system palette
@@ -153,6 +156,8 @@ export default function ManageProfileScreen() {
     phone:     user?.phone  || '',
     dob:       user?.dob    || '',
     gender:    user?.gender || '',
+    country:   user?.country ?? '',
+    state:     user?.state   ?? '',
   });
   const [pwdForm, setPwdForm] = useState({ current: '', new: '', confirm: '' });
 
@@ -165,6 +170,8 @@ export default function ManageProfileScreen() {
         phone:     user?.phone  || '',
         dob:       user?.dob    || '',
         gender:    user?.gender || '',
+        country:   user?.country ?? '',
+        state:     user?.state   ?? '',
       });
     }
   }, [user]);
@@ -223,8 +230,18 @@ export default function ManageProfileScreen() {
       dob:    dobValue               || undefined,
       gender: editForm.gender.trim() || undefined,
     });
-    if (ok) { Alert.alert('Saved', 'Profile updated successfully'); setShowEditModal(false); }
-    else Alert.alert('Error', 'Failed to update profile.');
+    if (ok) {
+      const countryChanged = editForm.country !== (user?.country ?? '');
+      const stateChanged   = editForm.state   !== (user?.state   ?? '');
+      if (countryChanged || stateChanged) {
+        await updateHealthProfile({
+          country: editForm.country.trim() || null,
+          state:   editForm.state.trim()   || null,
+        });
+      }
+      Alert.alert('Saved', 'Profile updated successfully');
+      setShowEditModal(false);
+    } else Alert.alert('Error', 'Failed to update profile.');
   };
 
   const handleChangePwd = async () => {
@@ -315,6 +332,8 @@ export default function ManageProfileScreen() {
             <SysRow icon="call"             iconBg="#34C759" label="Phone"         value={user.phone}      chevron onPress={() => setShowEditModal(true)} />
             <SysRow icon="people"           iconBg="#FF9500" label="Gender"        value={genderDisplay}   chevron onPress={() => setShowEditModal(true)} />
             <SysRow icon="calendar"         iconBg="#5856D6" label="Date of Birth" value={formattedDob || user.dob} chevron onPress={() => setShowEditModal(true)} />
+            <SysRow icon="location-outline" iconBg="#0EA5A4" label="Country"       value={user.country ?? ''} chevron onPress={() => setShowEditModal(true)} />
+            <SysRow icon="map-outline"      iconBg="#34C759" label="State"         value={user.state   ?? ''} chevron onPress={() => setShowEditModal(true)} />
             <SysRow icon="card"             iconBg="#8E8E93" label="Patient ID"    value={user.patient_id} last />
           </View>
 
@@ -439,6 +458,20 @@ export default function ManageProfileScreen() {
                   <LabeledInput label="Phone Number" placeholder="Phone Number" keyboardType="phone-pad" value={editForm.phone} onChangeText={(t) => setEditForm({ ...editForm, phone: t })} />
                   <DOBInput label="Date of Birth" value={parseYMD(editForm.dob)} onChange={(date: Date) => setEditForm({ ...editForm, dob: fmt(date) })} />
                   <Dropdown label="Gender" options={GENDER_OPTIONS} placeholder="Select gender" selectedValue={editForm.gender} onChange={(value) => setEditForm({ ...editForm, gender: value })} />
+                  <CountryPicker
+                    label="Country"
+                    value={editForm.country}
+                    onChange={(v) => setEditForm({ ...editForm, country: v, state: v !== editForm.country ? '' : editForm.state })}
+                    placeholder="Select your country…"
+                  />
+                  <SuggestInput
+                    value={editForm.state}
+                    onChangeText={(v) => setEditForm({ ...editForm, state: v })}
+                    suggestions={editForm.country === 'Nigeria' ? NIGERIA_STATES : []}
+                    placeholder={editForm.country === 'Nigeria' ? 'Search state…' : 'Enter state or province'}
+                    placeholderTextColor="#9CA3AF"
+                    inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
+                  />
                 </ScrollView>
                 <View style={s.sheetActions}>
                   <View style={{ flex: 1, marginRight: 10 }}>

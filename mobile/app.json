@@ -49,14 +49,15 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dshub.lifegate"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.lazyapp.lifegatemobile",
+      "package": "com.dshub.lifegate",
       "softwareKeyboardLayoutMode": "pan"
     },
     "extra": {

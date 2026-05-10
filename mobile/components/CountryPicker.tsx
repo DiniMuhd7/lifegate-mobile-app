@@ -100,15 +100,17 @@ export function CountryPicker({
         transparent
         onRequestClose={() => setOpen(false)}>
         {/*
-         * Outer Pressable = full-screen backdrop. Tapping it closes the sheet.
-         * Inner View uses onStartShouldSetResponder to capture all touches
-         * inside the sheet so they never bubble up to the backdrop Pressable.
-         * This fixes the Android issue where an absoluteFill sibling Pressable
-         * intercepted taps meant for the sheet's FlatList / TextInput.
+         * Split layout: a Pressable backdrop above the sheet closes it on tap,
+         * and the sheet View is a plain View so all inner children (FlatList,
+         * TextInput, Pressable) receive touches normally without any responder
+         * interception. This is the correct pattern for Android + iOS.
          */}
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          {/* Backdrop — tapping outside the sheet closes it */}
+          <Pressable style={{ flex: 1 }} onPress={() => setOpen(false)} />
+
           {/* Sheet */}
-          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+          <View style={styles.sheet}>
             {/* Drag handle */}
             <View style={styles.handle} />
 
@@ -160,7 +162,7 @@ export function CountryPicker({
 
             {Platform.OS === 'ios' && <View style={{ height: 20 }} />}
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </View>
   );
@@ -189,11 +191,8 @@ const styles = StyleSheet.create({
   },
   triggerText: { flex: 1, fontSize: 14, color: '#111827' },
   triggerPlaceholder: { color: '#9CA3AF' },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
+  emptyWrap: { padding: 32, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: '#9CA3AF' },
   sheet: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
