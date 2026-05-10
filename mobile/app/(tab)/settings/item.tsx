@@ -20,9 +20,9 @@ import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { DOBInput } from 'components/DobPicker';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
-import { CountryPicker } from 'components/CountryPicker';
+import { SearchableDropdown } from 'components/SearchableDropdown';
 import { SuggestInput } from 'components/SuggestInput';
-import { NIGERIA_STATES } from 'constants/geo';
+import { NIGERIA_STATES, COUNTRIES } from 'constants/geo';
 
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
@@ -432,10 +432,12 @@ export default function ItemScreen() {
                 onChange={(value: string) => setGender(value)}
               />
 
-              <CountryPicker
+              <SearchableDropdown
                 label="Country"
-                value={country}
+                options={COUNTRIES.map((c) => ({ label: c, value: c }))}
+                selectedValue={country}
                 onChange={(v) => { setCountry(v); if (v !== 'Nigeria') setState(''); }}
+                searchPlaceholder="Search country…"
                 placeholder="Select your country…"
               />
 
