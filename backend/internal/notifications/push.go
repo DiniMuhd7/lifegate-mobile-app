@@ -133,13 +133,26 @@ func (s *Service) BroadcastToAllPhysicians(ctx context.Context, title, body stri
 // ─── Internal ────────────────────────────────────────────────────────────────
 
 type pushMessage struct {
-	To    string            `json:"to"`
-	Title string            `json:"title"`
-	Body  string            `json:"body"`
-	Data  map[string]string `json:"data,omitempty"`
+	To        string            `json:"to"`
+	Title     string            `json:"title"`
+	Body      string            `json:"body"`
+	Sound     string            `json:"sound,omitempty"`
+	ChannelId string            `json:"channelId,omitempty"`
+	Data      map[string]string `json:"data,omitempty"`
 }
 
 func (s *Service) send(ctx context.Context, msgs []pushMessage) {
+	// Apply default sound and Android notification channel to every outgoing
+	// message so the device plays a sound and shows the registered app icon.
+	for i := range msgs {
+		if msgs[i].Sound == "" {
+			msgs[i].Sound = "default"
+		}
+		if msgs[i].ChannelId == "" {
+			msgs[i].ChannelId = "default"
+		}
+	}
+
 	payload, err := json.Marshal(msgs)
 	if err != nil {
 		log.Printf("[push] marshal error: %v", err)

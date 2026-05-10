@@ -50,13 +50,16 @@ func (h *Handler) ListVideos(c *gin.Context) {
 		rewardedIDs = []string{}
 	}
 
+	trendingCategories := h.svc.GetTrendingCategories()
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"videos":      videos,
-			"total":       len(videos),
-			"dailyCap":    DailyVideoCap,
-			"rewardedIds": rewardedIDs,
+			"videos":             videos,
+			"total":              len(videos),
+			"dailyCap":           DailyVideoCap,
+			"rewardedIds":        rewardedIDs,
+			"trendingCategories": trendingCategories,
 		},
 	})
 }

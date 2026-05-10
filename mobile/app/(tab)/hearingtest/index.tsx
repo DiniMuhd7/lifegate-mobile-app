@@ -701,7 +701,7 @@ export default function HearingTestIndex() {
       setCalibrationStep(ALL_STEPS[currentIdx - 1]);
     } else {
       resetCalibration();
-      router.back();
+      router.replace('/(tab)/profile' as never);
     }
   };
 

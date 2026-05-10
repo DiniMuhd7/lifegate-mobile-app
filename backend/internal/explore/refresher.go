@@ -191,9 +191,30 @@ func (r *Refresher) run(ctx context.Context, language string) {
 
 	log.Printf("[explore/refresher] Starting YouTube video refresh for language=%s…", language)
 
+	// Build the effective category → query map by merging the static base
+	// categories with active trending categories fetched from the DB.
+	// This allows trending categories to be rotated by admins without a deploy.
+	effectiveCategoryQuery := make(map[string]string, len(categoryQuery))
+	for k, v := range categoryQuery {
+		effectiveCategoryQuery[k] = v
+	}
+	if trending, err := r.repo.ListTrendingCategories(); err != nil {
+		log.Printf("[explore/refresher] failed to load trending categories: %v — using static set only", err)
+	} else {
+		for _, tc := range trending {
+			effectiveCategoryQuery[tc.Name] = tc.Query
+			// Register metadata if not already known (prevents nil-map panics
+			// when the refresher constructs Video structs for new categories).
+			if _, ok := categoryMeta[tc.Name]; !ok {
+				categoryMeta[tc.Name] = struct{ color, icon string }{tc.Color, tc.Icon}
+			}
+		}
+		log.Printf("[explore/refresher] loaded %d trending category(s) from DB", len(trending))
+	}
+
 	sortBase := int(time.Now().Unix()) // unique offset per run
 
-	for cat, query := range categoryQuery {
+	for cat, query := range effectiveCategoryQuery {
 		select {
 		case <-ctx.Done():
 			return

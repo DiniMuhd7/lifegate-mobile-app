@@ -31,16 +31,22 @@ const (
 
 	// TimeoutDuration is the hard wall-clock limit for the entire Process call
 	// including all retries. When exceeded, Process returns a graceful fallback.
-	TimeoutDuration = 120 * time.Second
+	//
+	// Set to 90 s so the total worst-case server time (attempt 1 ~60 s via the
+	// ai httpClient + 1 s back-off + attempt 2 ~29 s governed by remaining
+	// context) stays well under the axios 150 s client timeout, ensuring the
+	// graceful fallback is always delivered before the client gives up.
+	TimeoutDuration = 90 * time.Second
 
-	// attemptTimeout is the per-attempt deadline passed to the AI provider.
-	// Each attempt gets its own fresh child context so a slow first response
-	// does not eat into the budget for subsequent retries.
-	attemptTimeout = 50 * time.Second
+	// attemptTimeout caps each individual Process attempt. Each attempt derives
+	// its context from the overall TimeoutDuration context, so the effective
+	// deadline shrinks naturally on the second attempt.
+	attemptTimeout = 90 * time.Second
 
 	// maxRetries is the number of additional attempts after the first failure.
-	// Total attempts = 1 + maxRetries.
-	maxRetries = 2
+	// 1 retry gives a second chance on transient OpenAI errors while keeping
+	// total worst-case server time (60 s + 1 s + ~29 s = 90 s) under 150 s.
+	maxRetries = 1
 
 	// retryBaseDelay is the initial back-off delay between retries.
 	// Each subsequent retry doubles the delay (1 s → 2 s).

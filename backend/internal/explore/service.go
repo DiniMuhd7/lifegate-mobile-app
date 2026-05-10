@@ -127,6 +127,20 @@ func (s *Service) GetDailyRewardedIDs(userID string) ([]string, error) {
 	return s.repo.GetDailyRewardedIDs(userID)
 }
 
+// GetTrendingCategories returns the active trending categories from the DB.
+// Returns an empty slice (never nil) on error so the API response degrades
+// gracefully rather than failing the whole videos request.
+func (s *Service) GetTrendingCategories() []TrendingCategory {
+	cats, err := s.repo.ListTrendingCategories()
+	if err != nil {
+		return []TrendingCategory{}
+	}
+	if cats == nil {
+		return []TrendingCategory{}
+	}
+	return cats
+}
+
 // ClaimReward records a reward and returns how many coins were earned.
 // On success it also credits the user's Lifecoins wallet (best-effort).
 func (s *Service) ClaimReward(userID, videoID string) (coinsEarned int, alreadyClaimed bool, capReached bool, err error) {

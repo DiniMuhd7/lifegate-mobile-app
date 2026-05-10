@@ -92,6 +92,13 @@ export async function registerPhysicianPushToken(): Promise<void> {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
     });
+    // 'default' channel is required so push messages that specify channelId:"default"
+    // resolve to a properly configured channel with the app icon.
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Notifications',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+    });
   }
 
   const projectId =
@@ -203,6 +210,13 @@ export async function registerPatientPushToken(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('patient-updates', {
       name: 'Health & Case Updates',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+    });
+    // 'default' channel so backend push messages using channelId:"default" resolve
+    // to a properly configured channel that shows the app icon.
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Notifications',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
     });

@@ -25,7 +25,7 @@ export default function RegisterLayout() {
   const totalSteps = 3;
 
   const goBack = () => {
-    if (currentStep === 1) {
+    if (currentStep === 1 || !router.canGoBack()) {
       router.replace('/(auth)/register-choice');
     } else {
       router.back();

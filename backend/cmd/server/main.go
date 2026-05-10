@@ -364,6 +364,22 @@ func main() {
 			if c.Query("category") == "clinical_diagnosis" {
 				uid, _ := c.Get("userID")
 				uidStr, _ := uid.(string)
+
+				// Skip credit deduction when the patient is continuing an existing
+				// active or pending case — only new sessions must consume a credit.
+				diagnosisID := c.Query("diagnosisId")
+				if diagnosisID != "" {
+					var count int
+					if qErr := database.QueryRowContext(c.Request.Context(),
+						`SELECT COUNT(1) FROM diagnoses
+						 WHERE id = $1::uuid AND user_id = $2::uuid
+						   AND status IN ('Pending', 'Active')`,
+						diagnosisID, uidStr).Scan(&count); qErr == nil && count > 0 {
+						genaiHandler.Chat(c)
+						return
+					}
+				}
+
 				ok, err := paymentsSvc.DeductCredit(uidStr, "")
 				if err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Credit check failed"})

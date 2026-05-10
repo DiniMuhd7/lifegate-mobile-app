@@ -26,6 +26,8 @@ type ProfileState = {
     current_medications?: string | null;
     emergency_contact?: string | null;
     language?: string | null;
+    country?: string | null;
+    state?: string | null;
   }) => Promise<boolean>;
   changePassword: (
     currentPassword: string,

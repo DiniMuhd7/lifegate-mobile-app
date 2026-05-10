@@ -865,7 +865,7 @@ export default function EyeTestCalibration() {
               if (canGoBack) {
                 handleBack();
               } else {
-                router.back();
+                router.replace('/(tab)/profile' as never);
               }
             }}
             hitSlop={10}

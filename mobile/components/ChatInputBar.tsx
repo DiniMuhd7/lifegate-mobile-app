@@ -161,18 +161,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     setVoiceState(s);
   }, []);
 
-  // Pre-warm microphone permission on web unconditionally at mount time.
-  // This guarantees the browser permission dialog appears once (at startup)
-  // rather than inside the hold gesture, where the dialog's "Allow" click
-  // fires pointerleave on the Pressable → onPressOut → pressActiveRef=false
-  // → recording silently cancelled before it can start.
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    navigator.mediaDevices
-      ?.getUserMedia({ audio: true })
-      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
-      .catch(() => {/* user may deny — that's fine, handled at press time */});
-  }, []);
+  // Tracks whether the browser has already granted microphone permission.
+  // Set to true the first time getUserMedia succeeds so subsequent holds
+  // skip the permission-check path and go straight to recording.
+  const webMicPermissionGrantedRef = useRef(false);
+
+  // Same pattern for camera — avoids the camera modal opening while the
+  // browser permission dialog is also visible on first press.
+  const webCameraPermissionGrantedRef = useRef(false);
 
   // ── Waveform bar animations ──────────────────────────────────────────────
   const barAnims = useRef(
@@ -365,6 +361,31 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
   const startRecordingWeb = useCallback(async (): Promise<boolean> => {
     try {
+      // If microphone permission hasn't been granted yet, request it now.
+      // We must NOT start recording during the dialog — the browser dialog's
+      // "Allow" click fires pointerleave on the Pressable which would cancel
+      // the hold gesture. So we request, mark granted, and return false so
+      // the user simply presses the mic again to start the actual recording.
+      if (!webMicPermissionGrantedRef.current) {
+        let alreadyGranted = false;
+        try {
+          const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          alreadyGranted = result.state === 'granted';
+        } catch {
+          // permissions API not supported — fall through to getUserMedia check
+        }
+        if (!alreadyGranted) {
+          // This may show a browser permission dialog; return false so that
+          // the hold gesture is not active while the dialog is open.
+          await navigator.mediaDevices
+            .getUserMedia({ audio: true })
+            .then((s) => { s.getTracks().forEach((t) => t.stop()); webMicPermissionGrantedRef.current = true; })
+            .catch(() => {});
+          return false;
+        }
+        webMicPermissionGrantedRef.current = true;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const ctx = new AudioContext();
       const source = ctx.createMediaStreamSource(stream);
@@ -427,10 +448,30 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const handleCameraPress = useCallback(async () => {
     if (disabled || voiceState !== 'idle' || ocrState !== 'idle') return;
 
-    // On web, CameraView triggers the browser's own getUserMedia permission
-    // dialog when it mounts — navigator.permissions.request is not supported
-    // in Chrome so we must NOT call requestCameraPermission() on web.
-    if (Platform.OS !== 'web') {
+    if (Platform.OS === 'web') {
+      // On web, CameraView triggers the browser's getUserMedia dialog when it
+      // mounts. To avoid the camera modal opening at the same time as the
+      // permission dialog, we request camera access on the first press and
+      // return early. The user presses the icon again to open the camera once
+      // permission is granted.
+      if (!webCameraPermissionGrantedRef.current) {
+        let alreadyGranted = false;
+        try {
+          const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          alreadyGranted = result.state === 'granted';
+        } catch {
+          // permissions API not supported — fall through to getUserMedia
+        }
+        if (!alreadyGranted) {
+          await navigator.mediaDevices
+            ?.getUserMedia({ video: true })
+            .then((s) => { s.getTracks().forEach((t) => t.stop()); webCameraPermissionGrantedRef.current = true; })
+            .catch(() => {});
+          return;
+        }
+        webCameraPermissionGrantedRef.current = true;
+      }
+    } else {
       if (!cameraPermission?.granted) {
         const result = await requestCameraPermission();
         if (!result.granted) {

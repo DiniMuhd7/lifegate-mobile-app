@@ -28,7 +28,8 @@ export class ChatService {
     userMessage: string,
     category?: string,
     mode?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    existingDiagnosisId?: string,
   ): Promise<AIResponse> {
     const clientStart = Date.now();
     const LATENCY_TARGET_MS = 500;
@@ -52,8 +53,15 @@ export class ChatService {
 
       // Send ?category=clinical_diagnosis as query param so the credit gate
       // middleware can read it without consuming the request body.
+      // Also send ?diagnosisId when continuing an existing active case so the
+      // backend skips the credit deduction for that conversation.
       const queryParams = mode === 'clinical_diagnosis'
-        ? { params: { category: 'clinical_diagnosis' } }
+        ? {
+            params: {
+              category: 'clinical_diagnosis',
+              ...(existingDiagnosisId ? { diagnosisId: existingDiagnosisId } : {}),
+            },
+          }
         : {};
 
       // Call backend endpoint
@@ -110,9 +118,16 @@ export class ChatService {
       if (isCreditGate) {
         throw new Error('INSUFFICIENT_CREDITS');
       }
-      throw new Error(
+
+      // Detect axios timeout (ECONNABORTED) or network-level failure so the
+      // caller (fetchAIResponse) can do one automatic retry.
+      const axiosCode = String(error?.code ?? '');
+      const isTimeout = axiosCode === 'ECONNABORTED' || axiosCode === 'ERR_NETWORK';
+      const err = new Error(
         'I encountered an error analyzing your symptoms. Please try again or consult a professional.'
-      );
+      ) as Error & { retryable?: boolean };
+      err.retryable = isTimeout;
+      throw err;
     }
   }
 

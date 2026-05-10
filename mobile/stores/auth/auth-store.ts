@@ -114,7 +114,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         set({ isAuthenticated: false, sessionLoading: false });
       }
     } catch {
-      await removeRefreshToken();
+      // A network/timeout error — the refresh token may still be valid.
+      // Do NOT delete it here; only the server's explicit rejection (handled
+      // in the result.success === false branch above) warrants token removal.
+      // Keeping the token means "Try Again" can succeed once connectivity is
+      // restored (e.g. after returning from an external payment browser).
       setAccessToken(null);
       set({ isAuthenticated: false, user: null, sessionLoading: false, sessionError: true });
     } finally {

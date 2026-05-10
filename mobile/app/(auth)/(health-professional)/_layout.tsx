@@ -34,7 +34,7 @@ export default function RegisterLayout() {
    * Step 1 should go to login instead of exiting the app
    */
   const goBack = () => {
-    if (currentStep === 1) {
+    if (currentStep === 1 || !router.canGoBack()) {
       router.replace('/(auth)/register-choice');
     } else {
       router.back();

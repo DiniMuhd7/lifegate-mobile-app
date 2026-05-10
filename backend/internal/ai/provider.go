@@ -3,6 +3,7 @@ package ai
 import (
 "context"
 "fmt"
+"time"
 
 "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 )
@@ -313,14 +314,31 @@ providers []AIProvider
 
 func (a *autoProvider) Name() string { return "auto" }
 
+// perProviderTimeout caps each individual provider attempt inside autoProvider.
+// Applies only when AI_PROVIDER=auto; with a single provider (e.g. openai) the
+// EDIS attemptTimeout context governs the request deadline directly.
+const perProviderTimeout = 25 * time.Second
+
 func (a *autoProvider) Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIResponse, error) {
 var lastErr error
 for _, p := range a.providers {
-resp, err := p.Chat(ctx, systemPrompt, messages)
+// Stop immediately when the outer EDIS deadline has expired.
+if ctx.Err() != nil {
+break
+}
+// Each provider gets its own bounded context derived from the outer one.
+// If the outer context has less time left than perProviderTimeout, the
+// child inherits the tighter deadline automatically.
+provCtx, cancel := context.WithTimeout(ctx, perProviderTimeout)
+resp, err := p.Chat(provCtx, systemPrompt, messages)
+cancel()
 if err == nil {
 return resp, nil
 }
 lastErr = err
+}
+if lastErr == nil {
+lastErr = ctx.Err()
 }
 return nil, fmt.Errorf("all AI providers failed; last error: %w", lastErr)
 }

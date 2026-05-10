@@ -431,8 +431,9 @@ export default function IntroScreen() {
 
   const isLast = currentIndex === slides.length - 1;
 
-  // Height of bottom controls area so slides can pad themselves accordingly
-  const CONTROLS_HEIGHT = 144 + insets.bottom;
+  // Height of bottom controls area so slides can pad themselves accordingly.
+  // Kept tightly matched to the actual controls to avoid excessive blank space.
+  const CONTROLS_HEIGHT = 124 + insets.bottom;
 
   const completeIntro = useCallback(async () => {
     await AsyncStorage.setItem(INTRO_SEEN_KEY, 'true');
@@ -515,7 +516,7 @@ export default function IntroScreen() {
           left: 0,
           right: 0,
           paddingHorizontal: 28,
-          paddingBottom: insets.bottom + 28,
+          paddingBottom: insets.bottom + 12,
           paddingTop: 20,
         }}
       >

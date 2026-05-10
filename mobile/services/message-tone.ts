@@ -1,4 +1,5 @@
 import { Audio } from 'expo-av';
+import { Platform } from 'react-native';
 
 // Short 880Hz chirp (~120ms) encoded as WAV to avoid shipping extra binary assets.
 const IM_TONE_URI =
@@ -30,6 +31,18 @@ export async function playIMArrivalTone(): Promise<void> {
   // Prevent overlapping chirps when several events arrive nearly together.
   if (now - lastPlayedAt < 350) return;
   lastPlayedAt = now;
+
+  // On web use the browser's native Audio API — expo-av's Sound.createAsync
+  // does not reliably play data: URIs in all browser environments.
+  if (Platform.OS === 'web') {
+    try {
+      // eslint-disable-next-line no-new -- new Audio is intentional
+      new globalThis.Audio(IM_TONE_URI).play();
+    } catch {
+      // Silent failure — tone is a non-critical UX enhancement.
+    }
+    return;
+  }
 
   try {
     await ensureAudioMode();

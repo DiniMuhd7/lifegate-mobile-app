@@ -47,6 +47,8 @@ type ConversationSnapshot = {
   previousConversation: Conversation;
   mode?: SessionMode;
   category?: ConversationCategory;
+  /** diagnosisId of an existing active/pending case being continued in this turn. */
+  existingDiagnosisId?: string;
 };
 
 export type ChatState = {
@@ -316,14 +318,33 @@ function appendAIMessage(
   };
 }
 
-async function fetchAIResponse(snapshot: ConversationSnapshot, signal: AbortSignal) {
-  return ChatService.sendMessage(
-    snapshot.previousMessages,
-    snapshot.userMessage.text,
-    snapshot.category,
-    snapshot.mode,
-    signal
-  );
+async function fetchAIResponse(
+  snapshot: ConversationSnapshot,
+  signal: AbortSignal,
+  attempt = 0
+): Promise<AIResponse> {
+  try {
+    return await ChatService.sendMessage(
+      snapshot.previousMessages,
+      snapshot.userMessage.text,
+      snapshot.category,
+      snapshot.mode,
+      signal,
+      snapshot.existingDiagnosisId,
+    );
+  } catch (err) {
+    // Never retry when the user cancelled the request or it's a credit error.
+    if (signal.aborted) throw err;
+    if ((err as Error).message === 'INSUFFICIENT_CREDITS') throw err;
+    // On a timeout or network error, wait 2 s and retry once.
+    // By then the server is warm and AI providers have had time to recover.
+    if ((err as any).retryable === true && attempt === 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 2_000));
+      if (signal.aborted) throw err;
+      return fetchAIResponse(snapshot, signal, 1);
+    }
+    throw err;
+  }
 }
 
 async function finalizeDiagnosis(sessionId: string, conversationId: string, aiMessageId: string) {
@@ -596,6 +617,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ processingPhase: 'analyzing' });
 
+      // Find the most recent diagnosisId from the conversation's AI messages.
+      // When present it means the patient is continuing an existing case so the
+      // backend should skip credit deduction for this turn.
+      const existingDiagnosisId = [...conversationSnapshot.messages]
+        .reverse()
+        .find((m) => m.role === 'AI' && !!m.diagnosisId)?.diagnosisId;
+
+      // Inject a one-time notice so the patient knows no credits will be charged
+      // when they continue triage on an already-opened case.
+      if (existingDiagnosisId && conversationSnapshot.mode === 'clinical_diagnosis') {
+        const alreadyNotified = conversationSnapshot.messages.some(
+          (m) => m.role === 'SYSTEM' && m.text.startsWith('Continuing your existing case')
+        );
+        if (!alreadyNotified) {
+          injectSystemMessage(
+            conversationId,
+            'Continuing your existing case — no credits will be charged for this triage session.',
+            'INFO'
+          );
+        }
+      }
+
       const snapshot: ConversationSnapshot = {
         conversationId,
         requestId,
@@ -606,6 +649,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         previousConversation: conversationSnapshot,
         mode: conversationSnapshot.mode,
         category: conversationSnapshot.category,
+        existingDiagnosisId,
       };
 
       set({ processingPhase: 'generating' });

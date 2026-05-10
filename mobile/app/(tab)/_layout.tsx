@@ -242,10 +242,13 @@ export default function TabLayout() {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) {
-        router.back();
-        return true;
+        // Return false to let Expo Router handle back navigation naturally.
+        // Calling router.back() here AND letting Expo Router also handle the
+        // event causes a double-navigation that crashes on nested stacks
+        // (e.g. Settings → About/Help Centre/Terms/Privacy).
+        return false;
       }
-      // At the root of the authenticated area — exit the app cleanly
+      // At the root of the authenticated area — exit the app cleanly.
       BackHandler.exitApp();
       return true;
     });

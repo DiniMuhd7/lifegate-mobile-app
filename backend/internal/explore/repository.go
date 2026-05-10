@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+// TrendingCategory is a server-managed trending health category.
+// Rows in explore_trending_categories can be toggled or replaced by admins
+// at any time to rotate what appears as "trending" on the Explore screen.
+type TrendingCategory struct {
+	Name  string `json:"name"`
+	Query string `json:"query"`
+	Color string `json:"color"`
+	Icon  string `json:"icon"`
+}
+
 // Video is a health education video record stored in the DB.
 type Video struct {
 	ID              string `json:"id"`
@@ -235,4 +245,30 @@ func (r *Repository) DeactivateOldVideos(category, language, today string) error
 		  AND  DATE(updated_at) < $3::date
 	`, category, language, today)
 	return err
+}
+
+// ListTrendingCategories returns all active rows from explore_trending_categories.
+// The refresher calls this before each run so newly activated / deactivated
+// trending categories are picked up automatically without a code deployment.
+func (r *Repository) ListTrendingCategories() ([]TrendingCategory, error) {
+	rows, err := r.db.Query(`
+		SELECT name, query, color, icon
+		FROM   explore_trending_categories
+		WHERE  is_active = TRUE
+		ORDER  BY created_at ASC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cats []TrendingCategory
+	for rows.Next() {
+		var c TrendingCategory
+		if err := rows.Scan(&c.Name, &c.Query, &c.Color, &c.Icon); err != nil {
+			return nil, err
+		}
+		cats = append(cats, c)
+	}
+	return cats, rows.Err()
 }

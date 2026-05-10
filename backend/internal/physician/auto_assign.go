@@ -106,7 +106,7 @@ func (s *Service) reassignStaleActiveCases(ctx context.Context) {
 	}
 
 	for _, c := range cases {
-		newPhysicianID, newPhysicianName, findErr := s.repo.findAvailableVerifiedPhysician(ctx, c.CurrentPhysician)
+		newPhysicianID, _, findErr := s.repo.findAvailableVerifiedPhysician(ctx, c.CurrentPhysician)
 		if findErr != nil {
 			log.Printf("[physician-auto-assign] pick reassignment physician for case %s: %v", c.CaseID, findErr)
 			continue
@@ -126,9 +126,16 @@ func (s *Service) reassignStaleActiveCases(ctx context.Context) {
 
 		s.broadcastQueueChange(c.CaseID, newPhysicianID, "Active")
 
-		doctorName := normalizedDoctorName(newPhysicianName)
-		message := fmt.Sprintf("Hello, I am Dr. %s and your case has been reassigned to me and will be reviewed within 15 minutes.", doctorName)
-		s.notifyPatientWithAutomatedDoctorMessage(ctx, c.CaseID, patientID, newPhysicianID, doctorName, message, true)
+		// On reassignment send a push-only notification — no IM is inserted so the
+		// patient is not flooded with automated messages each time a stale case is
+		// handed to a new physician during the 30-minute rotation cycle.
+		if s.push != nil {
+			s.push.SendToUser(ctx, patientID,
+				"Case Reassigned",
+				"Your case has been reassigned to another verified doctor and will be reviewed shortly.",
+				map[string]string{"type": "case_reassigned", "diagnosisId": c.CaseID},
+			)
+		}
 	}
 }
 

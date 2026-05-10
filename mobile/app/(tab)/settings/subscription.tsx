@@ -389,6 +389,48 @@ export default function SubscriptionScreen() {
 
   const selectedBundleData = displayBundles.find((bundle) => bundle.id === selectedBundle);
 
+  type BenefitItem = { icon: React.ComponentProps<typeof Ionicons>['name']; text: string };
+
+  /** Returns the full list of benefits for a bundle based on its tier. */
+  function bundleBenefits(credits: number, idx: number, totalBundles: number): BenefitItem[] {
+    const isFirst = idx === 0;
+    const isLast = idx === totalBundles - 1;
+
+    const base: BenefitItem[] = [
+      { icon: 'pulse-outline',            text: 'AI-powered symptom triage per session' },
+      { icon: 'medical-outline',          text: 'Licensed physician case review' },
+      { icon: 'document-text-outline',    text: 'Diagnosis report & care recommendations' },
+    ];
+
+    if (credits === 1) {
+      return [
+        ...base,
+        { icon: 'flash-outline',          text: 'Single-use — buy more anytime' },
+      ];
+    }
+    if (isFirst) {
+      return [
+        ...base,
+        { icon: 'wallet-outline',         text: `${credits} sessions for occasional consultations` },
+        { icon: 'infinite-outline',       text: 'Credits never expire' },
+      ];
+    }
+    if (isLast) {
+      return [
+        ...base,
+        { icon: 'diamond-outline',        text: `${credits} sessions at the lowest per-credit rate` },
+        { icon: 'people-outline',         text: 'Ideal for ongoing or chronic care' },
+        { icon: 'infinite-outline',       text: 'Credits never expire' },
+        { icon: 'shield-checkmark-outline', text: 'Priority case handling' },
+      ];
+    }
+    return [
+      ...base,
+      { icon: 'calendar-outline',         text: `${credits} sessions — covers regular monthly check-ins` },
+      { icon: 'infinite-outline',         text: 'Credits never expire' },
+    ];
+  }
+
   return (
     <View className="flex-1 bg-[#F2F8F8]">
       <SafeAreaView className="flex-1" edges={['top']}>
@@ -516,9 +558,14 @@ export default function SubscriptionScreen() {
                   ) : null}
                 </View>
                 <Text className="text-base font-semibold text-gray-900">{bundle.credits} Credits</Text>
-                <Text className="mt-1 text-sm text-gray-600 leading-5">
-                  Access to AI triage and licensed clinician diagnostics.
-                </Text>
+                <View className="mt-3 gap-1.5">
+                  {bundleBenefits(bundle.credits, idx, displayBundles.length).map((benefit, bIdx) => (
+                    <View key={bIdx} className="flex-row items-center gap-2">
+                      <Ionicons name={benefit.icon} size={14} color="#0EA5A4" />
+                      <Text className="flex-1 text-sm text-gray-600 leading-5">{benefit.text}</Text>
+                    </View>
+                  ))}
+                </View>
 
                 <View className="mt-3 flex-row items-center justify-end">
                   <View

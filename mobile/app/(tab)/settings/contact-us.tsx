@@ -24,7 +24,7 @@ export default function AboutScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#F2F8F8]" edges={['top']}>
       <View className="flex-row items-center justify-between px-4 pt-3 pb-4">
-        <Pressable onPress={() => router.back()} className="p-2 rounded-full bg-white">
+        <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tab)/settings')} className="p-2 rounded-full bg-white">
           <Ionicons name="chevron-back" size={22} color="#111827" />
         </Pressable>
         <Text className="text-xl font-black text-gray-900">About</Text>
