@@ -171,7 +171,7 @@ export default function WelcomeScreen() {
           <View style={{ width: '100%', gap: 12, marginTop: 'auto' }}>
             {/* Primary CTA */}
             <Pressable
-              onPress={() => router.push('/(auth)/login')}
+              onPress={() => router.replace('/(auth)/login')}
               accessibilityRole="button"
               style={({ pressed }) => ({
                 backgroundColor: 'white',
@@ -192,7 +192,7 @@ export default function WelcomeScreen() {
 
             {/* Secondary CTA */}
             <Pressable
-              onPress={() => router.push('/(prof-tab)/review')}
+              onPress={() => router.replace('/(prof-tab)/review')}
               accessibilityRole="button"
               style={({ pressed }) => ({
                 borderRadius: 18,

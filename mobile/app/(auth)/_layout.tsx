@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { BackHandler } from 'react-native';
 import { LoadingScreen } from 'components/LoadingScreen';
 import { Stack, router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
@@ -8,6 +9,22 @@ export default function AuthLayout() {
   const user = useAuthStore((s) => s.user);
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
   const navigationState = useRootNavigationState();
+
+  // Block hardware back from reaching intro/welcome/splash.
+  // Within the auth group, back is allowed between screens (e.g. login → forgot-password)
+  // but must never escape to unauthenticated pre-auth screens.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) {
+        router.back();
+        return true;
+      }
+      // At root of auth group — exit app rather than going back to intro/welcome.
+      BackHandler.exitApp();
+      return true;
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (!navigationState?.key) return;

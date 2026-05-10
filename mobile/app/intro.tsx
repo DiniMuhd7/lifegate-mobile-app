@@ -560,7 +560,7 @@ export default function IntroScreen() {
 
             {/* Sign-in link */}
             <Pressable
-              onPress={() => router.push('/(auth)/login')}
+              onPress={() => router.replace('/(auth)/login')}
               accessibilityRole="link"
               accessibilityLabel="Sign in to your account"
               style={{ alignItems: 'center', paddingVertical: 4 }}
