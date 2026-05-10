@@ -19,6 +19,13 @@ function normalizeStatus(raw: string): keyof typeof STATUS_CONFIG {
   return 'pending';
 }
 
+function formatAmount(amount: number, currency: string): string {
+  if (currency === 'USD') {
+    return `$${(amount / 100).toFixed(2)}`;
+  }
+  return `₦${(amount ?? 0).toLocaleString()}`;
+}
+
 const TransactionItem = ({ item }: { item: PaymentTransaction }) => {
   const key   = normalizeStatus(String(item.status ?? ''));
   const cfg   = STATUS_CONFIG[key];
@@ -26,6 +33,7 @@ const TransactionItem = ({ item }: { item: PaymentTransaction }) => {
   const date  = item.createdAt
     ? new Date(item.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
+  const amountStr = formatAmount(item.amount ?? 0, item.currency ?? 'NGN');
 
   return (
     <View className="flex-row items-center px-5 py-4 border-b border-gray-100">
@@ -40,7 +48,7 @@ const TransactionItem = ({ item }: { item: PaymentTransaction }) => {
           {isTrial ? 'Trial Credits' : cfg.label}
         </Text>
         <Text className="text-gray-500 text-sm">
-          {isTrial ? `+${item.creditsGranted} credits` : `₦${(item.amount ?? 0).toLocaleString()} — +${item.creditsGranted} credits`}
+          {isTrial ? `+${item.creditsGranted} credits` : `${amountStr} — +${item.creditsGranted} credits`}
         </Text>
         <Text className="text-gray-400 text-xs mt-0.5">{item.txRef}</Text>
       </View>

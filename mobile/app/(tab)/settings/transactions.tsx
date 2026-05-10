@@ -19,6 +19,13 @@ const STATUS_STYLE = {
   failed: { bg: '#fee2e2', text: '#991b1b', label: 'Failed' },
 } as const;
 
+function formatAmount(amount: number, currency: string): string {
+  if (currency === 'USD') {
+    return `$${(amount / 100).toFixed(2)}`;
+  }
+  return `₦${(amount ?? 0).toLocaleString()}`;
+}
+
 function TransactionRow({ item }: { item: PaymentTransaction }) {
   const rawStatus = String(item.status ?? '').toLowerCase();
   const normalizedStatus =
@@ -33,6 +40,7 @@ function TransactionRow({ item }: { item: PaymentTransaction }) {
   }) : '';
 
   const isTrial = item.bundleId === 'trial';
+  const amountStr = formatAmount(item.amount ?? 0, item.currency ?? 'NGN');
 
   return (
     <View className="mx-4 mb-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -42,7 +50,7 @@ function TransactionRow({ item }: { item: PaymentTransaction }) {
             <Ionicons name="gift-outline" size={16} color="#b45309" />
           ) : null}
           <Text className="text-base font-bold text-gray-900">
-            {isTrial ? 'Trial Credits' : `₦${(item.amount ?? 0).toLocaleString()}`}
+            {isTrial ? 'Trial Credits' : amountStr}
           </Text>
         </View>
         <View
