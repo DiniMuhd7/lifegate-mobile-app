@@ -33,6 +33,7 @@ export default function RootLayout() {
           {/* Legal pages — publicly accessible, no auth required */}
           <Stack.Screen name="terms" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="privacy" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="delete-account" options={{ animation: 'slide_from_right' }} />
           {/* Auth group — gestures disabled; replace() clears history on login success */}
           <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
         </Stack>
