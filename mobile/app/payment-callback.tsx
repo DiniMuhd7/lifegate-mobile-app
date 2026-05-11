@@ -14,7 +14,7 @@
  */
 import { useEffect, useState } from 'react';
 import { View, Text, Pressable, Platform } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 type FLWStatus = 'successful' | 'cancelled' | 'failed' | string;
@@ -126,6 +126,8 @@ export default function PaymentCallbackPage() {
           onPress={() => {
             if (Platform.OS === 'web' && typeof window !== 'undefined') {
               window.close();
+            } else {
+              router.replace('/(tab)/settings/subscription');
             }
           }}
           style={({ pressed }) => ({
@@ -137,7 +139,7 @@ export default function PaymentCallbackPage() {
           })}
         >
           <Text style={{ color: 'white', fontSize: 15, fontWeight: '700' }}>
-            Close this tab
+            {Platform.OS === 'web' ? 'Close this tab' : 'Return to LifeGate'}
           </Text>
         </Pressable>
 
