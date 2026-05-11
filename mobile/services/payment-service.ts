@@ -2,6 +2,8 @@ import api from './api';
 import type {
   CreditBalance,
   CreditBundle,
+  CreditDeduction,
+  CreditDeductionLogResponse,
   InitiatePaymentResponse,
   PaymentCurrency,
   PaymentTransaction,
@@ -129,6 +131,19 @@ export const PaymentService = {
       { params: { limit } }
     );
     if (!res.data.success) throw new Error('Failed to fetch transactions');
+    return res.data.data;
+  },
+
+  /**
+   * Fetch the authenticated user's DX credit deduction history.
+   * GET /credits/deductions
+   */
+  async getCreditDeductions(limit = 100): Promise<CreditDeductionLogResponse> {
+    const res = await api.get<{ success: boolean; data: CreditDeductionLogResponse }>(
+      '/credits/deductions',
+      { params: { limit } }
+    );
+    if (!res.data.success) throw new Error('Failed to fetch credit deductions');
     return res.data.data;
   },
 };

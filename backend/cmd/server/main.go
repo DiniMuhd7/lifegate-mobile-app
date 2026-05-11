@@ -504,6 +504,7 @@ func main() {
 	api.POST("/payments/verify", middleware.Auth(cfg.JWTSecret), paymentsHandler.VerifyPayment)
 	api.GET("/payments/transactions", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetTransactions)
 	api.GET("/credits/balance", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditBalance)
+	api.GET("/credits/deductions", middleware.Auth(cfg.JWTSecret), paymentsHandler.GetCreditDeductions)
 	api.GET("/referral/stats", middleware.Auth(cfg.JWTSecret), referralHandler.GetStats)
 
 	// Lifecoins wallet — health-engagement rewards and health-insurance waiver redemption.

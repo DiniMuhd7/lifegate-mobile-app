@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { PaymentService } from 'services/payment-service';
-import type { CreditBalance, CreditBundle, PaymentCurrency, PaymentTransaction } from 'types/payment-types';
+import type { CreditBalance, CreditBundle, CreditDeduction, PaymentCurrency, PaymentTransaction } from 'types/payment-types';
 
 interface PaymentState {
   balance: CreditBalance | null;
   bundles: CreditBundle[];
   transactions: PaymentTransaction[];
+  deductions: CreditDeduction[];
   paymentLink: string | null;
   activeTxRef: string | null;
   // Per-operation loading flags prevent unrelated UI from flickering when
@@ -13,6 +14,7 @@ interface PaymentState {
   balanceLoading: boolean;
   bundlesLoading: boolean;
   txLoading: boolean;
+  deductionsLoading: boolean;
   paymentLoading: boolean;
   /** @deprecated Use the per-operation flags above. Kept for backward compat. */
   loading: boolean;
@@ -24,6 +26,7 @@ interface PaymentState {
   getTxStatus: (txRef: string) => Promise<PaymentTransaction>;
   verifyPayment: (txRef: string, flwTxId: string) => Promise<PaymentTransaction>;
   fetchTransactions: (limit?: number) => Promise<void>;
+  fetchDeductions: (limit?: number) => Promise<void>;
   clearError: () => void;
   clearPaymentLink: () => void;
 }
@@ -32,11 +35,13 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
   balance: null,
   bundles: [],
   transactions: [],
+  deductions: [],
   paymentLink: null,
   activeTxRef: null,
   balanceLoading: false,
   bundlesLoading: false,
   txLoading: false,
+  deductionsLoading: false,
   paymentLoading: false,
   loading: false,
   error: null,
@@ -110,6 +115,17 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to load transactions';
       set({ error: msg, txLoading: false, loading: false });
+    }
+  },
+
+  fetchDeductions: async (limit = 100) => {
+    set({ deductionsLoading: true, error: null });
+    try {
+      const res = await PaymentService.getCreditDeductions(limit);
+      set({ deductions: res.deductions ?? [], deductionsLoading: false });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Failed to load credit deductions';
+      set({ error: msg, deductionsLoading: false });
     }
   },
 

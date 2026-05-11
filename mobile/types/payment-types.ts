@@ -47,6 +47,19 @@ export interface TransactionLogResponse {
   total: number;
 }
 
+export interface CreditDeduction {
+  id: string;
+  userId: string;
+  diagnosisId: string;
+  amount: number;
+  createdAt: string;
+}
+
+export interface CreditDeductionLogResponse {
+  deductions: CreditDeduction[];
+  total: number;
+}
+
 // Deep-link callback params from Flutterwave redirect
 export interface FlutterwaveCallbackParams {
   status: 'successful' | 'cancelled' | 'failed';

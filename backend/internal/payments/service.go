@@ -920,6 +920,45 @@ func (s *Service) GetTransactions(userID string, limit int) ([]PaymentTransactio
 	return out, rows.Err()
 }
 
+// CreditDeduction represents a single diagnosis credit deduction event.
+type CreditDeduction struct {
+	ID          string `json:"id"`
+	UserID      string `json:"userId"`
+	DiagnosisID string `json:"diagnosisId"`
+	Amount      int    `json:"amount"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+// GetCreditDeductions returns a user's credit deduction history, optionally
+// joined with the diagnosis title for display purposes.
+func (s *Service) GetCreditDeductions(userID string, limit int) ([]CreditDeduction, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 100
+	}
+	rows, err := s.db.Query(
+		`SELECT cd.id, cd.user_id, COALESCE(cd.diagnosis_id::text,''), cd.amount, cd.created_at::text
+		 FROM credit_deductions cd
+		 WHERE cd.user_id = $1::uuid
+		 ORDER BY cd.created_at DESC
+		 LIMIT $2`,
+		userID, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []CreditDeduction
+	for rows.Next() {
+		var d CreditDeduction
+		if err := rows.Scan(&d.ID, &d.UserID, &d.DiagnosisID, &d.Amount, &d.CreatedAt); err != nil {
+			continue
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
 // normalizeLegacyTrialTransactions repairs rows with non-canonical status values
 // in a single statement so callers pay one round-trip regardless of how many
 // rows need fixing.

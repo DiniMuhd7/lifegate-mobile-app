@@ -228,6 +228,44 @@ func (h *Handler) GetTransactions(c *gin.Context) {
 	})
 }
 
+// GetCreditDeductions returns the authenticated user's DX credit deduction history.
+//
+// @Summary      Get credit deduction history
+// @Tags         credits
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit  query  int  false  "Max results (default 100)"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /credits/deductions [get]
+func (h *Handler) GetCreditDeductions(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	limit := 100
+	if l := c.Query("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil {
+			limit = n
+		}
+	}
+
+	deductions, err := h.svc.GetCreditDeductions(uid, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
+		return
+	}
+	if deductions == nil {
+		deductions = []CreditDeduction{}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"deductions": deductions,
+			"total":      len(deductions),
+		},
+	})
+}
+
 // GetLifecoinBalance returns the authenticated user's Lifecoin wallet balance.
 //
 // @Summary      Get Lifecoin balance
