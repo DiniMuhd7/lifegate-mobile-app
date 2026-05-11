@@ -835,15 +835,30 @@ button:hover{opacity:.88}
 (function(){
   var st="` + status + `"||"successful";
   var txRef="` + txRef + `";
-  var dl='lifegate://payment/callback?status='+encodeURIComponent(st)+'&tx_ref='+encodeURIComponent(txRef);
+	var flwTxId="` + flwTxID + `";
+	var dl='lifegate://payment/callback?status='+encodeURIComponent(st)+'&tx_ref='+encodeURIComponent(txRef)+'&transaction_id='+encodeURIComponent(flwTxId);
+	var fallbackDl='lifegate://settings/subscription?status='+encodeURIComponent(st)+'&tx_ref='+encodeURIComponent(txRef);
+		function closeOrReturnOnWeb(){
+			if(window.opener && !window.opener.closed){
+				try{window.opener.focus();}catch(e){}
+				window.close();
+			}
+			setTimeout(function(){ window.location.href=dl; }, 250);
+			setTimeout(function(){ window.location.href=fallbackDl; }, 1200);
+		}
+	function returnToApp(){
+			// Try closing web callback tab first, then deep-link back to app.
+			// Browsers that block custom-scheme redirects get a secondary fallback route.
+			closeOrReturnOnWeb();
+	}
   // Notify opener tab (web flow opened via window.open).
   if(window.opener){try{window.opener.postMessage({type:'payment_complete',status:st},'*');}catch(e){}}
   // Button: redirect to deep-link (switches to app on mobile; harmless on desktop).
-  document.getElementById('btn').onclick=function(){window.location.href=dl;};
+	document.getElementById('btn').onclick=returnToApp;
   // Auto-redirect countdown.
   var s=5;var t=setInterval(function(){
     document.getElementById('cd').textContent='Returning to app in '+s+'s\u2026';
-    if(--s<0){clearInterval(t);window.location.href=dl;}
+		if(--s<0){clearInterval(t);returnToApp();}
   },1000);
 })();
 </script>

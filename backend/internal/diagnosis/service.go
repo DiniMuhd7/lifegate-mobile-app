@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 )
 
 // DiagnosisDetail is the full patient-facing diagnosis record returned from the API.
@@ -205,10 +206,47 @@ func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON string) {
 	// formally approved the case. This enforces the gate server-side so that
 	// clients inspecting raw API traffic cannot read prescription data before
 	// approval.
-	if !(d.Status == "Completed" && d.PhysicianDecision == "Approved") {
+	isApproved := d.Status == "Completed" && d.PhysicianDecision == "Approved"
+	if !isApproved {
 		d.Prescription = nil
 		d.Prescriptions = nil
+
+		// Some legacy AI summaries may include treatment-like guidance in the
+		// free-text description. Hide those hints until physician approval too.
+		if d.HasPrescription && containsTreatmentGuidance(d.Description) {
+			d.Description = "AI assessment recorded. Treatment recommendations will be visible after physician approval."
+		}
 	}
+}
+
+func containsTreatmentGuidance(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if lower == "" {
+		return false
+	}
+
+	markers := []string{
+		"recommended treatment",
+		"treatment plan",
+		"prescription",
+		"medication",
+		"medicine",
+		"dosage",
+		"take ",
+		"start ",
+		"twice daily",
+		"once daily",
+		"for 7 days",
+		"for 5 days",
+	}
+
+	for _, marker := range markers {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // SubmitOutcome records the patient's self-reported follow-up outcome.

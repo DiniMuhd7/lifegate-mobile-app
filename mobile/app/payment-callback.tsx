@@ -18,12 +18,30 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 type FLWStatus = 'successful' | 'cancelled' | 'failed' | string;
+const WEB_RETURN_PATH = '/(tab)/settings/subscription';
 
 export default function PaymentCallbackPage() {
   const params = useLocalSearchParams<{ status?: string }>();
   const status: FLWStatus = params.status ?? 'successful';
 
   const [countdown, setCountdown] = useState(5);
+
+  const closeOrReturnOnWeb = () => {
+    if (typeof window === 'undefined') return;
+
+    // If this tab was opened by the app, try focusing parent then close.
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.focus();
+      } catch (_) {}
+      window.close();
+      return;
+    }
+
+    // Most browsers block closing tabs not opened by script.
+    // Fall back to in-app route so user is not stuck on callback page.
+    router.replace(WEB_RETURN_PATH);
+  };
 
   // Notify the subscription screen via postMessage (web opener path)
   // and attempt deep-link redirect for native browser path.
@@ -45,7 +63,7 @@ export default function PaymentCallbackPage() {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(interval);
-          window.close();
+          closeOrReturnOnWeb();
           return 0;
         }
         return c - 1;
@@ -70,6 +88,21 @@ export default function PaymentCallbackPage() {
     : isCancelled
     ? 'You cancelled the payment. No charges were made. You can close this tab and try again.'
     : 'The payment could not be processed. No charges were made. You can close this tab and try again.';
+
+  const handleReturn = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      closeOrReturnOnWeb();
+      return;
+    }
+
+    // Primary target: billing screen. Fallback keeps the user inside app tabs
+    // if the nested route cannot be resolved for any reason.
+    try {
+      router.replace('/(tab)/settings/subscription');
+    } catch {
+      router.replace('/(tab)/settings');
+    }
+  };
 
   return (
     <View
@@ -123,13 +156,7 @@ export default function PaymentCallbackPage() {
         </Text>
 
         <Pressable
-          onPress={() => {
-            if (Platform.OS === 'web' && typeof window !== 'undefined') {
-              window.close();
-            } else {
-              router.replace('/(tab)/settings/subscription');
-            }
-          }}
+          onPress={handleReturn}
           style={({ pressed }) => ({
             backgroundColor: '#0AADA2',
             borderRadius: 14,
@@ -139,7 +166,7 @@ export default function PaymentCallbackPage() {
           })}
         >
           <Text style={{ color: 'white', fontSize: 15, fontWeight: '700' }}>
-            {Platform.OS === 'web' ? 'Close this tab' : 'Return to LifeGate'}
+            {Platform.OS === 'web' ? 'Return to LifeGate' : 'Return to LifeGate'}
           </Text>
         </Pressable>
 

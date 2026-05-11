@@ -215,6 +215,45 @@ function buildAIMessage(aiResponse: AIResponse, physicianSuggestions?: VerifiedP
   };
 }
 
+/**
+ * Keep triage chat natural by showing structured clinical cards only when they
+ * represent a meaningful milestone for the patient.
+ *
+ * Rules:
+ * - Existing-case continuation turns should stay conversational (no repeated card).
+ * - While follow-up questions are still being asked, keep response as plain chat.
+ * - Once a diagnosis card has already been shown for the same case in this
+ *   conversation, avoid re-attaching duplicate structured cards on every turn.
+ */
+function toConversationalTurn(
+  aiResponse: AIResponse,
+  conversation: Conversation,
+): AIResponse {
+  const triageInProgress = (aiResponse.followUpQuestions?.length ?? 0) > 0;
+  const isContinuation = !!aiResponse.isExistingCase;
+
+  const diagnosisId = aiResponse.diagnosisId;
+  const alreadyRenderedSameCase = !!diagnosisId && conversation.messages.some(
+    (m) => m.role === 'AI' && m.diagnosisId === diagnosisId && !!m.diagnosis,
+  );
+
+  const shouldHideStructuredCards =
+    isContinuation ||
+    triageInProgress ||
+    alreadyRenderedSameCase;
+
+  if (!shouldHideStructuredCards) return aiResponse;
+
+  return {
+    ...aiResponse,
+    diagnosis: undefined,
+    prescription: undefined,
+    conditions: undefined,
+    riskFlags: undefined,
+    investigations: undefined,
+  };
+}
+
 function buildSystemMessage(text: string, systemType: SystemMessageType): Message {
   return {
     id: generateId(),
@@ -676,7 +715,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
       }
 
-      const appended = appendAIMessage(conversationSnapshot, userMessage, aiResponse, physicianSuggestions);
+      const uiResponse = toConversationalTurn(aiResponse, conversationSnapshot);
+      const appended = appendAIMessage(conversationSnapshot, userMessage, uiResponse, physicianSuggestions);
       const escalatedConversation = handleEscalation(
         appended.conversation,
         aiResponse,
