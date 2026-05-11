@@ -5,15 +5,13 @@ import {
   Pressable,
   ScrollView,
   Alert,
-  Linking,
   TextInput,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-import { openExternalUrl, openFirstSupportedExternalUrl } from '@/utils/external-link';
+import { openFirstSupportedExternalUrl } from '@/utils/external-link';
 
 // ── FAQ data ─────────────────────────────────────────────────────────────────
 type FaqEntry   = { q: string; a: string };
@@ -209,10 +207,6 @@ export default function Item2Screen() {
   const handleOpenWebsite  = () => openFirstSupportedUrl(['https://lifegate.dshub.com.ng']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open website.'); });
   const handleRateAndroid  = () => openFirstSupportedUrl([`market://details?id=${androidPackage}`, `https://play.google.com/store/apps/details?id=${androidPackage}`]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open Play Store.'); });
   const handleRateIOS      = () => openFirstSupportedUrl(iosAppId ? [`itms-apps://itunes.apple.com/app/id${iosAppId}?action=write-review`, `https://apps.apple.com/app/id${iosAppId}?action=write-review`] : ['itms-apps://apps.apple.com/ng/search?term=LifeGate%20DSHub']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open App Store.'); });
-  const handleOpenProductHunt = () => {
-    const url = 'https://www.producthunt.com/products/lifegate-by-dshub';
-    void openExternalUrl(url).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open Product Hunt.'); });
-  };
 
   const normalizedQuery = faqQuery.trim().toLowerCase();
   const filteredSections = useMemo(() => {
@@ -331,11 +325,6 @@ export default function Item2Screen() {
           <Pressable onPress={() => void handleRateIOS()} className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80">
             <Ionicons name="logo-apple" size={20} color="#000000" />
             <Text className="ml-3 text-base text-gray-900 font-medium flex-1">App Store</Text>
-            <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
-          </Pressable>
-          <Pressable onPress={handleOpenProductHunt} className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80 mt-3">
-            <Ionicons name="rocket-outline" size={20} color="#DA552F" />
-            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">Product Hunt</Text>
             <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
           </Pressable>
         </View>
