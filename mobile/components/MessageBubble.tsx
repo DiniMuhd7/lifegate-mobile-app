@@ -6,7 +6,6 @@ import * as Haptics from 'expo-haptics';
 import { UI_FONT_SIZES, UI_SPACING } from 'constants/constants';
 import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation, VerifiedPhysician } from 'types/chat-types';
 import { DiagnosisCard } from './DiagnosisCard';
-import { PrescriptionCard } from './PrescriptionCard';
 import { MarkdownText } from './MarkdownText';
 import { FollowUpChips } from './FollowUpChips';
 import { DifferentialList } from './DifferentialList';
@@ -344,8 +343,48 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
               <DifferentialList conditions={conditions} />
             )}
 
-            {/* Prescription */}
-            {showClinicalContent && prescription && <PrescriptionCard prescription={prescription} />}
+            {/* Prescription — never reveal AI-suggested medication to the patient
+                directly in chat. Show a locked placeholder until a physician
+                formally approves the case; the approved prescription is then
+                visible on the diagnosis detail page. */}
+            {showClinicalContent && prescription && (
+              <View
+                style={{
+                  marginTop: 8,
+                  borderRadius: 14,
+                  padding: 12,
+                  backgroundColor: '#fffbeb',
+                  borderWidth: 1.5,
+                  borderColor: '#fcd34d',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                }}
+              >
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: '#fef3c7',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: 1,
+                  }}
+                >
+                  <Ionicons name="lock-closed-outline" size={14} color="#d97706" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#92400e' }}>
+                    Pending physician review
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#b45309', marginTop: 3, lineHeight: 16 }}>
+                    A treatment recommendation has been prepared and will be visible once a licensed physician reviews and approves this case.
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Investigations */}
             {showClinicalContent && investigations && investigations.length > 0 && (

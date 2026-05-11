@@ -431,9 +431,25 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 		raw.HPI.SeverityScore > 0 &&
 		raw.HPI.Location != "" &&
 		raw.HPI.Character != ""
+
+	// Capture whether the AI still emitted unanswered triage questions *before*
+	// they are cleared below. This flag is used both as a secondary diagnosis gate
+	// and to prevent the synthesis fallback from issuing a diagnosis prematurely.
+	hasUnansweredQuestions := len(raw.FollowUpQuestions) > 0
+
 	if !isSensorCategory {
 		if !hpiComplete && raw.Diagnosis != nil {
 			log.Printf("[EDIS] premature diagnosis stripped (hpi incomplete): condition=%q", raw.Diagnosis.Condition)
+			raw.Diagnosis = nil
+			raw.Prescription = nil
+			raw.FollowUpPlan = nil
+		}
+		// Secondary gate: even when HPI fields are fully populated, if the AI still
+		// included follow-up questions the patient hasn't answered yet, defer the
+		// diagnosis until those questions are resolved. This ensures every triage
+		// question associated with the session is answered before a report is created.
+		if raw.Diagnosis != nil && hasUnansweredQuestions {
+			log.Printf("[EDIS] diagnosis deferred (unanswered triage questions): condition=%q, pending=%d", raw.Diagnosis.Condition, len(raw.FollowUpQuestions))
 			raw.Diagnosis = nil
 			raw.Prescription = nil
 			raw.FollowUpPlan = nil
@@ -452,9 +468,10 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 	// ── Diagnosis synthesis fallback ───────────────────────────────────────────
 	// Synthesise a diagnosis from the top condition when:
 	//   a) The AI deliberately omitted 'diagnosis' despite high-confidence conditions
-	//   b) For conversational categories: HPI intake is sufficiently complete
+	//   b) For conversational categories: HPI intake is sufficiently complete AND
+	//      no triage questions were left unanswered
 	//   c) For sensor categories: always eligible (device data is the HPI substitute)
-	synthesisEligible := isSensorCategory || hpiComplete
+	synthesisEligible := isSensorCategory || (hpiComplete && !hasUnansweredQuestions)
 	if raw.Diagnosis == nil && len(raw.Conditions) > 0 && raw.Conditions[0].Confidence >= 50 && synthesisEligible {
 		top := raw.Conditions[0]
 		raw.Diagnosis = &ai.Diagnosis{
