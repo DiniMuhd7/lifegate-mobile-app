@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useOffersStore, Offer, OfferType } from 'stores/offers-store';
+import { openExternalUrl } from '@/utils/external-link';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -299,8 +300,8 @@ export default function OffersScreen() {
   const handleStart = useCallback(
     (offer: Offer) => {
       startOffer(offer.id);
-      Linking.openURL(offer.actionUrl).catch(() => {
-        Alert.alert('Could not open link', 'Please visit the sponsor website manually.');
+      void openExternalUrl(offer.actionUrl).then((ok) => {
+        if (!ok) Alert.alert('Could not open link', 'Please visit the sponsor website manually.');
       });
     },
     [startOffer],

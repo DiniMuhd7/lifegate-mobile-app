@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from 'stores/auth/auth-store';
+import { openExternalUrl } from '@/utils/external-link';
 
 const MDCN_URL = 'https://www.portal.mdcn.gov.ng/confirm-doctor-status';
 
@@ -111,7 +112,7 @@ export default function MdcnVerifyScreen() {
               </Text>
 
               <TouchableOpacity
-                onPress={() => { if (typeof window !== 'undefined') window.open(MDCN_URL, '_blank'); }}
+                onPress={() => { void openExternalUrl(MDCN_URL); }}
                 style={{
                   borderWidth: 1.5, borderColor: '#0f766e', borderRadius: 12,
                   paddingVertical: 14, paddingHorizontal: 32, width: '100%',

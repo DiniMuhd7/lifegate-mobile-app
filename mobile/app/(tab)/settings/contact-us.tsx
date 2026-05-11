@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import { openExternalUrl } from '@/utils/external-link';
 
 export default function AboutScreen() {
   const insets = useSafeAreaInsets();
@@ -10,15 +11,15 @@ export default function AboutScreen() {
   const supportPhones = ['+2349013453490', '+2349110192583'];
 
   const handlePhonePress = (phone: string) => {
-    Linking.openURL(`tel:${phone}`);
+    void openExternalUrl(`tel:${phone}`);
   };
 
   const handleEmailPress = () => {
-    Linking.openURL('mailto:contact@dshub.com.ng');
+    void openExternalUrl('mailto:contact@dshub.com.ng');
   };
 
   const handleWebsitePress = () => {
-    Linking.openURL('https://lifegate.dshub.com.ng');
+    void openExternalUrl('https://lifegate.dshub.com.ng');
   };
 
   return (

@@ -34,6 +34,7 @@ import {
 import { useAuthStore } from 'stores/auth-store';
 import { usePatientHealthStore } from 'stores/health-store';
 import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
+import { openExternalUrl } from '@/utils/external-link';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -666,12 +667,7 @@ function VideoPlayerModal({
               <Pressable
                 onPress={() => {
                   const url = `https://www.youtube.com/watch?v=${video.youtubeId}`;
-                  if (Platform.OS === 'web') {
-                    // @ts-ignore
-                    window.open(url, '_blank');
-                  } else {
-                    import('expo-linking').then(({ default: Linking }) => Linking.openURL(url));
-                  }
+                  void openExternalUrl(url);
                 }}
                 style={({ pressed }) => ({
                   opacity: pressed ? 0.7 : 1,

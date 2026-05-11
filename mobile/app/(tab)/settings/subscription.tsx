@@ -18,6 +18,7 @@ import { useChatStore } from 'stores/chat-store';
 import type { CreditBundle, PaymentCurrency } from 'types/payment-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { openExternalUrl } from '@/utils/external-link';
 
 const isWeb = Platform.OS === 'web';
 const CALLBACK_PREFIX = 'lifegate://payment/callback';
@@ -104,10 +105,7 @@ export default function SubscriptionScreen() {
         }
       }
 
-      const supported = await Linking.canOpenURL(normalized);
-      if (!supported) return false;
-      await Linking.openURL(normalized);
-      return true;
+      return openExternalUrl(normalized);
     } catch {
       return false;
     }

@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from 'components/Button';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { openExternalUrl } from '@/utils/external-link';
 
 const PRIVACY_URL = 'https://lifegate.dshub.com.ng/privacy-policy';
 const TERMS_URL = 'https://lifegate.dshub.com.ng/terms';
@@ -36,7 +37,7 @@ const Bullet = ({ text }: { text: string }) => (
 const Link = ({ label, url }: { label: string; url: string }) => (
   <Text
     className="text-xs font-semibold text-[#0EA5A4] underline"
-    onPress={() => Linking.openURL(url)}>
+    onPress={() => { void openExternalUrl(url); }}>
     {label}
   </Text>
 );
@@ -266,7 +267,7 @@ export default function ConsentScreen() {
                 Contact:{' '}
                 <Text
                   className="text-[#0EA5A4] underline"
-                  onPress={() => Linking.openURL('mailto:privacy@dshub.com.ng')}>
+                  onPress={() => { void openExternalUrl('mailto:privacy@dshub.com.ng'); }}>
                   privacy@dshub.com.ng
                 </Text>
               </Text>
@@ -365,7 +366,7 @@ export default function ConsentScreen() {
                 Exercise your rights via{' '}
                 <Text
                   className="text-[#0EA5A4] underline"
-                  onPress={() => Linking.openURL('mailto:privacy@dshub.com.ng')}>
+                  onPress={() => { void openExternalUrl('mailto:privacy@dshub.com.ng'); }}>
                   privacy@dshub.com.ng
                 </Text>
                 {' '}or contact the NDPC at{' '}
@@ -381,7 +382,7 @@ export default function ConsentScreen() {
                 system is completely secure. If you suspect a breach, contact us immediately at{' '}
                 <Text
                   className="text-[#0EA5A4] underline"
-                  onPress={() => Linking.openURL('mailto:security@dshub.com.ng')}>
+                  onPress={() => { void openExternalUrl('mailto:security@dshub.com.ng'); }}>
                   security@dshub.com.ng
                 </Text>
                 .

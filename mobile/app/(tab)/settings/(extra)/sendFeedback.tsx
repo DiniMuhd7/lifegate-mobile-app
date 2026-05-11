@@ -7,6 +7,7 @@ import { issues } from '@/constants/constants';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { SupportService } from 'services/support-service';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { openExternalUrl } from '@/utils/external-link';
 
 export default function SendFeedbackScreen() {
   const user = useAuthStore((state) => state.user);
@@ -44,9 +45,8 @@ export default function SendFeedbackScreen() {
     );
     const mailto = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
 
-    const canOpen = await Linking.canOpenURL(mailto);
-    if (canOpen) {
-      await Linking.openURL(mailto);
+    const opened = await openExternalUrl(mailto);
+    if (opened) {
       setSuccessMessage('Support email draft opened. Please press send in your mail app.');
       setErrorMessage('');
       return;

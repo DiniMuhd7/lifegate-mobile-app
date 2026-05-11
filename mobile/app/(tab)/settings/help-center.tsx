@@ -20,6 +20,7 @@ import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
+import { openExternalUrl, openFirstSupportedExternalUrl } from '@/utils/external-link';
 
 // ── Tokens ───────────────────────────────────────────────────────────────────
 const TEAL      = '#0EA5A4';
@@ -376,19 +377,17 @@ export default function HelpScreen() {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const openFirstSupportedUrl = async (urls: string[]) => {
-    for (const url of urls) {
-      try {
-        const supported = await Linking.canOpenURL(url);
-        if (supported) { await Linking.openURL(url); return true; }
-      } catch { /* try next */ }
-    }
-    return false;
+    return openFirstSupportedExternalUrl(urls);
   };
   const handleOpenWebsite  = () => openFirstSupportedUrl([appWebsite]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open website.'); });
   const handleCallSupport  = () => openFirstSupportedUrl(['tel:+2349013453490', 'tel:+2349110192583']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open dialer.'); });
   const handleEmailSupport = () => openFirstSupportedUrl(['mailto:contact@dshub.com.ng']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open email.'); });
   const handleRateAndroid  = () => openFirstSupportedUrl([`market://details?id=${androidPackage}`, `https://play.google.com/store/apps/details?id=${androidPackage}`]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open Play Store.'); });
   const handleRateIOS      = () => openFirstSupportedUrl(iosAppId ? [`itms-apps://itunes.apple.com/app/id${iosAppId}?action=write-review`, `https://apps.apple.com/app/id${iosAppId}?action=write-review`] : [`itms-apps://apps.apple.com/ng/search?term=LifeGate%20DSHub`, `https://apps.apple.com/ng/search?term=LifeGate%20DSHub`]).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open App Store.'); });
+  const handleOpenProductHunt = () => {
+    const url = 'https://www.producthunt.com/products/lifegate-by-dshub';
+    void openExternalUrl(url).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open Product Hunt.'); });
+  };
 
   // ── FAQ filter ─────────────────────────────────────────────────────────────
   const normalizedQuery = faqQuery.trim().toLowerCase();
@@ -712,7 +711,7 @@ export default function HelpScreen() {
               </Pressable>
             </View>
             <Pressable
-              onPress={() => void Linking.openURL('https://www.producthunt.com/products/lifegate-by-dshub')}
+              onPress={handleOpenProductHunt}
               style={({ pressed }) => [s.storeBadge, { backgroundColor: '#DA552F', marginTop: 10, alignSelf: 'flex-start' }, pressed && { opacity: 0.85 }]}
             >
               <Ionicons name="rocket-outline" size={22} color="#fff" style={{ marginRight: 10 }} />

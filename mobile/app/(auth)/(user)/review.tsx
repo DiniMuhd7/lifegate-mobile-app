@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, Linking } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { PrimaryButton } from 'components/Button';
 import { useRegistrationStore } from 'stores/auth-store';
 import { router, useFocusEffect } from 'expo-router';
 import { validateRegistration, ValidationError } from 'utils/validation';
 import { InfoRow } from 'components/InfoRow';
 import { Ionicons } from '@expo/vector-icons';
+import { openExternalUrl } from '@/utils/external-link';
 
 export default function UserReviewStep() {
   const { userDraft, error: backendError, loading, startRegistration, clearError } = useRegistrationStore();
@@ -152,13 +153,13 @@ export default function UserReviewStep() {
             I confirm the information above is accurate and agree to the{' '}
             <Text
               className="font-semibold text-teal-600"
-              onPress={() => Linking.openURL('https://mobile.dshub.com.ng/terms')}>
+              onPress={() => { void openExternalUrl('https://mobile.dshub.com.ng/terms'); }}>
               Terms of Service
             </Text>
             {' '}and{' '}
             <Text
               className="font-semibold text-teal-600"
-              onPress={() => Linking.openURL('https://mobile.dshub.com.ng/privacy')}>
+              onPress={() => { void openExternalUrl('https://mobile.dshub.com.ng/privacy'); }}>
               Privacy Policy
             </Text>
             .

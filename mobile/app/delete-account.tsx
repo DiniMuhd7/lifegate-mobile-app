@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
+import { openExternalUrl } from '@/utils/external-link';
 
 const TEAL = '#0AADA2';
 const RED  = '#DC2626';
@@ -111,7 +112,7 @@ export default function DeleteAccountScreen() {
         <Section title="Option 2 — Request via Email">
           <Para>If you no longer have access to the app, send a deletion request to our support team:</Para>
           <Pressable
-            onPress={() => Linking.openURL('mailto:support@dshub.com.ng?subject=Account%20Deletion%20Request&body=Please%20delete%20my%20LifeGate%20account.%0A%0ARegistered%20email%3A%20')}
+            onPress={() => { void openExternalUrl('mailto:support@dshub.com.ng?subject=Account%20Deletion%20Request&body=Please%20delete%20my%20LifeGate%20account.%0A%0ARegistered%20email%3A%20'); }}
             style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FFFE', borderWidth: 1, borderColor: '#99F6E4', borderRadius: 10, padding: 14, marginBottom: 12, gap: 10 }}
           >
             <Ionicons name="mail-outline" size={18} color={TEAL} />
@@ -145,7 +146,7 @@ export default function DeleteAccountScreen() {
             Contact us at{' '}
             <Text
               style={{ color: TEAL, fontWeight: '600' }}
-              onPress={() => Linking.openURL('mailto:support@dshub.com.ng')}
+              onPress={() => { void openExternalUrl('mailto:support@dshub.com.ng'); }}
             >
               support@dshub.com.ng
             </Text>

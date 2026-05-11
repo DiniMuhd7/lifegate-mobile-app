@@ -6,16 +6,15 @@ import { useEffect } from 'react';
 import { useAuthStore } from 'stores/auth-store';
 import { useAccessibilityStore } from 'stores/accessibility-store';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
+import { openExternalUrl } from '@/utils/external-link';
 
 const TERMS_URL = process.env.EXPO_PUBLIC_TERMS_URL ?? '';
 const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL ?? '';
 
 async function openUrl(url: string) {
   if (!url) return;
-  const supported = await Linking.canOpenURL(url);
-  if (supported) {
-    await Linking.openURL(url);
-  } else if (Platform.OS !== 'web') {
+  const ok = await openExternalUrl(url);
+  if (!ok && Platform.OS !== 'web') {
     Alert.alert('Cannot open link', url);
   }
 }
