@@ -792,10 +792,9 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message, category
 
 	// When the patient's current symptoms match an existing active case, prepend a
 	// brief patient-facing notice so they know their record is being updated rather
-	// than a new case being created.  This satisfies Requirement 2: the patient is
-	// explicitly informed before the diagnosis card renders.
+	// than a new case being created, and that no credit was charged for this turn.
 	if !isNewCase {
-		cr.Text = "📋 Your current symptoms match your existing active case — I've updated it with today's information.\n\n" + cr.Text
+		cr.Text = "📋 Your symptoms match your existing open case — I've updated it with today's notes. No credit was charged for this update.\n\n" + cr.Text
 	}
 
 	diagData, _ := json.Marshal(map[string]interface{}{

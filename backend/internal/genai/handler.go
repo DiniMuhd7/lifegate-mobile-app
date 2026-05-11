@@ -72,6 +72,10 @@ func (h *Handler) Chat(c *gin.Context) {
 	latencyMs := time.Since(start).Milliseconds()
 	c.Header("X-AI-Latency-Ms", fmt.Sprintf("%d", latencyMs))
 
+	// Signal to the credit-gate middleware whether this turn updated an existing
+	// case (no new credit should be consumed) or created a brand-new one.
+	c.Set("is_existing_case", resp.IsExistingCase)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":    true,
 		"data":       resp,

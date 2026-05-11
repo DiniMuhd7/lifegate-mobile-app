@@ -398,10 +398,20 @@ func main() {
 				refundUID = uidStr
 			}
 			genaiHandler.Chat(c)
-			// Refund the credit if the AI handler returned a server error so the
-			// user is not billed for a failed request.
-			if refundUID != "" && c.Writer.Status() >= 500 {
-				_ = paymentsSvc.RefundCredit(refundUID)
+			// Refund the credit if:
+			//  a) the AI handler returned a server error — user should not be
+			//     billed for a failed request, OR
+			//  b) the AI matched an existing active case via duplicate detection
+			//     (is_existing_case=true) — updating a case consumes no credit.
+			if refundUID != "" {
+				isExisting, _ := c.Get("is_existing_case")
+				isExistingBool, _ := isExisting.(bool)
+				if c.Writer.Status() >= 500 || isExistingBool {
+					if isExistingBool {
+						log.Printf("[CREDIT] refunding credit — existing case updated (user=%s)", refundUID)
+					}
+					_ = paymentsSvc.RefundCredit(refundUID)
+				}
 			}
 		})
 		genaiGroup.POST("/health-check", genaiHandler.HealthCheck)
