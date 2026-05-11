@@ -949,6 +949,17 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 		urgency = resp.Diagnosis.Urgency
 	}
 
+	// Build a clean clinical description for the diagnosis card.
+	// resp.Text is the conversational chat reply (may contain emojis, questions,
+	// and interactive language) — it must never appear in the stored diagnosis
+	// description. Use the structured clinical description from the AI's
+	// diagnosis object instead, which the model populates as a plain clinical
+	// summary with no first-person or interactive language.
+	clinicalDesc := ""
+	if resp.Diagnosis != nil && resp.Diagnosis.Description != "" {
+		clinicalDesc = resp.Diagnosis.Description
+	}
+
 	// Explicit continuation path: when the client sends diagnosisId for an
 	// active case, always update that same pending case instead of creating or
 	// matching by condition text.
@@ -979,7 +990,7 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 				    follow_up_instructions = $11,
 				    updated_at             = NOW()
 				WHERE id = $1::uuid`,
-				existingID, title, resp.Text, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
+				existingID, title, clinicalDesc, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
 				followUpDate, followUpInstructions,
 			)
 			if updateErr == nil {
@@ -1009,15 +1020,16 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 	}
 
 	if len(condNames) > 0 {
-		var existingID string
+		var existingID, existingStatus string
 		lookupErr := s.db.QueryRow(`
-			SELECT id::text
+			SELECT id::text, status
 			FROM diagnoses
 			WHERE user_id   = $1::uuid
-			  AND status    = 'Pending'
-			  AND created_at > NOW() - INTERVAL '30 days'
+			  AND status    IN ('Pending', 'Active')
+			  AND created_at > NOW() - INTERVAL '90 days'
 			  AND (
 			        LOWER(COALESCE(condition,'')) = ANY($2)
+			        OR LOWER(COALESCE(title,'')) = ANY($2)
 			        OR EXISTS (
 			            SELECT 1
 			            FROM jsonb_array_elements(
@@ -1026,13 +1038,19 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 			            WHERE LOWER(c->>'condition') = ANY($2)
 			        )
 			  )
-			ORDER BY created_at DESC
+			ORDER BY (status = 'Pending') DESC, created_at DESC
 			LIMIT 1`,
 			userID, pq.Array(condNames),
-		).Scan(&existingID)
+		).Scan(&existingID, &existingStatus)
 
 		if lookupErr == nil && existingID != "" {
-			// Update the existing case with the latest AI output (new symptoms
+			// For Active cases (already physician-reviewed) only signal the match —
+			// never overwrite physician-reviewed data with the new AI output.
+			if existingStatus == "Active" {
+				log.Printf("[EDIS] active case match %s (conditions: %v user=%s) — skipping update", existingID, condNames, userID)
+				return existingID, false
+			}
+			// For Pending cases: update with the latest AI output (new symptoms
 			// may have refined the diagnosis, urgency, or prescription details).
 			hasPrescription := resp.Prescription != nil
 			_, updateErr := s.db.Exec(`
@@ -1049,7 +1067,7 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 				    follow_up_instructions = $11,
 				    updated_at            = NOW()
 				WHERE id = $1::uuid`,
-				existingID, title, resp.Text, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
+				existingID, title, clinicalDesc, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
 				followUpDate, followUpInstructions,
 			)
 			if updateErr != nil {
@@ -1070,7 +1088,7 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 		    status, escalated, has_prescription, follow_up_date, follow_up_instructions)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, 'Pending', $8, $9, $10, $11)
 		 RETURNING id::text`,
-		userID, title, resp.Text, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
+		userID, title, clinicalDesc, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
 		followUpDate, followUpInstructions,
 	).Scan(&id)
 	return id, true
