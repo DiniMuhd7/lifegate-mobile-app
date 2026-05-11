@@ -142,6 +142,7 @@ const ChatScreen: React.FC = () => {
   // ── Chat-history slide panel ──────────────────────────────────────────────
   const PANEL_WIDTH = Math.min(Dimensions.get('window').width * 0.78, 320);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const backNavLockRef = useRef(false);
   // Animates from PANEL_WIDTH (hidden, off-screen right) → 0 (fully visible).
   // useNativeDriver MUST be false here: native-driver transforms don't update
   // layout, so touch targets stay at the pre-animation off-screen position on
@@ -228,11 +229,24 @@ const ChatScreen: React.FC = () => {
   // Hardware back button (Android) — mirrors the back arrow behaviour
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (backNavLockRef.current) return true;
+      backNavLockRef.current = true;
+
       if (!showWelcomeRef.current) {
         goToWelcome();
       } else {
-        router.replace('/(tab)/health');
+        try {
+          router.replace('/(tab)/health');
+        } catch {
+          // Best-effort safety: avoid crashing when back is pressed during
+          // a transient route update.
+        }
       }
+
+      setTimeout(() => {
+        backNavLockRef.current = false;
+      }, 250);
+
       return true; // prevent default back action
     });
     return () => sub.remove();

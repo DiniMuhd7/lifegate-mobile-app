@@ -16,8 +16,9 @@ export default function AuthLayout() {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (router.canGoBack()) {
-        router.back();
-        return true;
+        // Let Expo Router consume this back action to avoid dispatching a
+        // manual back action during transient navigator state updates.
+        return false;
       }
       // At root of auth group — exit app rather than going back to intro/welcome.
       BackHandler.exitApp();
