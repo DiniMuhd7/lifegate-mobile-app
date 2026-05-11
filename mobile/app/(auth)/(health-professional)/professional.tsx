@@ -6,12 +6,11 @@ import { Dropdown } from 'components/DropDown';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { PrimaryButton } from 'components/Button';
 import { GENDER_OPTIONS, LANGUAGE_OPTIONS } from 'constants/constants';
-import { NIGERIA_STATES } from 'constants/geo';
+import { NIGERIA_STATES, PHONE_CODES, COUNTRIES } from 'constants/geo';
 import { DOBInput } from 'components/DobPicker';
-import { PhoneNumberInput } from 'components/PhoneInput';
+import { SearchableDropdown } from 'components/SearchableDropdown';
 import { useState, useCallback } from 'react';
 import { validateSingleField } from 'utils/validation';
-import { CountryPicker } from 'components/CountryPicker';
 import { SuggestInput } from 'components/SuggestInput';
 
 const VALID_FIELDS = {
@@ -35,6 +34,8 @@ export default function ProfessionalScreen() {
   const navigationState = useRootNavigationState();
   const { userDraft, setUserField } = useRegistrationStore();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [dialCode, setDialCode] = useState('+234');
+  const [phoneNum, setPhoneNum] = useState('');
 
   const runNavigation = useCallback(
     (navigate: () => void) => {
@@ -92,15 +93,39 @@ export default function ProfessionalScreen() {
     );
   };
 
+  const updatePhone = (code: string, num: string) => {
+    const digits = num.replace(/\D/g, '');
+    const full = digits ? code + digits : '';
+    handleFieldChange('phone', full);
+  };
+
   return (
     <ScrollView className="flex-1" keyboardShouldPersistTaps="handled">
       <View className="py-2">
-      <PhoneNumberInput
+      <SearchableDropdown
+        label="Phone Country Code"
+        required
+        options={PHONE_CODES}
+        selectedValue={dialCode}
+        onChange={(code) => {
+          setDialCode(code);
+          updatePhone(code, phoneNum);
+        }}
+        searchPlaceholder="Search country or code…"
+        hasError={!!fieldErrors.phone}
+      />
+
+      <LabeledInput
         label="Phone Number"
         required
-        value={userDraft.phone}
-        onChangePhoneNumber={(v) => handleFieldChange('phone', v)}
-        error={fieldErrors.phone}
+        placeholder="Enter phone number"
+        keyboardType="phone-pad"
+        value={phoneNum}
+        hasError={!!fieldErrors.phone}
+        onChangeText={(v) => {
+          setPhoneNum(v);
+          updatePhone(dialCode, v);
+        }}
       />
       <ErrorMessage fieldName="phone" fieldErrors={fieldErrors} />
 
@@ -154,11 +179,13 @@ export default function ProfessionalScreen() {
       />
       <ErrorMessage fieldName="specialization" fieldErrors={fieldErrors} />
 
-      <CountryPicker
+      <SearchableDropdown
         label="Country"
-        value={userDraft.country || ''}
+        options={COUNTRIES.map((c) => ({ label: c, value: c }))}
+        selectedValue={userDraft.country || ''}
         onChange={(v) => handleFieldChange('country', v)}
         hasError={!!fieldErrors.country}
+        searchPlaceholder="Search country…"
       />
       <ErrorMessage fieldName="country" fieldErrors={fieldErrors} />
 
