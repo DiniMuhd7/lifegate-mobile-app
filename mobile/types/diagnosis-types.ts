@@ -1,6 +1,15 @@
 // Patient-facing diagnosis types returned from GET /api/diagnoses
 export type DiagnosisStatus = 'Pending' | 'Active' | 'Completed';
 
+/** Structured symptom profile (OLDCARTS) collected from the patient during triage. */
+export interface DiagnosisTriageNotes {
+  onset?: string;
+  duration?: string;
+  severityScore?: number;
+  location?: string;
+  character?: string;
+}
+
 export interface DiagnosisPrescription {
   medicine: string;
   dosage: string;
@@ -51,6 +60,8 @@ export interface DiagnosisDetail {
   followUpInstructions?: string;
   /** True once the patient has submitted an outcome for this follow-up */
   outcomeChecked: boolean;
+  /** Structured triage notes (OLDCARTS) collected during the AI intake conversation. */
+  triageNotes?: DiagnosisTriageNotes;
   prescription?: DiagnosisPrescription;
   /**
    * Recommended investigations — sourced from physician_ai_output when the

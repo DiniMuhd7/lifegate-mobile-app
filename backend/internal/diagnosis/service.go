@@ -8,6 +8,15 @@ import (
 	"strings"
 )
 
+// HPIDetail is the structured symptom profile (OLDCARTS) collected during triage.
+type HPIDetail struct {
+	Onset         string `json:"onset,omitempty"`
+	Duration      string `json:"duration,omitempty"`
+	SeverityScore int    `json:"severityScore,omitempty"`
+	Location      string `json:"location,omitempty"`
+	Character     string `json:"character,omitempty"`
+}
+
 // DiagnosisDetail is the full patient-facing diagnosis record returned from the API.
 type DiagnosisDetail struct {
 	ID                   string               `json:"id"`
@@ -19,6 +28,9 @@ type DiagnosisDetail struct {
 	Status               string               `json:"status"`
 	Escalated            bool                 `json:"escalated"`
 	HasPrescription      bool                 `json:"hasPrescription"`
+	// TriageNotes holds the structured HPI (History of Present Illness) collected
+	// from the patient during EDIS triage — onset, duration, severity, location, character.
+	TriageNotes          *HPIDetail           `json:"triageNotes,omitempty"`
 	PhysicianDecision    string               `json:"physicianDecision,omitempty"`
 	PhysicianNotes       string               `json:"physicianNotes,omitempty"`
 	PhysicianName        string               `json:"physicianName,omitempty"`
@@ -62,6 +74,7 @@ type rawAIResponse struct {
 	Diagnosis *struct {
 		Confidence int `json:"confidence"`
 	} `json:"diagnosis"`
+	HPI            *HPIDetail             `json:"hpi"`
 	Prescription   *PrescriptionDetail    `json:"prescription"`
 	Prescriptions  []PrescriptionDetail   `json:"prescriptions"`
 	Investigations []InvestigationDetail  `json:"investigations"`
@@ -92,7 +105,8 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 		       COALESCE(d.physician_ai_output::text,''),
 		       TO_CHAR(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'), TO_CHAR(d.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(pu.name,''),
-		       COALESCE(d.physician_health_tips,'')
+		       COALESCE(d.physician_health_tips,''),
+		       COALESCE(d.hpi::text,'')
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.user_id = $1::uuid
@@ -106,17 +120,17 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 	var records []DiagnosisDetail
 	for rows.Next() {
 		var d DiagnosisDetail
-		var aiJSON, physicianAIJSON string
+		var aiJSON, physicianAIJSON, hpiJSON string
 		if err := rows.Scan(&d.ID, &d.Title, &d.Description, &d.Condition,
 			&d.Urgency, &d.Status, &d.Escalated, &d.HasPrescription,
 			&d.PhysicianDecision, &d.PhysicianNotes,
 			&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
 			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
-			&d.PhysicianHealthTips); err != nil {
+			&d.PhysicianHealthTips, &hpiJSON); err != nil {
 			log.Printf("diagnosis: scan row: %v", err)
 			continue
 		}
-		enrichFromAI(&d, aiJSON, physicianAIJSON)
+		enrichFromAI(&d, aiJSON, physicianAIJSON, hpiJSON)
 		records = append(records, d)
 	}
 
@@ -129,7 +143,7 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 // GetDiagnosisDetail returns a single diagnosis owned by the authenticated patient.
 func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDetail, error) {
 	var d DiagnosisDetail
-	var aiJSON, physicianAIJSON string
+	var aiJSON, physicianAIJSON, hpiJSON string
 	err := s.db.QueryRow(`
 		SELECT d.id, COALESCE(d.title,''), COALESCE(d.description,''),
 		       COALESCE(d.condition,''), COALESCE(d.urgency,''),
@@ -142,7 +156,8 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		       COALESCE(d.physician_ai_output::text,''),
 		       TO_CHAR(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'), TO_CHAR(d.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(pu.name,''),
-		       COALESCE(d.physician_health_tips,'')
+		       COALESCE(d.physician_health_tips,''),
+		       COALESCE(d.hpi::text,'')
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.id = $1 AND d.user_id = $2::uuid`,
@@ -152,7 +167,7 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		&d.PhysicianDecision, &d.PhysicianNotes,
 		&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
 		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
-		&d.PhysicianHealthTips)
+		&d.PhysicianHealthTips, &hpiJSON)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -160,14 +175,14 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 	if err != nil {
 		return nil, err
 	}
-	enrichFromAI(&d, aiJSON, physicianAIJSON)
+	enrichFromAI(&d, aiJSON, physicianAIJSON, hpiJSON)
 	return &d, nil
 }
 
-// enrichFromAI populates confidence, prescription, investigations and conditions
-// from the stored JSONB columns. physician_ai_output takes precedence field-by-field
-// over ai_response when it is non-empty.
-func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON string) {
+// enrichFromAI populates confidence, prescription, investigations, conditions
+// and triage notes from the stored JSONB columns. physician_ai_output takes
+// precedence field-by-field over ai_response when it is non-empty.
+func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON, hpiJSON string) {
 	// 1. Parse the base AI response.
 	var base rawAIResponse
 	if err := json.Unmarshal([]byte(aiJSON), &base); err == nil {
@@ -177,6 +192,19 @@ func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON string) {
 		d.Prescription = base.Prescription
 		d.Investigations = base.Investigations
 		d.Conditions = base.Conditions
+		// HPI may be embedded inside ai_response (older records)
+		if base.HPI != nil {
+			d.TriageNotes = base.HPI
+		}
+	}
+
+	// 2. Prefer HPI from the dedicated hpi column (newer records) — overrides any
+	//    embedded value extracted from ai_response above.
+	if hpiJSON != "" {
+		var hpi HPIDetail
+		if err := json.Unmarshal([]byte(hpiJSON), &hpi); err == nil {
+			d.TriageNotes = &hpi
+		}
 	}
 
 	// 2. Override with physician edits when present.

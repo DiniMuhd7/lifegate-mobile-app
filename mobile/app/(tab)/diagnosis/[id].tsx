@@ -306,6 +306,30 @@ export default function DiagnosisReportScreen() {
             </SectionCard>
           )}
 
+          {/* ── Triage Notes (HPI) ── */}
+          {d.triageNotes && (() => {
+            const t = d.triageNotes!;
+            const rows = [
+              { label: 'Onset',     value: t.onset },
+              { label: 'Duration',  value: t.duration },
+              { label: 'Severity',  value: t.severityScore != null ? `${t.severityScore} / 10` : undefined },
+              { label: 'Location',  value: t.location },
+              { label: 'Character', value: t.character },
+            ].filter((r) => r.value);
+            if (rows.length === 0) return null;
+            return (
+              <SectionCard title="Triage Notes">
+                <View className="flex-row items-center gap-1.5 mb-3 px-2 py-1.5 bg-teal-50 rounded-lg border border-teal-100">
+                  <Ionicons name="clipboard-outline" size={13} color="#0f766e" />
+                  <Text className="text-xs text-teal-700 font-medium">Symptom profile collected during AI intake</Text>
+                </View>
+                {rows.map((row, idx) => (
+                  <InfoRow key={idx} label={row.label} value={row.value!} />
+                ))}
+              </SectionCard>
+            );
+          })()}
+
           {/* ── Continue Triage with AI ── */}
           <View className="mx-4 mb-4">
             <Pressable
