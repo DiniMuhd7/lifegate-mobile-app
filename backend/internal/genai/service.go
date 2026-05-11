@@ -769,14 +769,15 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message, category
 	}
 
 	// Persist diagnosis only when triage is fully complete for clinical/escalated
-	// turns: full 5-field HPI must exist and no follow-up questions can remain.
+	// turns: the full 5-field HPI must exist. When HPI is complete the AI should
+	// also omit followUpQuestions (per the EDIS COMPLETION RULE), but we do not
+	// block on that — if the model incidentally emits a stray follow-up question
+	// alongside a fully-formed HPI we still persist, because the clinical data is
+	// ready. Blocking on followUpQuestions here meant the diagnosis card only
+	// appeared after the patient responded one extra time (bad UX).
 	if resp.Escalated || strings.Contains(strings.ToUpper(resp.Mode), "CLINICAL") {
 		if !hpiIsComplete(resp.HPI) {
 			log.Printf("[EDIS] skipping case persistence — HPI incomplete (user=%s mode=%s)", userID, resp.Mode)
-			return cr, nil
-		}
-		if len(resp.FollowUpQuestions) > 0 {
-			log.Printf("[EDIS] skipping case persistence — follow-up still pending (user=%s mode=%s)", userID, resp.Mode)
 			return cr, nil
 		}
 	}

@@ -216,41 +216,40 @@ function buildAIMessage(aiResponse: AIResponse, physicianSuggestions?: VerifiedP
 }
 
 /**
- * Keep triage chat natural by showing structured clinical cards only when they
- * represent a meaningful milestone for the patient.
+ * Keep triage chat natural by showing the full diagnosis card only when it
+ * represents a meaningful milestone for the patient.
  *
  * Rules:
- * - Existing-case continuation turns should stay conversational (no repeated card).
- * - While follow-up questions are still being asked, keep response as plain chat.
- * - Once a diagnosis card has already been shown for the same case in this
- *   conversation, avoid re-attaching duplicate structured cards on every turn.
+ * - Show the diagnosis card whenever the backend has persisted a case
+ *   (diagnosisId is set) — this covers both new cases AND existing-case
+ *   continuations so the patient always sees their updated case card.
+ * - If the same case card was already shown earlier in this conversation,
+ *   keep subsequent turns conversational (strip the card to avoid duplication).
+ * - When no case has been persisted yet (diagnosisId absent — triage still in
+ *   progress), hide only the diagnosis card; conditions/riskFlags/investigations
+ *   remain visible so the patient can follow along during triage.
  */
 function toConversationalTurn(
   aiResponse: AIResponse,
   conversation: Conversation,
 ): AIResponse {
-  const triageInProgress = (aiResponse.followUpQuestions?.length ?? 0) > 0;
-  const isContinuation = !!aiResponse.isExistingCase;
-
   const diagnosisId = aiResponse.diagnosisId;
-  const alreadyRenderedSameCase = !!diagnosisId && conversation.messages.some(
-    (m) => m.role === 'AI' && m.diagnosisId === diagnosisId && !!m.diagnosis,
-  );
 
-  const shouldHideStructuredCards =
-    isContinuation ||
-    triageInProgress ||
-    alreadyRenderedSameCase;
+  if (diagnosisId) {
+    // Case was persisted — show the card on its first appearance.
+    const alreadyRenderedSameCase = conversation.messages.some(
+      (m) => m.role === 'AI' && m.diagnosisId === diagnosisId && !!m.diagnosis,
+    );
+    if (!alreadyRenderedSameCase) return aiResponse;
+    // Card already shown — keep subsequent turns conversational.
+    return { ...aiResponse, diagnosis: undefined, prescription: undefined };
+  }
 
-  if (!shouldHideStructuredCards) return aiResponse;
-
+  // No persisted case yet (triage in progress) — hide the diagnosis card only.
   return {
     ...aiResponse,
     diagnosis: undefined,
     prescription: undefined,
-    conditions: undefined,
-    riskFlags: undefined,
-    investigations: undefined,
   };
 }
 
