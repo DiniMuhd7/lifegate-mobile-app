@@ -272,7 +272,7 @@ export const MessageList: React.FC<MessageListProps> = ({
         }
         onFollowUp={onFollowUp}
         diagnosis={msg.diagnosis}
-        prescription={msg.prescription}
+        hasPrescription={msg.hasPrescription}
         diagnosisId={msg.diagnosisId}
         isExistingCase={msg.isExistingCase}
         followUpQuestions={msg.followUpQuestions}

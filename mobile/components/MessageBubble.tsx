@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { UI_FONT_SIZES, UI_SPACING } from 'constants/constants';
-import type { Diagnosis, Prescription, ConditionScore, RiskFlag, Investigation, VerifiedPhysician } from 'types/chat-types';
+import type { Diagnosis, ConditionScore, RiskFlag, Investigation, VerifiedPhysician } from 'types/chat-types';
 import { DiagnosisCard } from './DiagnosisCard';
 import { MarkdownText } from './MarkdownText';
 import { FollowUpChips } from './FollowUpChips';
@@ -52,7 +52,8 @@ interface MessageBubbleProps {
   onRetry?: () => void;
   onFollowUp?: (question: string) => void;
   diagnosis?: Diagnosis;
-  prescription?: Prescription;
+  /** True when the AI generated a prescription pending physician approval. */
+  hasPrescription?: boolean;
   diagnosisId?: string;
   isExistingCase?: boolean;
   followUpQuestions?: string[];
@@ -93,7 +94,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   onRetry,
   onFollowUp,
   diagnosis,
-  prescription,
+  hasPrescription,
   diagnosisId,
   isExistingCase,
   followUpQuestions,
@@ -343,11 +344,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
               <DifferentialList conditions={conditions} />
             )}
 
-            {/* Prescription — never reveal AI-suggested medication to the patient
-                directly in chat. Show a locked placeholder until a physician
-                formally approves the case; the approved prescription is then
-                visible on the diagnosis detail page. */}
-            {showClinicalContent && prescription && (
+            {/* Prescription — never reveal medication details to the patient
+                in chat. Show a locked placeholder when the AI flagged a prescription;
+                full details are gated on physician approval on the diagnosis page. */}
+            {showClinicalContent && hasPrescription && (
               <View
                 style={{
                   marginTop: 8,

@@ -204,7 +204,7 @@ function buildAIMessage(aiResponse: AIResponse, physicianSuggestions?: VerifiedP
     text: aiResponse.text,
     timestamp: now(),
     diagnosis: aiResponse.diagnosis,
-    prescription: aiResponse.prescription,
+    hasPrescription: aiResponse.hasPrescription,
     diagnosisId: aiResponse.diagnosisId,
     isExistingCase: aiResponse.isExistingCase,
     followUpQuestions: aiResponse.followUpQuestions,

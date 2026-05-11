@@ -480,7 +480,14 @@ type ChatRequest struct {
 type ChatResponse struct {
 	Text                 string               `json:"text"`
 	Diagnosis            *ai.Diagnosis        `json:"diagnosis,omitempty"`
-	Prescription         *ai.Prescription     `json:"prescription,omitempty"`
+	// Prescription is intentionally never serialised to the patient client.
+	// The raw medication data is stored server-side and released only after a
+	// physician approves the case (status=Completed, physicianDecision=Approved).
+	// Clients use HasPrescription to show a locked "pending approval" placeholder.
+	Prescription         *ai.Prescription     `json:"-"`
+	// HasPrescription is true when the AI generated a prescription that is
+	// awaiting physician review — the actual medication details are withheld.
+	HasPrescription      bool                 `json:"hasPrescription,omitempty"`
 	Conditions           []ai.ConditionScore  `json:"conditions,omitempty"`
 	FollowUpQuestions    []string             `json:"followUpQuestions,omitempty"`
 	RiskFlags            []ai.RiskFlag        `json:"riskFlags,omitempty"`
@@ -699,7 +706,10 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message, category
 	cr := &ChatResponse{
 		Text:                 resp.Text,
 		Diagnosis:            resp.Diagnosis,
+		// Store prescription internally so saveDiagnosis can persist it, but
+		// never serialise it to the patient — only expose the boolean flag.
 		Prescription:         resp.Prescription,
+		HasPrescription:      resp.Prescription != nil,
 		Conditions:           resp.Conditions,
 		FollowUpQuestions:    resp.FollowUpQuestions,
 		RiskFlags:            resp.RiskFlags,

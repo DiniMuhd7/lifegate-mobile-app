@@ -87,7 +87,9 @@ export type Message = {
   text: string;
   timestamp: number; // Unix timestamp (ms)
   diagnosis?: Diagnosis; // Optional structured diagnosis from AI
-  prescription?: Prescription; // Optional structured prescription from AI
+  /** True when the AI generated a prescription pending physician approval.
+   *  Actual medication data is withheld until the physician approves the case. */
+  hasPrescription?: boolean;
   diagnosisId?: string; // DB diagnosis record ID for navigation to report screen
   // True when diagnosisId refers to a pre-existing case (symptoms matched an existing Pending case)
   isExistingCase?: boolean;
@@ -119,7 +121,9 @@ export type Conversation = {
 export type AIResponse = {
   text: string; // Main conversational response
   diagnosis?: Diagnosis;
-  prescription?: Prescription;
+  /** True when the AI generated a prescription pending physician approval.
+   *  Actual medication data is withheld until the physician approves the case. */
+  hasPrescription?: boolean;
   // True when the backend auto-escalated this session from General Health to Clinical Diagnosis
   escalated?: boolean;
   // EDIS conversation mode returned by AI ("general" | "clinical")
