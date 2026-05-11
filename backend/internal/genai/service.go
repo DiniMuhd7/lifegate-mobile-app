@@ -53,13 +53,17 @@ func (s *Service) fetchLatestHPI(userID string) *ai.SymptomProfile {
 	return &hpi
 }
 
-// hpiIsComplete returns true when the minimum three OLDCARTS fields required
-// for diagnosis are all present: onset, duration, and severityScore.
+// hpiIsComplete returns true only when all five OLDCARTS intake fields are
+// present. This is the server-side bar for persisting a diagnosis case.
 func hpiIsComplete(hpi *ai.SymptomProfile) bool {
 	if hpi == nil {
 		return false
 	}
-	return hpi.Onset != "" && hpi.Duration != "" && hpi.SeverityScore > 0
+	return hpi.Onset != "" &&
+		hpi.Duration != "" &&
+		hpi.SeverityScore > 0 &&
+		hpi.Location != "" &&
+		hpi.Character != ""
 }
 
 func isClinicalDiagnosisCategory(category string) bool {
@@ -751,13 +755,17 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message, category
 		return cr, nil
 	}
 
-	// Fix 2 + 4: For clinical and escalated cases, require a minimum viable HPI
-	// (onset + duration + severityScore) before persisting a case record or
-	// notifying the physician queue. This prevents half-formed cases from appearing
-	// in the physician dashboard mid-intake.
-	if (resp.Escalated || strings.Contains(strings.ToUpper(resp.Mode), "CLINICAL")) && !hpiIsComplete(resp.HPI) {
-		log.Printf("[EDIS] skipping case persistence — HPI incomplete (user=%s mode=%s)", userID, resp.Mode)
-		return cr, nil
+	// Persist diagnosis only when triage is fully complete for clinical/escalated
+	// turns: full 5-field HPI must exist and no follow-up questions can remain.
+	if resp.Escalated || strings.Contains(strings.ToUpper(resp.Mode), "CLINICAL") {
+		if !hpiIsComplete(resp.HPI) {
+			log.Printf("[EDIS] skipping case persistence — HPI incomplete (user=%s mode=%s)", userID, resp.Mode)
+			return cr, nil
+		}
+		if len(resp.FollowUpQuestions) > 0 {
+			log.Printf("[EDIS] skipping case persistence — follow-up still pending (user=%s mode=%s)", userID, resp.Mode)
+			return cr, nil
+		}
 	}
 
 	// Persist diagnosis and publish ai.diagnosis.preliminary.
