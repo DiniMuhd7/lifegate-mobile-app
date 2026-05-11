@@ -330,8 +330,12 @@ export default function Item2Screen() {
             <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
           </Pressable>
           <Pressable onPress={() => void handleRateIOS()} className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80">
-            <Ionicons name="logo-apple" size={20} color="#000000" />
             <Text className="ml-3 text-base text-gray-900 font-medium flex-1">App Store</Text>
+            <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
+          </Pressable>
+          <Pressable onPress={() => void Linking.openURL('https://www.producthunt.com/products/lifegate-by-dshub')} className="flex-row items-center rounded-xl bg-[#F4FAFA] border border-[#DFEFEF] px-3 py-3 active:opacity-80 mt-3">
+            <Ionicons name="rocket-outline" size={20} color="#DA552F" />
+            <Text className="ml-3 text-base text-gray-900 font-medium flex-1">Product Hunt</Text>
             <Ionicons name="arrow-forward" size={16} color="#14A8A8" />
           </Pressable>
         </View>
