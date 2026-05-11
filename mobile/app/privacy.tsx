@@ -143,7 +143,7 @@ export default function PolicyScreen() {
           <Para style={{ fontWeight: '600', color: '#1e293b' } as any}>
             DSHub{'\n'}
             Email: contact@dshub.com.ng{'\n'}
-            Website: https://mobile.dshub.com.ng
+            Website: https://lifegate.dshub.com.ng
           </Para>
         </Section>
 
@@ -341,7 +341,7 @@ export default function PolicyScreen() {
           <Para style={{ fontWeight: '600', color: TEAL } as any}>
             DSHub — Data Privacy{'\n'}
             Email: contact@dshub.com.ng{'\n'}
-            Website: https://mobile.dshub.com.ng
+            Website: https://lifegate.dshub.com.ng
           </Para>
         </Section>
 

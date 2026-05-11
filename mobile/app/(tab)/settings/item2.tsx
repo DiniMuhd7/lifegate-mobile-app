@@ -206,7 +206,7 @@ export default function Item2Screen() {
   const feedbackSent = params.feedback === 'sent' && showFeedbackBanner;
 
   const appVersion     = Constants.expoConfig?.version ?? '1.0.0';
-  const androidPackage = Constants.expoConfig?.android?.package ?? 'com.lazyapp.lifegatemobile';
+  const androidPackage = Constants.expoConfig?.android?.package ?? 'com.dshub.lifegate';
   const iosAppId       = String(Constants.expoConfig?.extra?.iosAppId ?? '').trim();
 
   const handleCallSupport  = () => openFirstSupportedUrl(['tel:+2349013453490', 'tel:+2349110192583']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open dialer.'); });

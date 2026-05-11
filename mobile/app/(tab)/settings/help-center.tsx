@@ -370,7 +370,7 @@ export default function HelpScreen() {
   const appVersion     = Constants.expoConfig?.version ?? '1.0.0';
   const appName        = Constants.expoConfig?.name ?? 'LifeGate';
   const appWebsite     = 'https://lifegate.dshub.com.ng';
-  const androidPackage = Constants.expoConfig?.android?.package ?? 'com.lazyapp.lifegatemobile';
+  const androidPackage = Constants.expoConfig?.android?.package ?? 'com.dshub.lifegate';
   const iosBundleId    = Constants.expoConfig?.ios?.bundleIdentifier ?? 'Not configured';
   const iosAppId       = String(Constants.expoConfig?.extra?.iosAppId ?? '').trim();
 
@@ -711,6 +711,16 @@ export default function HelpScreen() {
                 </View>
               </Pressable>
             </View>
+            <Pressable
+              onPress={() => void Linking.openURL('https://www.producthunt.com/products/lifegate-by-dshub')}
+              style={({ pressed }) => [s.storeBadge, { backgroundColor: '#DA552F', marginTop: 10, alignSelf: 'flex-start' }, pressed && { opacity: 0.85 }]}
+            >
+              <Ionicons name="rocket-outline" size={22} color="#fff" style={{ marginRight: 10 }} />
+              <View>
+                <Text style={s.storeBadgeSuper}>FIND US ON</Text>
+                <Text style={s.storeBadgeName}>Product Hunt</Text>
+              </View>
+            </Pressable>
           </View>
 
           {/* ── FAQ ── */}

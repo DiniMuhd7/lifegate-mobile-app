@@ -22,8 +22,9 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'LifeGate';
   const options = {
     body: payload.body || '',
-    icon: '/icon.png',
-    badge: '/favicon.png',
+    icon: payload.icon || '/icon.png',
+    badge: payload.badge || '/badge.png',
+    image: payload.image || undefined,
     data: payload.data || {},
     tag: payload.data?.type || 'lifegate',   // collapses same-type notifs
     renotify: true,

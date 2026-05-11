@@ -292,7 +292,7 @@ export default function TermsScreen() {
           <Para style={{ fontWeight: '600', color: TEAL } as any}>
             DSHub — LifeGate Support{'\n'}
             Email: contact@dshub.com.ng{'\n'}
-            Website: https://mobile.dshub.com.ng
+            Website: https://lifegate.dshub.com.ng
           </Para>
         </Section>
 
