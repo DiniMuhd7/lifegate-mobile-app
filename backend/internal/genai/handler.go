@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
@@ -61,6 +62,7 @@ func (h *Handler) Chat(c *gin.Context) {
 		PreviousMessages: req.PreviousMessages,
 		UserID:           uid,
 		Category:         req.Category,
+		ContinuationDiagnosisID: strings.TrimSpace(c.Query("diagnosisId")),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to process request"})

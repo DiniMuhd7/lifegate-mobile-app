@@ -471,6 +471,9 @@ type ChatRequest struct {
 	PreviousMessages []ai.ChatMessage `json:"previousMessages"`
 	UserID           string
 	Category         string
+	// ContinuationDiagnosisID is the active case ID sent by the client when
+	// triage continues on an already-open case.
+	ContinuationDiagnosisID string
 }
 
 // ChatResponse is the full EDIS-powered response returned to the client.
@@ -541,7 +544,7 @@ func (s *Service) Chat(ctx context.Context, req ChatRequest) (*ChatResponse, err
 	// Process never returns an error — graceful fallback is applied on failure.
 	resp, _ := s.engine.Process(ctx, messages, req.Category, patient, knownHPI)
 
-	return s.buildAndPublish(ctx, req.UserID, req.Message, req.Category, resp, start)
+	return s.buildAndPublish(ctx, req.UserID, req.Message, req.Category, resp, start, req.ContinuationDiagnosisID)
 }
 
 // ─── ChatInSession (session-scoped) ──────────────────────────────────────────
@@ -601,7 +604,7 @@ func (s *Service) ChatInSession(ctx context.Context, sessionID, userID, message,
 		return b
 	}())
 
-	return s.buildAndPublish(ctx, userID, message, category, resp, start)
+	return s.buildAndPublish(ctx, userID, message, category, resp, start, "")
 }
 
 // ─── FinalizeSession ──────────────────────────────────────────────────────────
@@ -632,7 +635,7 @@ func (s *Service) FinalizeSession(ctx context.Context, sessionID, userID string)
 	resp, _ := s.engine.Process(ctx, history, session.Category, patient)
 
 	// Final reports always enter the physician review queue.
-	diagnosisID, _ := s.saveDiagnosis(userID, "Session Summary: "+session.Title, resp.AIResponse, resp.Escalated)
+	diagnosisID, _ := s.saveDiagnosis(userID, "Session Summary: "+session.Title, resp.AIResponse, resp.Escalated, "")
 
 	// Mark the session completed.
 	completedStatus := "completed"
@@ -686,7 +689,7 @@ func (s *Service) Status() map[string]string {
 // buildAndPublish converts an EDISResponse into a ChatResponse and publishes
 // the appropriate NATS events (ai.question.generated, early_flag.detected,
 // ai.session.escalated, ai.diagnosis.preliminary).
-func (s *Service) buildAndPublish(ctx context.Context, userID, message, category string, resp *edis.EDISResponse, start time.Time) (*ChatResponse, error) {
+func (s *Service) buildAndPublish(ctx context.Context, userID, message, category string, resp *edis.EDISResponse, start time.Time, continuationDiagnosisID string) (*ChatResponse, error) {
 	enforceCategoryOutputPolicy(resp, category)
 
 	// Persist any health profile fields collected from the patient this turn.
@@ -769,7 +772,7 @@ func (s *Service) buildAndPublish(ctx context.Context, userID, message, category
 	}
 
 	// Persist diagnosis and publish ai.diagnosis.preliminary.
-	id, isNewCase := s.saveDiagnosis(userID, message, resp.AIResponse, resp.Escalated)
+	id, isNewCase := s.saveDiagnosis(userID, message, resp.AIResponse, resp.Escalated, continuationDiagnosisID)
 	if id == "" {
 		return cr, nil
 	}
@@ -893,7 +896,7 @@ func formatClinicalSummaryMessage(s *ai.ClinicalSummary) string {
 
 // ─── Persistence helpers ──────────────────────────────────────────────────────
 
-func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, escalated bool) (string, bool) {
+func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, escalated bool, continuationDiagnosisID string) (string, bool) {
 	aiJSON, _ := json.Marshal(resp)
 
 	// Marshal HPI separately for the dedicated hpi column.
@@ -935,6 +938,47 @@ func (s *Service) saveDiagnosis(userID, message string, resp *ai.AIResponse, esc
 	if resp.Diagnosis != nil {
 		condition = resp.Diagnosis.Condition
 		urgency = resp.Diagnosis.Urgency
+	}
+
+	// Explicit continuation path: when the client sends diagnosisId for an
+	// active case, always update that same pending case instead of creating or
+	// matching by condition text.
+	if continuationDiagnosisID != "" {
+		var existingID string
+		err := s.db.QueryRow(`
+			SELECT id::text
+			FROM diagnoses
+			WHERE id = $1::uuid
+			  AND user_id = $2::uuid
+			  AND status = 'Pending'
+			LIMIT 1`, continuationDiagnosisID, userID,
+		).Scan(&existingID)
+
+		if err == nil && existingID != "" {
+			hasPrescription := resp.Prescription != nil
+			_, updateErr := s.db.Exec(`
+				UPDATE diagnoses
+				SET title                  = $2,
+				    description            = $3,
+				    condition              = $4,
+				    urgency                = $5,
+				    ai_response            = $6,
+				    hpi                    = $7,
+				    escalated              = $8,
+				    has_prescription       = $9,
+				    follow_up_date         = $10,
+				    follow_up_instructions = $11,
+				    updated_at             = NOW()
+				WHERE id = $1::uuid`,
+				existingID, title, resp.Text, condition, urgency, aiJSON, hpiJSON, escalated, hasPrescription,
+				followUpDate, followUpInstructions,
+			)
+			if updateErr == nil {
+				log.Printf("[EDIS] continuation case updated %s (user=%s)", existingID, userID)
+				return existingID, false
+			}
+			log.Printf("[EDIS] continuation case update failed %s: %v", existingID, updateErr)
+		}
 	}
 
 	// ── Duplicate detection ────────────────────────────────────────────────────
