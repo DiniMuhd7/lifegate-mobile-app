@@ -49,6 +49,8 @@ mobile/android/
 
 # Go
 backend/lifegate-backend
+backend/lifegate-server
+backend/server
 backend/*.out
 
 # Editor
