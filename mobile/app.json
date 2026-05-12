@@ -7,7 +7,7 @@
       "enabled": false
     },
     "web": {
-      "favicon": "./assets/logo.svg",
+      "favicon": "./assets/lifegate-logo.png",
       "bundler": "metro",
       "output": "static"
     },
