@@ -134,26 +134,63 @@ async function incrementViewsOncePerSession() {
   sessionStorage.setItem(sessionKey, "1");
 }
 
+async function triggerAndroidDownload(apkUrl) {
+  try {
+    const response = await fetch(apkUrl, { mode: "cors" });
+    if (!response.ok) throw new Error("fetch failed");
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "lifegate-signed.apk";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch {
+    // CORS or network error — direct link fallback with download hint
+    const a = document.createElement("a");
+    a.href = apkUrl;
+    a.download = "lifegate-signed.apk";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+}
+
 function attachDownloadTracking() {
   const links = document.querySelectorAll("a[data-platform]");
   links.forEach((link) => {
-    link.addEventListener("click", async () => {
+    link.addEventListener("click", async (e) => {
       const platform = link.getAttribute("data-platform");
       const event = platform === "android" ? "android_download" : platform === "ios" ? "ios_download" : "";
       if (!event) return;
 
+      if (platform === "android") {
+        e.preventDefault();
+        // Track the event first, then initiate the renamed download
+        try {
+          const updated = await postEvent(event);
+          renderMetrics(updated);
+          writeLocalMetrics(updated);
+          setStatsSource("Source: live server analytics");
+        } catch {
+          updateLocalMetrics((metrics) => ({ ...metrics, android: metrics.android + 1 }));
+          setStatsSource("Source: browser local fallback");
+        }
+        await triggerAndroidDownload(link.getAttribute("href"));
+        return;
+      }
+
+      // iOS — track only, browser follows the link normally
       try {
         const updated = await postEvent(event);
         renderMetrics(updated);
         writeLocalMetrics(updated);
         setStatsSource("Source: live server analytics");
       } catch {
-        if (platform === "android") {
-          updateLocalMetrics((metrics) => ({ ...metrics, android: metrics.android + 1 }));
-        }
-        if (platform === "ios") {
-          updateLocalMetrics((metrics) => ({ ...metrics, ios: metrics.ios + 1 }));
-        }
+        updateLocalMetrics((metrics) => ({ ...metrics, ios: metrics.ios + 1 }));
         setStatsSource("Source: browser local fallback");
       }
     });
