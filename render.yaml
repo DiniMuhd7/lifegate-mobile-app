@@ -150,6 +150,8 @@ services:
     rootDir: download
     buildCommand: ""
     staticPublishPath: .
+    domains:
+      - download.dshub.com.ng
 
     routes:
       - type: rewrite
