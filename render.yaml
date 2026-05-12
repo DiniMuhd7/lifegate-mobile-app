@@ -144,6 +144,18 @@ services:
         source: /*
         destination: /index.html
 
+  # ─── Download Landing Page (Static Site) ───────────────────────────────────
+  - type: static
+    name: lifegate-download-web
+    rootDir: download
+    buildCommand: ""
+    staticPublishPath: .
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
   # ─── NATS JetStream (Private Service) ──────────────────────────────────────
   # Reachable internally as nats://lifegate-nats:4222
   - type: pserv

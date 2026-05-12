@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download LifeGate | Android & iOS</title>
+    <meta
+      name="description"
+      content="Download LifeGate for Android and iOS. Access health guidance, follow-ups, and care support in one app."
+    />
+    <meta name="lifegate-api-base" content="https://edis.dshub.com.ng/api" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Sora:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./script.js"></script>
+  </head>
+  <body>
+    <div class="scene-overlay" aria-hidden="true"></div>
+    <header class="hero">
+      <nav class="top-nav container">
+        <div class="brand">LifeGate</div>
+        <a class="secondary-link" href="#stats">Live Stats</a>
+      </nav>
+
+      <section class="hero-content container">
+        <p class="eyebrow reveal">Trusted Digital Care Companion</p>
+        <h1 class="reveal delay-1">Download LifeGate for Android and iOS</h1>
+        <p class="lead reveal delay-2">
+          Book care, monitor health updates, and stay connected with support teams from one secure app.
+          Fast, simple, and designed for everyday use.
+        </p>
+        <div class="cta-row reveal delay-3">
+          <a
+            id="android-download"
+            class="download-btn android"
+            href="https://play.google.com/store"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Download LifeGate from Google Play"
+            data-platform="android"
+          >
+            <span class="store-label">Get it on</span>
+            <strong>Google Play</strong>
+          </a>
+
+          <a
+            id="ios-download"
+            class="download-btn ios"
+            href="https://www.apple.com/app-store/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Download LifeGate from the App Store"
+            data-platform="ios"
+          >
+            <span class="store-label">Download on the</span>
+            <strong>App Store</strong>
+          </a>
+        </div>
+      </section>
+    </header>
+
+    <main class="container main-grid">
+      <section id="stats" class="panel reveal">
+        <div class="panel-head">
+          <h2>Download Statistics</h2>
+          <p>Updated in real time from this webpage activity.</p>
+        </div>
+
+        <div class="stats-grid" role="list" aria-label="Download statistics">
+          <article class="stat-card" role="listitem">
+            <h3>Total Page Views</h3>
+            <p id="stat-views" class="value">0</p>
+          </article>
+          <article class="stat-card" role="listitem">
+            <h3>Android Clicks</h3>
+            <p id="stat-android" class="value">0</p>
+          </article>
+          <article class="stat-card" role="listitem">
+            <h3>iOS Clicks</h3>
+            <p id="stat-ios" class="value">0</p>
+          </article>
+          <article class="stat-card" role="listitem">
+            <h3>Click-Through Rate</h3>
+            <p id="stat-ctr" class="value">0%</p>
+          </article>
+        </div>
+
+        <div class="bars" aria-label="Download comparison chart">
+          <div class="bar-row">
+            <span>Android</span>
+            <div class="bar-track"><div id="bar-android" class="bar-fill"></div></div>
+            <strong id="bar-label-android">0</strong>
+          </div>
+          <div class="bar-row">
+            <span>iOS</span>
+            <div class="bar-track"><div id="bar-ios" class="bar-fill ios"></div></div>
+            <strong id="bar-label-ios">0</strong>
+          </div>
+        </div>
+
+        <p id="last-updated" class="updated">Last updated: --</p>
+          <p id="stats-source" class="source-pill">Source: connecting...</p>
+      </section>
+
+      <section class="panel features reveal delay-1">
+        <div class="panel-head">
+          <h2>Why users choose LifeGate</h2>
+          <p>A friendly experience designed for both first-time and returning users.</p>
+        </div>
+        <ul>
+          <li>Clear guidance with a low-friction onboarding journey.</li>
+          <li>Fast access to care updates and follow-up reminders.</li>
+          <li>Simple navigation optimized for mobile screens.</li>
+          <li>Secure app links for verified store downloads.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer container">
+      <p>Need help installing? Contact LifeGate support through the app channels.</p>
+    </footer>
+  </body>
+</html>

@@ -37,10 +37,12 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/downloadstats"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/edis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/explore"
 	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthmetrics"
 	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
@@ -50,7 +52,6 @@ import (
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthmetrics"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
@@ -142,6 +143,8 @@ func main() {
 
 	healthMetricsSvc := healthmetrics.NewService(database)
 	healthMetricsHandler := healthmetrics.NewHandler(healthMetricsSvc)
+	downloadStatsSvc := downloadstats.NewService(database)
+	downloadStatsHandler := downloadstats.NewHandler(downloadStatsSvc)
 
 	hub := wshub.NewHub()
 
@@ -689,6 +692,13 @@ func main() {
 		healthMetricsGroup.GET("/today", healthMetricsHandler.Today)
 	}
 
+	// Public download landing-page analytics.
+	downloadStatsGroup := api.Group("/download-stats")
+	{
+		downloadStatsGroup.GET("", downloadStatsHandler.Get)
+		downloadStatsGroup.POST("/events", downloadStatsHandler.Track)
+	}
+
 	// Instant messaging — patient ↔ physician on a per-diagnosis basis.
 	// Both "user" and "professional" roles may access these routes; the
 	// middleware.Auth guard ensures only authenticated callers reach them.
@@ -776,7 +786,7 @@ func main() {
 	// Serves a small HTML page that tells the user to return to the app and
 	// confirms or reports the payment status. No authentication required.
 	r.GET("/payment-callback", func(c *gin.Context) {
-		status := c.Query("status")     // "successful" | "cancelled" | "failed"
+		status := c.Query("status") // "successful" | "cancelled" | "failed"
 		txRef := c.Query("tx_ref")
 		flwTxID := c.Query("transaction_id")
 		verificationPending := false
