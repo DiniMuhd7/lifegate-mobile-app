@@ -122,8 +122,9 @@ services:
         value: /app/uploads
 
   # ─── Expo Web App (Static Site) ───────────────────────────────────────────
-  - type: static
+  - type: web
     name: lifegate-mobile-web
+    runtime: static
     rootDir: mobile
     buildCommand: npm ci && npm run export:web
     staticPublishPath: dist
@@ -145,10 +146,11 @@ services:
         destination: /index.html
 
   # ─── Download Landing Page (Static Site) ───────────────────────────────────
-  - type: static
+  - type: web
     name: lifegate-download-web
+    runtime: static
     rootDir: download
-    buildCommand: ""
+    buildCommand: echo 'no build needed'
     staticPublishPath: .
     domains:
       - download.dshub.com.ng
