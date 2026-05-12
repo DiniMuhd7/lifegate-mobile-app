@@ -3,9 +3,18 @@ package middleware
 import "github.com/gin-gonic/gin"
 
 // SecurityHeaders sets common HTTP security headers on every response.
-// These protect against XSS, clickjacking, MIME sniffing, and other common web attacks.
+//
+// STRIDE — Information Disclosure: prevents browsers from caching sensitive
+// API responses, blocks MIME sniffing, clickjacking, and XSS-based data leaks.
+// STRIDE — Tampering: HSTS and CSP reduce the attack surface for
+// man-in-the-middle and script-injection attacks.
 func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Prevent sensitive API responses from being stored in browser or
+		// proxy caches (STRIDE — Information Disclosure).
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+		c.Header("Pragma", "no-cache")
+
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-XSS-Protection", "1; mode=block")

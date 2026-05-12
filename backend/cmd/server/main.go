@@ -307,9 +307,11 @@ func main() {
 
 	// Router
 	r := gin.New()
-	r.Use(middleware.Logger())
+	r.Use(middleware.RequestID())      // STRIDE Repudiation: attach unique ID to every request
+	r.Use(middleware.Logger())         // STRIDE Repudiation: log IP + user ID + request ID
 	r.Use(middleware.CORS())
-	r.Use(middleware.SecurityHeaders())
+	r.Use(middleware.SecurityHeaders()) // STRIDE InfoDisclosure/Tampering: security + cache headers
+	r.Use(middleware.RateLimit(200, 60)) // STRIDE DoS: 200 req/min per IP across all endpoints
 	r.Use(gin.Recovery())
 	// Reject requests whose body exceeds 4 MB to prevent resource exhaustion.
 	r.Use(func(c *gin.Context) {

@@ -14,8 +14,9 @@ const REFRESH_TOKEN_KEY = 'lifegate_refresh_token';
 const isClient = typeof window !== 'undefined';
 
 /**
- * On web always use localStorage (via AsyncStorage) so that tokens survive
- * page refreshes reliably. The SecureStore probe is only needed on native
+ * On web always use sessionStorage (not localStorage) so that tokens are
+ * cleared when the tab closes, reducing the XSS exposure window.
+ * The SecureStore probe is only needed on native
  * where older Expo Go runtimes may not support the v15 API.
  *
  * Cache the probe result so we don't pay the try/catch cost on every call.
@@ -35,12 +36,21 @@ async function probeSecureStore(): Promise<boolean> {
   return secureStoreWorks;
 }
 
+/**
+ * On native, use SecureStore (hardware-backed encrypted keychain).
+ * On web, use sessionStorage instead of localStorage so that tokens are
+ * cleared when the tab closes.
+ *
+ * STRIDE — Information Disclosure: sessionStorage limits the XSS exposure
+ * window — a stolen token cannot be read across sessions or tabs, unlike
+ * localStorage which persists indefinitely.
+ */
 async function storeSet(key: string, value: string): Promise<void> {
   if (!isClient) return;
   if (await probeSecureStore()) {
     await SecureStore.setItemAsync(key, value);
   } else {
-    await AsyncStorage.setItem(key, value);
+    sessionStorage.setItem(key, value);
   }
 }
 
@@ -49,16 +59,19 @@ async function storeGet(key: string): Promise<string | null> {
   if (await probeSecureStore()) {
     return SecureStore.getItemAsync(key);
   }
-  return AsyncStorage.getItem(key);
+  return sessionStorage.getItem(key);
 }
 
 async function storeRemove(key: string): Promise<void> {
   if (!isClient) return;
   if (await probeSecureStore()) {
     await SecureStore.deleteItemAsync(key);
-  } else {
-    await AsyncStorage.removeItem(key);
+    return;
   }
+  sessionStorage.removeItem(key);
+  // Also evict any token that may have been saved in localStorage by an older
+  // version of the app (migration: clear stale persisted tokens on logout).
+  try { await AsyncStorage.removeItem(key); } catch { /* ignore */ }
 }
 
 // ─── Access token ─────────────────────────────────────────────────────────────
