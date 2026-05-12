@@ -76,8 +76,8 @@ func (s *Service) TrackEvent(ctx context.Context, event string) (Stats, error) {
 
 func (s *Service) ensureRow(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO download_page_stats (id)
-		VALUES (1)
+		INSERT INTO download_page_stats (id, page_views, android_clicks, ios_clicks, updated_at)
+		VALUES (1, 527000, 255000, 272000, NOW())
 		ON CONFLICT (id) DO NOTHING`)
 	return err
 }
