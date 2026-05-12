@@ -182,7 +182,7 @@ services:
 # ─── Managed PostgreSQL ────────────────────────────────────────────────────
 databases:
   - name: lifegate-db
-    plan: free             # upgrade to starter for daily backups
+    plan: basic-256mb
     region: oregon
     databaseName: lifegate
     user: lifegate_user
