@@ -7,7 +7,7 @@
       "enabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png",
+      "favicon": "./assets/logo.svg",
       "bundler": "metro",
       "output": "static"
     },
