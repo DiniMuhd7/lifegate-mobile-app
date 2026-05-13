@@ -1,17 +1,25 @@
 /**
  * RewardedAdButton.tsx — AdMob Rewarded Ad for native (iOS / Android).
  *
- * App ID  : ca-app-pub-3940256099942544~3347511713  (test — iOS)
- * App ID  : ca-app-pub-3940256099942544~1458002511  (test — Android)
- * Unit ID : ca-app-pub-3940256099942544/5224354917  (test rewarded)
+ * iOS App ID     : ca-app-pub-4516568539037938~3952077665
+ * iOS Unit ID    : ca-app-pub-4516568539037938/4827548784
+ * Android App ID : ca-app-pub-4516568539037938~3922174578
+ * Android Unit ID: ca-app-pub-4516568539037938/1561718040
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, View, Text, ActivityIndicator } from 'react-native';
+import { Platform, Pressable, View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
 
-const AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID ?? TestIds.REWARDED;
+const AD_UNIT_ID = Platform.select({
+  ios:
+    process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID ??
+    'ca-app-pub-4516568539037938/4827548784',
+  android:
+    process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID ??
+    'ca-app-pub-4516568539037938/1561718040',
+  default: TestIds.REWARDED,
+});
 
 export interface RewardedAdButtonProps {
   onRewarded: () => void;
@@ -32,7 +40,11 @@ export function RewardedAdButton({
 }: RewardedAdButtonProps) {
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const rewarded = useRef(RewardedAd.createForAdRequest(AD_UNIT_ID)).current;
+  const rewarded = useRef(
+    RewardedAd.createForAdRequest(AD_UNIT_ID, {
+      requestNonPersonalizedAdsOnly: !!(global as Record<string, unknown>).__adsNonPersonalized,
+    })
+  ).current;
 
   useEffect(() => {
     const unsubLoaded = rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {

@@ -20,6 +20,12 @@
       "@react-native-community/datetimepicker",
       "expo-secure-store",
       [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This identifier helps us show you relevant health content and ads that support free access to LifeGate."
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",

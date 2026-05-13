@@ -35,7 +35,11 @@ export interface InterstitialAdSlotProps {
 
 export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, InterstitialAdSlotProps>(
   function InterstitialAdSlot({ onLoaded, onFailed, onDismissed }, ref) {
-    const interstitial = useRef(InterstitialAd.createForAdRequest(AD_UNIT_ID)).current;
+    const interstitial = useRef(
+      InterstitialAd.createForAdRequest(AD_UNIT_ID, {
+        requestNonPersonalizedAdsOnly: !!(global as Record<string, unknown>).__adsNonPersonalized,
+      })
+    ).current;
     const [loaded, setLoaded] = useState(false);
 
     useImperativeHandle(ref, () => ({

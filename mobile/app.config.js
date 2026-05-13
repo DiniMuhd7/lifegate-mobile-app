@@ -23,10 +23,10 @@ module.exports = ({ config }) => ({
       {
         androidAppId:
           process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID ??
-          'ca-app-pub-3940256099942544~1458002511',
+          'ca-app-pub-4516568539037938~3922174578',
         iosAppId:
           process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID ??
-          'ca-app-pub-3940256099942544~3347511713',
+          'ca-app-pub-4516568539037938~3952077665',
       },
     ],
     [

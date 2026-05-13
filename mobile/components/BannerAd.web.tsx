@@ -4,8 +4,8 @@
  * Uses the adsbygoogle (Google Publisher) JavaScript SDK which is the web
  * delivery mechanism for AdMob/AdSense publishers.
  *
- * App ID  : ca-app-pub-4516568539037938~3922174578
- * Unit ID : ca-app-pub-4516568539037938/4524809808
+ * Android App ID : ca-app-pub-4516568539037938~3922174578
+ * Android Unit ID: ca-app-pub-4516568539037938/4524809808
  *
  * The banner is only rendered in production builds (not on localhost / dev
  * tunnels) because adsbygoogle rejects unapproved origins and throws an
@@ -15,9 +15,9 @@ import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-3940256099942544';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-4516568539037938';
 const AD_SLOT =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '6300978111';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '4524809808';
 
 // Extend window type for adsbygoogle
 declare global {

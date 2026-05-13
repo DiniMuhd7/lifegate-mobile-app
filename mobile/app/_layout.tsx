@@ -1,12 +1,13 @@
 // File: app/_layout.tsx
 import '../global.css' // Ensure global styles are applied to all screens
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useAuthStore } from '../stores/auth-store';
 import { installWebAlertPolyfill } from '../utils/installWebAlertPolyfill';
+import { initializeAdsWithConsent } from '../utils/adsConsent';
 
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
@@ -16,6 +17,11 @@ export default function RootLayout() {
   useEffect(() => {
     installWebAlertPolyfill();
     restoreSession();
+    // Run the full consent + SDK init flow on native only.
+    // Order: UMP consent form (EU/GDPR) → ATT permission (iOS) → initialize.
+    if (Platform.OS !== 'web') {
+      initializeAdsWithConsent();
+    }
   }, []);
 
   return (
