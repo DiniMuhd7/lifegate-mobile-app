@@ -1,4 +1,5 @@
-const STORAGE_KEY = "lifegate_download_metrics_v1";
+const STORAGE_KEY = "lifegate_download_metrics_v2";
+const SEED_METRICS = { views: 527, android: 225, ios: 250, lastUpdated: null };
 const API_BASE = resolveApiBase();
 
 function resolveApiBase() {
@@ -13,16 +14,16 @@ function resolveApiBase() {
 function readLocalMetrics() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { views: 527, android: 225, ios: 250, lastUpdated: null };
+    if (!raw) return { ...SEED_METRICS };
     const parsed = JSON.parse(raw);
     return {
-      views: Number(parsed.views || 0),
-      android: Number(parsed.android || 0),
-      ios: Number(parsed.ios || 0),
+      views:   Math.max(Number(parsed.views   || 0), SEED_METRICS.views),
+      android: Math.max(Number(parsed.android || 0), SEED_METRICS.android),
+      ios:     Math.max(Number(parsed.ios     || 0), SEED_METRICS.ios),
       lastUpdated: parsed.lastUpdated || null,
     };
   } catch {
-    return { views: 527, android: 225, ios: 250, lastUpdated: null };
+    return { ...SEED_METRICS };
   }
 }
 
@@ -72,9 +73,9 @@ function updateLocalMetrics(updateFn) {
 
 function mapApiData(data) {
   return {
-    views: Number(data?.pageViews || 0),
-    android: Number(data?.androidClicks || 0),
-    ios: Number(data?.iosClicks || 0),
+    views:   Math.max(Number(data?.pageViews      || 0), SEED_METRICS.views),
+    android: Math.max(Number(data?.androidClicks  || 0), SEED_METRICS.android),
+    ios:     Math.max(Number(data?.iosClicks       || 0), SEED_METRICS.ios),
     lastUpdated: data?.updatedAt || null,
   };
 }
@@ -197,6 +198,8 @@ function attachDownloadTracking() {
   });
 }
 
+// Render seed values immediately so the page never flashes zeros.
+renderMetrics(SEED_METRICS);
 loadInitialStats();
 incrementViewsOncePerSession();
 attachDownloadTracking();
