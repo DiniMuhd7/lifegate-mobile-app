@@ -1,3 +1,4 @@
+-- Reset download page stats to the correct baseline values.
 UPDATE download_page_stats
 SET
     page_views     = 527,
