@@ -13,7 +13,7 @@ function resolveApiBase() {
 function readLocalMetrics() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { views: 527000, android: 255000, ios: 272000, lastUpdated: null };
+    if (!raw) return { views: 527, android: 225, ios: 250, lastUpdated: null };
     const parsed = JSON.parse(raw);
     return {
       views: Number(parsed.views || 0),
@@ -22,7 +22,7 @@ function readLocalMetrics() {
       lastUpdated: parsed.lastUpdated || null,
     };
   } catch {
-    return { views: 527000, android: 255000, ios: 272000, lastUpdated: null };
+    return { views: 527, android: 225, ios: 250, lastUpdated: null };
   }
 }
 
