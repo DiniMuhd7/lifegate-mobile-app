@@ -42,6 +42,32 @@ var aiTitleKeywords = []string{
 	"ai presenter",
 }
 
+// trustedChannelKeywords are checked (case-insensitive) against a video's channelTitle
+// to identify content from licensed doctors, hospitals, medical schools, and other
+// accredited healthcare organisations. The refresher enforces ≥70 % of the final
+// video set per category must match at least one of these keywords.
+var trustedChannelKeywords = []string{
+	// Credentials / titles in the channel name
+	"dr.", " dr ", " md", "mbbs", " do ", " rn ", " np ", " pa ",
+	// Institution types
+	"hospital", "clinic", "medical center", "health center",
+	"health system", "medical school", "school of medicine",
+	"college of medicine", "faculty of medicine",
+	// Well-known organisations
+	"mayo", "cleveland clinic", "johns hopkins", "medcram", "webmd",
+	"nhs", "cdc", "nih", " who ",
+	"american heart", "american diabetes", "american cancer",
+	"american college", "american academy",
+	// General high-signal terms
+	"medical", "medicine", "physician", "surgeon",
+	"pharmacy", "pharmacist", "healthcare",
+	// Specialty terms in channel name
+	"cardiology", "dermatology", "pediatrics", "neurology", "oncology",
+	"orthopedic", "psychiatry", "endocrinology", "gastroenterology",
+	"gynecology", "urology", "radiology", "pathology",
+	"ophthalmology", "rheumatology", "nephrology", "pulmonology",
+}
+
 var categoryQuery = map[string]string{
 	// ── Platform pillars (always present) ────────────────────────────────
 	"Nutrition":     "healthy nutrition diet tips science education doctor",
@@ -285,10 +311,17 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 	// Append exclusion terms to suppress AI-generated content at the API level.
 	fullQuery := query + aiExclusionSuffix
 
+	// Fetch twice the target count so the trusted-source filter has enough
+	// candidates to fill the ≥70 % quota without shrinking the final set.
+	searchMaxResults := r.videosPerCat * 2
+	if searchMaxResults > 50 {
+		searchMaxResults = 50 // YouTube API hard cap per request
+	}
+
 	searchURL := fmt.Sprintf(
 		"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=medium&maxResults=%d&relevanceLanguage=en&safeSearch=strict&publishedAfter=%s&key=%s",
 		url.QueryEscape(fullQuery),
-		r.videosPerCat,
+		searchMaxResults,
 		url.QueryEscape(publishedAfter),
 		r.apiKey,
 	)
@@ -380,6 +413,39 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 			YoutubeID:       d.ID,
 		})
 	}
+
+	// ── Enforce ≥70 % trusted healthcare source target ────────────────────
+	// Split into trusted (licensed doctor / accredited institution) and general
+	// buckets, then compose: fill trustedQuota slots from trusted first, top up
+	// the remainder with general results. Gracefully degrades when there are
+	// fewer trusted candidates than the quota (e.g. non-English queries).
+	var trusted, general []Video
+	for _, v := range out {
+		if isTrustedHealthcareChannel(v.Instructor) {
+			trusted = append(trusted, v)
+		} else {
+			general = append(general, v)
+		}
+	}
+	trustedQuota := (r.videosPerCat*7 + 9) / 10 // ⌈70 % of videosPerCat⌉
+	if len(trusted) > trustedQuota {
+		trusted = trusted[:trustedQuota]
+	}
+	generalQuota := r.videosPerCat - len(trusted)
+	if generalQuota < 0 {
+		generalQuota = 0
+	}
+	if len(general) > generalQuota {
+		general = general[:generalQuota]
+	}
+	out = append(trusted, general...)
+
+	achievedPct := 0
+	if len(out) > 0 {
+		achievedPct = len(trusted) * 100 / len(out)
+	}
+	log.Printf("[explore/refresher] category %q: %d video(s), %d%% from trusted healthcare sources",
+		category, len(out), achievedPct)
 	return out, nil
 }
 
@@ -432,6 +498,19 @@ func parseISO8601Duration(s string) int {
 		}
 	}
 	return total
+}
+
+// isTrustedHealthcareChannel returns true when the channel name contains at least
+// one keyword indicating a licensed doctor, accredited hospital, medical school,
+// or official health organisation. Used to enforce the ≥70 % trusted-source target.
+func isTrustedHealthcareChannel(channelTitle string) bool {
+	lower := strings.ToLower(channelTitle)
+	for _, kw := range trustedChannelKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 // sanitizeID converts a category name to a lowercase underscore identifier.

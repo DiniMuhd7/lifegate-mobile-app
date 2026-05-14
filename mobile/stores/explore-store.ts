@@ -62,6 +62,31 @@ const AI_EXCLUSION_SUFFIX = '-AI -"AI generated" -"AI narrated" -"AI voice" -"ge
 // AI-generated content that slipped past the query-level exclusion.
 const AI_CONTENT_PATTERN = /\bai[- ]?(generated|narrated|voiced|created|produced)\b|\b(chatgpt|sora|synthesia|heygen|d-id)\b|ai narrat|voiced by ai/i;
 
+// Channel name keywords that identify licensed doctors, hospitals, medical schools,
+// and accredited health organisations. Used to enforce the ≥70 % trusted-source
+// target across each category's video set (mirrors backend/internal/explore/refresher.go).
+const TRUSTED_CHANNEL_KEYWORDS = [
+  // Credentials / titles
+  'dr.', ' dr ', ' md', 'mbbs', ' do ', ' rn ', ' np ', ' pa ',
+  // Institution types
+  'hospital', 'clinic', 'medical center', 'health center',
+  'health system', 'medical school', 'school of medicine',
+  'college of medicine', 'faculty of medicine',
+  // Well-known organisations
+  'mayo', 'cleveland clinic', 'johns hopkins', 'medcram', 'webmd',
+  'nhs', 'cdc', 'nih', ' who ',
+  'american heart', 'american diabetes', 'american cancer',
+  'american college', 'american academy',
+  // General high-signal terms
+  'medical', 'medicine', 'physician', 'surgeon',
+  'pharmacy', 'pharmacist', 'healthcare',
+  // Specialty terms in channel name
+  'cardiology', 'dermatology', 'pediatrics', 'neurology', 'oncology',
+  'orthopedic', 'psychiatry', 'endocrinology', 'gastroenterology',
+  'gynecology', 'urology', 'radiology', 'pathology',
+  'ophthalmology', 'rheumatology', 'nephrology', 'pulmonology',
+];
+
 // ── Category pool ─────────────────────────────────────────────────────────
 // Mirrors backend/internal/explore/refresher.go.  All 16 categories are
 // fetched daily; the mobile client re-orders them per user context.
@@ -298,6 +323,12 @@ export function getRecommendedVideos(
   return result;
 }
 
+/** Returns true if the channel name indicates a licensed doctor or accredited healthcare organisation. */
+function isTrustedHealthcareChannel(channelTitle: string): boolean {
+  const lower = channelTitle.toLowerCase();
+  return TRUSTED_CHANNEL_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 /** Parse ISO 8601 durations like PT4M13S → seconds */
 function parseISO8601Duration(iso: string): number {
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -349,10 +380,12 @@ async function fetchCategoryVideos(
   const query = encodeURIComponent(`${baseQuery} ${AI_EXCLUSION_SUFFIX}`);
   const relevanceLanguage = encodeURIComponent(resolveExploreLanguage(language));
   const meta = metaMap[category] ?? { color: '#0AADA2', icon: 'trending-up-outline' };
+  // Fetch twice the target to give the trusted-source filter enough candidates.
+  const searchMaxResults = Math.min(YT_RESULTS_PER_CAT * 2, 50);
   const searchUrl =
     `https://www.googleapis.com/youtube/v3/search` +
     `?part=snippet&q=${query}&type=video&videoDuration=medium` +
-    `&maxResults=${YT_RESULTS_PER_CAT}&relevanceLanguage=${relevanceLanguage}` +
+    `&maxResults=${searchMaxResults}&relevanceLanguage=${relevanceLanguage}` +
     `&safeSearch=strict&key=${YT_API_KEY}`;
 
   const searchRes = await fetch(searchUrl);
@@ -415,7 +448,26 @@ async function fetchCategoryVideos(
     });
   }
 
-  return videos;
+  // ── Enforce ≥70 % trusted healthcare source target ───────────────────────
+  // Split into trusted (licensed doctor / accredited institution) and general
+  // buckets, then compose: fill trustedQuota slots from trusted first and top
+  // up the remainder with general results. Degrades gracefully when there are
+  // fewer trusted candidates than the quota (e.g. non-English queries).
+  const trusted: ExploreVideo[] = [];
+  const general: ExploreVideo[] = [];
+  for (const v of videos) {
+    if (isTrustedHealthcareChannel(v.instructor)) {
+      trusted.push(v);
+    } else {
+      general.push(v);
+    }
+  }
+  const trustedQuota = Math.ceil(YT_RESULTS_PER_CAT * 0.7);
+  const pickedTrusted = trusted.slice(0, trustedQuota);
+  const generalQuota = Math.max(0, YT_RESULTS_PER_CAT - pickedTrusted.length);
+  const pickedGeneral = general.slice(0, generalQuota);
+
+  return [...pickedTrusted, ...pickedGeneral];
 }
 
 async function fetchFromYouTube(language?: string | null, trending: TrendingCategory[] = []): Promise<ExploreVideo[] | null> {
