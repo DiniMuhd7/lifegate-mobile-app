@@ -132,13 +132,13 @@ services:
     envVars:
       - key: EXPO_PUBLIC_API_URL
         value: https://edis.dshub.com.ng/api
-      # AdMob — Web (adsbygoogle / H5 Ads)
+      # AdSense — Web display ads (ca-pub-... not ca-app-pub-...)
       - key: EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID
-        value: ca-app-pub-4516568539037938
+        value: ca-pub-8968729342650927
       - key: EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT
-        value: "4524809808"
+        value: "9217916017"
       - key: EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID
-        value: ca-app-pub-4516568539037938/1561718040
+        value: ca-pub-8968729342650927/9217916017
       # AdMob — Native App IDs (used by react-native-google-mobile-ads plugin)
       - key: EXPO_PUBLIC_ADMOB_ANDROID_APP_ID
         value: ca-app-pub-4516568539037938~3922174578

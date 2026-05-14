@@ -16,9 +16,9 @@ import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-4516568539037938';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
 const AD_SLOT =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '4524809808';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '9217916017';
 
 // Extend window type for adsbygoogle
 declare global {
@@ -75,11 +75,11 @@ export function BannerAd() {
       <ins
         ref={adRef}
         className="adsbygoogle"
-        style={{ display: 'block', width: 320, height: 50 }}
+        style={{ display: 'block' }}
         data-ad-client={PUBLISHER_ID}
         data-ad-slot={AD_SLOT}
-        data-ad-format="banner"
-        data-full-width-responsive="false"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
       />
     </View>
   );

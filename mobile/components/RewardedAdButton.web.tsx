@@ -13,7 +13,7 @@ import { Pressable, View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-4516568539037938';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
 const AD_UNIT_ID =
   process.env.EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID ?? 'ca-app-pub-4516568539037938/1561718040';
 

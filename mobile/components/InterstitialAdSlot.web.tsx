@@ -7,7 +7,7 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-app-pub-4516568539037938';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
 const AD_UNIT_ID =
   process.env.EXPO_PUBLIC_ADMOB_WEB_INTERSTITIAL_UNIT_ID ??
   'ca-app-pub-3940256099942544/1033173712';
