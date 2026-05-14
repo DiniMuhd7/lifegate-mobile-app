@@ -175,6 +175,22 @@ services:
         source: /*
         destination: /index.html
 
+  # ─── DSHub Corporate Landing Page (Static Site) ───────────────────────────
+  - type: web
+    name: dshub-main-web
+    runtime: static
+    rootDir: dshub
+    buildCommand: echo 'no build needed'
+    staticPublishPath: .
+    domains:
+      - dshub.com.ng
+      - www.dshub.com.ng
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
   # ─── NATS JetStream (Private Service) ──────────────────────────────────────
   # Reachable internally as nats://lifegate-nats:4222
   - type: pserv
