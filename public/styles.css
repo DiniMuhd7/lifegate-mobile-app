@@ -2010,3 +2010,216 @@ h3 {
   font-size: .8rem;
   padding: .75rem 0;
 }
+
+/* ── Access Portal ───────────────────────────────────────────────────────── */
+
+/* Stretch the teal panel to top-align when the portal is taller than the left text */
+.access-form-area:has(.ap-portal) {
+  align-items: flex-start;
+  padding: clamp(24px, 4vw, 40px);
+}
+
+.ap-portal {
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 28px rgba(0,0,0,.14);
+}
+
+/* ── Step indicator ─────────────────────────────────────────────────────── */
+.ap-steps {
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 0;
+}
+.ap-step {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid #d1d5db;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Lexend', sans-serif; font-size: .72rem; font-weight: 700;
+  color: #9ca3af; flex-shrink: 0;
+  transition: border-color .2s, background .2s, color .2s;
+}
+.ap-step.ap-step-active { border-color: var(--teal-logo); background: var(--teal-logo); color: #fff; }
+.ap-step.ap-step-done   { border-color: var(--teal-logo); color: var(--teal-logo); }
+.ap-step-connector { flex: 1; height: 2px; background: #e5e7eb; max-width: 44px; }
+
+/* ── Panel ──────────────────────────────────────────────────────────────── */
+.ap-panel { padding: 20px 22px 22px; }
+.ap-panel-label {
+  font-family: 'Lexend Deca', sans-serif; font-size: .72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .07em;
+  color: var(--teal-logo); margin-bottom: 12px;
+}
+
+/* ── Currency toggle ────────────────────────────────────────────────────── */
+.ap-cur-toggle {
+  display: flex; gap: 3px; margin-bottom: 14px;
+  background: #f1f5f9; border-radius: 8px; padding: 3px;
+  width: fit-content;
+}
+.ap-cur-btn {
+  padding: 5px 14px; border: none; background: transparent;
+  border-radius: 6px; cursor: pointer;
+  font-family: 'Lexend Deca', sans-serif; font-size: .76rem; font-weight: 700;
+  color: #64748b; transition: background .18s, color .18s;
+}
+.ap-cur-btn.active { background: var(--teal-logo); color: #fff; }
+
+/* ── Tier cards ─────────────────────────────────────────────────────────── */
+.ap-tier-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+@media (max-width: 540px) { .ap-tier-grid { grid-template-columns: 1fr; } }
+
+.ap-tier-card {
+  border: 1.5px solid #e2e8f0; border-radius: 10px;
+  padding: 14px 12px; cursor: default;
+  display: flex; flex-direction: column; gap: 7px;
+  transition: border-color .18s, box-shadow .18s;
+}
+.ap-tier-card:hover { border-color: var(--teal-logo); box-shadow: 0 2px 10px rgba(9,153,155,.12); }
+.ap-tier-selected { border-color: var(--teal-logo) !important; background: #f0fdfd; }
+
+.ap-tier-head {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.ap-tier-name {
+  font-family: 'Lexend', sans-serif; font-size: .83rem; font-weight: 800;
+  color: var(--text); flex: 1;
+}
+.ap-tier-price {
+  display: block;
+  font-family: 'Lexend Deca', sans-serif; font-size: .82rem; font-weight: 700;
+  color: var(--teal-logo);
+}
+.ap-tier-free-badge {
+  font-family: 'Lexend Deca', sans-serif; font-size: .62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+  background: #dcfce7; color: #166534;
+  padding: 2px 6px; border-radius: 4px;
+}
+.ap-tier-desc {
+  font-family: 'Quicksand', sans-serif; font-size: .77rem;
+  color: var(--text-sub); line-height: 1.5; margin: 0;
+}
+.ap-tier-features {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 4px; flex: 1;
+}
+.ap-tier-features li {
+  font-family: 'Quicksand', sans-serif; font-size: .72rem;
+  color: #64748b; padding-left: 14px; position: relative; line-height: 1.4;
+}
+.ap-tier-features li::before { content: '✓'; position: absolute; left: 0; color: var(--teal-logo); font-size: .68rem; }
+
+.ap-tier-choose {
+  margin-top: auto; width: 100%; padding: 8px 0;
+  border: none; border-radius: 7px;
+  background: var(--teal-logo); color: #fff;
+  font-family: 'Lexend Deca', sans-serif; font-size: .76rem; font-weight: 700;
+  cursor: pointer; transition: background .18s;
+}
+.ap-tier-choose:hover { background: #077e80; }
+.ap-tier-loading {
+  grid-column: 1 / -1; text-align: center;
+  font-family: 'Quicksand', sans-serif; font-size: .85rem;
+  color: var(--text-muted); padding: 24px 0;
+}
+
+/* ── Tier badge (step 2 header) ─────────────────────────────────────────── */
+.ap-tier-badge {
+  display: flex; align-items: center; gap: 8px;
+  background: #f0fdfd; border: 1px solid #99f6e4;
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ap-badge-name {
+  font-family: 'Lexend', sans-serif; font-size: .82rem; font-weight: 700;
+  color: var(--teal-logo); flex: 1;
+}
+.ap-badge-price {
+  font-family: 'Lexend Deca', sans-serif; font-size: .78rem; font-weight: 700;
+  color: var(--teal-mid);
+}
+.ap-badge-change {
+  background: none; border: none; cursor: pointer;
+  font-family: 'Lexend Deca', sans-serif; font-size: .71rem; font-weight: 600;
+  color: #64748b; text-decoration: underline; padding: 0;
+}
+
+/* ── Form fields ────────────────────────────────────────────────────────── */
+.ap-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;
+}
+@media (max-width: 480px) { .ap-row { grid-template-columns: 1fr; } }
+
+.ap-field {
+  display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px;
+}
+.ap-field label {
+  font-family: 'Lexend Deca', sans-serif; font-size: .68rem; font-weight: 700;
+  color: var(--text-sub); text-transform: uppercase; letter-spacing: .05em;
+}
+.ap-field input,
+.ap-field select,
+.ap-field textarea {
+  width: 100%; padding: 8px 10px;
+  border: 1.5px solid #e2e8f0; border-radius: 7px;
+  background: #f8fafc;
+  font-family: 'Quicksand', sans-serif; font-size: .85rem; color: var(--text);
+  transition: border-color .18s; box-sizing: border-box; outline: none;
+}
+.ap-field input:focus,
+.ap-field select:focus,
+.ap-field textarea:focus { border-color: var(--teal-logo); background: #fff; }
+.ap-field textarea { resize: vertical; min-height: 68px; }
+
+.ap-form-error {
+  font-family: 'Quicksand', sans-serif; font-size: .8rem;
+  color: #dc2626; background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 7px; padding: 8px 10px; margin-bottom: 10px;
+}
+.ap-form-btns {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 4px;
+}
+.ap-btn-back {
+  background: none; border: none; cursor: pointer;
+  font-family: 'Lexend Deca', sans-serif; font-size: .8rem; font-weight: 600;
+  color: #64748b; transition: color .18s;
+}
+.ap-btn-back:hover { color: var(--text); }
+.ap-btn-next {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 20px; border: none; border-radius: 8px;
+  background: var(--teal-logo); color: #fff;
+  font-family: 'Lexend Deca', sans-serif; font-size: .82rem; font-weight: 700;
+  cursor: pointer; transition: background .18s;
+}
+.ap-btn-next:disabled { background: #94a3b8; cursor: not-allowed; }
+.ap-btn-next:not(:disabled):hover { background: #077e80; }
+
+/* ── Confirmation ───────────────────────────────────────────────────────── */
+.ap-confirm { text-align: center; padding: 24px 10px 28px; }
+.ap-confirm-icon {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: #dcfce7; color: #16a34a;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px;
+}
+.ap-confirm-title {
+  font-family: 'Lexend', sans-serif; font-size: 1.1rem; font-weight: 800;
+  color: var(--text); margin-bottom: 8px;
+}
+.ap-confirm-body {
+  font-family: 'Quicksand', sans-serif; font-size: .88rem;
+  color: var(--text-sub); line-height: 1.65;
+  max-width: 290px; margin: 0 auto 10px;
+}
+.ap-confirm-ref {
+  font-family: 'Lexend Deca', sans-serif; font-size: .72rem; font-weight: 600;
+  color: var(--text-muted); letter-spacing: .07em;
+}

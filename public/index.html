@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Lexend+Deca:wght@400;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://checkout.flutterwave.com/v3.js"></script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8968729342650927" crossorigin="anonymous"></script>
   </head>
   <body>
@@ -548,22 +549,103 @@
                 </li>
                 <li>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-                  Role-scoped access tiers: View, Export, API
+                  Government &amp; NGO: <strong>Free</strong> with institutional verification
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  Paid tiers from <strong>₦30,000/yr</strong> — Dashboard View, Data Export, or API Access
                 </li>
               </ul>
             </div>
             <div class="access-form-area">
-              <div class="access-coming-soon-box">
-                <div class="access-lock-icon">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+              <!-- ── Access Portal (rendered by access-portal.js) ── -->
+              <div id="access-portal" class="ap-portal">
+
+                <!-- Step indicator -->
+                <div class="ap-steps">
+                  <div class="ap-step ap-step-active" data-n="1"><span>1</span></div>
+                  <div class="ap-step-connector"></div>
+                  <div class="ap-step" data-n="2"><span>2</span></div>
+                  <div class="ap-step-connector"></div>
+                  <div class="ap-step" data-n="3"><span>3</span></div>
                 </div>
-                <p class="access-soon-title">Access Portal Opening Soon</p>
-                <p class="access-soon-sub">Institutional access requests will be handled here. In the meantime, reach out directly.</p>
-                <a class="btn-primary btn-white" href="mailto:contact@dshub.com.ng?subject=LifeGate%20Public%20Health%20Analytics%20%E2%80%94%20Access%20Request">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-                  Email Us to Request Access
-                </a>
-              </div>
+
+                <!-- Step 1: Choose tier -->
+                <div class="ap-panel" id="ap-s1">
+                  <p class="ap-panel-label">Select access tier</p>
+                  <div class="ap-cur-toggle">
+                    <button class="ap-cur-btn active" id="ap-ngn" type="button">₦ NGN</button>
+                    <button class="ap-cur-btn" id="ap-usd" type="button">$ USD</button>
+                  </div>
+                  <div id="ap-tier-grid" class="ap-tier-grid">
+                    <p class="ap-tier-loading">Loading tiers…</p>
+                  </div>
+                </div>
+
+                <!-- Step 2: Contact form -->
+                <div class="ap-panel" id="ap-s2" hidden>
+                  <div id="ap-tier-badge" class="ap-tier-badge"></div>
+                  <p class="ap-panel-label">Your details</p>
+                  <form id="ap-form" novalidate autocomplete="on">
+                    <div class="ap-row">
+                      <div class="ap-field">
+                        <label for="ap-fullName">Full Name</label>
+                        <input id="ap-fullName" name="fullName" type="text" autocomplete="name" placeholder="Dr. Amina Yusuf" required />
+                      </div>
+                      <div class="ap-field">
+                        <label for="ap-email">Work Email</label>
+                        <input id="ap-email" name="email" type="email" autocomplete="email" placeholder="you@institution.gov.ng" required />
+                      </div>
+                    </div>
+                    <div class="ap-row">
+                      <div class="ap-field">
+                        <label for="ap-institution">Institution / Organisation</label>
+                        <input id="ap-institution" name="institution" type="text" placeholder="Federal Ministry of Health" required />
+                      </div>
+                      <div class="ap-field">
+                        <label for="ap-jobTitle">Job Title</label>
+                        <input id="ap-jobTitle" name="jobTitle" type="text" placeholder="Public Health Analyst" required />
+                      </div>
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-role">Organisation Type</label>
+                      <select id="ap-role" name="role" required>
+                        <option value="">— Select one —</option>
+                        <option value="government">Government Body</option>
+                        <option value="ngo">NGO / Non-Profit</option>
+                        <option value="research">Research / Academic</option>
+                        <option value="hospital">Hospital / Clinic</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-useCase">Intended Use</label>
+                      <textarea id="ap-useCase" name="useCase" rows="3" placeholder="Briefly describe how you plan to use this data…" required></textarea>
+                    </div>
+                    <p id="ap-form-error" class="ap-form-error" hidden></p>
+                    <div class="ap-form-btns">
+                      <button type="button" class="ap-btn-back" id="ap-back">&#8592; Back</button>
+                      <button type="submit" class="ap-btn-next" id="ap-next">
+                        <span id="ap-next-label">Continue</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- Step 3: Confirmation -->
+                <div class="ap-panel" id="ap-s3" hidden>
+                  <div class="ap-confirm">
+                    <div class="ap-confirm-icon">
+                      <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                    <h3 class="ap-confirm-title">Request Submitted</h3>
+                    <p class="ap-confirm-body">Your access request has been received. We'll review and respond within 2–3 business days.</p>
+                    <p class="ap-confirm-ref" id="ap-confirm-ref"></p>
+                  </div>
+                </div>
+
+              </div><!-- /#access-portal -->
             </div>
           </div>
         </div>
@@ -2023,6 +2105,239 @@
           } catch (_) {}
         }
         load();
+      })();
+    </script>
+
+
+    <!-- ── Access Portal ─────────────────────────────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        var API = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content || '';
+        var portal = document.getElementById('access-portal');
+        if (!portal) return;
+
+        var state = { currency: 'NGN', tiers: [], selected: null, flwKey: '' };
+
+        var s1 = document.getElementById('ap-s1');
+        var s2 = document.getElementById('ap-s2');
+        var s3 = document.getElementById('ap-s3');
+        var tierGrid = document.getElementById('ap-tier-grid');
+        var tierBadge = document.getElementById('ap-tier-badge');
+        var apForm = document.getElementById('ap-form');
+        var apFormError = document.getElementById('ap-form-error');
+        var apNextLabel = document.getElementById('ap-next-label');
+        var apConfirmRef = document.getElementById('ap-confirm-ref');
+        var apNextBtn = document.getElementById('ap-next');
+
+        function esc(s) {
+          return String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function setStep(n) {
+          document.querySelectorAll('.ap-step').forEach(function (el) {
+            var sn = +el.getAttribute('data-n');
+            el.classList.toggle('ap-step-active', sn === n);
+            el.classList.toggle('ap-step-done', sn < n);
+          });
+          s1.hidden = n !== 1;
+          s2.hidden = n !== 2;
+          s3.hidden = n !== 3;
+        }
+
+        // ── Fetch config ────────────────────────────────────────────────────
+        fetch(API + '/public/access/config')
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res.success) throw new Error('config failed');
+            state.tiers = res.data.tiers || [];
+            state.flwKey = res.data.flwPublicKey || '';
+            renderTiers();
+          })
+          .catch(function () {
+            tierGrid.innerHTML = '<p class="ap-tier-loading">Failed to load — please refresh.</p>';
+          });
+
+        // ── Currency toggle ─────────────────────────────────────────────────
+        document.getElementById('ap-ngn').addEventListener('click', function () {
+          state.currency = 'NGN';
+          this.classList.add('active');
+          document.getElementById('ap-usd').classList.remove('active');
+          if (state.tiers.length) renderTiers();
+        });
+        document.getElementById('ap-usd').addEventListener('click', function () {
+          state.currency = 'USD';
+          this.classList.add('active');
+          document.getElementById('ap-ngn').classList.remove('active');
+          if (state.tiers.length) renderTiers();
+        });
+
+        // ── Tier cards ──────────────────────────────────────────────────────
+        function renderTiers() {
+          var cur = state.currency;
+          var html = '';
+          state.tiers.forEach(function (t) {
+            var priceLabel = cur === 'NGN' ? esc(t.labelNGN) : esc(t.labelUSD);
+            var freeBadge = t.free ? '<span class="ap-tier-free-badge">Free</span>' : '';
+            var feats = (t.features || []).map(function (f) {
+              return '<li>' + esc(f) + '</li>';
+            }).join('');
+            var sel = state.selected && state.selected.id === t.id ? ' ap-tier-selected' : '';
+            html +=
+              '<div class="ap-tier-card' + sel + '" data-id="' + esc(t.id) + '">' +
+              '<div class="ap-tier-head">' +
+              '<span class="ap-tier-name">' + esc(t.name) + '</span>' + freeBadge +
+              '</div>' +
+              '<span class="ap-tier-price">' + priceLabel + '</span>' +
+              '<p class="ap-tier-desc">' + esc(t.description) + '</p>' +
+              '<ul class="ap-tier-features">' + feats + '</ul>' +
+              '<button class="ap-tier-choose" type="button">Choose this tier</button>' +
+              '</div>';
+          });
+          tierGrid.innerHTML = html;
+          tierGrid.querySelectorAll('.ap-tier-choose').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var card = btn.closest('.ap-tier-card');
+              var tid = card.getAttribute('data-id');
+              state.selected = state.tiers.find(function (t) { return t.id === tid; });
+              updateNextLabel();
+              renderBadge();
+              setStep(2);
+            });
+          });
+        }
+
+        function updateNextLabel() {
+          if (!state.selected) return;
+          apNextLabel.textContent = state.selected.free ? 'Submit Request' : 'Proceed to Payment';
+        }
+
+        function renderBadge() {
+          if (!state.selected) return;
+          var t = state.selected;
+          var p = state.currency === 'NGN' ? t.labelNGN : t.labelUSD;
+          tierBadge.innerHTML =
+            '<span class="ap-badge-name">' + esc(t.name) + '</span>' +
+            '<span class="ap-badge-price">' + esc(p) + '</span>' +
+            '<button type="button" class="ap-badge-change" id="ap-change">Change tier</button>';
+          document.getElementById('ap-change').addEventListener('click', function () { setStep(1); });
+        }
+
+        // ── Form ────────────────────────────────────────────────────────────
+        document.getElementById('ap-back').addEventListener('click', function () { setStep(1); });
+
+        apForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          apFormError.hidden = true;
+
+          var fields = ['fullName', 'email', 'institution', 'jobTitle', 'role', 'useCase'];
+          for (var i = 0; i < fields.length; i++) {
+            var el = apForm.elements[fields[i]];
+            if (!el || !el.value.trim()) { showError('Please complete all required fields.'); return; }
+          }
+          var emailVal = apForm.elements['email'].value;
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+            showError('Please enter a valid work email address.'); return;
+          }
+
+          apNextBtn.disabled = true;
+          apNextLabel.textContent = 'Processing…';
+
+          var body = {
+            email:       apForm.elements['email'].value.trim(),
+            fullName:    apForm.elements['fullName'].value.trim(),
+            institution: apForm.elements['institution'].value.trim(),
+            jobTitle:    apForm.elements['jobTitle'].value.trim(),
+            role:        apForm.elements['role'].value,
+            useCase:     apForm.elements['useCase'].value.trim(),
+            tierId:      state.selected.id,
+            currency:    state.currency,
+            flwTxRef:    '',
+            flwTxId:     ''
+          };
+
+          if (state.selected.free) {
+            doSubmit(body);
+          } else {
+            doPayment(body);
+          }
+        });
+
+        function showError(msg) {
+          apFormError.textContent = msg;
+          apFormError.hidden = false;
+          apNextBtn.disabled = false;
+          updateNextLabel();
+        }
+
+        // ── Flutterwave Inline checkout ─────────────────────────────────────
+        function doPayment(body) {
+          if (!state.flwKey) {
+            showError('Payment system unavailable. Please email contact@dshub.com.ng.');
+            return;
+          }
+          if (typeof FlutterwaveCheckout === 'undefined') {
+            showError('Payment script failed to load. Please refresh the page.');
+            return;
+          }
+          var t = state.selected;
+          var amount = state.currency === 'NGN' ? t.priceNGN : t.priceUSD;
+          var txRef = 'LG-AP-' + Math.random().toString(36).slice(2, 10).toUpperCase() + '-' + Date.now();
+          FlutterwaveCheckout({
+            public_key: state.flwKey,
+            tx_ref:     txRef,
+            amount:     amount,
+            currency:   state.currency,
+            payment_options: 'card,banktransfer,ussd',
+            customer:   { email: body.email, name: body.fullName },
+            customizations: {
+              title:       'LifeGate Analytics Access',
+              description: t.name + ' — Annual Subscription'
+            },
+            callback: function (data) {
+              if (data.status === 'successful' || data.status === 'completed') {
+                body.flwTxRef = txRef;
+                body.flwTxId  = String(data.transaction_id || '');
+                doSubmit(body);
+              } else {
+                showError('Payment was not completed. Please try again.');
+              }
+            },
+            onclose: function () {
+              apNextBtn.disabled = false;
+              updateNextLabel();
+            }
+          });
+        }
+
+        // ── API submit ──────────────────────────────────────────────────────
+        function doSubmit(body) {
+          fetch(API + '/public/access/submit', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body)
+          })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              if (!res.ok || !res.d.success) {
+                showError(res.d.message || 'Submission failed. Please try again.');
+                return;
+              }
+              var ref = (res.d.data.id || '').slice(0, 8).toUpperCase();
+              apConfirmRef.textContent = ref ? 'Reference: ' + ref : '';
+              setStep(3);
+            })
+            .catch(function () { showError('Network error. Please check your connection and try again.'); })
+            .finally(function () {
+              apNextBtn.disabled = false;
+              updateNextLabel();
+            });
+        }
+
+        // ── Init ────────────────────────────────────────────────────────────
+        setStep(1);
       })();
     </script>
 

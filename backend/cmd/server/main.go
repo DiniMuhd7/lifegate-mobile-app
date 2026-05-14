@@ -61,6 +61,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/resourcegaps"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/pubinsights"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/demography"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/accessportal"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/disparities"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/research"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
@@ -322,7 +323,11 @@ func main() {
 	demographyRepo := demography.NewRepository(database)
 	demographyHandler := demography.NewHandler(demographyRepo)
 
-	// Disparities — symptom burden + SES proxies, physician response-time inequality
+// Access Portal — institutional access requests with Flutterwave payment
+        accessPortalRepo := accessportal.NewRepository(database, cfg.FlutterwaveSecretKey, cfg.FlutterwaveWebhookHash)
+        accessPortalHandler := accessportal.NewHandler(accessPortalRepo, cfg.FlutterwavePublicKey)
+
+        // Disparities — symptom burden + SES proxies, physician response-time inequality
 	disparitiesRepo := disparities.NewRepository(database)
 	disparitiesHandler := disparities.NewHandler(disparitiesRepo)
 
@@ -777,9 +782,13 @@ func main() {
 		dispGroup := publicGroup.Group("/disparities")
 		dispGroup.GET("/symptom-burden", disparitiesHandler.GetSymptomBurden)
 		dispGroup.GET("/response-times", disparitiesHandler.GetResponseTimeInequality)
+
+                apGroup := publicGroup.Group("/access")
+                apGroup.GET("/config", accessPortalHandler.GetConfig)
+                apGroup.POST("/submit", accessPortalHandler.Submit)
+                apGroup.POST("/webhook", accessPortalHandler.Webhook)
 	}
 
-	// Public download landing-page analytics.
 	downloadStatsGroup := api.Group("/download-stats")
 	{
 		downloadStatsGroup.GET("", downloadStatsHandler.Get)
