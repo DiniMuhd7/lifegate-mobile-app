@@ -56,6 +56,13 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/support"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/surveillance"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthaccess"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/resourcegaps"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/pubinsights"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/demography"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/disparities"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/research"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
 	"github.com/gin-gonic/gin"
@@ -292,6 +299,36 @@ func main() {
 	// completed cases which exceed the SLA are automatically logged and the
 	// 3-breach-per-week flag is evaluated after every completion.
 	physicianSvc.SetSLABreachRecorder(adminSvc)
+
+	// Disease Surveillance & Early Warning (Public Health Analytics Dashboard)
+	surveillanceRepo := surveillance.NewRepository(database)
+	surveillanceSvc := surveillance.NewService(surveillanceRepo, natsClient)
+	surveillanceHandler := surveillance.NewHandler(surveillanceSvc)
+	go surveillanceSvc.Start(context.Background())
+
+	// Healthcare Access & SLA metrics (Public Health Analytics Dashboard)
+	healthAccessRepo := healthaccess.NewRepository(database)
+	healthAccessHandler := healthaccess.NewHandler(healthAccessRepo)
+
+	// Resource Gap Analysis — condition burden vs specialist coverage
+	resourceGapsRepo := resourcegaps.NewRepository(database)
+	resourceGapsHandler := resourcegaps.NewHandler(resourceGapsRepo)
+
+	// Public Insights — telemedicine utilization & compliance/NDPA summary
+	pubInsightsRepo := pubinsights.NewRepository(database)
+	pubInsightsHandler := pubinsights.NewHandler(pubInsightsRepo)
+
+	// Demography — demographic burden & follow-up re-engagement
+	demographyRepo := demography.NewRepository(database)
+	demographyHandler := demography.NewHandler(demographyRepo)
+
+	// Disparities — symptom burden + SES proxies, physician response-time inequality
+	disparitiesRepo := disparities.NewRepository(database)
+	disparitiesHandler := disparities.NewHandler(disparitiesRepo)
+
+	// Research — longitudinal records, AI benchmark, comorbidity
+	researchRepo := research.NewRepository(database)
+	researchHandler := research.NewHandler(researchRepo)
 
 	// SLA enforcement service — runs every 2 minutes in the background,
 	// detects Pending/Active cases that exceed the 4-hour SLA window, and
@@ -698,6 +735,48 @@ func main() {
 	{
 		healthMetricsGroup.POST("/sync", healthMetricsHandler.Sync)
 		healthMetricsGroup.GET("/today", healthMetricsHandler.Today)
+	}
+
+	// ── Public Health Analytics Dashboard (no auth, open CORS, low rate limit) ──
+	// These endpoints serve the public.dshub.com.ng dashboard.  All responses
+	// contain only anonymised, state-level aggregate data (k-anon ≥ 3).
+	publicGroup := api.Group("/public",
+		surveillance.PublicCORS(),
+		middleware.RateLimit(30, 60), // 30 req/min per IP
+	)
+	{
+		survGroup := publicGroup.Group("/surveillance")
+		survGroup.GET("/summary", surveillanceHandler.GetSummary)
+		survGroup.GET("/trends", surveillanceHandler.GetTrends)
+		survGroup.GET("/by-state", surveillanceHandler.GetByState)
+		survGroup.GET("/anomalies", surveillanceHandler.GetAnomalies)
+		survGroup.GET("/seasonal", surveillanceHandler.GetSeasonal)
+
+		accessGroup := publicGroup.Group("/health-access")
+		accessGroup.GET("/summary", healthAccessHandler.GetSummary)
+		accessGroup.GET("/by-state", healthAccessHandler.GetByState)
+
+		gapGroup := publicGroup.Group("/resource-gaps")
+		gapGroup.GET("", resourceGapsHandler.GetGaps)
+
+		insightsGroup := publicGroup.Group("/insights")
+		insightsGroup.GET("/telemedicine", pubInsightsHandler.GetTelemedicine)
+		insightsGroup.GET("/compliance", pubInsightsHandler.GetCompliance)
+
+		demoGroup := publicGroup.Group("/demographics")
+		demoGroup.GET("/burden", demographyHandler.GetBurden)
+		demoGroup.GET("/followup", demographyHandler.GetFollowUp)
+
+		researchGroup := publicGroup.Group("/research")
+		researchGroup.GET("/longitudinal", researchHandler.GetLongitudinal)
+		researchGroup.GET("/ai-benchmark", researchHandler.GetAIBenchmark)
+		researchGroup.GET("/comorbidity", researchHandler.GetComorbidity)
+		researchGroup.GET("/agreement", researchHandler.GetAgreementPatterns)
+		researchGroup.GET("/escalation", researchHandler.GetEscalationAnalysis)
+
+		dispGroup := publicGroup.Group("/disparities")
+		dispGroup.GET("/symptom-burden", disparitiesHandler.GetSymptomBurden)
+		dispGroup.GET("/response-times", disparitiesHandler.GetResponseTimeInequality)
 	}
 
 	// Public download landing-page analytics.
