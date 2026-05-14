@@ -1,8 +1,7 @@
 /**
- * BannerAd.web.tsx — AdMob banner for Expo Web.
+ * BannerAd.web.tsx — AdSense banner for Expo Web.
  *
- * Uses the adsbygoogle (Google Publisher) JavaScript SDK which is the web
- * delivery mechanism for AdMob/AdSense publishers.
+ * Uses the adsbygoogle (Google Publisher) JavaScript SDK.
  *
  * ⚠️  IMPORTANT — Web ads require a web-specific ad unit:
  *     The AD_SLOT must be an AdSense *web display* unit created at
@@ -10,7 +9,7 @@
  *     Mobile app unit IDs (from AdMob) will NOT serve ads on web.
  *     Set EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT in render.yaml to the web slot ID.
  *
- * Publisher ID : ca-app-pub-4516568539037938
+ * Publisher ID : ca-pub-8968729342650927
  */
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
@@ -27,18 +26,12 @@ declare global {
   }
 }
 
-/** Returns true only when running on the deployed production origin. */
-// Dev-mode: always enabled so test ads render on localhost / Codespaces.
-function isProduction(): boolean {
-  return typeof window !== 'undefined';
-}
-
 function loadAdScript() {
   if (typeof document === 'undefined') return;
-  if (document.getElementById('admob-web-script')) return;
+  if (document.getElementById('adsense-web-script')) return;
 
   const script = document.createElement('script');
-  script.id = 'admob-web-script';
+  script.id = 'adsense-web-script';
   script.async = true;
   script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
   script.crossOrigin = 'anonymous';
@@ -49,10 +42,11 @@ export function BannerAd() {
   const adRef = useRef<HTMLElement | null>(null);
   const pushed = useRef(false);
 
-  // Skip rendering entirely in development / unapproved origins.
-  if (!isProduction()) return null;
-
+  // All hooks must be called unconditionally (Rules of Hooks).
   useEffect(() => {
+    // SSR guard — do nothing outside a browser context.
+    if (typeof window === 'undefined') return;
+
     loadAdScript();
 
     const el = adRef.current as (HTMLElement & { dataset: DOMStringMap }) | null;
@@ -69,6 +63,9 @@ export function BannerAd() {
     }
   }, []);
 
+  // SSR: render nothing on the server.
+  if (typeof window === 'undefined') return null;
+
   return (
     <View style={{ alignItems: 'center', width: '100%' }}>
       {/* @ts-expect-error — ins is a valid HTML element not typed in RN */}
@@ -84,3 +81,4 @@ export function BannerAd() {
     </View>
   );
 }
+

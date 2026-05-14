@@ -75,7 +75,3 @@ export async function initializeAdsWithConsent(): Promise<void> {
     (global as Record<string, unknown>).__adsNonPersonalized = true;
   }
 }
-}
-    // Non-fatal — the app continues; ads may not show for this session.
-  }
-}
