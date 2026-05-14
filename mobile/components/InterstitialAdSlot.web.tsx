@@ -1,16 +1,20 @@
 /**
- * InterstitialAdSlot.web.tsx — Web stub for the AdMob Interstitial Ad slot.
+ * InterstitialAdSlot.web.tsx — AdSense interstitial / vignette for Expo Web.
  *
- * Invisible component — calls adBreak() (H5 Game Ads API) when show() is
- * invoked via ref.  Matches the same forwardRef interface as the native file.
+ * Uses the adsbygoogle adBreak() API to show a vignette-style interstitial
+ * when show() is invoked via ref. Requires "Auto ads → Vignettes" to be
+ * enabled in your AdSense account (adsense.google.com → Ads → Auto ads).
+ * No ad unit ID is needed — AdSense auto ads manages interstitials centrally.
+ *
+ * Publisher ID : ca-pub-8968729342650927
  */
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
 const PUBLISHER_ID =
   process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
-const AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_INTERSTITIAL_UNIT_ID ??
-  'ca-app-pub-3940256099942544/1033173712';
+// Interstitial unit ID is optional for AdSense auto-ads vignettes.
+// Only set this if you have a dedicated AdSense interstitial unit.
+const AD_UNIT_ID = process.env.EXPO_PUBLIC_ADMOB_WEB_INTERSTITIAL_UNIT_ID ?? undefined;
 
 declare global {
   interface Window {
@@ -34,15 +38,17 @@ function ensureAdConfig() {
   if (typeof document === 'undefined' || adConfigured) return;
   adConfigured = true;
 
-  if (!document.getElementById('admob-h5-script')) {
+  if (!document.getElementById('adsense-interstitial-script')) {
     const s = document.createElement('script');
-    s.id = 'admob-h5-script';
+    s.id = 'adsense-interstitial-script';
     s.async = true;
     s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
     s.crossOrigin = 'anonymous';
     document.head.appendChild(s);
   }
 
+  // Initialize adsbygoogle array before any push (required by the SDK).
+  window.adsbygoogle = window.adsbygoogle || [];
   (window.adsbygoogle as unknown[]).push({
     preloadAdBreaks: 'on',
     google_ad_client: PUBLISHER_ID,
@@ -90,7 +96,7 @@ export const InterstitialAdSlot = forwardRef<InterstitialAdSlotHandle, Interstit
 
         adBreak({
           type: 'next',
-          adUnitId: AD_UNIT_ID,
+          ...(AD_UNIT_ID ? { adUnitId: AD_UNIT_ID } : {}),
           name: 'explore-interstitial',
           afterAd: () => { pendingRef.current = false; },
           adDismissed: () => {

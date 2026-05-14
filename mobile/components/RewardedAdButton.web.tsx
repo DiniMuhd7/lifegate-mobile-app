@@ -1,12 +1,15 @@
 /**
- * RewardedAdButton.web.tsx — AdMob Rewarded Ad for Expo Web.
+ * RewardedAdButton.web.tsx — AdSense Rewarded Ad for Expo Web.
  *
- * Uses the H5 Game Ads API (adBreak) to show a full-screen rewarded ad.
+ * Uses the adsbygoogle adBreak() API with type='reward'.
+ * Requires a dedicated AdSense rewarded web unit created at:
+ *   adsense.google.com → Ads → By ad unit → Rewarded ad
+ * Set EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID=ca-pub-XXXXXXXX/SLOT_ID
+ *
  * `onRewarded` is invoked only when the user watches the full ad.
  * The button is hidden on dev/unapproved origins (same rule as BannerAd.web.tsx).
  *
- * App ID  : ca-app-pub-4516568539037938~3922174578
- * Unit ID : ca-app-pub-4516568539037938/1561718040
+ * Publisher ID : ca-pub-8968729342650927
  */
 import React, { useEffect, useState } from 'react';
 import { Pressable, View, Text, ActivityIndicator } from 'react-native';
@@ -14,8 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 const PUBLISHER_ID =
   process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
+// Must be an AdSense *rewarded web* unit: ca-pub-XXXXXXXX/SLOT_ID
+// Do NOT reuse the banner or interstitial slot IDs here.
 const AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID ?? 'ca-app-pub-4516568539037938/1561718040';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID ?? undefined;
 
 declare global {
   interface Window {
@@ -47,15 +52,17 @@ function ensureAdConfig() {
   adConfigured = true;
 
   // Load adsbygoogle SDK once.
-  if (!document.getElementById('admob-h5-script')) {
+  if (!document.getElementById('adsense-rewarded-script')) {
     const s = document.createElement('script');
-    s.id = 'admob-h5-script';
+    s.id = 'adsense-rewarded-script';
     s.async = true;
     s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
     s.crossOrigin = 'anonymous';
     document.head.appendChild(s);
   }
 
+  // Initialize adsbygoogle array before any push (required by the SDK).
+  window.adsbygoogle = window.adsbygoogle || [];
   // H5 Ads config — must be pushed exactly once before any adBreak calls.
   (window.adsbygoogle as unknown[]).push({
     preloadAdBreaks: 'on',
@@ -106,7 +113,7 @@ export function RewardedAdButton({
 
     adBreak({
       type: 'reward',
-      adUnitId: AD_UNIT_ID,
+      ...(AD_UNIT_ID ? { adUnitId: AD_UNIT_ID } : {}),
       name: 'lifecoins-reward',
       beforeAd: () => { /* ad is shown fullscreen by the SDK */ },
       afterAd: () => { setLoading(false); },
