@@ -11,15 +11,18 @@ import { Platform, Pressable, View, Text, ActivityIndicator } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
 
-const AD_UNIT_ID = Platform.select({
-  ios:
-    process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID ??
-    'ca-app-pub-4516568539037938/4827548784',
-  android:
-    process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID ??
-    'ca-app-pub-4516568539037938/1561718040',
-  default: TestIds.REWARDED,
-});
+// In debug/development builds always use Google's test IDs.
+const AD_UNIT_ID = __DEV__
+  ? TestIds.REWARDED
+  : Platform.select({
+      ios:
+        process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID ??
+        'ca-app-pub-4516568539037938/4827548784',
+      android:
+        process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID ??
+        'ca-app-pub-4516568539037938/1561718040',
+      default: TestIds.REWARDED,
+    });
 
 export interface RewardedAdButtonProps {
   onRewarded: () => void;

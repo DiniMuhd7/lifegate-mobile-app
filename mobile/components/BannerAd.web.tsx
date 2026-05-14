@@ -4,12 +4,13 @@
  * Uses the adsbygoogle (Google Publisher) JavaScript SDK which is the web
  * delivery mechanism for AdMob/AdSense publishers.
  *
- * Android App ID : ca-app-pub-4516568539037938~3922174578
- * Android Unit ID: ca-app-pub-4516568539037938/4524809808
+ * ⚠️  IMPORTANT — Web ads require a web-specific ad unit:
+ *     The AD_SLOT must be an AdSense *web display* unit created at
+ *     adsense.google.com → Ads → By ad unit → Display ads.
+ *     Mobile app unit IDs (from AdMob) will NOT serve ads on web.
+ *     Set EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT in render.yaml to the web slot ID.
  *
- * The banner is only rendered in production builds (not on localhost / dev
- * tunnels) because adsbygoogle rejects unapproved origins and throws an
- * uncaught console error that pollutes dev output.
+ * Publisher ID : ca-app-pub-4516568539037938
  */
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';

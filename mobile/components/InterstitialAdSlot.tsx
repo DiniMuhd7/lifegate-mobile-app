@@ -7,15 +7,17 @@
  *   2. When adReady === true, enable the Claim button.
  *   3. On press, call adRef.current?.show() — executes claim inside onDismissed.
  *
- * App ID  : ca-app-pub-3940256099942544~3347511713  (test — iOS)
- * App ID  : ca-app-pub-3940256099942544~1458002511  (test — Android)
- * Unit ID : ca-app-pub-3940256099942544/1033173712  (test interstitial)
+ * iOS App ID     : ca-app-pub-4516568539037938~3952077665
+ * Android App ID : ca-app-pub-4516568539037938~3922174578
  */
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 
-const AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_UNIT_ID ?? TestIds.INTERSTITIAL;
+// Use test ID in dev; fall back to env var or test ID in production until a
+// real interstitial unit is created in the AdMob dashboard.
+const AD_UNIT_ID = __DEV__
+  ? TestIds.INTERSTITIAL
+  : (process.env.EXPO_PUBLIC_ADMOB_INTERSTITIAL_UNIT_ID ?? TestIds.INTERSTITIAL);
 
 export interface InterstitialAdSlotHandle {
   /** Show the interstitial. Only effective when an ad is loaded. */
