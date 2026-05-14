@@ -107,17 +107,25 @@ func (s *Service) fetchPatientContext(userID string) edis.PatientContext {
 		name, dob, gender, language string
 		bloodType, allergies, medicalHistory, currentMedications, genotype sql.NullString
 		state, country sql.NullString
+		heightCm, weightKg sql.NullFloat64
 	)
 	err := s.db.QueryRow(
 		`SELECT COALESCE(name,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		        blood_type, allergies, medical_history, current_medications, genotype,
-		        state, country
+		        state, country, height_cm, weight_kg
 		   FROM users WHERE id = $1`, userID,
 	).Scan(&name, &dob, &gender, &language, &bloodType, &allergies, &medicalHistory, &currentMedications, &genotype,
-		&state, &country)
+		&state, &country, &heightCm, &weightKg)
 	if err != nil {
 		log.Printf("[EDIS] fetchPatientContext: %v", err)
 		return edis.PatientContext{}
+	}
+
+	// Compute BMI when both measurements are available.
+	var bmi float64
+	if heightCm.Valid && weightKg.Valid && heightCm.Float64 > 0 {
+		heightM := heightCm.Float64 / 100.0
+		bmi = weightKg.Float64 / (heightM * heightM)
 	}
 
 	// Determine which health profile fields are still missing so EDIS can
@@ -151,6 +159,9 @@ func (s *Service) fetchPatientContext(userID string) edis.PatientContext {
 		CurrentMedications:   currentMedications.String,
 		State:                state.String,
 		Country:              country.String,
+		HeightCm:             heightCm.Float64,
+		WeightKg:             weightKg.Float64,
+		BMI:                  bmi,
 		MissingProfileFields: missingFields,
 	}
 }

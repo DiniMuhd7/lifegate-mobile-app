@@ -28,6 +28,8 @@ type ProfileState = {
     language?: string | null;
     country?: string | null;
     state?: string | null;
+    height_cm?: number | null;
+    weight_kg?: number | null;
   }) => Promise<boolean>;
   changePassword: (
     currentPassword: string,

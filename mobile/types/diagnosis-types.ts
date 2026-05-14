@@ -60,6 +60,10 @@ export interface DiagnosisDetail {
   followUpInstructions?: string;
   /** True once the patient has submitted an outcome for this follow-up */
   outcomeChecked: boolean;
+  /** True when the patient has requested early release of medication */
+  medicationReleaseRequested?: boolean;
+  /** True when an admin has approved the medication release request */
+  medicationReleaseApproved?: boolean;
   /** Structured triage notes (OLDCARTS) collected during the AI intake conversation. */
   triageNotes?: DiagnosisTriageNotes;
   prescription?: DiagnosisPrescription;

@@ -259,3 +259,12 @@ export type AdminPayoutView = {
   paidAt?: string;
   createdAt: string;
 };
+
+export type MedicationReleaseRow = {
+  diagnosisId: string;
+  patientName: string;
+  patientId: string;
+  condition: string;
+  requestedAt: string;
+  alreadyApproved: boolean;
+};

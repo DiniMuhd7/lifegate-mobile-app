@@ -38,6 +38,8 @@ type DiagnosisDetail struct {
 	FollowUpDate         string               `json:"followUpDate,omitempty"`
 	FollowUpInstructions string               `json:"followUpInstructions,omitempty"`
 	OutcomeChecked       bool                 `json:"outcomeChecked"`
+	MedicationReleaseRequested bool            `json:"medicationReleaseRequested"`
+	MedicationReleaseApproved  bool            `json:"medicationReleaseApproved"`
 	Prescription         *PrescriptionDetail  `json:"prescription,omitempty"`
 	Prescriptions        []PrescriptionDetail  `json:"prescriptions,omitempty"`
 	Investigations       []InvestigationDetail `json:"investigations,omitempty"`
@@ -106,7 +108,9 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 		       TO_CHAR(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'), TO_CHAR(d.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(pu.name,''),
 		       COALESCE(d.physician_health_tips,''),
-		       COALESCE(d.hpi::text,'')
+		       COALESCE(d.hpi::text,''),
+		       d.medication_release_requested,
+		       d.medication_release_approved
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.user_id = $1::uuid
@@ -126,7 +130,8 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 			&d.PhysicianDecision, &d.PhysicianNotes,
 			&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
 			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
-			&d.PhysicianHealthTips, &hpiJSON); err != nil {
+			&d.PhysicianHealthTips, &hpiJSON,
+			&d.MedicationReleaseRequested, &d.MedicationReleaseApproved); err != nil {
 			log.Printf("diagnosis: scan row: %v", err)
 			continue
 		}
@@ -157,7 +162,9 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		       TO_CHAR(d.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'), TO_CHAR(d.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
 		       COALESCE(pu.name,''),
 		       COALESCE(d.physician_health_tips,''),
-		       COALESCE(d.hpi::text,'')
+		       COALESCE(d.hpi::text,''),
+		       d.medication_release_requested,
+		       d.medication_release_approved
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.id = $1 AND d.user_id = $2::uuid`,
@@ -167,7 +174,8 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		&d.PhysicianDecision, &d.PhysicianNotes,
 		&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
 		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
-		&d.PhysicianHealthTips, &hpiJSON)
+		&d.PhysicianHealthTips, &hpiJSON,
+		&d.MedicationReleaseRequested, &d.MedicationReleaseApproved)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -306,3 +314,112 @@ func (s *Service) SubmitOutcome(userID, diagnosisID, outcome string) (bool, erro
 	}
 	return escalate, nil
 }
+
+// RequestMedicationRelease marks a diagnosis as having a patient-initiated
+// medication release request. Only applicable when a prescription exists but
+// physician review hasn't been completed yet. Idempotent — calling it again
+// on an already-requested case is a no-op and returns nil.
+func (s *Service) RequestMedicationRelease(userID, diagnosisID string) error {
+	res, err := s.db.Exec(`
+		UPDATE diagnoses
+		SET medication_release_requested    = TRUE,
+		    medication_release_requested_at = COALESCE(medication_release_requested_at, NOW()),
+		    updated_at                      = NOW()
+		WHERE id = $1
+		  AND user_id = $2::uuid
+		  AND has_prescription = TRUE`,
+		diagnosisID, userID,
+	)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("not found")
+	}
+	return nil
+}
+
+// MedicationReleaseRow is returned by the admin queue listing pending requests.
+type MedicationReleaseRow struct {
+	DiagnosisID       string `json:"diagnosisId"`
+	PatientName       string `json:"patientName"`
+	PatientID         string `json:"patientId"`
+	Condition         string `json:"condition"`
+	RequestedAt       string `json:"requestedAt"`
+	AlreadyApproved   bool   `json:"alreadyApproved"`
+}
+
+// ListPendingMedicationReleases returns all diagnoses where a patient has requested
+// medication release and admin approval is still pending.
+func (s *Service) ListPendingMedicationReleases() ([]MedicationReleaseRow, error) {
+	rows, err := s.db.Query(`
+		SELECT d.id,
+		       COALESCE(u.name,''),
+		       COALESCE(u.patient_id,''),
+		       COALESCE(d.condition,''),
+		       TO_CHAR(d.medication_release_requested_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+		       d.medication_release_approved
+		FROM diagnoses d
+		JOIN users u ON u.id = d.user_id
+		WHERE d.medication_release_requested = TRUE
+		ORDER BY d.medication_release_requested_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []MedicationReleaseRow
+	for rows.Next() {
+		var r MedicationReleaseRow
+		if err := rows.Scan(&r.DiagnosisID, &r.PatientName, &r.PatientID, &r.Condition, &r.RequestedAt, &r.AlreadyApproved); err != nil {
+			log.Printf("diagnosis: ListPendingMedicationReleases scan: %v", err)
+			continue
+		}
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+// ApproveAllMedicationReleases sets medication_release_approved = TRUE for all
+// pending (requested but not yet approved) cases. Returns the number of cases approved.
+func (s *Service) ApproveAllMedicationReleases(adminUserID string) (int64, error) {
+	res, err := s.db.Exec(`
+		UPDATE diagnoses
+		SET medication_release_approved    = TRUE,
+		    medication_release_approved_at = NOW(),
+		    medication_release_approved_by = $1::uuid,
+		    updated_at                     = NOW()
+		WHERE medication_release_requested = TRUE
+		  AND medication_release_approved  = FALSE`,
+		adminUserID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+// ApproveMedicationRelease approves a single pending medication release request.
+func (s *Service) ApproveMedicationRelease(adminUserID, diagnosisID string) error {
+	res, err := s.db.Exec(`
+		UPDATE diagnoses
+		SET medication_release_approved    = TRUE,
+		    medication_release_approved_at = NOW(),
+		    medication_release_approved_by = $1::uuid,
+		    updated_at                     = NOW()
+		WHERE id = $2
+		  AND medication_release_requested = TRUE`,
+		adminUserID, diagnosisID,
+	)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("not found")
+	}
+	return nil
+}
+

@@ -170,6 +170,9 @@ type PatientContext struct {
 	CurrentMedications string
 	State              string // patient's state/province, if known
 	Country            string // patient's country, if known
+	HeightCm           float64 // 0 = unknown
+	WeightKg           float64 // 0 = unknown
+	BMI                float64 // computed when both height and weight are present; 0 = unknown
 	// MissingProfileFields lists health profile fields that are not yet on record
 	// for this patient. When non-empty, EDIS is instructed to collect them
 	// naturally during triage and return them in a ProfileUpdate response field.
@@ -759,6 +762,16 @@ func buildPatientContextBlock(p PatientContext) string {
 	if p.CurrentMedications != "" {
 		fmt.Fprintf(&b, "Current Meds  : %s\n", p.CurrentMedications)
 	}
+	if p.HeightCm > 0 {
+		fmt.Fprintf(&b, "Height        : %.1f cm\n", p.HeightCm)
+	}
+	if p.WeightKg > 0 {
+		fmt.Fprintf(&b, "Weight        : %.1f kg\n", p.WeightKg)
+	}
+	if p.BMI > 0 {
+		bmiCategory := bmiCategoryLabel(p.BMI)
+		fmt.Fprintf(&b, "BMI           : %.1f (%s)\n", p.BMI, bmiCategory)
+	}
 
 	b.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
 	b.WriteString("SAFETY RULES — YOU MUST FOLLOW THESE:\n")
@@ -766,6 +779,9 @@ func buildPatientContextBlock(p PatientContext) string {
 	b.WriteString("• CHECK for drug interactions between your suggestions and the patient's current medications.\n")
 	b.WriteString("• USE the patient's existing conditions to sharpen your differential diagnoses.\n")
 	b.WriteString("• RAISE urgency appropriately when comorbidities increase vulnerability (e.g. diabetes, immunosuppression).\n")
+	if p.BMI > 0 {
+		b.WriteString("• INCORPORATE the patient's BMI into clinical reasoning — consider BMI-related conditions, weight-adjusted dosing guidance, and obesity/underweight risk signals where relevant.\n")
+	}
 	if p.Language != "" {
 		b.WriteString("• RESPOND in the patient's preferred language shown above.\n")
 	}
@@ -775,6 +791,24 @@ func buildPatientContextBlock(p PatientContext) string {
 	b.WriteString("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	return b.String()
+}
+
+// bmiCategoryLabel returns the WHO BMI classification label for the given BMI value.
+func bmiCategoryLabel(bmi float64) string {
+	switch {
+	case bmi < 18.5:
+		return "Underweight"
+	case bmi < 25.0:
+		return "Normal weight"
+	case bmi < 30.0:
+		return "Overweight"
+	case bmi < 35.0:
+		return "Obese class I"
+	case bmi < 40.0:
+		return "Obese class II"
+	default:
+		return "Obese class III"
+	}
 }
 
 // buildProfileCollectionBlock formats the list of missing health profile fields

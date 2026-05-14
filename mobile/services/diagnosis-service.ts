@@ -44,4 +44,13 @@ export const DiagnosisService = {
 
     return response.data;
   },
+
+  async requestMedicationRelease(id: string): Promise<void> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `/diagnoses/${id}/request-medication-release`
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to request medication release');
+    }
+  },
 };

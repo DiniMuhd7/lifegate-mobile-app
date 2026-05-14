@@ -19,6 +19,7 @@ import type {
   PaginatedTransactions,
   NDPASnapshot,
   AlertThreshold,
+  MedicationReleaseRow,
 } from '../types/admin-types';
 
 export const AdminService = {
@@ -188,5 +189,19 @@ export const AdminService = {
 
   async rejectPhysicianPayout(id: string, reason: string): Promise<void> {
     await api.post(`/admin/physician-payouts/${id}/reject`, { reason });
+  },
+
+  async getMedicationReleases(): Promise<MedicationReleaseRow[]> {
+    const { data } = await api.get('/admin/medication-releases');
+    return data.data as MedicationReleaseRow[];
+  },
+
+  async approveAllMedicationReleases(): Promise<{ approved: number }> {
+    const { data } = await api.post('/admin/medication-releases/approve-all');
+    return { approved: data.approved as number };
+  },
+
+  async approveMedicationRelease(id: string): Promise<void> {
+    await api.post(`/admin/medication-releases/${id}/approve`);
   },
 };

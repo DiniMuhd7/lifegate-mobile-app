@@ -105,6 +105,7 @@ export default function DiagnosisReportScreen() {
   const { selectedDiagnosis, detailLoading, error, fetchDiagnosisDetail, clearSelectedDiagnosis } =
     useDiagnosisStore();
   const [submittingOutcome, setSubmittingOutcome] = useState(false);
+  const [requestingRelease, setRequestingRelease] = useState(false);
   const [imVisible, setImVisible] = useState(openIM === 'true');
 
   // Find the local chat conversation that produced this diagnosis so the
@@ -389,9 +390,21 @@ export default function DiagnosisReportScreen() {
 
           {/* ── Prescription ── */}
           {(d.hasPrescription || d.prescription) && (() => {
-            const isApproved = d.status === 'Completed' && d.physicianDecision === 'Approved';
+            const isApproved = (d.status === 'Completed' && d.physicianDecision === 'Approved')
+              || d.medicationReleaseApproved;
             if (!isApproved) {
               const physicianEdited = d.status === 'Active' && d.physicianDecision !== 'Rejected';
+              const handleRequestRelease = async () => {
+                setRequestingRelease(true);
+                try {
+                  await DiagnosisService.requestMedicationRelease(id);
+                  await fetchDiagnosisDetail(id);
+                } catch (e) {
+                  // ignore
+                } finally {
+                  setRequestingRelease(false);
+                }
+              };
               return (
                 <SectionCard title="Recommended Treatment">
                   <View className="flex-row items-start gap-3 py-1">
@@ -409,6 +422,25 @@ export default function DiagnosisReportScreen() {
                       </Text>
                     </View>
                   </View>
+                  {d.hasPrescription && (
+                    d.medicationReleaseRequested ? (
+                      <View className="mt-3 flex-row items-center gap-2 px-3 py-2 bg-teal-50 rounded-lg border border-teal-200">
+                        <Ionicons name="time-outline" size={14} color="#0d9488" />
+                        <Text className="text-xs text-teal-700 font-medium">Release request submitted — awaiting admin approval</Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={handleRequestRelease}
+                        disabled={requestingRelease}
+                        className="mt-3 flex-row items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 rounded-lg active:bg-teal-700"
+                      >
+                        <Ionicons name="medical-outline" size={15} color="white" />
+                        <Text className="text-xs font-semibold text-white">
+                          {requestingRelease ? 'Requesting…' : 'Request Medication Release'}
+                        </Text>
+                      </Pressable>
+                    )
+                  )}
                 </SectionCard>
               );
             }
@@ -417,7 +449,11 @@ export default function DiagnosisReportScreen() {
               <SectionCard title="Recommended Treatment">
                 <View className="flex-row items-center gap-1.5 mb-3 px-2 py-1.5 bg-green-50 rounded-lg border border-green-200">
                   <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                  <Text className="text-xs font-semibold text-green-700">Approved by physician</Text>
+                  <Text className="text-xs font-semibold text-green-700">
+                    {d.medicationReleaseApproved && !(d.status === 'Completed' && d.physicianDecision === 'Approved')
+                      ? 'Released by admin — pending physician review'
+                      : 'Approved by physician'}
+                  </Text>
                 </View>
                 <InfoRow label="Medicine"    value={d.prescription.medicine}    />
                 <InfoRow label="Dosage"      value={d.prescription.dosage}      />

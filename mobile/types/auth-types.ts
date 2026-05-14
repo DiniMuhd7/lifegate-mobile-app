@@ -27,6 +27,8 @@ export type User = {
   medical_history?: string | null;
   current_medications?: string | null;
   emergency_contact?: string | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
   
   // Timestamps
   created_at: string;

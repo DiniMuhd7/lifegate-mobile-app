@@ -132,3 +132,32 @@ func (h *Handler) SubmitOutcome(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": msg, "escalated": escalated})
 }
+
+// RequestMedicationRelease allows a patient to request early visibility of their
+// AI-recommended prescription when physician review is delayed.
+//
+// @Summary      Request medication release
+// @Tags         diagnoses
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path   string  true  "Diagnosis ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /diagnoses/{id}/request-medication-release [post]
+func (h *Handler) RequestMedicationRelease(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+	id := c.Param("id")
+
+	err := h.svc.RequestMedicationRelease(uid, id)
+	if err != nil {
+		if err.Error() == "not found" {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Diagnosis not found or no prescription exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Medication release request submitted. An admin will review it shortly."})
+}
+

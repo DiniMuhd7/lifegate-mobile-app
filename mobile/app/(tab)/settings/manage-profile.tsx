@@ -53,6 +53,7 @@ function FocusableInput({
   multiline,
   numberOfLines,
   accessibilityLabel,
+  keyboardType,
 }: {
   value: string;
   onChangeText: (t: string) => void;
@@ -60,6 +61,7 @@ function FocusableInput({
   multiline?: boolean;
   numberOfLines?: number;
   accessibilityLabel?: string;
+  keyboardType?: import('react-native').TextInputProps['keyboardType'];
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -70,6 +72,7 @@ function FocusableInput({
       placeholderTextColor="#9ca3af"
       multiline={multiline}
       numberOfLines={numberOfLines}
+      keyboardType={keyboardType}
       textAlignVertical={multiline ? 'top' : 'center'}
       accessibilityLabel={accessibilityLabel}
       onFocus={() => setFocused(true)}
@@ -127,6 +130,8 @@ function ProfileCompleteness({
   medicalHistory,
   medications,
   emergency,
+  heightCm,
+  weightKg,
 }: {
   bloodType: string;
   genotype: string;
@@ -134,8 +139,10 @@ function ProfileCompleteness({
   medicalHistory: string;
   medications: string;
   emergency: string;
+  heightCm: string;
+  weightKg: string;
 }) {
-  const fields = [bloodType, genotype, allergies, medicalHistory, medications, emergency];
+  const fields = [bloodType, genotype, allergies, medicalHistory, medications, emergency, heightCm, weightKg];
   const filled = fields.filter((f) => f.trim().length > 0).length;
   const pct = Math.round((filled / fields.length) * 100);
 
@@ -181,6 +188,8 @@ export default function ManageProfileScreen() {
   const [medicalHistory, setMedicalHistory] = useState(user?.medical_history ?? '');
   const [currentMedications, setCurrentMedications] = useState(user?.current_medications ?? '');
   const [emergencyContact, setEmergencyContact] = useState(user?.emergency_contact ?? '');
+  const [heightCm, setHeightCm] = useState(user?.height_cm != null ? String(user.height_cm) : '');
+  const [weightKg, setWeightKg] = useState(user?.weight_kg != null ? String(user.weight_kg) : '');
   const [refreshing, setRefreshing] = useState(false);
 
   // Track whether the user has made any changes
@@ -190,7 +199,9 @@ export default function ManageProfileScreen() {
     (allergies ?? '') !== (user?.allergies ?? '') ||
     (medicalHistory ?? '') !== (user?.medical_history ?? '') ||
     (currentMedications ?? '') !== (user?.current_medications ?? '') ||
-    (emergencyContact ?? '') !== (user?.emergency_contact ?? '');
+    (emergencyContact ?? '') !== (user?.emergency_contact ?? '') ||
+    heightCm !== (user?.height_cm != null ? String(user.height_cm) : '') ||
+    weightKg !== (user?.weight_kg != null ? String(user.weight_kg) : '');
 
   // Sync form whenever the auth store user updates (e.g. after save)
   useEffect(() => {
@@ -200,6 +211,8 @@ export default function ManageProfileScreen() {
     setMedicalHistory(user?.medical_history ?? '');
     setCurrentMedications(user?.current_medications ?? '');
     setEmergencyContact(user?.emergency_contact ?? '');
+    setHeightCm(user?.height_cm != null ? String(user.height_cm) : '');
+    setWeightKg(user?.weight_kg != null ? String(user.weight_kg) : '');
   }, [user]);
 
   useEffect(() => {
@@ -221,6 +234,8 @@ export default function ManageProfileScreen() {
       medical_history: medicalHistory.trim() || null,
       current_medications: currentMedications.trim() || null,
       emergency_contact: emergencyContact.trim() || null,
+      height_cm: heightCm.trim() ? parseFloat(heightCm) || null : null,
+      weight_kg: weightKg.trim() ? parseFloat(weightKg) || null : null,
     });
     if (ok) {
       Alert.alert('Saved', 'Your health profile has been updated.');
@@ -304,6 +319,8 @@ export default function ManageProfileScreen() {
             medicalHistory={medicalHistory}
             medications={currentMedications}
             emergency={emergencyContact}
+            heightCm={heightCm}
+            weightKg={weightKg}
           />
 
           {/* ── Blood Type & Genotype ── */}
@@ -440,6 +457,27 @@ export default function ManageProfileScreen() {
               onChangeText={setEmergencyContact}
               placeholder="e.g. Jane Doe · 08012345678"
               accessibilityLabel="Emergency contact"
+            />
+          </View>
+
+          {/* ── Body Measurements ── */}
+          <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
+            <SectionHeader icon="body-outline" title="Body Measurements" />
+            <FieldLabel label="Height (cm)" hint="Used by the AI to calculate BMI and tailor clinical recommendations." />
+            <FocusableInput
+              value={heightCm}
+              onChangeText={setHeightCm}
+              placeholder="e.g. 170"
+              keyboardType="decimal-pad"
+              accessibilityLabel="Height in centimetres"
+            />
+            <FieldLabel label="Weight (kg)" hint="Combined with your height to assess BMI-related conditions and drug dosing." />
+            <FocusableInput
+              value={weightKg}
+              onChangeText={setWeightKg}
+              placeholder="e.g. 70"
+              keyboardType="decimal-pad"
+              accessibilityLabel="Weight in kilograms"
             />
           </View>
 

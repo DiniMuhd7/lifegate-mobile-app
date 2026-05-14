@@ -286,7 +286,7 @@ func main() {
 	// Admin system
 	adminRepo := admin.NewRepository(database)
 	adminSvc := admin.NewService(adminRepo)
-	adminHandler := admin.NewHandler(adminSvc)
+	adminHandler := admin.NewHandler(adminSvc, diagnosisSvc)
 
 	// Wire the admin SLA breach recorder into the physician service so that
 	// completed cases which exceed the SLA are automatically logged and the
@@ -491,6 +491,7 @@ func main() {
 		diagnosisGroup.GET("", diagnosisHandler.GetDiagnoses)
 		diagnosisGroup.GET("/:id", diagnosisHandler.GetDiagnosisDetail)
 		diagnosisGroup.POST("/:id/outcome", diagnosisHandler.SubmitOutcome)
+		diagnosisGroup.POST("/:id/request-medication-release", diagnosisHandler.RequestMedicationRelease)
 	}
 
 	// Patient preventive alerts
@@ -677,6 +678,11 @@ func main() {
 		adminGroup.GET("/physician-payouts", physicianHandler.AdminListPayoutRequests)
 		adminGroup.POST("/physician-payouts/:id/approve", physicianHandler.AdminApprovePayoutRequest)
 		adminGroup.POST("/physician-payouts/:id/reject", physicianHandler.AdminRejectPayoutRequest)
+
+		// Medication release approval queue
+		adminGroup.GET("/medication-releases", adminHandler.GetMedicationReleases)
+		adminGroup.POST("/medication-releases/approve-all", adminHandler.ApproveAllMedicationReleases)
+		adminGroup.POST("/medication-releases/:id/approve", adminHandler.ApproveMedicationRelease)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)

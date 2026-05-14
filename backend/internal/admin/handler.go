@@ -7,15 +7,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	svc *Service
+	svc    *Service
+	diagSvc *diagnosis.Service
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, diagSvc *diagnosis.Service) *Handler {
+	return &Handler{svc: svc, diagSvc: diagSvc}
 }
 
 // ─── GET /api/admin/dashboard ─────────────────────────────────────────────────
@@ -798,3 +800,85 @@ func (h *Handler) UpdateAlertThreshold(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Threshold updated"})
 }
+
+// ─── GET /api/admin/medication-releases ──────────────────────────────────────
+
+// GetMedicationReleases returns all medication release requests (pending and approved).
+//
+// @Summary      List medication release requests
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=array}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/medication-releases [get]
+func (h *Handler) GetMedicationReleases(c *gin.Context) {
+	rows, err := h.diagSvc.ListPendingMedicationReleases()
+	if err != nil {
+		log.Printf("[admin] GetMedicationReleases: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
+		return
+	}
+	if rows == nil {
+		rows = []diagnosis.MedicationReleaseRow{}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": rows})
+}
+
+// ─── POST /api/admin/medication-releases/approve-all ─────────────────────────
+
+// ApproveAllMedicationReleases bulk-approves all pending medication release requests.
+//
+// @Summary      Approve all pending medication releases
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,approved=integer}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/medication-releases/approve-all [post]
+func (h *Handler) ApproveAllMedicationReleases(c *gin.Context) {
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+
+	n, err := h.diagSvc.ApproveAllMedicationReleases(adminIDStr)
+	if err != nil {
+		log.Printf("[admin] ApproveAllMedicationReleases: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
+		return
+	}
+	h.svc.LogAction(adminIDStr, "medication_release.approve_all", "diagnosis", nil,
+		map[string]interface{}{"count": n})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": fmt.Sprintf("%d medication release(s) approved", n), "approved": n})
+}
+
+// ─── POST /api/admin/medication-releases/:id/approve ─────────────────────────
+
+// ApproveMedicationRelease approves a single medication release request.
+//
+// @Summary      Approve a single medication release
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path   string  true  "Diagnosis ID"
+// @Success      200  {object}  object{success=bool,message=string}
+// @Failure      404  {object}  object{success=bool,message=string}
+// @Router       /admin/medication-releases/{id}/approve [post]
+func (h *Handler) ApproveMedicationRelease(c *gin.Context) {
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+	id := c.Param("id")
+
+	err := h.diagSvc.ApproveMedicationRelease(adminIDStr, id)
+	if err != nil {
+		if err.Error() == "not found" {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Request not found"})
+			return
+		}
+		log.Printf("[admin] ApproveMedicationRelease %s: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "An internal error occurred. Please try again."})
+		return
+	}
+	h.svc.LogAction(adminIDStr, "medication_release.approve", "diagnosis", &id, nil)
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Medication release approved"})
+}
+

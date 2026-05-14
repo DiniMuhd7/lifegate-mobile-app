@@ -27,6 +27,8 @@ type User struct {
 	CurrentMedications   *string    `json:"current_medications,omitempty" db:"current_medications"`
 	EmergencyContact     *string    `json:"emergency_contact,omitempty" db:"emergency_contact"`
 	Genotype             *string    `json:"genotype,omitempty" db:"genotype"`
+	HeightCm             *float64   `json:"height_cm,omitempty" db:"height_cm"`
+	WeightKg             *float64   `json:"weight_kg,omitempty" db:"weight_kg"`
 	State                *string    `json:"state,omitempty" db:"state"`
 	Country              *string    `json:"country,omitempty" db:"country"`
 	Specialization       string     `json:"specialization,omitempty" db:"specialization"`
@@ -71,8 +73,8 @@ func (r *Repository) FindUserByEmail(email string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, state, country, COALESCE(specialization,''),
-        COALESCE(certificate_name,''), COALESCE(certificate_id,''),
+        current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+        COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at
  FROM users WHERE email = $1`, email)
@@ -100,8 +102,8 @@ func (r *Repository) FindUserByID(id string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, state, country, COALESCE(specialization,''),
-        COALESCE(certificate_name,''), COALESCE(certificate_id,''),
+        current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+        COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at
  FROM users WHERE id = $1`, id)
@@ -114,7 +116,8 @@ func scanUser(row *sql.Row) (*User, error) {
 		&u.ID, &u.UserID, &u.PatientID, &u.Name, &u.Email, &u.Role,
 		&u.Phone, &u.DOB, &u.Gender, &u.Language,
 		&u.HealthHistory, &u.ReferralCode, &u.BloodType, &u.Allergies, &u.MedicalHistory,
-		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.State, &u.Country, &u.Specialization,
+		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.HeightCm, &u.WeightKg,
+		&u.State, &u.Country, &u.Specialization,
 		&u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
 		&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
 		&u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
@@ -134,8 +137,8 @@ func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
  RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
            COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		   COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-           current_medications, emergency_contact, genotype, state, country, COALESCE(specialization,''),
-           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
+           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+           COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
            COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
            mdcn_verified, mdcn_verified_at, deletion_scheduled_at, created_at, updated_at`,
 		userID, now)
@@ -201,15 +204,17 @@ func (r *Repository) GetPendingRegistration(email string) (*PendingRegistration,
 
 // UpdateHealthProfile updates the patient-editable health fields for a given user.
 type HealthProfileInput struct {
-	BloodType          *string `json:"blood_type"`
-	Allergies          *string `json:"allergies"`
-	MedicalHistory     *string `json:"medical_history"`
-	CurrentMedications *string `json:"current_medications"`
-	EmergencyContact   *string `json:"emergency_contact"`
-	Genotype           *string `json:"genotype"`
-	Language           *string `json:"language"`
-	Country            *string `json:"country"`
-	State              *string `json:"state"`
+	BloodType          *string  `json:"blood_type"`
+	Allergies          *string  `json:"allergies"`
+	MedicalHistory     *string  `json:"medical_history"`
+	CurrentMedications *string  `json:"current_medications"`
+	EmergencyContact   *string  `json:"emergency_contact"`
+	Genotype           *string  `json:"genotype"`
+	Language           *string  `json:"language"`
+	Country            *string  `json:"country"`
+	State              *string  `json:"state"`
+	HeightCm           *float64 `json:"height_cm"`
+	WeightKg           *float64 `json:"weight_kg"`
 }
 
 func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (*User, error) {
@@ -224,9 +229,11 @@ func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (
 		    language            = COALESCE($8, language),
 		    country             = COALESCE($9, country),
 		    state               = COALESCE($10, state),
+		    height_cm           = COALESCE($11, height_cm),
+		    weight_kg           = COALESCE($12, weight_kg),
 		    updated_at          = NOW()
 		WHERE id = $1::uuid`,
-		userID, in.BloodType, in.Allergies, in.MedicalHistory, in.CurrentMedications, in.EmergencyContact, in.Genotype, in.Language, in.Country, in.State,
+		userID, in.BloodType, in.Allergies, in.MedicalHistory, in.CurrentMedications, in.EmergencyContact, in.Genotype, in.Language, in.Country, in.State, in.HeightCm, in.WeightKg,
 	)
 	if err != nil {
 		return nil, err
