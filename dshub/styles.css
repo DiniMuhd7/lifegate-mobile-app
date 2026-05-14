@@ -46,6 +46,7 @@ body {
   color: var(--text);
   background: #fff;
   min-height: 100vh;
+  padding-top: var(--nav-h);
 }
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
@@ -139,12 +140,13 @@ h3 {
 
 /* ── Navigation ──────────────────────────────────────────────────────────── */
 .site-nav {
-  position: sticky; top: 0; z-index: 100;
+  position: fixed; top: 0; left: 0; width: 100%; z-index: 100;
   height: var(--nav-h);
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.92);
   backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
   border-bottom: 1px solid rgba(0,0,0,.06);
-  box-shadow: 0 1px 12px rgba(0,0,0,.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 .nav-inner {
   height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
@@ -155,8 +157,13 @@ h3 {
 .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-name {
   font-family: 'Lexend', sans-serif; font-size: 1.1rem; font-weight: 800;
-  color: var(--teal-dark); letter-spacing: -.01em;
+  letter-spacing: -.01em;
 }
+.brand-ds { color: #111827; font-weight: 800; }
+.brand-hub { color: var(--teal); font-weight: 800; }
+/* Footer: keep legible on dark background */
+.footer-brand .brand-ds { color: rgba(255,255,255,0.95); }
+.footer-brand .brand-hub { color: var(--teal-logo); }
 .brand-sub {
   font-size: .62rem; font-weight: 600; letter-spacing: .04em;
   color: var(--slate); text-transform: uppercase;
@@ -226,19 +233,17 @@ h3 {
   .hero-inner { grid-template-columns: 1fr 1fr; }
 }
 
-/* Decorative orbs */
-.hero-orb { position: absolute; border-radius: 50%; pointer-events: none; }
-.hero-orb-1 {
-  width: 560px; height: 560px; top: -160px; right: -120px;
-  background: radial-gradient(circle, rgba(0,166,163,.13) 0%, transparent 70%);
+/* Decorative circles — matching download page style */
+.hero-deco { position: absolute; border-radius: 50%; pointer-events: none; }
+.hero-deco-1 {
+  width: 80px; height: 80px;
+  background: rgba(0,166,163,0.2);
+  top: 60px; left: 5%;
 }
-.hero-orb-2 {
-  width: 320px; height: 320px; bottom: -80px; left: -60px;
-  background: radial-gradient(circle, rgba(0,166,163,.09) 0%, transparent 70%);
-}
-.hero-orb-3 {
-  width: 200px; height: 200px; top: 40%; left: 40%;
-  background: radial-gradient(circle, rgba(255,255,255,.6) 0%, transparent 70%);
+.hero-deco-2 {
+  width: 120px; height: 120px;
+  background: rgba(0,166,163,0.1);
+  bottom: 40px; right: 10%;
 }
 
 /* Hub visual */
@@ -388,6 +393,7 @@ h3 {
 }
 .product-badge-green { background: rgba(16,185,129,.1) !important; color: var(--green) !important; }
 .product-badge-slate { background: rgba(107,114,128,.1) !important; color: var(--slate) !important; }
+.product-badge-campaign { background: rgba(0,166,163,.14) !important; color: var(--teal-dark) !important; }
 
 .product-tagline { font-size: .82rem; font-weight: 600; color: var(--text-muted); letter-spacing: .01em; }
 .product-desc { font-size: .92rem; line-height: 1.65; color: var(--text-sub); flex: 1; }
