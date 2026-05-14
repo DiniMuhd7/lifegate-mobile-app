@@ -13,7 +13,7 @@
   --hero-from:   #E6F8F7;
   --hero-to:     #D9F9F8;
 
-  --green:       #10B981;
+  --green:       #3B82F6;
   --slate:       #6B7280;
   --slate-light: #9CA3AF;
   --slate-100:   #F3F4F6;
@@ -391,7 +391,7 @@ h3 {
 .product-card:not(.product-card-featured) .product-badge {
   background: rgba(0,166,163,.12); color: var(--teal-mid);
 }
-.product-badge-green { background: rgba(16,185,129,.1) !important; color: var(--green) !important; }
+.product-badge-green { background: rgba(59,130,246,.1) !important; color: var(--green) !important; }
 .product-badge-slate { background: rgba(107,114,128,.1) !important; color: var(--slate) !important; }
 .product-badge-campaign { background: rgba(0,166,163,.14) !important; color: var(--teal-dark) !important; }
 
