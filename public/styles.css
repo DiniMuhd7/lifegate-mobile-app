@@ -81,13 +81,12 @@
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; font-size: 16px; -webkit-font-smoothing: antialiased; }
+html { scroll-behavior: smooth; font-size: 16px; -webkit-font-smoothing: antialiased; scroll-padding-top: var(--nav-h); }
 body {
   font-family: 'Quicksand', sans-serif;
   color: var(--text);
   background: #fff;
   min-height: 100vh;
-  padding-top: var(--nav-h);
 }
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; font-family: inherit; }
@@ -186,7 +185,7 @@ h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 8px
 
 /* ── Navigation ──────────────────────────────────────────────────────────── */
 .site-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  position: sticky; top: 0; left: 0; right: 0; z-index: 200;
   height: var(--nav-h);
   background: rgba(6,13,23,.85);
   backdrop-filter: blur(20px) saturate(160%);
