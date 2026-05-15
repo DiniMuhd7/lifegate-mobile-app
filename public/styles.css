@@ -361,24 +361,6 @@ h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 8px
 .hero-status-live { color: #10B981 !important; }
 .hero-status-live svg { fill: #10B981; }
 
-/* ── Trust Bar ───────────────────────────────────────────────────────────── */
-.trust-bar {
-  background: var(--n-900);
-  border-bottom: 1px solid rgba(255,255,255,.06);
-  padding: 14px 0;
-}
-.trust-bar-inner {
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 20px 44px;
-}
-.trust-item {
-  display: flex; align-items: center; gap: 8px;
-  font-family: 'Lexend Deca', sans-serif; font-size: .7rem; font-weight: 700;
-  color: rgba(255,255,255,.4); letter-spacing: .05em; text-transform: uppercase;
-}
-.trust-item svg { color: var(--brand); flex-shrink: 0; }
-.trust-divider { width: 1px; height: 16px; background: rgba(255,255,255,.1); }
-@media (max-width: 600px) { .trust-divider { display: none; } }
 
 /* ── Section shared ──────────────────────────────────────────────────────── */
 .section-header { text-align: center; margin-bottom: clamp(40px, 6vw, 68px); }
