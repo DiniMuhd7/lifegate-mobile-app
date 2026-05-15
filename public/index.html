@@ -33,6 +33,26 @@
         <nav class="nav-links" aria-label="Primary navigation">
           <a href="#about">About</a>
           <a href="#dashboard">Dashboard</a>
+          <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle" aria-haspopup="true">
+              Data
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a href="#disparities" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+                Disparities
+              </a>
+              <a href="#research" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+                Research Dataset
+              </a>
+              <a href="#compliance" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                Compliance
+              </a>
+            </div>
+          </div>
           <a href="#audience">Who It's For</a>
           <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
         </nav>
@@ -44,6 +64,10 @@
       <div class="mobile-menu" id="mobile-menu" hidden>
         <a href="#about">About</a>
         <a href="#dashboard">Dashboard</a>
+        <span class="mobile-section-label">Data</span>
+        <a href="#disparities">Health Disparities</a>
+        <a href="#research">Research Dataset</a>
+        <a href="#compliance">Compliance &amp; NDPA</a>
         <a href="#audience">Who It's For</a>
         <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
         <a href="#access" class="mobile-cta">Request Access</a>
@@ -52,8 +76,10 @@
 
     <!-- ── Hero ────────────────────────────────────────────────────────────── -->
     <section class="hero" id="home">
-      <div class="hero-deco hero-deco-1" aria-hidden="true"></div>
-      <div class="hero-deco hero-deco-2" aria-hidden="true"></div>
+      <div class="hero-grid" aria-hidden="true"></div>
+      <div class="hero-orb hero-orb-1" aria-hidden="true"></div>
+      <div class="hero-orb hero-orb-2" aria-hidden="true"></div>
+      <div class="hero-orb hero-orb-3" aria-hidden="true"></div>
       <div class="container hero-inner">
         <div class="hero-text">
           <p class="eyebrow reveal">
@@ -128,6 +154,36 @@
         </div>
       </div>
     </section>
+
+    <!-- ── Trust Bar ───────────────────────────────────────────────────────── -->
+    <div class="trust-bar">
+      <div class="container trust-bar-inner">
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+          NDPA 2023 Compliant
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          Physician-Validated Data
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          All 36 States + FCT
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+          Real-Time Live Signals
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-item">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          IRB-Ready De-identified
+        </div>
+      </div>
+    </div>
 
     <!-- ── About ───────────────────────────────────────────────────────────── -->
     <section class="about" id="about">
@@ -690,13 +746,13 @@
     <section class="disparities-section reveal" id="disparities" aria-labelledby="disparities-heading">
       <div class="container">
 
-        <div class="disp-header">
-          <div class="disp-icon" aria-hidden="true">
+        <div class="section-banner">
+          <div class="section-banner-icon violet" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
           </div>
-          <div>
-            <h2 class="disp-title" id="disparities-heading">Health Equity &amp; Disparities</h2>
-            <p class="disp-subtitle">Cross-correlating symptom burden with geographic and socioeconomic proxies at state level — quantifying inequalities in disease severity, healthcare access, and physician response time across Nigeria. These metrics directly inform resource allocation and equity policy.</p>
+          <div class="section-banner-text">
+            <h2 class="section-banner-title" id="disparities-heading">Health Equity &amp; Disparities</h2>
+            <p class="section-banner-sub">Cross-correlating symptom burden with geographic and socioeconomic proxies at state level — quantifying inequalities in disease severity, healthcare access, and physician response time across Nigeria. These metrics directly inform resource allocation and equity policy.</p>
           </div>
         </div>
 
@@ -773,15 +829,15 @@
     <section class="research-section reveal" id="research" aria-labelledby="research-heading">
       <div class="container">
 
-        <div class="research-header">
-          <div class="research-icon" aria-hidden="true">
+        <div class="section-banner">
+          <div class="section-banner-icon teal" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
           </div>
-          <div>
-            <h2 class="research-title" id="research-heading">Research Dataset Access</h2>
-            <p class="research-subtitle">Anonymised, physician-adjudicated health records from a real-world telemedicine platform — bridging patient-reported outcomes and clinically confirmed diagnoses. Rare in Nigeria and across sub-Saharan Africa. Suitable for AI benchmarking, comorbidity research, and health equity studies.</p>
+          <div class="section-banner-text">
+            <h2 class="section-banner-title" id="research-heading">Research Dataset Access</h2>
+            <p class="section-banner-sub">Anonymised, physician-adjudicated health records from a real-world telemedicine platform — bridging patient-reported outcomes and clinically confirmed diagnoses. Rare in Nigeria and across sub-Saharan Africa. Suitable for AI benchmarking, comorbidity research, and health equity studies.</p>
           </div>
-          <a class="research-cta" href="#access" aria-label="Request dataset access">Request Access</a>
+          <a class="section-banner-cta" href="#access" aria-label="Request dataset access">Request Access</a>
         </div>
 
         <div class="research-grid">
@@ -965,13 +1021,13 @@
     <!-- ── Compliance & NDPA Data Governance ─────────────────────────────── -->
     <section class="compliance-section reveal" id="compliance" aria-labelledby="compliance-heading">
       <div class="container">
-        <div class="compliance-header">
-          <div class="compliance-icon" aria-hidden="true">
+        <div class="section-banner">
+          <div class="section-banner-icon green" aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
           </div>
-          <div>
-            <h2 class="compliance-title" id="compliance-heading">Data Governance &amp; NDPA Compliance</h2>
-            <p class="compliance-subtitle">Aggregate audit trail metrics and Nigeria Data Protection Act (NDPA) compliance indicators — supporting regulatory reporting to NDPC, WHO, and Africa CDC. All figures are anonymised platform-level statistics.</p>
+          <div class="section-banner-text">
+            <h2 class="section-banner-title" id="compliance-heading">Data Governance &amp; NDPA Compliance</h2>
+            <p class="section-banner-sub">Aggregate audit trail metrics and Nigeria Data Protection Act (NDPA) compliance indicators — supporting regulatory reporting to NDPC, WHO, and Africa CDC. All figures are anonymised platform-level statistics.</p>
           </div>
         </div>
 
@@ -1051,23 +1107,54 @@
 
     <!-- ── Footer ──────────────────────────────────────────────────────────── -->
     <footer class="footer">
-      <div class="container footer-inner">
-        <div class="footer-brand">
-          <svg class="brand-logo" width="18" height="18" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
-            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
-          </svg>
+      <div class="container">
+        <div class="footer-grid">
           <div>
-            <span class="footer-brand-name">LifeGate Public Health Analytics</span>
-            <span class="footer-brand-sub">A DSHub initiative · public.dshub.com.ng</span>
+            <div class="footer-brand-logo">
+              <svg width="20" height="20" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
+                <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+              </svg>
+              <div>
+                <span class="footer-brand-name">LifeGate Analytics</span>
+                <span class="footer-brand-sub">public.dshub.com.ng</span>
+              </div>
+            </div>
+            <p class="footer-brand-desc">Nigeria's first physician-validated, NDPA-compliant public health analytics platform — built for those who shape health policy.</p>
+          </div>
+          <div>
+            <p class="footer-col-title">Platform</p>
+            <div class="footer-col-links">
+              <a href="#about">About</a>
+              <a href="#dashboard">Dashboard</a>
+              <a href="#access">Request Access</a>
+              <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
+            </div>
+          </div>
+          <div>
+            <p class="footer-col-title">Data</p>
+            <div class="footer-col-links">
+              <a href="#disparities">Disparities</a>
+              <a href="#research">Research Dataset</a>
+              <a href="#compliance">Compliance &amp; NDPA</a>
+              <a href="#audience">Who It's For</a>
+            </div>
+          </div>
+          <div>
+            <p class="footer-col-title">Contact &amp; Legal</p>
+            <div class="footer-col-links">
+              <a href="mailto:contact@dshub.com.ng">contact@dshub.com.ng</a>
+              <a href="https://download.dshub.com.ng" target="_blank" rel="noopener noreferrer">Get LifeGate App</a>
+            </div>
           </div>
         </div>
-        <div class="footer-links">
-          <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
-          <a href="https://download.dshub.com.ng" target="_blank" rel="noopener noreferrer">Get LifeGate App</a>
-          <a href="mailto:contact@dshub.com.ng">Contact</a>
+        <div class="footer-bottom">
+          <p class="footer-copy">&copy; 2026 DSHub. All rights reserved. Data anonymised under NDPA 2023.</p>
+          <div class="footer-ndpa">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            NDPA 2023 Compliant
+          </div>
         </div>
-        <p class="footer-copy">&copy; 2026 DHSub. All rights reserved. Data anonymised under NDPA 2023.</p>
       </div>
     </footer>
 
@@ -1098,6 +1185,15 @@
         menu.querySelectorAll('a').forEach((a) => {
           a.addEventListener('click', () => { menu.hidden = true; burger.setAttribute('aria-expanded', 'false'); });
         });
+      })();
+
+      // ── Nav scroll glass darkening ─────────────────────────────────────────
+      (function () {
+        const nav = document.querySelector('.site-nav');
+        if (!nav) return;
+        const onScroll = () => nav.classList.toggle('nav-scrolled', window.scrollY > 40);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
       })();
 
       // ── Disease Surveillance live data ────────────────────────────────────
