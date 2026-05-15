@@ -561,6 +561,13 @@
               <!-- ── Access Portal (rendered by access-portal.js) ── -->
               <div id="access-portal" class="ap-portal">
 
+                <div class="ap-mode-toggle">
+                  <button class="ap-mode-btn ap-mode-active" id="ap-mode-apply" type="button">Apply for Access</button>
+                  <button class="ap-mode-btn" id="ap-mode-status" type="button">Check Status</button>
+                </div>
+
+                <div id="ap-apply-panel">
+
                 <!-- Step indicator -->
                 <div class="ap-steps">
                   <div class="ap-step ap-step-active" data-n="1"><span>1</span></div>
@@ -640,10 +647,37 @@
                       <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                     </div>
                     <h3 class="ap-confirm-title">Request Submitted</h3>
-                    <p class="ap-confirm-body">Your access request has been received. We'll review and respond within 2–3 business days.</p>
+                    <p class="ap-confirm-body">Your access request has been received. We'll review and respond within 2–3 business days. A receipt has been sent to your email.</p>
                     <p class="ap-confirm-ref" id="ap-confirm-ref"></p>
+                    <p class="ap-confirm-hint">Save your reference — use the <strong>Check Status</strong> tab to track approval and retrieve your API key once approved.</p>
+                    <button type="button" class="ap-btn-check-status" id="ap-go-status">Check my status →</button>
                   </div>
                 </div>
+
+                </div><!-- /#ap-apply-panel -->
+
+                <div id="ap-status-panel" hidden>
+                  <p class="ap-panel-label">Check your application status</p>
+                  <form id="ap-status-form" novalidate autocomplete="on">
+                    <div class="ap-field">
+                      <label for="ap-st-email">Work Email</label>
+                      <input id="ap-st-email" type="email" autocomplete="email" placeholder="you@institution.gov.ng" required />
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-st-ref">Submission Reference</label>
+                      <input id="ap-st-ref" type="text" placeholder="e.g. A3F2B1C4" required />
+                      <small class="ap-field-hint">The 8-character reference shown after your submission</small>
+                    </div>
+                    <p id="ap-st-error" class="ap-form-error" hidden></p>
+                    <div class="ap-form-btns">
+                      <button type="submit" class="ap-btn-next" id="ap-st-submit">
+                        <span id="ap-st-label">Check Status</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                      </button>
+                    </div>
+                  </form>
+                  <div id="ap-st-result" hidden></div>
+                </div><!-- /#ap-status-panel -->
 
               </div><!-- /#access-portal -->
             </div>
@@ -2337,7 +2371,85 @@
         }
 
         // ── Init ────────────────────────────────────────────────────────────
+        // ── Mode toggle
+        var applyPanel  = document.getElementById('ap-apply-panel');
+        var statusPanel = document.getElementById('ap-status-panel');
+        var modeApply   = document.getElementById('ap-mode-apply');
+        var modeStatus  = document.getElementById('ap-mode-status');
+        function showMode(mode) {
+          var isApply = mode === 'apply';
+          applyPanel.hidden  = !isApply;
+          statusPanel.hidden =  isApply;
+          modeApply.classList.toggle('ap-mode-active',  isApply);
+          modeStatus.classList.toggle('ap-mode-active', !isApply);
+        }
+        modeApply.addEventListener('click',  function () { showMode('apply'); });
+        modeStatus.addEventListener('click', function () { showMode('status'); });
+        var goStatus = document.getElementById('ap-go-status');
+        if (goStatus) {
+          goStatus.addEventListener('click', function () {
+            var e2 = (apForm && apForm.elements['email']) ? apForm.elements['email'].value.trim() : '';
+            var se = document.getElementById('ap-st-email'); if (e2 && se) se.value = e2;
+            var ri = document.getElementById('ap-confirm-ref');
+            var sr = document.getElementById('ap-st-ref');
+            if (ri && sr) sr.value = (ri.textContent || '').replace('Reference: ', '').trim();
+            showMode('status');
+          });
+        }
+
+        // ── Status check
+        var stForm   = document.getElementById('ap-status-form');
+        var stError  = document.getElementById('ap-st-error');
+        var stResult = document.getElementById('ap-st-result');
+        var stLabel  = document.getElementById('ap-st-label');
+        var stBtn    = document.getElementById('ap-st-submit');
+        stForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          stError.hidden = true; stResult.hidden = true;
+          var em = document.getElementById('ap-st-email').value.trim();
+          var rf = document.getElementById('ap-st-ref').value.trim();
+          if (!em || !rf) { stError.textContent = 'Please enter your email and reference.'; stError.hidden = false; return; }
+          stBtn.disabled = true; stLabel.textContent = 'Checking…';
+          fetch(API + '/public/access/status', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({email: em, ref: rf})
+          })
+            .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
+            .then(function (res) {
+              if (!res.ok || !res.d.success) { stError.textContent = res.d.message || 'No matching request found.'; stError.hidden = false; return; }
+              renderStatusResult(res.d.data);
+            })
+            .catch(function () { stError.textContent = 'Network error. Please try again.'; stError.hidden = false; })
+            .finally(function () { stBtn.disabled = false; stLabel.textContent = 'Check Status'; });
+        });
+        function renderStatusResult(d) {
+          var sm = {approved:'Approved', rejected:'Not Approved', pending_review:'Pending Review'};
+          var cm = {approved:'#16a34a',  rejected:'#dc2626', pending_review:'#d97706'};
+          var lb = sm[d.accessStatus] || d.accessStatus;
+          var cl = cm[d.accessStatus] || '#6b7280';
+          var ak = '';
+          if (d.apiKey) {
+            ak = '<div class="ap-st-apikey">'
+               + '<p class="ap-st-key-label">Your API Key</p>'
+               + '<code class="ap-st-key-value">' + esc(d.apiKey) + '</code>'
+               + '<p class="ap-st-key-note">Send as <code>X-DSHub-API-Key</code> header. Keep confidential.</p>'
+               + '</div>';
+          }
+          var ar = d.approvedAt ? '<tr><td>Approved</td><td>'+esc(d.approvedAt.split('T')[0])+'</td></tr>' : '';
+          stResult.innerHTML = '<div class="ap-st-card">'
+            + '<div class="ap-st-status" style="color:'+cl+'">'+esc(lb)+'</div>'
+            + '<table class="ap-st-table">'
+            + '<tr><td>Reference</td><td>'+esc(d.ref.toUpperCase())+'</td></tr>'
+            + '<tr><td>Tier</td><td>'+esc(d.tierName)+'</td></tr>'
+            + '<tr><td>Payment</td><td>'+esc(d.paymentStatus)+'</td></tr>'
+            + '<tr><td>Submitted</td><td>'+esc(d.submittedAt.split('T')[0])+'</td></tr>'
+            + ar + '</table>' + ak + '</div>';
+          stResult.hidden = false;
+        }
+
+        // ── Init
         setStep(1);
+        showMode('apply');
       })();
     </script>
 

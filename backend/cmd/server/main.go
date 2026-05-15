@@ -324,7 +324,7 @@ func main() {
 	demographyHandler := demography.NewHandler(demographyRepo)
 
 // Access Portal — institutional access requests with Flutterwave payment
-        accessPortalRepo := accessportal.NewRepository(database, cfg.FlutterwaveSecretKey, cfg.FlutterwaveWebhookHash)
+        accessPortalRepo := accessportal.NewRepository(database, cfg.FlutterwaveSecretKey, cfg.FlutterwaveWebhookHash, cfg.ResendAPIKey, cfg.EmailFrom, cfg.SupportEmail)
         accessPortalHandler := accessportal.NewHandler(accessPortalRepo, cfg.FlutterwavePublicKey)
 
         // Disparities — symptom burden + SES proxies, physician response-time inequality
@@ -725,6 +725,8 @@ func main() {
 		adminGroup.GET("/medication-releases", adminHandler.GetMedicationReleases)
 		adminGroup.POST("/medication-releases/approve-all", adminHandler.ApproveAllMedicationReleases)
 		adminGroup.POST("/medication-releases/:id/approve", adminHandler.ApproveMedicationRelease)
+		adminGroup.GET("/access-requests", accessPortalHandler.ListAccessRequests)
+		adminGroup.PATCH("/access-requests/:id/review", accessPortalHandler.ReviewAccessRequest)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)
@@ -787,6 +789,7 @@ func main() {
                 apGroup.GET("/config", accessPortalHandler.GetConfig)
                 apGroup.POST("/submit", accessPortalHandler.Submit)
                 apGroup.POST("/webhook", accessPortalHandler.Webhook)
+				apGroup.POST("/status", accessPortalHandler.CheckStatus)
 	}
 
 	downloadStatsGroup := api.Group("/download-stats")

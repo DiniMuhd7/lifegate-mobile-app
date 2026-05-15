@@ -2223,3 +2223,119 @@ h3 {
   font-family: 'Lexend Deca', sans-serif; font-size: .72rem; font-weight: 600;
   color: var(--text-muted); letter-spacing: .07em;
 }
+
+/* ── Access portal: mode toggle ─────────────────────────────────────────── */
+.ap-mode-toggle {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 18px;
+}
+.ap-mode-btn {
+  flex: 1;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ap-mode-btn.ap-mode-active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+/* ── Confirmation extras ─────────────────────────────────────────────────── */
+.ap-confirm-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 6px 0 12px;
+  line-height: 1.5;
+}
+.ap-btn-check-status {
+  background: none;
+  border: 1.5px solid #2563eb;
+  color: #2563eb;
+  border-radius: 7px;
+  padding: 8px 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ap-btn-check-status:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* ── Status check panel & result ─────────────────────────────────────────── */
+.ap-field-hint {
+  display: block;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+.ap-st-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-top: 16px;
+}
+.ap-st-status {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.ap-st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+  margin-bottom: 14px;
+}
+.ap-st-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+.ap-st-table td:first-child {
+  color: #64748b;
+  width: 40%;
+  font-weight: 500;
+}
+.ap-st-apikey {
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+.ap-st-key-label {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.ap-st-key-value {
+  display: block;
+  color: #34d399;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.82rem;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+.ap-st-key-note {
+  color: #64748b;
+  font-size: 0.72rem;
+  margin: 0;
+}
+.ap-st-key-note code {
+  color: #a78bfa;
+  font-family: inherit;
+}

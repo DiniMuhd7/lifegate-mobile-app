@@ -1,8 +1,12 @@
 package accessportal
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -118,6 +122,14 @@ func (h *Handler) Submit(c *gin.Context) {
 		return
 	}
 
+	// Fire-and-forget emails — errors are only logged, never fatal.
+	go func(r AccessRequest, tid string) {
+		ctx := context.Background()
+		tier, _ := getTierByID(tid)
+		h.repo.SendReceiptEmail(ctx, r, tier.Name)
+		h.repo.SendAdminAlertEmail(ctx, r, tier.Name)
+	}(req, body.TierID)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -156,4 +168,113 @@ func (h *Handler) Webhook(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// ListAccessRequests returns a paginated list of access requests for admin review.
+//
+// GET /api/admin/access-requests
+func (h *Handler) ListAccessRequests(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+	status := c.Query("status")
+
+	list, total, err := h.repo.ListRequests(c.Request.Context(), page, pageSize, status)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "failed to list requests"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    list,
+		"meta":    gin.H{"total": total, "page": page, "pageSize": pageSize},
+	})
+}
+
+// ReviewAccessRequest approves or rejects an access request and notifies the applicant.
+//
+// PATCH /api/admin/access-requests/:id/review
+func (h *Handler) ReviewAccessRequest(c *gin.Context) {
+	id := c.Param("id")
+	var body struct {
+		Decision   string `json:"decision"   binding:"required,oneof=approve reject"`
+		AdminNotes string `json:"adminNotes"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	var req AccessRequest
+	var err error
+	if body.Decision == "approve" {
+		req, err = h.repo.ApproveRequest(c.Request.Context(), id, body.AdminNotes)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		go func(r AccessRequest) {
+			tier, _ := getTierByID(r.Tier)
+			h.repo.SendApprovalEmail(context.Background(), r, tier.Name)
+		}(req)
+	} else {
+		req, err = h.repo.RejectRequest(c.Request.Context(), id, body.AdminNotes)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+			return
+		}
+		go func(r AccessRequest) {
+			tier, _ := getTierByID(r.Tier)
+			h.repo.SendRejectionEmail(context.Background(), r, tier.Name)
+		}(req)
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": req})
+}
+
+// CheckStatus lets an applicant check their request status using their work
+// email and the 8-character reference shown at submission.
+//
+// POST /api/public/access/status
+func (h *Handler) CheckStatus(c *gin.Context) {
+	var body struct {
+		Email string `json:"email" binding:"required,email"`
+		Ref   string `json:"ref"   binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	body.Ref = strings.TrimSpace(body.Ref)
+	if len(body.Ref) < 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ref must be at least 4 characters"})
+		return
+	}
+
+	req, err := h.repo.CheckStatusByEmailRef(c.Request.Context(), body.Email, body.Ref)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "no matching request found — check your email and reference"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "internal error"})
+		return
+	}
+
+	// Strip API key unless the request is approved.
+	if req.AccessStatus != "approved" {
+		req.APIKey = ""
+	}
+	tier, _ := getTierByID(req.Tier)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"ref":           req.ID[:8],
+			"tier":          req.Tier,
+			"tierName":      tier.Name,
+			"accessStatus":  req.AccessStatus,
+			"paymentStatus": req.PaymentStatus,
+			"apiKey":        req.APIKey,
+			"approvedAt":    req.ApprovedAt,
+			"submittedAt":   req.CreatedAt,
+		},
+	})
 }
