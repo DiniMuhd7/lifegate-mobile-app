@@ -267,6 +267,7 @@ h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 8px
   padding: 12px 20px 24px;
   display: flex; flex-direction: column; gap: 2px;
 }
+.mobile-menu[hidden] { display: none; }
 .mobile-menu a {
   font-family: 'Lexend Deca', sans-serif; font-size: .88rem; font-weight: 600;
   color: rgba(255,255,255,.6);
