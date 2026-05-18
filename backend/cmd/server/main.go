@@ -63,6 +63,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/demography"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/accessportal"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/disparities"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/institutional"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/research"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
@@ -790,6 +791,24 @@ func main() {
                 apGroup.POST("/submit", accessPortalHandler.Submit)
                 apGroup.POST("/webhook", accessPortalHandler.Webhook)
 				apGroup.POST("/status", accessPortalHandler.CheckStatus)
+	}
+
+	// ── Institutional Analytics API (API-key auth, 200 req/min) ────────────────
+	// Deep analytics for approved institutional callers (researchers, NGOs, MoH).
+	// All queries enforce k-anonymity (≥ 3 cases) and return aggregates only.
+	instRepo := institutional.NewRepository(database)
+	instHandler := institutional.NewHandler(instRepo)
+	instGroup := api.Group("/institutional",
+		middleware.InstitutionalCORS(),
+		middleware.APIKey(database),
+		middleware.RateLimit(200, 60),
+	)
+	{
+		instGroup.GET("/surveillance/trends", instHandler.GetSurveillanceTrends)
+		instGroup.GET("/demographics", instHandler.GetDemographics)
+		instGroup.GET("/outcomes", instHandler.GetOutcomes)
+		instGroup.GET("/disparities", instHandler.GetDisparities)
+		instGroup.GET("/export", instHandler.Export)
 	}
 
 	downloadStatsGroup := api.Group("/download-stats")

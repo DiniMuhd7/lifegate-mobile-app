@@ -514,7 +514,7 @@ func (r *Repository) ApproveRequest(ctx context.Context, id, adminNotes string) 
 		return AccessRequest{}, fmt.Errorf("request not found: %w", err)
 	}
 	apiKey := ""
-	if req.Tier == "api" && req.APIKey == "" {
+	if (req.Tier == "api" || req.Tier == "export") && req.APIKey == "" {
 		apiKey, err = generateAPIKey()
 		if err != nil {
 			return AccessRequest{}, fmt.Errorf("api key generation failed: %w", err)
