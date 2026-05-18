@@ -14,6 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script src="https://checkout.flutterwave.com/v3.js"></script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8968729342650927" crossorigin="anonymous"></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='16' cy='16' r='16' fill='%2309999B'/%3E%3C/svg%3E">
   </head>
   <body>
 
@@ -1529,6 +1530,7 @@
           if (v == null) return '—';
           return v.toFixed(1) + '%';
         }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         async function load() {
           let data;
@@ -1595,7 +1597,7 @@
               const barPct = Math.max(4, Math.round((s.totalConsults / maxVal) * 100));
               return `
                 <div class="tele-state-row" role="listitem">
-                  <span class="tele-state-name">${s.state}</span>
+                  <span class="tele-state-name">${esc(s.state)}</span>
                   <div class="tele-bar-track">
                     <div class="tele-bar-fill" style="width:${barPct}%" title="${fmt(s.totalConsults)} consults"></div>
                   </div>
@@ -1618,6 +1620,7 @@
 
         const SEVERITY_LABEL = { critical: 'Critical', high: 'High', moderate: 'Moderate' };
         const SEVERITY_CLASS = { critical: 'gap-critical', high: 'gap-high', moderate: 'gap-moderate' };
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         async function load() {
           let data;
@@ -1647,14 +1650,14 @@
             const specTxt = g.specialistCount === 0 ? 'No specialists' : `${g.specialistCount} specialist${g.specialistCount > 1 ? 's' : ''}`;
             return `
               <div class="gap-row" role="listitem">
-                <span class="gap-severity-badge ${sevClass}">${SEVERITY_LABEL[g.gapSeverity] || g.gapSeverity}</span>
+                <span class="gap-severity-badge ${sevClass}">${esc(SEVERITY_LABEL[g.gapSeverity] || g.gapSeverity)}</span>
                 <div class="gap-info">
-                  <span class="gap-condition">${g.conditionName}</span>
-                  <span class="gap-state">${g.state}</span>
+                  <span class="gap-condition">${esc(g.conditionName)}</span>
+                  <span class="gap-state">${esc(g.state)}</span>
                 </div>
                 <div class="gap-meta">
                   <span class="gap-cases">${(g.totalCases || 0).toLocaleString()} cases</span>
-                  <span class="gap-spec">${g.relatedSpecialty} · ${specTxt}</span>
+                  <span class="gap-spec">${esc(g.relatedSpecialty)} · ${specTxt}</span>
                 </div>
               </div>`;
           }).join('');
@@ -1676,6 +1679,7 @@
 
         function okIcon(ok) { return ok ? TICK : CROSS; }
         function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         async function load() {
           let data;
@@ -1696,7 +1700,7 @@
           if (catEl && Array.isArray(data.byCategory)) {
             catEl.innerHTML = data.byCategory.map(c => `
               <li class="comp-cat-item">
-                <span class="comp-cat-name">${c.category}</span>
+                <span class="comp-cat-name">${esc(c.category)}</span>
                 <span class="comp-cat-count">${fmt(c.count)}</span>
               </li>`).join('');
           }
@@ -1762,6 +1766,7 @@
         };
 
         function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         function renderHBar(container, items, valueKey, labelKey, colorFn) {
           if (!container || !items || !items.length) return;
@@ -1770,7 +1775,7 @@
             const pct = Math.max(4, Math.round(item[valueKey] / maxVal * 100));
             return `
               <div class="demo-bar-row" role="listitem">
-                <span class="demo-bar-label">${item[labelKey]}</span>
+                <span class="demo-bar-label">${esc(item[labelKey])}</span>
                 <div class="demo-bar-track">
                   <div class="demo-bar-fill" style="width:${pct}%;background:${colorFn(item)}" title="${fmt(item[valueKey])} cases"></div>
                 </div>
@@ -1803,11 +1808,11 @@
             const maxSex = Math.max(...data.bySex.map(s => s.totalCases), 1);
             sexEl.innerHTML = data.bySex.map(s => {
               const pct = Math.max(4, Math.round(s.totalCases / maxSex * 100));
-              const topCond = (s.topConditions || []).slice(0, 3).map(c => c.conditionName).join(', ');
+              const topCond = (s.topConditions || []).slice(0, 3).map(c => esc(c.conditionName)).join(', ');
               return `
                 <div class="demo-sex-row" role="listitem">
                   <div class="demo-sex-header">
-                    <span class="demo-sex-label">${s.sex}</span>
+                    <span class="demo-sex-label">${esc(s.sex)}</span>
                     <span class="demo-sex-count">${fmt(s.totalCases)} cases</span>
                   </div>
                   <div class="demo-bar-track">
@@ -1832,6 +1837,7 @@
 
         function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
         function pct(v)  { return v != null ? v.toFixed(1) + '%' : '—'; }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         // Colour scale: low dropout = teal, high dropout = red
         function dropoutColor(rate) {
@@ -1868,7 +1874,7 @@
               const col = dropoutColor(a.dropoutPct);
               return `
                 <div class="fu-row" role="listitem">
-                  <span class="fu-label">${a.ageGroup}</span>
+                  <span class="fu-label">${esc(a.ageGroup)}</span>
                   <div class="demo-bar-track">
                     <div class="demo-bar-fill" style="width:${barW}%;background:${col}"></div>
                   </div>
@@ -1887,7 +1893,7 @@
               const col = dropoutColor(s.dropoutPct);
               return `
                 <div class="fu-row" role="listitem">
-                  <span class="fu-label">${s.state}</span>
+                  <span class="fu-label">${esc(s.state)}</span>
                   <div class="demo-bar-track">
                     <div class="demo-bar-fill" style="width:${barW}%;background:${col}"></div>
                   </div>
@@ -1904,7 +1910,7 @@
     <!-- ── Research: Longitudinal Record Quality ──────────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
         async function load() {
           try {
             const res = await fetch(base + '/public/research/longitudinal?weeks=52');
@@ -1925,7 +1931,8 @@
     <!-- ── Research: AI Benchmark ─────────────────────────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
         async function load() {
           try {
             const res = await fetch(base + '/public/research/ai-benchmark?weeks=52');
@@ -1942,7 +1949,7 @@
               const approvalPct = typeof b.approval_rate_pct === 'number' ? b.approval_rate_pct.toFixed(1) + '%' : '—';
               const overrideClass = b.override_rate_pct > 40 ? 'res-pct-high' : b.override_rate_pct > 20 ? 'res-pct-mid' : 'res-pct-low';
               return `<tr>
-                <td class="res-bm-band">${b.band || '—'}</td>
+                <td class="res-bm-band">${esc(b.band || '—')}</td>
                 <td>${(b.total_cases || 0).toLocaleString()}</td>
                 <td>${(b.reviewed || 0).toLocaleString()}</td>
                 <td>${(b.approved || 0).toLocaleString()}</td>
@@ -1959,7 +1966,8 @@
     <!-- ── Research: Comorbidity Co-occurrence ────────────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
         async function load() {
           try {
             const res = await fetch(base + '/public/research/comorbidity?weeks=52&topN=12');
@@ -1975,7 +1983,7 @@
               return `<div class="res-pair-row" role="listitem">
                 <span class="res-pair-rank">${i + 1}</span>
                 <div class="res-pair-info">
-                  <span class="res-pair-label">${p.condition_a} &amp; ${p.condition_b}</span>
+                  <span class="res-pair-label">${esc(p.condition_a)} &amp; ${esc(p.condition_b)}</span>
                   <div class="res-pair-bar-track"><div class="res-pair-bar-fill" style="width:${pct}%"></div></div>
                 </div>
                 <span class="res-pair-count">${p.patient_count}</span>
@@ -1990,8 +1998,9 @@
     <!-- ── Research: AI-Physician Agreement Corpus ───────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
         const URGENCY_COLOR = { CRITICAL: '#dc2626', HIGH: '#d97706', MEDIUM: '#0ea5e9', LOW: '#16a34a' };
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         async function load() {
           try {
@@ -2015,7 +2024,7 @@
                 const c = URGENCY_COLOR[u.urgency] || '#64748b';
                 const cls = u.rejectedPct > 30 ? 'res-pct-high' : u.rejectedPct > 15 ? 'res-pct-mid' : 'res-pct-low';
                 return `<tr>
-                  <td><span class="res-urgency-badge" style="color:${c};border-color:${c}">${u.urgency}</span></td>
+                  <td><span class="res-urgency-badge" style="color:${c};border-color:${c}">${esc(u.urgency)}</span></td>
                   <td>${(u.reviewed || 0).toLocaleString()}</td>
                   <td>${(u.approved || 0).toLocaleString()}</td>
                   <td>${(u.rejected || 0).toLocaleString()}</td>
@@ -2035,7 +2044,7 @@
               return `<div class="res-cond-row" role="listitem">
                 <span class="res-cond-rank">${i + 1}</span>
                 <div class="res-cond-info">
-                  <span class="res-cond-label">${c.condition}</span>
+                  <span class="res-cond-label">${esc(c.condition)}</span>
                   <div class="res-pair-bar-track"><div class="res-pair-bar-fill res-bar-red" style="width:${pct}%"></div></div>
                 </div>
                 <span class="res-cond-badge">${(c.disagreementPct || 0).toFixed(0)}% override</span>
@@ -2050,8 +2059,9 @@
     <!-- ── Research: Escalation Rate Analysis ────────────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
         const URGENCY_COLOR = { CRITICAL: '#dc2626', HIGH: '#d97706', MEDIUM: '#0ea5e9', LOW: '#16a34a' };
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         async function load() {
           try {
@@ -2073,7 +2083,7 @@
               const pct = u.escalationRatePct || 0;
               const c = URGENCY_COLOR[u.urgency] || '#64748b';
               return `<div class="res-esc-row" role="listitem">
-                <span class="res-urgency-badge" style="color:${c};border-color:${c}">${u.urgency}</span>
+                <span class="res-urgency-badge" style="color:${c};border-color:${c}">${esc(u.urgency)}</span>
                 <div class="res-esc-bar-wrap">
                   <div class="res-pair-bar-track"><div class="res-pair-bar-fill" style="width:${pct}%;background:${c}"></div></div>
                   <span class="res-esc-bar-label">${pct.toFixed(1)}% of ${(u.totalCases||0).toLocaleString()}</span>
@@ -2091,7 +2101,7 @@
               return `<div class="res-cond-row" role="listitem">
                 <span class="res-cond-rank">${i + 1}</span>
                 <div class="res-cond-info">
-                  <span class="res-cond-label">${c.condition}</span>
+                  <span class="res-cond-label">${esc(c.condition)}</span>
                   <div class="res-pair-bar-track"><div class="res-pair-bar-fill" style="width:${pct}%"></div></div>
                 </div>
                 <span class="res-cond-badge">${(c.escalationRatePct || 0).toFixed(0)}% esc.</span>
@@ -2106,7 +2116,8 @@
     <!-- ── Disparities: Symptom Burden by State ─────────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         function heatClass(val, low, mid, high) {
           if (val >= high) return 'disp-heat-3';
@@ -2140,7 +2151,7 @@
               const confClass = s.avgAIConfidence < 50 ? 'disp-heat-2' : s.avgAIConfidence < 65 ? 'disp-heat-1' : 'disp-heat-0';
               return `<tr>
                 <td class="disp-rank">${s.disparityRank}</td>
-                <td class="disp-state-name">${s.state}</td>
+                <td class="disp-state-name">${esc(s.state)}</td>
                 <td>${(s.totalCases || 0).toLocaleString()}</td>
                 <td class="${sevClass}">${(s.urgencySeverityIndex || 0).toFixed(3)}</td>
                 <td class="${hcClass}">${(s.highCriticalPct || 0).toFixed(1)}%</td>
@@ -2148,7 +2159,7 @@
                 <td class="${rxClass}">${(s.prescriptionCoverage || 0).toFixed(1)}%</td>
                 <td class="${confClass}">${s.avgAIConfidence ? s.avgAIConfidence.toFixed(1) + '%' : '—'}</td>
                 <td>${(s.repeatPatientRate || 0).toFixed(1)}%</td>
-                <td class="disp-top-cond">${s.topCondition || '—'}</td>
+                <td class="disp-top-cond">${esc(s.topCondition || '—')}</td>
               </tr>`;
             }).join('');
           } catch (_) {}
@@ -2160,7 +2171,8 @@
     <!-- ── Disparities: Response-Time Inequality ─────────────────────────── -->
     <script>
       (() => {
-        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:''}).content;
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
         function fmtH(h) {
           if (!h && h !== 0) return '—';
@@ -2191,7 +2203,7 @@
               const ratioClass = ratio > 3 ? 'disp-ratio-high' : ratio > 1.5 ? 'disp-ratio-mid' : 'disp-ratio-ok';
               const breachClass = s.slaBreachPct > 40 ? 'disp-heat-3' : s.slaBreachPct > 20 ? 'disp-heat-2' : s.slaBreachPct > 5 ? 'disp-heat-1' : '';
               return `<div class="disp-rt-row" role="listitem">
-                <span class="disp-rt-state">${s.state}</span>
+                <span class="disp-rt-state">${esc(s.state)}</span>
                 <div class="disp-rt-bar-col">
                   <div class="disp-rt-bar-track">
                     <div class="disp-rt-bar-fill" style="width:${barPct}%"></div>
