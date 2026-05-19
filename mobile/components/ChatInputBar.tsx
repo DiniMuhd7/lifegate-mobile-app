@@ -122,6 +122,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   // True for ~1.5s after a quick tap so we can show "Hold to record" hint.
   const [showHoldHint, setShowHoldHint] = useState(false);
+  // Which camera lens is active — toggled by the flip button in the scanner modal.
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('back');
 
   useEffect(() => {
     textRef.current = text;
@@ -943,7 +945,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         presentationStyle="overFullScreen"
         transparent
         statusBarTranslucent
-        onRequestClose={() => { setCapturedUri(null); setOcrState('idle'); }}
+        onRequestClose={() => { setCapturedUri(null); setOcrState('idle'); setCameraFacing('back'); }}
       >
         {/* Semi-transparent overlay — app UI visible at ~10% behind */}
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.90)' }}>
@@ -964,7 +966,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                 <CameraView
                   ref={cameraRef}
                   style={{ flex: 1 }}
-                  facing={Platform.OS === 'web' ? 'front' : 'back'}
+                  facing={cameraFacing}
                 />
               </View>
 
@@ -1000,7 +1002,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
                   {/* Cancel */}
                   <TouchableOpacity
-                    onPress={() => { setCapturedUri(null); setOcrState('idle'); }}
+                    onPress={() => { setCapturedUri(null); setOcrState('idle'); setCameraFacing('back'); }}
                     activeOpacity={0.7}
                     style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}
                   >
@@ -1024,8 +1026,17 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 }}>Capture</Text>
                   </TouchableOpacity>
 
-                  {/* Torch / Flash placeholder (symmetry) */}
-                  <View style={{ width: 56, height: 56 }} />
+                  {/* Flip camera */}
+                  <TouchableOpacity
+                    onPress={() => setCameraFacing((f) => (f === 'back' ? 'front' : 'back'))}
+                    activeOpacity={0.7}
+                    style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="camera-reverse-outline" size={22} color="#fff" />
+                    </View>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 4 }}>Flip</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </>
