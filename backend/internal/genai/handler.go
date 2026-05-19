@@ -349,6 +349,7 @@ func (h *Handler) ScanImage(c *gin.Context) {
 
 	text, isMedical, err := h.svc.ScanMedicalImage(c.Request.Context(), req.Image, req.MimeType)
 	if err != nil {
+		log.Printf("genai: ScanMedicalImage failed (user=%s len=%d): %v", uid, len(req.Image), err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": fmt.Sprintf("Image scan failed: %v", err)})
 		return
 	}

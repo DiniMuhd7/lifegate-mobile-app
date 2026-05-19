@@ -510,7 +510,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       setCapturedUri(photo.uri);
       setOcrState('scanning');
 
-      const base64 = photo.base64 ?? (await imageUriToBase64(photo.uri));
+      // On web, expo-camera returns a full data-URI in photo.base64
+      // (e.g. "data:image/jpeg;base64,xxxx"). Strip the prefix so we only
+      // send the raw base64 payload — the backend adds the prefix itself
+      // when building the OpenAI Vision URL.
+      const rawCapture = photo.base64 ?? (await imageUriToBase64(photo.uri));
+      const base64 = rawCapture?.includes(',') ? rawCapture.split(',')[1]! : rawCapture;
       if (!base64) {
         Alert.alert(
           'Camera Error',
