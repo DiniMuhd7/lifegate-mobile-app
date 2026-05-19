@@ -34,7 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { VoiceService } from 'services/voice-service';
 import { OcrService } from 'services/ocr-service';
 
@@ -92,7 +92,7 @@ async function imageUriToBase64(uri: string): Promise<string | null> {
       });
     } else {
       return await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
     }
   } catch {
@@ -503,8 +503,6 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
         quality: 0.72,
-        // Skip saving to gallery — in-memory only
-        skipProcessing: true,
       });
 
       // Show the captured photo inside the modal with a scanning overlay
@@ -982,6 +980,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
                 overflow: 'hidden',
               }}>
                 <CameraView
+                  key={cameraFacing}
                   ref={cameraRef}
                   style={{ flex: 1 }}
                   facing={cameraFacing}
