@@ -229,7 +229,7 @@ func main() {
 	// Wire physician push broadcasts into the AI service so escalated cases
 	// trigger Expo push notifications even when physicians are in the background.
 	genaiSvc.SetPhysicianPushBroadcaster(pushSvc)
-	genaiSvc.SetOpenAIKey(cfg.OpenAIAPIKey)
+	genaiSvc.SetOpenAIKey(cfg.OpenAIAPIKey, cfg.OpenAIModel)
 	genaiSvc.SetGeminiKey(cfg.GeminiAPIKey, cfg.GeminiModel)
 
 	reviewSvc := review.NewService(database)

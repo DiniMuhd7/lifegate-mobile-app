@@ -272,6 +272,11 @@ func (s *Service) saveProfileUpdate(ctx context.Context, userID string, u *ai.Pr
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
+// visionHTTPClient is a dedicated client used for OpenAI and Gemini Vision calls.
+// A 90-second timeout is used because high-detail gpt-4o vision analysis can
+// occasionally take 30-60 seconds for complex multi-page documents.
+var visionHTTPClient = &http.Client{Timeout: 90 * time.Second}
+
 type Service struct {
 	engine      *edis.Engine
 	db          *sql.DB
@@ -280,6 +285,7 @@ type Service struct {
 	notifier    PhysicianNotifier
 	physPush    PhysicianPushBroadcaster
 	openAIKey   string
+	openAIModel string
 	geminiKey   string
 	geminiModel string
 }
@@ -314,9 +320,14 @@ func (s *Service) SetPhysicianPushBroadcaster(b PhysicianPushBroadcaster) {
 	s.physPush = b
 }
 
-// SetOpenAIKey stores the OpenAI API key used for Whisper and Vision APIs.
-func (s *Service) SetOpenAIKey(key string) {
+// SetOpenAIKey stores the OpenAI API key and model used for Whisper and Vision
+// APIs. Pass an empty model to keep the default (gpt-4o-mini).
+func (s *Service) SetOpenAIKey(key, model string) {
 	s.openAIKey = key
+	s.openAIModel = model
+	if s.openAIModel == "" {
+		s.openAIModel = "gpt-4o-mini"
+	}
 }
 
 // SetGeminiKey stores the Gemini API key and model used as a fallback for
@@ -385,7 +396,7 @@ func (s *Service) scanWithGemini(ctx context.Context, imageBase64, mimeType stri
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := visionHTTPClient.Do(req)
 	if err != nil {
 		return "", false, fmt.Errorf("gemini vision request: %w", err)
 	}
@@ -422,7 +433,7 @@ func (s *Service) scanWithGemini(ctx context.Context, imageBase64, mimeType stri
 	return content, true, nil
 }
 
-// ScanMedicalImage performs medical document OCR using OpenAI Vision (gpt-4o).
+// ScanMedicalImage performs medical document OCR using OpenAI Vision.
 // If OpenAI is not configured or returns an error, it automatically falls back
 // to Gemini Vision. The image data is processed entirely in memory — it is
 // never written to any storage.
@@ -434,7 +445,7 @@ func (s *Service) ScanMedicalImage(ctx context.Context, imageBase64, mimeType st
 	// Try OpenAI first when the key is present.
 	if s.openAIKey != "" {
 		reqBody := map[string]any{
-			"model":      "gpt-4o",
+			"model":      s.openAIModel,
 			"max_tokens": 2000,
 			"messages": []map[string]any{
 				{
@@ -471,7 +482,7 @@ func (s *Service) ScanMedicalImage(ctx context.Context, imageBase64, mimeType st
 		req.Header.Set("Authorization", "Bearer "+s.openAIKey)
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := visionHTTPClient.Do(req)
 		if err != nil {
 			return "", false, fmt.Errorf("vision API request: %w", err)
 		}
