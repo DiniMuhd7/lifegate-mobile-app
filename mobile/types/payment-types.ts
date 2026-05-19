@@ -4,9 +4,12 @@ export type PaymentCurrency = 'NGN' | 'USD';
 
 export interface CreditBundle {
   id: string;
+  name: string;           // "Starter" | "Standard" | "Value" | "LifeGate Premium"
   amountNaira: number;
   amountUSD: number;
   credits: number;
+  isPremium: boolean;     // true for subscription plans
+  billingCycle: string;   // "" | "monthly" | "annual"
   label: string;
   labelUSD: string;
 }

@@ -22,14 +22,25 @@ import (
 // bundleBase defines credit tiers.
 // NGN prices are the source of truth. USD bundle prices are derived from a
 // cached live FX rate (with fallback) so checkout follows one market rule.
+// isPremium marks subscription plans (unlimited Dx credits); billingCycle is
+// "monthly" or "annual" for Premium plans, empty for pay-per-use.
 var bundleBase = []struct {
-	id       string
-	ngnFixed int
-	credits  int
+	id           string
+	name         string
+	ngnFixed     int
+	credits      int
+	isPremium    bool
+	billingCycle string
 }{
-	{"2000", 2500, 5},
-	{"5000", 7500, 15},
-	{"10000", 25000, 50},
+	// Pay-per-use credit packages
+	{"2000",            "Starter",          2500,  5,   false, ""},
+	{"5000",            "Standard",         7500,  15,  false, ""},
+	{"10000",           "Value",            25000, 50,  false, ""},
+	// Premium subscription plans (credits = 999 acts as unlimited placeholder
+	// until the dedicated subscription backend is wired; the chat store treats
+	// balance >= 999 as "effectively unlimited" for UX purposes)
+	{"premium_monthly", "LifeGate Premium", 5000,  999, true,  "monthly"},
+	{"premium_annual",  "LifeGate Premium", 50000, 999, true,  "annual"},
 }
 
 type fxRateResponse struct {
@@ -37,12 +48,15 @@ type fxRateResponse struct {
 }
 
 type Bundle struct {
-	ID          string  `json:"id"`
-	AmountNaira int     `json:"amountNaira"`
-	AmountUSD   float64 `json:"amountUSD"`
-	Credits     int     `json:"credits"`
-	Label       string  `json:"label"`
-	LabelUSD    string  `json:"labelUSD"`
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	AmountNaira  int     `json:"amountNaira"`
+	AmountUSD    float64 `json:"amountUSD"`
+	Credits      int     `json:"credits"`
+	IsPremium    bool    `json:"isPremium"`
+	BillingCycle string  `json:"billingCycle"` // "" | "monthly" | "annual"
+	Label        string  `json:"label"`
+	LabelUSD     string  `json:"labelUSD"`
 }
 
 // PaymentTransaction is the DB row shape.
@@ -184,16 +198,35 @@ func (s *Service) GetBundles() []Bundle {
 	out := make([]Bundle, 0, len(bundleBase))
 	for _, b := range bundleBase {
 		usd := roundCurrency(float64(b.ngnFixed) / rate)
+		var label, labelUSD string
+		if b.isPremium {
+			cycle := "Monthly"
+			if b.billingCycle == "annual" {
+				cycle = "Annual"
+			}
+			label = fmt.Sprintf("%s — %s · ₦%s", b.name, cycle, formatNaira(b.ngnFixed))
+			labelUSD = fmt.Sprintf("%s — %s · $%.2f", b.name, cycle, usd)
+		} else {
+			label = fmt.Sprintf("%s · %d Dx Credits · ₦%s", b.name, b.credits, formatNaira(b.ngnFixed))
+			labelUSD = fmt.Sprintf("%s · %d Dx Credits · $%.2f", b.name, b.credits, usd)
+		}
 		out = append(out, Bundle{
-			ID:          b.id,
-			AmountNaira: b.ngnFixed,
-			AmountUSD:   usd,
-			Credits:     b.credits,
-			Label:       fmt.Sprintf("₦%s — %d Credits", formatNaira(b.ngnFixed), b.credits),
-			LabelUSD:    fmt.Sprintf("$%.2f — %d Credits", usd, b.credits),
+			ID:           b.id,
+			Name:         b.name,
+			AmountNaira:  b.ngnFixed,
+			AmountUSD:    usd,
+			Credits:      b.credits,
+			IsPremium:    b.isPremium,
+			BillingCycle: b.billingCycle,
+			Label:        label,
+			LabelUSD:     labelUSD,
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
+		// Premium plans sort after pay-per-use; within each group sort by credits ascending.
+		if out[i].IsPremium != out[j].IsPremium {
+			return !out[i].IsPremium
+		}
 		return out[i].Credits < out[j].Credits
 	})
 	return out

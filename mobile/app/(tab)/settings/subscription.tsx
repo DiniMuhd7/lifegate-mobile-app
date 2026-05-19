@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,20 @@ import { openExternalUrl } from '@/utils/external-link';
 const isWeb = Platform.OS === 'web';
 const CALLBACK_PREFIX = 'lifegate://payment/callback';
 const DEV_PREFIX = 'lifegate://payment/dev';
+
+// ── Premium benefit list ──────────────────────────────────────────────────────
+const PREMIUM_BENEFITS: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string }[] = [
+  { icon: 'infinite-outline',           text: 'Unlimited AI Diagnosis Credits' },
+  { icon: 'remove-circle-outline',      text: 'No Ads — completely ad-free experience' },
+  { icon: 'flash-outline',              text: 'Priority Physician Queue (target <30 min)' },
+  { icon: 'star-outline',               text: '2× LifeCoins earn rate on all activities' },
+  { icon: 'scan-outline',               text: 'Unlimited medical document scans' },
+  { icon: 'cloud-outline',              text: 'Unlimited chat & diagnosis history' },
+  { icon: 'document-text-outline',      text: 'Full health report PDF export' },
+  { icon: 'play-circle-outline',        text: 'Exclusive Premium Explore content' },
+  { icon: 'headset-outline',            text: 'Dedicated support channel (4-hour SLA)' },
+];
+
 
 export default function SubscriptionScreen() {
   const { user } = useAuthStore();
@@ -52,6 +66,8 @@ export default function SubscriptionScreen() {
   const [currency, setCurrency] = useState<PaymentCurrency>('NGN');
   const [cancelledMsg, setCancelledMsg] = useState(false);
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
+  // Premium billing cycle toggle
+  const [premiumCycle, setPremiumCycle] = useState<'monthly' | 'annual'>('monthly');
   // Native: true once the user has tapped "Open Payment Page" in the modal
   const [paymentPageOpened, setPaymentPageOpened] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -385,6 +401,15 @@ export default function SubscriptionScreen() {
 
   const displayBundles: CreditBundle[] = bundles;
 
+  // Separate premium subscription plans from pay-per-use credit packages.
+  const creditBundles  = useMemo(() => displayBundles.filter((b) => !b.isPremium), [displayBundles]);
+  const premiumBundles = useMemo(() => displayBundles.filter((b) => b.isPremium), [displayBundles]);
+  // The active premium bundle based on the billing cycle toggle.
+  const activePremiumBundle = useMemo(
+    () => premiumBundles.find((b) => b.billingCycle === premiumCycle) ?? premiumBundles[0] ?? null,
+    [premiumBundles, premiumCycle],
+  );
+
   const selectedBundleData = displayBundles.find((bundle) => bundle.id === selectedBundle);
 
   type BenefitItem = { icon: React.ComponentProps<typeof Ionicons>['name']; text: string };
@@ -460,35 +485,39 @@ export default function SubscriptionScreen() {
         ) : null}
 
         <ScrollView className="flex-1 px-4 pt-1" contentContainerStyle={{ paddingBottom: 100 }}>
+
+          {/* ── Current Balance ─────────────────────────────────────────── */}
           <View className="mb-4 rounded-3xl bg-white border border-[#D9EEEE] p-5 overflow-hidden">
             <View className="absolute -top-8 -right-6 h-28 w-28 rounded-full bg-[#E7F8F7]" />
             <Text className="text-xs font-semibold uppercase tracking-wide text-[#0EA5A4] mb-1">
               Current Balance
             </Text>
             <Text className="text-5xl font-black text-[#0EA5A4]">
-              {balance?.balance ?? 0}
+              {(balance?.balance ?? 0) >= 999 ? '∞' : (balance?.balance ?? 0)}
             </Text>
-            <Text className="text-sm text-gray-500 mt-1">credits available for diagnosis sessions</Text>
+            <Text className="text-sm text-gray-500 mt-1">
+              {(balance?.balance ?? 0) >= 999 ? 'Unlimited — Premium active' : 'credits available for diagnosis sessions'}
+            </Text>
           </View>
 
+          {/* ── Free trial nudge ─────────────────────────────────────────── */}
           {(balance?.balance ?? 0) > 0 &&
             (balance?.balance ?? 0) <= 3 &&
             transactions.length > 0 &&
             transactions.every((t) => t.bundleId === 'trial') && (
-            <View className="mb-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex-row items-start gap-3">
+            <View className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex-row items-start gap-3">
               <Ionicons name="gift-outline" size={20} color="#b45309" style={{ marginTop: 1 }} />
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-amber-800">
-                  You are currently using trial credits
-                </Text>
+                <Text className="text-sm font-semibold text-amber-800">Using your 10 free trial credits</Text>
                 <Text className="text-xs text-amber-700 mt-0.5 leading-4">
-                  Each clinical diagnosis session costs 1 credit. Top up anytime to continue uninterrupted.
+                  Each clinical diagnosis session costs 1 credit. Subscribe to Premium for unlimited sessions.
                 </Text>
               </View>
             </View>
           )}
 
-          <View className="mb-6 flex-row items-center justify-between">
+          {/* ── Transactions link ────────────────────────────────────────── */}
+          <View className="mb-5 flex-row items-center justify-between">
             <View className="flex-row items-center">
               <Ionicons name="time-outline" size={20} color="#0EA5A4" />
               <Text className="ml-2 text-base font-semibold text-gray-900">Transactions</Text>
@@ -501,8 +530,160 @@ export default function SubscriptionScreen() {
             </Pressable>
           </View>
 
-          <Text className="mb-3 text-base font-semibold text-gray-900">Choose a Credit Package</Text>
+          {/* ════════════════════════════════════════════════════════════════
+              TIER 1: Free Trial
+          ════════════════════════════════════════════════════════════════ */}
+          <View className="mb-2 flex-row items-center gap-2">
+            <View className="h-px flex-1 bg-[#D9EEEE]" />
+            <Text className="text-xs font-bold uppercase tracking-wider text-[#0EA5A4]">Free Trial</Text>
+            <View className="h-px flex-1 bg-[#D9EEEE]" />
+          </View>
 
+          <View className="mb-5 rounded-2xl border border-[#D9EEEE] bg-white p-4">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center gap-2">
+                <View className="w-8 h-8 rounded-lg bg-[#E7F8F7] items-center justify-center">
+                  <Ionicons name="gift-outline" size={18} color="#0EA5A4" />
+                </View>
+                <Text className="text-base font-bold text-gray-900">New Account</Text>
+              </View>
+              <View className="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0]">
+                <Text className="text-[11px] font-semibold text-[#047857]">Free</Text>
+              </View>
+            </View>
+            <Text className="text-2xl font-black text-[#0EA5A4] mb-0.5">10 Dx Credits</Text>
+            <Text className="text-xs text-gray-500 mb-3">Awarded automatically on sign-up · one-time</Text>
+            {[
+              { icon: 'pulse-outline' as const,           text: 'AI-powered symptom triage' },
+              { icon: 'medical-outline' as const,         text: 'Licensed physician case review' },
+              { icon: 'document-text-outline' as const,   text: 'Diagnosis report & recommendations' },
+              { icon: 'infinite-outline' as const,        text: 'Credits never expire' },
+            ].map((b, i) => (
+              <View key={i} className="flex-row items-center gap-2 mb-1">
+                <Ionicons name={b.icon} size={13} color="#0EA5A4" />
+                <Text className="text-sm text-gray-600">{b.text}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* ════════════════════════════════════════════════════════════════
+              TIER 2: LifeGate Premium
+          ════════════════════════════════════════════════════════════════ */}
+          <View className="mb-2 flex-row items-center gap-2">
+            <View className="h-px flex-1 bg-[#D9EEEE]" />
+            <Text className="text-xs font-bold uppercase tracking-wider text-[#0EA5A4]">LifeGate Premium</Text>
+            <View className="h-px flex-1 bg-[#D9EEEE]" />
+          </View>
+
+          <View className="mb-5 rounded-2xl border-2 border-[#0EA5A4] bg-white overflow-hidden">
+            {/* Header gradient bar */}
+            <View className="bg-[#0EA5A4] px-4 py-3 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <Ionicons name="diamond-outline" size={16} color="white" />
+                <Text className="text-sm font-bold text-white">LifeGate Premium</Text>
+              </View>
+              <View className="px-2 py-0.5 rounded-full bg-white/20">
+                <Text className="text-[10px] font-bold text-white uppercase tracking-wide">Most Popular</Text>
+              </View>
+            </View>
+
+            <View className="p-4">
+              {/* Billing cycle toggle */}
+              <View className="mb-4 rounded-xl bg-[#E8F4F4] p-1 flex-row border border-[#D4ECEB]">
+                {(['monthly', 'annual'] as const).map((cycle) => {
+                  const active = premiumCycle === cycle;
+                  return (
+                    <Pressable
+                      key={cycle}
+                      onPress={() => setPremiumCycle(cycle)}
+                      className={`flex-1 rounded-lg px-3 py-2.5 ${active ? 'bg-white' : 'bg-transparent'}`}>
+                      <Text className={`text-center text-sm font-semibold ${active ? 'text-[#0EA5A4]' : 'text-gray-500'}`}>
+                        {cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                      </Text>
+                      {cycle === 'annual' && (
+                        <Text className={`text-center text-[10px] font-semibold mt-0.5 ${active ? 'text-[#047857]' : 'text-gray-400'}`}>
+                          Save ₦10,000
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Price display */}
+              {bundlesLoading && premiumBundles.length === 0 ? (
+                <ActivityIndicator color="#0EA5A4" style={{ marginBottom: 12 }} />
+              ) : activePremiumBundle ? (
+                <View className="mb-4">
+                  <Text className="text-3xl font-black text-gray-900">
+                    {currency === 'USD'
+                      ? `$${activePremiumBundle.amountUSD.toFixed(2)}`
+                      : `₦${activePremiumBundle.amountNaira.toLocaleString()}`}
+                    <Text className="text-base font-medium text-gray-500">
+                      {premiumCycle === 'monthly' ? '/month' : '/year'}
+                    </Text>
+                  </Text>
+                  {premiumCycle === 'annual' && (
+                    <Text className="text-xs text-[#047857] font-semibold mt-1">
+                      ₦10,000 saved vs. monthly billing
+                    </Text>
+                  )}
+                </View>
+              ) : null}
+
+              {/* Benefit list */}
+              <View className="mb-4 gap-2">
+                {PREMIUM_BENEFITS.map((b, i) => (
+                  <View key={i} className="flex-row items-center gap-2.5">
+                    <View className="w-5 h-5 rounded-full bg-[#E7F8F7] items-center justify-center flex-shrink-0">
+                      <Ionicons name={b.icon} size={11} color="#0EA5A4" />
+                    </View>
+                    <Text className="flex-1 text-sm text-gray-700 leading-5">{b.text}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Upgrade CTA */}
+              <Pressable
+                disabled={!activePremiumBundle || paymentLoading}
+                onPress={() => {
+                  if (!activePremiumBundle) return;
+                  setSelectedBundle(activePremiumBundle.id);
+                  initiatePayment(activePremiumBundle.id, user?.name ?? undefined, currency);
+                }}
+                className={`rounded-xl py-4 items-center flex-row justify-center gap-2 ${
+                  activePremiumBundle && !paymentLoading ? 'bg-[#0EA5A4]' : 'bg-gray-300'
+                }`}>
+                {paymentLoading && selectedBundle?.startsWith('premium') ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="diamond-outline" size={18} color="white" />
+                    <Text className="text-base font-bold text-white">Upgrade to Premium</Text>
+                  </>
+                )}
+              </Pressable>
+
+              <Text className="text-center text-xs text-gray-400 mt-2">
+                Billed securely via Flutterwave · Cancel anytime
+              </Text>
+            </View>
+          </View>
+
+          {/* ════════════════════════════════════════════════════════════════
+              TIER 3: Pay-Per-Use Credit Packages
+          ════════════════════════════════════════════════════════════════ */}
+          <View className="mb-2 flex-row items-center gap-2">
+            <View className="h-px flex-1 bg-[#D9EEEE]" />
+            <Text className="text-xs font-bold uppercase tracking-wider text-[#0EA5A4]">Pay-Per-Use Credits</Text>
+            <View className="h-px flex-1 bg-[#D9EEEE]" />
+          </View>
+
+          <Text className="mb-3 text-xs text-gray-500 leading-5">
+            One-time credit packages — no subscription. Credits never expire.
+          </Text>
+
+          {/* Currency toggle */}
           <View className="mb-4 rounded-2xl bg-[#E8F4F4] p-1 flex-row border border-[#D4ECEB]">
             {(['NGN', 'USD'] as const).map((option) => {
               const active = currency === option;
@@ -511,8 +692,7 @@ export default function SubscriptionScreen() {
                   key={option}
                   onPress={() => setCurrency(option)}
                   className={`flex-1 rounded-xl px-4 py-3 ${active ? 'bg-white' : 'bg-transparent'}`}>
-                  <Text
-                    className={`text-center text-sm font-semibold ${active ? 'text-[#0EA5A4]' : 'text-gray-500'}`}>
+                  <Text className={`text-center text-sm font-semibold ${active ? 'text-[#0EA5A4]' : 'text-gray-500'}`}>
                     {option === 'NGN' ? 'Pay in Naira' : 'Pay in USD'}
                   </Text>
                 </Pressable>
@@ -520,22 +700,17 @@ export default function SubscriptionScreen() {
             })}
           </View>
 
-          <Text className="mb-4 text-xs leading-5 text-gray-500">
-            {currency === 'USD'
-              ? 'USD prices are derived from the latest cached market FX rate.'
-              : 'NGN prices are the base price for local card and bank payment options.'}
-          </Text>
-
-          {bundlesLoading && displayBundles.length === 0 ? (
+          {bundlesLoading && creditBundles.length === 0 ? (
             <View className="mb-4 items-center justify-center py-6">
               <ActivityIndicator color="#0EA5A4" size="small" />
-              <Text className="mt-2 text-sm text-gray-500">Loading current bundle prices...</Text>
+              <Text className="mt-2 text-sm text-gray-500">Loading packages…</Text>
             </View>
           ) : null}
 
-          {displayBundles.map((bundle, idx) => {
+          {creditBundles.map((bundle, idx) => {
             const selected = selectedBundle === bundle.id;
-            const bonus = idx === displayBundles.length - 1;
+            const isValue  = idx === creditBundles.length - 1;
+            const perCredit = bundle.amountNaira / bundle.credits;
             return (
               <Pressable
                 key={bundle.id}
@@ -543,65 +718,77 @@ export default function SubscriptionScreen() {
                 className={`mb-3 rounded-2xl border-2 p-4 bg-white ${
                   selected ? 'border-[#0EA5A4]' : 'border-[#DCEEEE]'
                 }`}>
-                <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-xl font-black text-gray-900">
-                    {currency === 'USD'
-                      ? `$${bundle.amountUSD.toFixed(2)}`
-                      : `₦${bundle.amountNaira.toLocaleString()}`}
-                  </Text>
-                  {bonus ? (
-                    <View className="px-2.5 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0]">
-                      <Text className="text-[11px] font-semibold text-[#047857]">Best value</Text>
-                    </View>
-                  ) : null}
+                <View className="flex-row items-center justify-between mb-1">
+                  {/* Bundle name badge */}
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-base font-black text-gray-900">{bundle.name ?? bundle.credits + ' Credits'}</Text>
+                    {isValue && (
+                      <View className="px-2 py-0.5 rounded-full bg-[#ECFDF5] border border-[#A7F3D0]">
+                        <Text className="text-[10px] font-bold text-[#047857]">Best value</Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* Selection checkbox */}
+                  <View className={`h-6 w-6 rounded border-2 items-center justify-center ${
+                    selected ? 'border-[#0EA5A4] bg-[#0EA5A4]' : 'border-[#0EA5A4] bg-transparent'
+                  }`}>
+                    {selected ? <Ionicons name="checkmark" size={14} color="white" /> : null}
+                  </View>
                 </View>
-                <Text className="text-base font-semibold text-gray-900">{bundle.credits} Credits</Text>
-                <View className="mt-3 gap-1.5">
-                  {bundleBenefits(bundle.credits, idx, displayBundles.length).map((benefit, bIdx) => (
+
+                <View className="flex-row items-baseline gap-2 mb-1">
+                  <Text className="text-2xl font-black text-[#0EA5A4]">
+                    {bundle.credits} Dx Credits
+                  </Text>
+                </View>
+
+                <View className="flex-row items-center justify-between mb-3">
+                  <Text className="text-lg font-bold text-gray-900">
+                    {currency === 'USD' ? `$${bundle.amountUSD.toFixed(2)}` : `₦${bundle.amountNaira.toLocaleString()}`}
+                  </Text>
+                  <Text className="text-xs text-gray-400">
+                    ₦{perCredit.toLocaleString()} per credit
+                  </Text>
+                </View>
+
+                <View className="gap-1">
+                  {bundleBenefits(bundle.credits, idx, creditBundles.length).map((benefit, bIdx) => (
                     <View key={bIdx} className="flex-row items-center gap-2">
-                      <Ionicons name={benefit.icon} size={14} color="#0EA5A4" />
+                      <Ionicons name={benefit.icon} size={13} color="#0EA5A4" />
                       <Text className="flex-1 text-sm text-gray-600 leading-5">{benefit.text}</Text>
                     </View>
                   ))}
-                </View>
-
-                <View className="mt-3 flex-row items-center justify-end">
-                  <View
-                    className={`h-6 w-6 rounded border-2 items-center justify-center ${
-                      selected ? 'border-[#0EA5A4] bg-[#0EA5A4]' : 'border-[#0EA5A4] bg-transparent'
-                    }`}>
-                    {selected ? <Ionicons name="checkmark" size={14} color="white" /> : null}
-                  </View>
                 </View>
               </Pressable>
             );
           })}
 
-          {selectedBundleData ? (
+          {/* Selected bundle summary */}
+          {selectedBundleData && !selectedBundleData.isPremium ? (
             <View className="mb-3 rounded-xl bg-[#EEF8F8] border border-[#D4ECEB] px-4 py-3">
               <Text className="text-sm text-gray-700">
-                You selected <Text className="font-bold">{selectedBundleData.credits} credits</Text> for{' '}
+                You selected <Text className="font-bold">{selectedBundleData.name} ({selectedBundleData.credits} credits)</Text> for{' '}
                 <Text className="font-bold">
                   {currency === 'USD'
                     ? `$${selectedBundleData.amountUSD.toFixed(2)}`
                     : `₦${selectedBundleData.amountNaira.toLocaleString()}`}
                 </Text>.
               </Text>
-                {currency === 'USD' && (
+              {currency === 'USD' && (
                 <Text className="text-xs text-gray-400 mt-1">
-                    USD amount is derived from the latest cached FX rate.
+                  USD amount is derived from the latest cached FX rate.
                 </Text>
               )}
             </View>
           ) : null}
 
           <Pressable
-            disabled={!selectedBundle || paymentLoading}
+            disabled={!selectedBundle || selectedBundleData?.isPremium || paymentLoading}
             onPress={handleBuyCredits}
             className={`rounded-xl py-4 items-center mb-4 flex-row justify-center gap-2 ${
-              selectedBundle && !paymentLoading ? 'bg-[#0EA5A4]' : 'bg-gray-300'
+              selectedBundle && !selectedBundleData?.isPremium && !paymentLoading ? 'bg-[#0EA5A4]' : 'bg-gray-300'
             }`}>
-            {paymentLoading ? (
+            {paymentLoading && !selectedBundle?.startsWith('premium') ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
               <>
@@ -611,6 +798,7 @@ export default function SubscriptionScreen() {
             )}
           </Pressable>
         </ScrollView>
+
       </SafeAreaView>
 
       {/* Payment waiting modal — shown on all platforms after opening the external browser / payment tab */}
