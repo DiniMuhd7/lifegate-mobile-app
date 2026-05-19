@@ -17,6 +17,7 @@ const defaultExploreLanguage = "en"
 // Implemented by payments.Service — using an interface avoids an import cycle.
 type LifecoinsAdder interface {
 	AddLifecoins(userID, source, description string, coins int) error
+	EarnLifecoins(userID, source, description string, baseCoins int) error
 }
 
 // Service holds business logic for the explore feature.
@@ -146,7 +147,7 @@ func (s *Service) GetTrendingCategories() []TrendingCategory {
 func (s *Service) ClaimReward(userID, videoID string) (coinsEarned int, alreadyClaimed bool, capReached bool, err error) {
 	coinsEarned, alreadyClaimed, capReached, err = s.repo.ClaimReward(userID, videoID, DailyVideoCap)
 	if err == nil && !alreadyClaimed && !capReached && coinsEarned > 0 && s.lifecoins != nil {
-		_ = s.lifecoins.AddLifecoins(userID, "explore", "Explore video reward", coinsEarned)
+		_ = s.lifecoins.EarnLifecoins(userID, "explore", "Explore video reward", coinsEarned)
 	}
 	return
 }

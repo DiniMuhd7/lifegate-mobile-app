@@ -330,9 +330,12 @@ func (r *Repository) GetCaseQueue(physicianID string) (pending, active, complete
 		FROM diagnoses d
 		LEFT JOIN users u ON u.id = d.user_id`
 
+	// Premium patients come first (priority=0), then FIFO by created_at.
 	pendingRows, perr := r.db.Query(base + `
+		LEFT JOIN credits cr ON cr.user_id = d.user_id
 		WHERE d.status = 'Pending' AND d.physician_id IS NULL
-		ORDER BY d.created_at DESC LIMIT 100`)
+		ORDER BY CASE WHEN cr.is_premium = TRUE AND cr.premium_expires_at > NOW() THEN 0 ELSE 1 END ASC,
+		         d.created_at ASC LIMIT 100`)
 	if perr != nil {
 		return nil, nil, nil, perr
 	}

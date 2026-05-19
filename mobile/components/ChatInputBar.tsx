@@ -550,8 +550,26 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       stateHandled = true;
       setCapturedUri(null);
       setOcrState('idle');
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[OCR] capture error:', err);
+      // Check for 429 scan-limit response from the server.
+      const httpStatus = (err as { response?: { status?: number } })?.response?.status;
+      const errCode = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      if (httpStatus === 429 || errCode === 'SCAN_LIMIT_EXCEEDED') {
+        stateHandled = true;
+        setCapturedUri(null);
+        setOcrState('idle');
+        Alert.alert(
+          'Daily Scan Limit Reached',
+          'Free users can scan up to 5 medical documents per day. Upgrade to LifeGate Premium for unlimited scans.',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'Upgrade to Premium', onPress: () => { const { router } = require('expo-router'); router.push('/(tab)/settings/subscription'); } },
+          ],
+          { cancelable: false },
+        );
+        return;
+      }
       Alert.alert(
         'Scan Error',
         'Could not analyze the image. Please try again.',

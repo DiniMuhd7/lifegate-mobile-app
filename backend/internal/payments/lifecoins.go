@@ -150,6 +150,24 @@ func (s *Service) AddLifecoins(userID, source, description string, coins int) er
 	return tx.Commit()
 }
 
+// EarnLifecoins awards Lifecoins for user-driven activities, doubling the
+// amount for active Premium subscribers. Use this instead of AddLifecoins for
+// all player-facing earning events (explore, check-in, referral, etc.).
+func (s *Service) EarnLifecoins(userID, source, description string, baseCoins int) error {
+	coins := baseCoins
+	var isPremium bool
+	var expiresAt *time.Time
+	if err := s.db.QueryRow(
+		`SELECT is_premium, premium_expires_at FROM credits WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&isPremium, &expiresAt); err == nil {
+		if isPremium && expiresAt != nil && expiresAt.After(time.Now()) {
+			coins = baseCoins * 2
+		}
+	}
+	return s.AddLifecoins(userID, source, description, coins)
+}
+
 // PendingRedemption is the shape returned for the admin approval queue.
 type PendingRedemption struct {
 	ID             string  `json:"id"`
@@ -506,7 +524,7 @@ func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int, claimDate s
 		return err
 	}
 
-	return s.AddLifecoins(userID, "checkin", fmt.Sprintf("Daily check-in — slot %d", slotID), coins)
+	return s.EarnLifecoins(userID, "checkin", fmt.Sprintf("Daily check-in — slot %d", slotID), coins)
 }
 
 // SubmitCheckinAnswers persists a user's check-in answers for a slot.

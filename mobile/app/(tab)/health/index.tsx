@@ -25,6 +25,7 @@ import { BannerAd } from 'components/BannerAd';
 import { GreetingSection } from 'components/GreetingSection';
 import Logo from 'assets/logo.svg';
 import type { HealthTimelineEntry } from 'types/health-types';
+import { usePaymentStore } from 'stores/payment-store';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -771,6 +772,7 @@ const RecentCaseRow = React.memo<{ entry: HealthTimelineEntry }>(function Recent
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function HealthDashboardScreen() {
+  const balance = usePaymentStore((s) => s.balance);
   const {
     patientTimeline,
     timelineLoading,
@@ -1073,7 +1075,7 @@ export default function HealthDashboardScreen() {
         )}
       </ScrollView>
     </SafeAreaView>
-    <BannerAd />
+    {!balance?.isPremium && <BannerAd />}
     <PatientBottomTabBar activeTab="health" />
 
       {/* ── AI Chat FAB ── */}

@@ -15,6 +15,7 @@ import { useAuthStore } from 'stores/auth/auth-store';
 import type { HealthTimelineEntry } from 'types/health-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { BannerAd } from 'components/BannerAd';
+import { usePaymentStore } from 'stores/payment-store';
 import { SeverityLineChart } from 'components/SeverityLineChart';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -279,6 +280,7 @@ function MonthGroup({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function HealthTimelineScreen() {
+  const balance = usePaymentStore((s) => s.balance);
   const { patientTimeline, timelineLoading, timelineError, fetchPatientTimeline, unreadAlertCount, reset: resetHealthStore } = useHealthStore();
   const { user, sessionLoading } = useAuthStore();
 
@@ -483,7 +485,7 @@ export default function HealthTimelineScreen() {
         />
       )}
     </SafeAreaView>
-    <BannerAd />
+    {!balance?.isPremium && <BannerAd />}
     <PatientBottomTabBar activeTab="health" />
     </View>
   );

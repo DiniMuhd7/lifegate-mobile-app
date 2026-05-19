@@ -330,6 +330,23 @@ func (h *Handler) ScanImage(c *gin.Context) {
 		return
 	}
 
+	// Enforce daily scan limit for non-Premium users.
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+	if uid != "" {
+		allowed, limitErr := h.svc.CheckAndIncrementScanUsage(uid)
+		if limitErr != nil {
+			log.Printf("genai: scan limit check failed (user=%s): %v", uid, limitErr)
+		} else if !allowed {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"success": false,
+				"message": "Daily scan limit reached. Free users can scan up to 5 documents per day. Upgrade to Premium for unlimited scans.",
+				"code":    "SCAN_LIMIT_EXCEEDED",
+			})
+			return
+		}
+	}
+
 	text, isMedical, err := h.svc.ScanMedicalImage(c.Request.Context(), req.Image, req.MimeType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": fmt.Sprintf("Image scan failed: %v", err)})

@@ -500,7 +500,7 @@ const ReferralBonus = 5
 // uses ON CONFLICT (referred_id) DO NOTHING, so this is called at most once per
 // unique referral pair.
 func (s *Service) GrantReferralBonus(referrerID, txRef string) error {
-	return s.AddLifecoins(referrerID, "referral", "Referral bonus — "+txRef, ReferralBonus)
+	return s.EarnLifecoins(referrerID, "referral", "Referral bonus — "+txRef, ReferralBonus)
 }
 
 // DeductCredit atomically deducts 1 credit and logs it. Returns false if balance is 0.

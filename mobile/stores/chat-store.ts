@@ -35,6 +35,7 @@ import { PersistenceManager } from 'utils/persistenceManager';
 import { validateMessage, sanitizeMessage } from 'utils/messageValidator';
 import { scheduleFollowUp } from 'utils/followUpScheduler';
 import { useProfileStore } from 'stores/auth/profile-store';
+import { usePaymentStore } from 'stores/payment-store';
 
 // Granular feedback phases shown during AI processing.
 export type ProcessingPhase = 'sending' | 'analyzing' | 'generating' | null;
@@ -472,7 +473,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     try {
-      const conversations = await PersistenceManager.loadConversations(userId);
+      const allConversations = await PersistenceManager.loadConversations(userId);
+      // Non-Premium users only see conversations from the last 30 days.
+      const isPremium = usePaymentStore.getState().balance?.isPremium ?? false;
+      const cutoff = isPremium ? 0 : Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const conversations = isPremium
+        ? allConversations
+        : allConversations.filter((c) => c.updatedAt >= cutoff || c.messages.length === 0);
       // Always activate an empty (fresh) conversation rather than the most-recent
       // one which contains old message history. Old conversations remain in the
       // store and are accessible via the ConversationDrawer.

@@ -21,6 +21,7 @@ import type { HealthTimelineEntry } from 'types/health-types';
 import type { DiagnosisPrescription } from 'types/diagnosis-types';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { BannerAd } from 'components/BannerAd';
+import { usePaymentStore } from 'stores/payment-store';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -455,6 +456,8 @@ function ExportButton({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function HealthReportScreen() {
+  const balance = usePaymentStore((s) => s.balance);
+  const isPremium = balance?.isPremium ?? false;
   const { patientTimeline, fetchPatientTimeline } = useHealthStore();
   const { diagnoses, fetchDiagnoses } = useDiagnosisStore();
   const { user, sessionLoading } = useAuthStore();
@@ -566,14 +569,14 @@ export default function HealthReportScreen() {
           <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 1 }}>Preview · Export as PDF, PNG or JPEG</Text>
         </View>
         <Pressable
-          onPress={exportPDF}
-          disabled={exporting !== null}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#0AADA2', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
+          onPress={isPremium ? exportPDF : () => Alert.alert('Premium Feature', 'PDF export is available for LifeGate Premium subscribers. Upgrade in Settings > Subscription.', [{ text: 'Not Now' }, { text: 'Upgrade', onPress: () => router.push('/(tab)/settings/subscription' as never) }])}
+          disabled={isPremium && exporting !== null}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: isPremium ? '#0AADA2' : '#9ca3af', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
         >
-          {exporting === 'pdf' ? (
+          {isPremium && exporting === 'pdf' ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Ionicons name="download-outline" size={15} color="#fff" />
+            <Ionicons name={isPremium ? 'download-outline' : 'lock-closed-outline'} size={15} color="#fff" />
           )}
           <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>PDF</Text>
         </Pressable>
@@ -713,14 +716,25 @@ export default function HealthReportScreen() {
             Export Report As
           </Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <ExportButton
-              icon="document-text-outline"
-              label="PDF"
-              sublabel="Full report"
-              color="#0AADA2"
-              onPress={exportPDF}
-              loading={exporting === 'pdf'}
-            />
+            {isPremium ? (
+              <ExportButton
+                icon="document-text-outline"
+                label="PDF"
+                sublabel="Full report"
+                color="#0AADA2"
+                onPress={exportPDF}
+                loading={exporting === 'pdf'}
+              />
+            ) : (
+              <ExportButton
+                icon="lock-closed-outline"
+                label="PDF"
+                sublabel="Premium only"
+                color="#9ca3af"
+                onPress={() => Alert.alert('Premium Feature', 'PDF export is available for LifeGate Premium subscribers. Upgrade in Settings > Subscription.', [{ text: 'Not Now' }, { text: 'Upgrade', onPress: () => router.push('/(tab)/settings/subscription' as never) }])}
+                loading={false}
+              />
+            )}
             <ExportButton
               icon="image-outline"
               label="PNG"
@@ -741,7 +755,7 @@ export default function HealthReportScreen() {
         </View>
       )}
     </SafeAreaView>
-    <BannerAd />
+    {!isPremium && <BannerAd />}
     <PatientBottomTabBar activeTab="health" />
     </View>
   );

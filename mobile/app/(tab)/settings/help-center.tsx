@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useProfileStore } from 'stores/auth/profile-store';
+import { usePaymentStore } from 'stores/payment-store';
 import { LabeledInput } from 'components/LabeledInput';
 import { Dropdown } from 'components/DropDown';
 import { openExternalUrl, openFirstSupportedExternalUrl } from '@/utils/external-link';
@@ -279,6 +280,8 @@ export default function HelpScreen() {
   const feedbackSent = params.feedback === 'sent' && showFeedbackSuccess;
 
   const user = useAuthStore((s) => s.user);
+  const balance = usePaymentStore((s) => s.balance);
+  const isPremium = balance?.isPremium ?? false;
   const { updateBasicProfile, updateHealthProfile, changePassword, requestAccountDeletion, cancelAccountDeletion } = useProfileStore();
 
   const [showEditModal, setShowEditModal]     = useState(false);
@@ -619,6 +622,35 @@ export default function HelpScreen() {
                 >
                   {langSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnText}>Save Language</Text>}
                 </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* ── Premium priority support banner ── */}
+          {isPremium && (
+            <View style={[s.sectionBlock, { backgroundColor: '#0EA5A418', borderWidth: 1, borderColor: '#0EA5A440' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Ionicons name="star" size={16} color={TEAL} style={{ marginRight: 6 }} />
+                <Text style={[s.blockTitle, { color: TEAL, marginBottom: 0 }]}>Priority Support — Premium</Text>
+              </View>
+              <Text style={{ fontSize: 12, color: '#374151', marginBottom: 12 }}>
+                As a Premium member, your support requests are handled with priority. Reach us directly:
+              </Text>
+              <View style={s.contactGrid}>
+                <ContactTile
+                  icon="mail-outline"
+                  label="Priority Email"
+                  sub="priority@lifegate.health"
+                  color={TEAL_DEEP}
+                  onPress={() => openFirstSupportedExternalUrl(['mailto:priority@lifegate.health']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open email.'); })}
+                />
+                <ContactTile
+                  icon="logo-whatsapp"
+                  label="WhatsApp"
+                  sub="Direct line"
+                  color="#25D366"
+                  onPress={() => openFirstSupportedExternalUrl(['https://wa.me/message/lifegate-priority']).then((ok) => { if (!ok) Alert.alert('Unavailable', 'Unable to open WhatsApp.'); })}
+                />
               </View>
             </View>
           )}

@@ -1165,3 +1165,46 @@ func (s *Service) GetAvailablePhysicians(ctx context.Context) ([]AvailablePhysic
 	}
 	return result, nil
 }
+
+// ScanDailyLimit is the maximum number of document scans allowed per day for
+// non-Premium users.
+const ScanDailyLimit = 5
+
+// CheckAndIncrementScanUsage enforces the per-user daily scan limit.
+// For active Premium subscribers the check is skipped and (true, nil) is returned.
+// For everyone else, the daily counter is incremented atomically; if the count
+// would exceed ScanDailyLimit this returns (false, nil) without writing.
+// Returns (true, nil) when the scan is allowed and the counter was incremented.
+func (s *Service) CheckAndIncrementScanUsage(userID string) (allowed bool, err error) {
+	// Check whether the user has an active Premium subscription.
+	var isPremium bool
+	var expiresAt *time.Time
+	_ = s.db.QueryRow(
+		`SELECT is_premium, premium_expires_at FROM credits WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&isPremium, &expiresAt)
+	if isPremium && expiresAt != nil && expiresAt.After(time.Now()) {
+		return true, nil
+	}
+
+	// Upsert the daily counter — only increment if still below the limit.
+	var newCount int
+	err = s.db.QueryRow(`
+		INSERT INTO scan_usage (user_id, date, count)
+		VALUES ($1::uuid, CURRENT_DATE, 1)
+		ON CONFLICT (user_id, date) DO UPDATE
+		  SET count = CASE
+		    WHEN scan_usage.count < $2 THEN scan_usage.count + 1
+		    ELSE scan_usage.count
+		  END
+		RETURNING count`,
+		userID, ScanDailyLimit,
+	).Scan(&newCount)
+	if err != nil {
+		return false, err
+	}
+	// If count did not advance beyond ScanDailyLimit the INSERT/UPDATE set it
+	// to a value ≤ ScanDailyLimit; anything above that means it was already at
+	// the cap and the DO UPDATE clause left it unchanged.
+	return newCount <= ScanDailyLimit, nil
+}

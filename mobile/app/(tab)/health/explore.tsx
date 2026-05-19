@@ -34,6 +34,7 @@ import {
 import { useAuthStore } from 'stores/auth-store';
 import { usePatientHealthStore } from 'stores/health-store';
 import { useLifecoinsWalletStore } from 'stores/lifecoins-wallet-store';
+import { usePaymentStore } from 'stores/payment-store';
 import { openExternalUrl } from '@/utils/external-link';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1003,6 +1004,7 @@ function VideoPlayerModal({
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ExploreScreen() {
+  const balance = usePaymentStore((s) => s.balance);
   const { lifecoins, totalEarned, initialized, initialize, claimReward, isRewarded, getDailyRemaining, refreshVideos, videos, dailyCap, lastVideoFetchDate, trendingCategories } =
     useExploreStore();
 
@@ -1475,7 +1477,7 @@ export default function ExploreScreen() {
           )}
         </View>
       )}
-      <BannerAd />
+      {!balance?.isPremium && <BannerAd />}
     </SafeAreaView>
   );
 }
