@@ -739,7 +739,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ) {
         try {
           const creditBalance = await PaymentService.getCreditBalance();
-          if ((creditBalance?.balance ?? 0) <= 0) {
+          if (!creditBalance?.isPremium && (creditBalance?.balance ?? 0) <= 0) {
             injectSystemMessage(conversationId, TOPUP_MESSAGE, 'MODE_DOWNGRADE');
           }
         } catch {

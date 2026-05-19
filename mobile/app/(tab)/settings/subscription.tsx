@@ -493,10 +493,10 @@ export default function SubscriptionScreen() {
               Current Balance
             </Text>
             <Text className="text-5xl font-black text-[#0EA5A4]">
-              {(balance?.balance ?? 0) >= 999 ? '∞' : (balance?.balance ?? 0)}
+              {balance?.isPremium ? '∞' : (balance?.balance ?? 0)}
             </Text>
             <Text className="text-sm text-gray-500 mt-1">
-              {(balance?.balance ?? 0) >= 999 ? 'Unlimited — Premium active' : 'credits available for diagnosis sessions'}
+              {balance?.isPremium ? 'Unlimited — Premium active' : 'credits available for diagnosis sessions'}
             </Text>
           </View>
 

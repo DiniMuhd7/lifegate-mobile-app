@@ -33,6 +33,9 @@ export interface PaymentTransaction {
 export interface CreditBalance {
   userId: string;
   balance: number;
+  isPremium: boolean;            // true when an active Premium subscription exists server-side
+  premiumExpiresAt?: string;     // ISO-8601 expiry; absent when not premium
+  billingCycle?: string;         // "monthly" | "annual" | undefined
   updatedAt: string;
 }
 

@@ -298,7 +298,7 @@ export default function PatientProfileScreen() {
                       <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#DBEAFE', alignItems: 'center', justifyContent: 'center' }}>
                         <Ionicons name="medical" size={13} color="#3B82F6" />
                       </View>
-                      <Text style={{ flex: 1, fontSize: 18, fontWeight: '900', color: '#1D4ED8' }}>{creditBalance?.balance ?? 0}</Text>
+                      <Text style={{ flex: 1, fontSize: 18, fontWeight: '900', color: '#1D4ED8' }}>{creditBalance?.isPremium ? '∞' : (creditBalance?.balance ?? 0)}</Text>
                       <Ionicons name="chevron-forward" size={13} color="#2563EB" />
                     </View>
                   </View>

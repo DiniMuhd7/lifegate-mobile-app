@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"sort"
@@ -36,11 +37,11 @@ var bundleBase = []struct {
 	{"2000",            "Starter",          2500,  5,   false, ""},
 	{"5000",            "Standard",         7500,  15,  false, ""},
 	{"10000",           "Value",            25000, 50,  false, ""},
-	// Premium subscription plans (credits = 999 acts as unlimited placeholder
-	// until the dedicated subscription backend is wired; the chat store treats
-	// balance >= 999 as "effectively unlimited" for UX purposes)
-	{"premium_monthly", "LifeGate Premium", 5000,  999, true,  "monthly"},
-	{"premium_annual",  "LifeGate Premium", 50000, 999, true,  "annual"},
+	// Premium subscription plans — credits = 0 because unlimited access is
+	// enforced via the is_premium flag in the credits table; the DeductCredit
+	// function skips deduction entirely for active Premium subscribers.
+	{"premium_monthly", "LifeGate Premium", 5000,  0, true,  "monthly"},
+	{"premium_annual",  "LifeGate Premium", 50000, 0, true,  "annual"},
 }
 
 type fxRateResponse struct {
@@ -77,9 +78,12 @@ type PaymentTransaction struct {
 
 // CreditBalance is a user's current diagnosis credit balance.
 type CreditBalance struct {
-	UserID    string `json:"userId"`
-	Balance   int    `json:"balance"`
-	UpdatedAt string `json:"updatedAt"`
+	UserID           string `json:"userId"`
+	Balance          int    `json:"balance"`
+	IsPremium        bool   `json:"isPremium"`
+	PremiumExpiresAt string `json:"premiumExpiresAt,omitempty"`
+	BillingCycle     string `json:"billingCycle,omitempty"`
+	UpdatedAt        string `json:"updatedAt"`
 }
 
 // flwInitiateRequest is the body sent to Flutterwave standard charge API.
@@ -313,10 +317,14 @@ func (s *Service) GetCreditBalance(userID string) (*CreditBalance, error) {
 	}
 
 	cb := &CreditBalance{UserID: userID}
+	var isPremium bool
+	var premiumExpiresAt sql.NullTime
+	var billingCycle sql.NullString
 	err := s.db.QueryRow(
-		`SELECT balance, updated_at::text FROM credits WHERE user_id = $1::uuid`,
+		`SELECT balance, is_premium, premium_expires_at, premium_billing_cycle, updated_at::text
+		 FROM credits WHERE user_id = $1::uuid`,
 		userID,
-	).Scan(&cb.Balance, &cb.UpdatedAt)
+	).Scan(&cb.Balance, &isPremium, &premiumExpiresAt, &billingCycle, &cb.UpdatedAt)
 	if err == sql.ErrNoRows {
 		// Lazily create the credits row with 0 balance.
 		_, err = s.db.Exec(
@@ -330,7 +338,18 @@ func (s *Service) GetCreditBalance(userID string) (*CreditBalance, error) {
 		cb.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 		return cb, nil
 	}
-	return cb, err
+	if err != nil {
+		return nil, err
+	}
+	// Only mark as Premium if the subscription hasn't expired yet.
+	if isPremium && premiumExpiresAt.Valid && premiumExpiresAt.Time.After(time.Now()) {
+		cb.IsPremium = true
+		cb.PremiumExpiresAt = premiumExpiresAt.Time.UTC().Format(time.RFC3339)
+	}
+	if billingCycle.Valid {
+		cb.BillingCycle = billingCycle.String
+	}
+	return cb, nil
 }
 
 // ensureInitialTrialGrant self-heals accounts created before trial-grant wiring
@@ -485,7 +504,20 @@ func (s *Service) GrantReferralBonus(referrerID, txRef string) error {
 }
 
 // DeductCredit atomically deducts 1 credit and logs it. Returns false if balance is 0.
+// For active Premium subscribers the deduction is skipped and (true, nil) is returned.
 func (s *Service) DeductCredit(userID, diagnosisID string) (bool, error) {
+	// Check for an active Premium subscription — skip deduction entirely.
+	var isPremium bool
+	var expiresAt sql.NullTime
+	if scanErr := s.db.QueryRow(
+		`SELECT is_premium, premium_expires_at FROM credits WHERE user_id = $1::uuid`,
+		userID,
+	).Scan(&isPremium, &expiresAt); scanErr == nil {
+		if isPremium && expiresAt.Valid && expiresAt.Time.After(time.Now()) {
+			return true, nil // Premium active — unlimited sessions, no deduction
+		}
+	}
+
 	tx, err := s.db.Begin()
 	if err != nil {
 		return false, err
@@ -766,12 +798,14 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 		return &pt, nil
 	}
 	
-	// FIX #9: Re-validate bundle rate to catch stale CreditsGranted
+	// FIX #9: Re-validate bundle rate to catch stale CreditsGranted.
+	// Premium bundles skip the credits-count check because their access model
+	// uses the is_premium flag; legacy transactions may carry credits_granted=999.
 	expectedCredits, err := s.validateBundleCredits(pt.BundleID, pt.Amount, pt.Currency)
 	if err != nil {
 		return nil, fmt.Errorf("bundle validation failed: %w", err)
 	}
-	if expectedCredits != pt.CreditsGranted {
+	if !strings.HasPrefix(pt.BundleID, "premium_") && expectedCredits != pt.CreditsGranted {
 		return nil, fmt.Errorf("bundle rate changed (expected %d credits, got %d)", expectedCredits, pt.CreditsGranted)
 	}
 
@@ -827,6 +861,15 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 		return &pt, nil
 	}
 
+	// Premium bundles grant 0 credits; unlimited access comes from the
+	// is_premium flag. Accept legacy credits_granted=999 for old pending
+	// transactions without double-crediting.
+	isPremiumBundle := strings.HasPrefix(pt.BundleID, "premium_")
+	creditsToGrant := pt.CreditsGranted
+	if isPremiumBundle {
+		creditsToGrant = 0
+	}
+
 	// Credit the user atomically.
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -841,7 +884,7 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 		 VALUES ($1::uuid, $2, NOW())
 		 ON CONFLICT (user_id) DO UPDATE
 		   SET balance = credits.balance + EXCLUDED.balance, updated_at = NOW()`,
-		userID, pt.CreditsGranted,
+		userID, creditsToGrant,
 	); err != nil {
 		// Rollback will be deferred — transaction returns error
 		return nil, fmt.Errorf("failed to credit user: %w", err)
@@ -860,18 +903,44 @@ func (s *Service) VerifyAndCredit(userID, txRef, flwTxID string) (*PaymentTransa
 		return nil, fmt.Errorf("transaction commit failed: %w, credits may be orphaned", err)
 	}
 
+	// Activate Premium subscription flag outside the transaction so that a
+	// flag-update failure does not roll back the credit grant.
+	if isPremiumBundle {
+		billingCycle := "monthly"
+		if strings.HasSuffix(pt.BundleID, "annual") {
+			billingCycle = "annual"
+		}
+		interval := "1 month"
+		if billingCycle == "annual" {
+			interval = "1 year"
+		}
+		if _, premErr := s.db.Exec(
+			`UPDATE credits
+			 SET is_premium = TRUE,
+			     premium_expires_at    = NOW() + $1::interval,
+			     premium_billing_cycle = $2
+			 WHERE user_id = $3::uuid`,
+			interval, billingCycle, userID,
+		); premErr != nil {
+			log.Printf("[PREMIUM] failed to activate premium for user %s: %v", userID, premErr)
+		}
+	}
+
 	pt.Status = "success"
 	pt.FlwTxID = flwTxID
 	return &pt, nil
 }
 
 // validateBundleCredits ensures the bundle pricing is still valid (FIX #9).
+// For Premium bundles, credits validation is skipped because unlimited access
+// is governed by the is_premium flag, not a credits count. Legacy transactions
+// with credits_granted=999 are accepted alongside the new credits_granted=0.
 func (s *Service) validateBundleCredits(bundleID string, amount int, currency string) (int, error) {
 	for _, b := range bundleBase {
 		if b.id != bundleID {
 			continue
 		}
-		
+
 		var expectedAmount int
 		if currency == "USD" {
 			// USD stored as cents for precision
@@ -880,13 +949,28 @@ func (s *Service) validateBundleCredits(bundleID string, amount int, currency st
 			// NGN stored as whole naira
 			expectedAmount = b.ngnFixed
 		}
-		
+
 		if amount == expectedAmount {
 			return b.credits, nil
 		}
 		return 0, fmt.Errorf("amount mismatch: got %d %s, expected %d", amount, currency, expectedAmount)
 	}
 	return 0, fmt.Errorf("invalid bundle: %s", bundleID)
+}
+
+// DeactivateExpiredPremium sets is_premium = false for users whose subscription
+// has expired. Intended to be called from a background goroutine every hour.
+func (s *Service) DeactivateExpiredPremium() (int64, error) {
+	result, err := s.db.Exec(
+		`UPDATE credits
+		 SET is_premium = FALSE, premium_billing_cycle = NULL
+		 WHERE is_premium = TRUE AND premium_expires_at < NOW()`,
+	)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := result.RowsAffected()
+	return n, nil
 }
 
 // flwVerifyWithTolerance verifies payment with precision-loss tolerance (FIX #8).

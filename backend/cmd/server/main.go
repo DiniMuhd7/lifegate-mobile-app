@@ -274,6 +274,19 @@ func main() {
 	authSvc.SetTrialCreditGranter(paymentsSvc)
 	authSvc.SetReferralProcessor(referralSvc)
 
+	// Hourly job: deactivate Premium subscriptions that have passed their
+	// expiry date so that DeductCredit correctly bills them again.
+	go func() {
+		for {
+			time.Sleep(1 * time.Hour)
+			if n, err := paymentsSvc.DeactivateExpiredPremium(); err != nil {
+				log.Printf("[premium-job] error deactivating expired subscriptions: %v", err)
+			} else if n > 0 {
+				log.Printf("[premium-job] deactivated %d expired Premium subscription(s)", n)
+			}
+		}
+	}()
+
 	// Daily job: permanently delete user accounts whose 90-day deletion window has elapsed.
 	go func() {
 		for {
