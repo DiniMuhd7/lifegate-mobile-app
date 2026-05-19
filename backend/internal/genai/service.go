@@ -273,13 +273,15 @@ func (s *Service) saveProfileUpdate(ctx context.Context, userID string, u *ai.Pr
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 type Service struct {
-	engine     *edis.Engine
-	db         *sql.DB
-	nats       *natsclient.Client
-	sessions   *sessions.Service
-	notifier   PhysicianNotifier
-	physPush   PhysicianPushBroadcaster
-	openAIKey  string
+	engine      *edis.Engine
+	db          *sql.DB
+	nats        *natsclient.Client
+	sessions    *sessions.Service
+	notifier    PhysicianNotifier
+	physPush    PhysicianPushBroadcaster
+	openAIKey   string
+	geminiKey   string
+	geminiModel string
 }
 
 // PhysicianNotifier is satisfied by the WebSocket hub. It is used to push
@@ -317,16 +319,19 @@ func (s *Service) SetOpenAIKey(key string) {
 	s.openAIKey = key
 }
 
-// ScanMedicalImage sends a base64-encoded image to OpenAI Vision (gpt-4o) for
-// real-time OCR extraction. It returns the extracted text and a flag indicating
-// whether the image was identified as a medical document. The image data is
-// processed entirely in memory — it is never written to any storage.
-func (s *Service) ScanMedicalImage(ctx context.Context, imageBase64, mimeType string) (text string, isMedical bool, err error) {
-	if s.openAIKey == "" {
-		return "", false, fmt.Errorf("OpenAI API key is not configured")
+// SetGeminiKey stores the Gemini API key and model used as a fallback for
+// medical image scanning when OpenAI Vision is unavailable or returns an error.
+func (s *Service) SetGeminiKey(key, model string) {
+	s.geminiKey = key
+	s.geminiModel = model
+	if s.geminiModel == "" {
+		s.geminiModel = "gemini-1.5-flash"
 	}
+}
 
-	const systemPrompt = `You are a medical document OCR assistant. Examine the provided image carefully.
+// scanMedicalSystemPrompt is the shared OCR instruction used by both OpenAI and
+// Gemini Vision backends.
+const scanMedicalSystemPrompt = `You are a medical document OCR assistant. Examine the provided image carefully.
 
 If the image is NOT a medical or health-related document (e.g. a selfie, food photo, landscape, random screenshot, or any non-clinical content), respond with exactly: NOT_MEDICAL
 
@@ -340,77 +345,174 @@ Date: <date if visible>
 
 Be thorough, accurate, and preserve all medical terminology.`
 
+// scanWithGemini is the Gemini Vision fallback used when OpenAI is unavailable.
+func (s *Service) scanWithGemini(ctx context.Context, imageBase64, mimeType string) (text string, isMedical bool, err error) {
+	if s.geminiKey == "" {
+		return "", false, fmt.Errorf("Gemini API key is not configured")
+	}
+
 	reqBody := map[string]any{
-		"model":      "gpt-4o",
-		"max_tokens": 2000,
-		"messages": []map[string]any{
+		"contents": []map[string]any{
 			{
-				"role": "user",
-				"content": []map[string]any{
+				"parts": []map[string]any{
+					{"text": scanMedicalSystemPrompt},
 					{
-						"type": "text",
-						"text": systemPrompt,
-					},
-					{
-						"type": "image_url",
-						"image_url": map[string]string{
-							"url":    fmt.Sprintf("data:%s;base64,%s", mimeType, imageBase64),
-							"detail": "high",
+						"inlineData": map[string]string{
+							"mimeType": mimeType,
+							"data":     imageBase64,
 						},
 					},
 				},
 			},
 		},
+		"generationConfig": map[string]any{
+			"maxOutputTokens": 2000,
+		},
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", false, fmt.Errorf("marshalling vision request: %w", err)
+		return "", false, fmt.Errorf("marshalling gemini vision request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://api.openai.com/v1/chat/completions",
-		bytes.NewReader(bodyBytes),
+	url := fmt.Sprintf(
+		"https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s",
+		s.geminiModel, s.geminiKey,
 	)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return "", false, fmt.Errorf("building vision request: %w", err)
+		return "", false, fmt.Errorf("building gemini vision request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+s.openAIKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", false, fmt.Errorf("vision API request: %w", err)
+		return "", false, fmt.Errorf("gemini vision request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", false, fmt.Errorf("reading vision response: %w", err)
+		return "", false, fmt.Errorf("reading gemini vision response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", false, fmt.Errorf("vision API error %d: %s", resp.StatusCode, string(respBody))
+		return "", false, fmt.Errorf("gemini vision API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
+		Candidates []struct {
+			Content struct {
+				Parts []struct {
+					Text string `json:"text"`
+				} `json:"parts"`
+			} `json:"content"`
+		} `json:"candidates"`
 	}
 	if err = json.Unmarshal(respBody, &result); err != nil {
-		return "", false, fmt.Errorf("parsing vision response: %w", err)
+		return "", false, fmt.Errorf("parsing gemini vision response: %w", err)
 	}
-	if len(result.Choices) == 0 {
-		return "", false, fmt.Errorf("empty response from vision API")
+	if len(result.Candidates) == 0 || len(result.Candidates[0].Content.Parts) == 0 {
+		return "", false, fmt.Errorf("empty response from gemini vision API")
 	}
 
-	content := strings.TrimSpace(result.Choices[0].Message.Content)
+	content := strings.TrimSpace(result.Candidates[0].Content.Parts[0].Text)
 	if strings.EqualFold(content, "NOT_MEDICAL") {
 		return "", false, nil
 	}
 	return content, true, nil
+}
+
+// ScanMedicalImage performs medical document OCR using OpenAI Vision (gpt-4o).
+// If OpenAI is not configured or returns an error, it automatically falls back
+// to Gemini Vision. The image data is processed entirely in memory — it is
+// never written to any storage.
+func (s *Service) ScanMedicalImage(ctx context.Context, imageBase64, mimeType string) (text string, isMedical bool, err error) {
+	if s.openAIKey == "" && s.geminiKey == "" {
+		return "", false, fmt.Errorf("no vision API key configured (set OPENAI_API_KEY or GEMINI_API_KEY)")
+	}
+
+	// Try OpenAI first when the key is present.
+	if s.openAIKey != "" {
+		reqBody := map[string]any{
+			"model":      "gpt-4o",
+			"max_tokens": 2000,
+			"messages": []map[string]any{
+				{
+					"role": "user",
+					"content": []map[string]any{
+						{
+							"type": "text",
+							"text": scanMedicalSystemPrompt,
+						},
+						{
+							"type": "image_url",
+							"image_url": map[string]string{
+								"url":    fmt.Sprintf("data:%s;base64,%s", mimeType, imageBase64),
+								"detail": "high",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		bodyBytes, err := json.Marshal(reqBody)
+		if err != nil {
+			return "", false, fmt.Errorf("marshalling vision request: %w", err)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+			"https://api.openai.com/v1/chat/completions",
+			bytes.NewReader(bodyBytes),
+		)
+		if err != nil {
+			return "", false, fmt.Errorf("building vision request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+s.openAIKey)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return "", false, fmt.Errorf("vision API request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return "", false, fmt.Errorf("reading vision response: %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			oaiErr := fmt.Errorf("vision API error %d: %s", resp.StatusCode, string(respBody))
+			if s.geminiKey != "" {
+				log.Printf("genai: OpenAI vision failed (%v), falling back to Gemini", oaiErr)
+				return s.scanWithGemini(ctx, imageBase64, mimeType)
+			}
+			return "", false, oaiErr
+		}
+
+		var result struct {
+			Choices []struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			} `json:"choices"`
+		}
+		if err = json.Unmarshal(respBody, &result); err != nil {
+			return "", false, fmt.Errorf("parsing vision response: %w", err)
+		}
+		if len(result.Choices) == 0 {
+			return "", false, fmt.Errorf("empty response from vision API")
+		}
+
+		content := strings.TrimSpace(result.Choices[0].Message.Content)
+		if strings.EqualFold(content, "NOT_MEDICAL") {
+			return "", false, nil
+		}
+		return content, true, nil
+	}
+
+	// OpenAI key not set — use Gemini directly.
+	return s.scanWithGemini(ctx, imageBase64, mimeType)
 }
 
 // TranscribeAudio sends raw audio bytes to OpenAI Whisper and returns the

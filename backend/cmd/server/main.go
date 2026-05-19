@@ -230,6 +230,7 @@ func main() {
 	// trigger Expo push notifications even when physicians are in the background.
 	genaiSvc.SetPhysicianPushBroadcaster(pushSvc)
 	genaiSvc.SetOpenAIKey(cfg.OpenAIAPIKey)
+	genaiSvc.SetGeminiKey(cfg.GeminiAPIKey, cfg.GeminiModel)
 
 	reviewSvc := review.NewService(database)
 	reviewHandler := review.NewHandler(reviewSvc)
