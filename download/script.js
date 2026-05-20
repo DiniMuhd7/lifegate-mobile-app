@@ -172,8 +172,134 @@ function attachDownloadTracking() {
   });
 }
 
+const SHOWCASE_IMAGES = [
+  "10b5yZfpu212PgA-1B_h_2aOGfIK0xZSw.jpg",
+  "1Ptbx_6OFO8wsCeN6DXQd8XqwHqix0KLZ.jpg",
+  "1RpDW0j_2Ck7OXDfrWtHN9gWKjCFid5AR.jpg",
+  "IMG-20260502-WA0000.jpg",
+  "IMG-20260514-WA0013.jpg",
+  "IMG-20260519-WA0012.jpg",
+  "Screenshot_20260504_173543_LifeGate.jpg",
+  "Screenshot_20260505_151514_LifeGate.jpg",
+  "Screenshot_20260505_151534_LifeGate.jpg",
+  "Screenshot_20260505_151705_LifeGate.jpg",
+  "Screenshot_20260505_151750_LifeGate.jpg",
+  "Screenshot_20260505_151809_LifeGate.jpg",
+  "Screenshot_20260505_152716_LifeGate.jpg",
+  "Screenshot_20260505_152811_LifeGate.jpg",
+];
+
+function initShowcaseSlider() {
+  const track = document.getElementById("showcase-track");
+  const dotsWrap = document.getElementById("showcase-dots");
+  const prev = document.querySelector(".showcase-nav-prev");
+  const next = document.querySelector(".showcase-nav-next");
+
+  if (!track || !dotsWrap || !prev || !next) return;
+
+  track.innerHTML = "";
+  dotsWrap.innerHTML = "";
+
+  SHOWCASE_IMAGES.forEach((file, index) => {
+    const card = document.createElement("article");
+    card.className = "showcase-card";
+    card.setAttribute("role", "listitem");
+
+    const img = document.createElement("img");
+    img.src = `./screenshots/${encodeURIComponent(file)}`;
+    img.alt = `LifeGate app preview ${index + 1}`;
+    img.loading = index < 3 ? "eager" : "lazy";
+    img.decoding = "async";
+
+    card.appendChild(img);
+    track.appendChild(card);
+
+    const dot = document.createElement("span");
+    dot.className = `showcase-dot${index === 0 ? " active" : ""}`;
+    dotsWrap.appendChild(dot);
+  });
+
+  const cards = Array.from(track.querySelectorAll(".showcase-card"));
+  const dots = Array.from(dotsWrap.querySelectorAll(".showcase-dot"));
+  let currentIndex = 0;
+
+  const updateDots = (index) => {
+    dots.forEach((dot, i) => dot.classList.toggle("active", i === index));
+  };
+
+  const scrollToIndex = (index, smooth = true) => {
+    const target = cards[index];
+    if (!target) return;
+    target.scrollIntoView({ behavior: smooth ? "smooth" : "auto", inline: "center", block: "nearest" });
+    currentIndex = index;
+    updateDots(index);
+  };
+
+  const visibleCenterIndex = () => {
+    const center = track.scrollLeft + track.clientWidth / 2;
+    let best = 0;
+    let dist = Number.POSITIVE_INFINITY;
+
+    cards.forEach((card, i) => {
+      const cardCenter = card.offsetLeft + card.clientWidth / 2;
+      const delta = Math.abs(cardCenter - center);
+      if (delta < dist) {
+        dist = delta;
+        best = i;
+      }
+    });
+
+    return best;
+  };
+
+  prev.addEventListener("click", () => {
+    const nextIndex = (currentIndex - 1 + cards.length) % cards.length;
+    scrollToIndex(nextIndex);
+  });
+
+  next.addEventListener("click", () => {
+    const nextIndex = (currentIndex + 1) % cards.length;
+    scrollToIndex(nextIndex);
+  });
+
+  let autoplayTimer = null;
+  const startAutoplay = () => {
+    stopAutoplay();
+    autoplayTimer = setInterval(() => {
+      const nextIndex = (currentIndex + 1) % cards.length;
+      scrollToIndex(nextIndex);
+    }, 2600);
+  };
+
+  const stopAutoplay = () => {
+    if (autoplayTimer) {
+      clearInterval(autoplayTimer);
+      autoplayTimer = null;
+    }
+  };
+
+  track.addEventListener("scroll", () => {
+    const idx = visibleCenterIndex();
+    if (idx !== currentIndex) {
+      currentIndex = idx;
+      updateDots(idx);
+    }
+  }, { passive: true });
+
+  track.addEventListener("mouseenter", stopAutoplay);
+  track.addEventListener("mouseleave", startAutoplay);
+  track.addEventListener("touchstart", stopAutoplay, { passive: true });
+  track.addEventListener("touchend", startAutoplay, { passive: true });
+
+  if (cards.length > 0) {
+    scrollToIndex(0, false);
+    startAutoplay();
+  }
+}
+
 // Render seed values immediately so the page never flashes zeros.
 renderMetrics(SEED_METRICS);
 loadInitialStats();
 incrementViewsOncePerSession();
 attachDownloadTracking();
+initShowcaseSlider();
