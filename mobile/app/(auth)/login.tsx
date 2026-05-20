@@ -236,34 +236,6 @@ export default function LoginScreen() {
             disabled={!canSubmit}
           />
 
-          {/* Divider */}
-          <View className="my-5 flex-row items-center">
-            <View className="h-px flex-1 bg-slate-200" />
-            <Text className="mx-3 text-xs font-semibold uppercase tracking-wider text-slate-400">or</Text>
-            <View className="h-px flex-1 bg-slate-200" />
-          </View>
-
-          {/* Google Sign-In */}
-          {Platform.OS === 'web' ? (
-            <Pressable
-              onPress={onGoogleLogin}
-              disabled={loading}
-              className="h-12 flex-row items-center justify-center rounded-xl border border-slate-200 bg-white"
-              style={({ pressed }) => ({ opacity: loading ? 0.6 : pressed ? 0.9 : 1 })}
-            >
-              <Ionicons name="logo-google" size={18} color="#EF4444" />
-              <Text className="ml-2 text-sm font-semibold text-slate-700">Continue with Google</Text>
-            </Pressable>
-          ) : (
-            <View className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <Text className="text-xs leading-5 text-amber-900">
-                Google sign-in is available on web only. Use email login or register to continue on this device.
-              </Text>
-            </View>
-          )}
-
-
-
           <View className="mt-6 flex-row justify-center">
             <Text className="text-sm text-gray-500">Don&apos;t have an account? </Text>
             <Pressable onPress={() => router.push('/(auth)/register-choice')}>
