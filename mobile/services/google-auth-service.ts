@@ -1,11 +1,8 @@
 /**
- * Google Sign-In service — platform-aware.
+ * Google Sign-In service.
  *
- * • Web  → Firebase signInWithPopup (GoogleAuthProvider)
- * • Native → @react-native-google-signin/google-signin
- *
- * Both paths return a { idToken, email, name } object that is then posted
- * to the LifeGate backend at POST /auth/google.
+ * Web uses Firebase signInWithPopup (GoogleAuthProvider).
+ * Native platforms are intentionally excluded.
  */
 import { Platform } from 'react-native';
 
@@ -57,48 +54,9 @@ async function signInWeb(): Promise<GoogleSignInResult> {
   }
 }
 
-async function signInNative(): Promise<GoogleSignInResult> {
-  const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
-  const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
-  const { auth } = await import('./firebase');
-
-  await GoogleSignin.hasPlayServices();
-  const userInfo = await GoogleSignin.signIn();
-
-  const tokens = await GoogleSignin.getTokens();
-  if (!tokens.idToken) {
-    throw new Error('Failed to retrieve Google ID token');
-  }
-
-  // Exchange the Google OAuth token for a Firebase credential, then get the
-  // Firebase ID token that the backend's accounts:lookup endpoint expects.
-  const firebaseCredential = GoogleAuthProvider.credential(tokens.idToken);
-  const firebaseResult = await signInWithCredential(auth, firebaseCredential);
-  const idToken = await firebaseResult.user.getIdToken();
-
-  return {
-    idToken,
-    email: firebaseResult.user.email ?? userInfo.data?.user.email ?? '',
-    name: firebaseResult.user.displayName ?? userInfo.data?.user.name ?? '',
-  };
-}
-
 export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   if (Platform.OS === 'web') {
     return signInWeb();
   }
-  return signInNative();
-}
-
-/**
- * Configure Google Sign-In for native platforms.
- * Call this once at app startup (e.g. in _layout.tsx) for iOS/Android.
- * webClientId is the Web OAuth 2.0 client ID from Firebase console.
- */
-export function configureGoogleSignIn(webClientId: string) {
-  if (Platform.OS !== 'web') {
-    import('@react-native-google-signin/google-signin').then(({ GoogleSignin }) => {
-      GoogleSignin.configure({ webClientId });
-    });
-  }
+  throw new Error('Google sign-in is only available on web. Please use email/password login or register instead.');
 }

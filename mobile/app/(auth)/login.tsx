@@ -105,7 +105,7 @@ export default function LoginScreen() {
       } else {
         setShowGoogleRecoveryFab(false);
         const latestError = useAuthStore.getState().error ?? '';
-        const isStorageStateIssue = /missing initial state|blocked required auth storage|sessionstorage|redirect/i.test(
+        const isStorageStateIssue = /missing initial state|blocked required auth storage|sessionstorage/i.test(
           latestError,
         );
         if (isStorageStateIssue) {

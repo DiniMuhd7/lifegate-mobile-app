@@ -451,7 +451,11 @@ export const AuthService = {
       if (!response.data.success) {
         return { success: false, message: response.data.message || 'Failed to update health profile' };
       }
-      return { success: true, message: response.data.message, user: response.data.data?.user };
+      return {
+        success: true,
+        message: response.data.message,
+        user: normalizeAuthUser(response.data.data?.user),
+      };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }

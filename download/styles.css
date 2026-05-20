@@ -602,6 +602,42 @@ h3 {
 
 .features-list li svg { flex-shrink: 0; }
 
+/* ── App Screens Showcase ────────────────────────────────────────────────── */
+.showcase-section {
+  padding: 5rem 0;
+  background: linear-gradient(180deg, #f7fdfd 0%, #ffffff 100%);
+}
+
+.showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+
+.showcase-card {
+  background: var(--white);
+  border: 1px solid rgba(0, 166, 163, 0.16);
+  border-radius: 18px;
+  padding: 0.45rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.showcase-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.showcase-card img {
+  display: block;
+  width: 100%;
+  height: 560px;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 14px;
+}
+
 /* ── Stats Section ────────────────────────────────────────────────────────── */
 .stats-section {
   padding: 5rem 0;
@@ -988,6 +1024,8 @@ h3 {
 
   .why-grid { grid-template-columns: repeat(2, 1fr); gap: 1.4rem; }
 
+  .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 
   .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
@@ -997,6 +1035,10 @@ h3 {
   .hero { padding: 6rem 0 3.5rem; }
 
   .why-grid { grid-template-columns: 1fr; }
+
+  .showcase-grid { grid-template-columns: 1fr; }
+
+  .showcase-card img { height: 500px; }
 
   .stats-grid { grid-template-columns: 1fr; }
 

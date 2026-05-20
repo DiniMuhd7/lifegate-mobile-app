@@ -17,6 +17,7 @@ export default function RootLayout() {
   useEffect(() => {
     installWebAlertPolyfill();
     restoreSession();
+
     // Run the full consent + SDK init flow on native only.
     // Order: UMP consent form (EU/GDPR) → ATT permission (iOS) → initialize.
     if (Platform.OS !== 'web') {
