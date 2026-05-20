@@ -486,7 +486,7 @@ export default function SubscriptionScreen() {
           </View>
         ) : null}
 
-        <ScrollView className="flex-1 px-4 pt-1" contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView className="flex-1 px-4 pt-1" contentContainerStyle={{ paddingBottom: 20 }}>
 
           {/* ── Current Balance ─────────────────────────────────────────── */}
           <View className="mb-4 rounded-3xl bg-white border border-[#D9EEEE] p-5 overflow-hidden">
