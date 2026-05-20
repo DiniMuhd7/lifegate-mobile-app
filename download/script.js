@@ -173,11 +173,6 @@ function attachDownloadTracking() {
 }
 
 const SHOWCASE_IMAGES = [
-  "10b5yZfpu212PgA-1B_h_2aOGfIK0xZSw.jpg",
-  "1Ptbx_6OFO8wsCeN6DXQd8XqwHqix0KLZ.jpg",
-  "1RpDW0j_2Ck7OXDfrWtHN9gWKjCFid5AR.jpg",
-  "IMG-20260502-WA0000.jpg",
-  "IMG-20260514-WA0013.jpg",
   "IMG-20260519-WA0012.jpg",
   "Screenshot_20260504_173543_LifeGate.jpg",
   "Screenshot_20260505_151514_LifeGate.jpg",
