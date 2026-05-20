@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, Platform, Modal } from 'react-native';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth/auth-store';
@@ -15,6 +15,8 @@ export default function LoginScreen() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showGoogleRecoveryFab, setShowGoogleRecoveryFab] = useState(false);
+  const [showAuthAlternativeModal, setShowAuthAlternativeModal] = useState(false);
+  const [authAlternativeMessage, setAuthAlternativeMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
 
   const { loginDraft, setLoginField, clearLoginDraft, login, loginWithGoogle, error, clearError } = useAuthStore();
@@ -100,6 +102,18 @@ export default function LoginScreen() {
         } else {
           router.replace('/(tab)/health');
         }
+      } else {
+        setShowGoogleRecoveryFab(false);
+        const latestError = useAuthStore.getState().error ?? '';
+        const isStorageStateIssue = /missing initial state|blocked required auth storage|sessionstorage|redirect/i.test(
+          latestError,
+        );
+        if (isStorageStateIssue) {
+          setAuthAlternativeMessage(
+            'Google sign-in cannot continue in this browser context right now. Please log in with email and password or register a new account.'
+          );
+          setShowAuthAlternativeModal(true);
+        }
       }
     } finally {
       setLoading(false);
@@ -110,6 +124,15 @@ export default function LoginScreen() {
     setLoading(false);
     clearError();
     router.replace('/(auth)/login');
+  };
+
+  const handleCloseAuthAlternativeModal = () => {
+    setShowAuthAlternativeModal(false);
+  };
+
+  const handleGoToRegister = () => {
+    setShowAuthAlternativeModal(false);
+    router.push('/(auth)/register-choice');
   };
 
   const canSubmit =
@@ -250,6 +273,39 @@ export default function LoginScreen() {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </Pressable>
       ) : null}
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={showAuthAlternativeModal}
+        onRequestClose={handleCloseAuthAlternativeModal}
+      >
+        <View className="flex-1 items-center justify-center bg-black/45 px-6">
+          <View className="w-full max-w-md rounded-2xl bg-white p-6">
+            <View className="mb-3 flex-row items-center">
+              <Ionicons name="information-circle" size={22} color="#0EA5A4" />
+              <Text className="ml-2 text-base font-bold text-slate-900">Use Another Sign-In Method</Text>
+            </View>
+            <Text className="text-sm leading-6 text-slate-700">{authAlternativeMessage}</Text>
+
+            <View className="mt-5 gap-2">
+              <Pressable
+                onPress={handleCloseAuthAlternativeModal}
+                className="h-11 items-center justify-center rounded-xl bg-[#0EA5A4]"
+              >
+                <Text className="text-sm font-semibold text-white">Login with Email</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleGoToRegister}
+                className="h-11 items-center justify-center rounded-xl border border-[#0EA5A4] bg-white"
+              >
+                <Text className="text-sm font-semibold text-[#0EA5A4]">Register Instead</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

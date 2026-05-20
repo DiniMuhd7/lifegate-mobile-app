@@ -35,8 +35,18 @@ async function signInWeb(): Promise<GoogleSignInResult> {
       name: result.user.displayName ?? '',
     };
   } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err ?? '');
     const code =
       typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';
+
+    // Firebase can surface this when the browser blocks storage required by
+    // the auth redirect handler (common in partitioned or embedded browsers).
+    if (code.includes('auth/missing-initial-state') || /missing initial state/i.test(message)) {
+      throw new Error(
+        'Google sign-in could not be completed because this browser blocked required auth storage. Try again in a regular browser tab (not an embedded in-app browser), allow site storage/cookies for this site, then retry Google sign-in.'
+      );
+    }
+
     if (code.includes('auth/unauthorized-domain') || code.includes('auth/unauthorised-domain')) {
       const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
       throw new Error(
