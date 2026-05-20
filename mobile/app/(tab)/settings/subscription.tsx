@@ -76,6 +76,8 @@ export default function SubscriptionScreen() {
   // Label shown in the modal during verification
   const [verifyLabel, setVerifyLabel] = useState('');
   const [openPaymentError, setOpenPaymentError] = useState<string | null>(null);
+  // Currency selection modal shown when the user taps "Upgrade to Premium"
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
   const normalizePaymentUrl = useCallback((url: string | null) => {
     if (!url) return null;
@@ -648,8 +650,7 @@ export default function SubscriptionScreen() {
                 disabled={!activePremiumBundle || paymentLoading}
                 onPress={() => {
                   if (!activePremiumBundle) return;
-                  setSelectedBundle(activePremiumBundle.id);
-                  initiatePayment(activePremiumBundle.id, user?.name ?? undefined, currency);
+                  setShowCurrencyModal(true);
                 }}
                 className={`rounded-xl py-4 items-center flex-row justify-center gap-2 ${
                   activePremiumBundle && !paymentLoading ? 'bg-[#0EA5A4]' : 'bg-gray-300'
@@ -800,6 +801,86 @@ export default function SubscriptionScreen() {
         </ScrollView>
 
       </SafeAreaView>
+
+      {/* Currency selection modal — shown when user taps "Upgrade to Premium" */}
+      <Modal
+        visible={showCurrencyModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowCurrencyModal(false)}>
+        <View className="flex-1 bg-black/50 justify-end">
+          <Pressable className="flex-1" onPress={() => setShowCurrencyModal(false)} />
+          <View className="bg-white rounded-t-3xl px-5 pt-5 pb-10">
+            {/* Handle bar */}
+            <View className="w-10 h-1 rounded-full bg-gray-200 self-center mb-5" />
+
+            <Text className="text-xl font-black text-gray-900 mb-1">Choose Currency</Text>
+            <Text className="text-sm text-gray-500 mb-6">
+              Select how you'd like to pay for{' '}
+              {premiumCycle === 'monthly' ? 'monthly' : 'annual'} Premium
+            </Text>
+
+            {/* Pay in Naira */}
+            <Pressable
+              onPress={() => {
+                setShowCurrencyModal(false);
+                if (!activePremiumBundle) return;
+                setSelectedBundle(activePremiumBundle.id);
+                initiatePayment(activePremiumBundle.id, user?.name ?? undefined, 'NGN');
+              }}
+              className="mb-3 rounded-2xl border-2 border-[#0EA5A4] bg-[#F0FAFA] p-4 flex-row items-center justify-between active:opacity-80">
+              <View className="flex-row items-center gap-3">
+                <View className="w-11 h-11 rounded-full bg-[#E7F8F7] items-center justify-center">
+                  <Text className="text-xl">🇳🇬</Text>
+                </View>
+                <View>
+                  <Text className="text-base font-bold text-gray-900">Pay in Naira</Text>
+                  <Text className="text-sm text-gray-500">Nigerian Naira · NGN</Text>
+                </View>
+              </View>
+              <View className="items-end">
+                <Text className="text-lg font-black text-[#0EA5A4]">
+                  {activePremiumBundle ? `₦${activePremiumBundle.amountNaira.toLocaleString()}` : '—'}
+                </Text>
+                <Text className="text-xs text-gray-400">/{premiumCycle === 'monthly' ? 'month' : 'year'}</Text>
+              </View>
+            </Pressable>
+
+            {/* Pay in USD */}
+            <Pressable
+              onPress={() => {
+                setShowCurrencyModal(false);
+                if (!activePremiumBundle) return;
+                setSelectedBundle(activePremiumBundle.id);
+                initiatePayment(activePremiumBundle.id, user?.name ?? undefined, 'USD');
+              }}
+              className="mb-6 rounded-2xl border-2 border-[#D4ECEB] bg-white p-4 flex-row items-center justify-between active:opacity-80">
+              <View className="flex-row items-center gap-3">
+                <View className="w-11 h-11 rounded-full bg-gray-100 items-center justify-center">
+                  <Text className="text-xl">🇺🇸</Text>
+                </View>
+                <View>
+                  <Text className="text-base font-bold text-gray-900">Pay in USD</Text>
+                  <Text className="text-sm text-gray-500">US Dollar · USD</Text>
+                </View>
+              </View>
+              <View className="items-end">
+                <Text className="text-lg font-black text-gray-900">
+                  {activePremiumBundle ? `$${activePremiumBundle.amountUSD.toFixed(2)}` : '—'}
+                </Text>
+                <Text className="text-xs text-gray-400">/{premiumCycle === 'monthly' ? 'month' : 'year'}</Text>
+              </View>
+            </Pressable>
+
+            {/* Cancel */}
+            <Pressable
+              onPress={() => setShowCurrencyModal(false)}
+              className="rounded-xl py-4 items-center border border-gray-200">
+              <Text className="text-base font-semibold text-gray-600">Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Payment waiting modal — shown on all platforms after opening the external browser / payment tab */}
       <Modal
