@@ -88,6 +88,14 @@ export default function LoginScreen() {
   };
 
   const onGoogleLogin = async () => {
+    if (Platform.OS !== 'web') {
+      setAuthAlternativeMessage(
+        'Google sign-in is currently available on web only. Please log in with email and password or register a new account.'
+      );
+      setShowAuthAlternativeModal(true);
+      return;
+    }
+
     setShowGoogleRecoveryFab(true);
     setLoading(true);
     try {
@@ -236,15 +244,23 @@ export default function LoginScreen() {
           </View>
 
           {/* Google Sign-In */}
-          <Pressable
-            onPress={onGoogleLogin}
-            disabled={loading}
-            className="h-12 flex-row items-center justify-center rounded-xl border border-slate-200 bg-white"
-            style={({ pressed }) => ({ opacity: loading ? 0.6 : pressed ? 0.9 : 1 })}
-          >
-            <Ionicons name="logo-google" size={18} color="#EF4444" />
-            <Text className="ml-2 text-sm font-semibold text-slate-700">Continue with Google</Text>
-          </Pressable>
+          {Platform.OS === 'web' ? (
+            <Pressable
+              onPress={onGoogleLogin}
+              disabled={loading}
+              className="h-12 flex-row items-center justify-center rounded-xl border border-slate-200 bg-white"
+              style={({ pressed }) => ({ opacity: loading ? 0.6 : pressed ? 0.9 : 1 })}
+            >
+              <Ionicons name="logo-google" size={18} color="#EF4444" />
+              <Text className="ml-2 text-sm font-semibold text-slate-700">Continue with Google</Text>
+            </Pressable>
+          ) : (
+            <View className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <Text className="text-xs leading-5 text-amber-900">
+                Google sign-in is available on web only. Use email login or register to continue on this device.
+              </Text>
+            </View>
+          )}
 
 
 
