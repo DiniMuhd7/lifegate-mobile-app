@@ -6,6 +6,7 @@ import {
   LoginPayload,
   RegisterPayload,
   AuthResponse,
+  User,
   Physician2FAResponse,
   RegistrationStartPayload,
   RegistrationStartResponse,
@@ -15,6 +16,16 @@ import {
   VerifyResetCodeResponse,
   ResetPasswordResponse,
 } from '../types/auth-types';
+
+function normalizeAuthUser(user: User | undefined): User | undefined {
+  if (!user) return undefined;
+
+  if ((user as { role?: string }).role === 'patient') {
+    return { ...user, role: 'user' };
+  }
+
+  return user;
+}
 
 export const AuthService = {
   /**
@@ -42,7 +53,7 @@ export const AuthService = {
         return { success: false, message: response.data.message || 'Login failed' };
       }
 
-      return { success: true, user: data.user, token: data.token, refreshToken: data.refresh_token };
+      return { success: true, user: normalizeAuthUser(data.user), token: data.token, refreshToken: data.refresh_token };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }
@@ -67,7 +78,7 @@ export const AuthService = {
         success: true,
         token: response.data.data.token,
         refreshToken: response.data.data.refresh_token,
-        user: response.data.data.user,
+        user: normalizeAuthUser(response.data.data.user),
       };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
@@ -113,7 +124,7 @@ export const AuthService = {
       if (token) {
         await saveToken(token);
       }
-      return { success: true, user };
+      return { success: true, user: normalizeAuthUser(user) };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }
@@ -171,7 +182,7 @@ export const AuthService = {
       return {
         success: true,
         message: response.data.message,
-        data: { token, user },
+        data: { token, user: normalizeAuthUser(user) },
       };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
@@ -350,7 +361,7 @@ export const AuthService = {
       }
 
       const data = response.data.data as Record<string, unknown>;
-      const user = (data?.user ?? data) as AuthResponse['user'];
+      const user = normalizeAuthUser((data?.user ?? data) as User | undefined);
       return { success: true, user };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
@@ -389,7 +400,7 @@ export const AuthService = {
       if (!response.data.success) {
         return { success: false, message: response.data.message || 'MDCN verification failed' };
       }
-      return { success: true, message: response.data.message, user: response.data.data?.user };
+      return { success: true, message: response.data.message, user: normalizeAuthUser(response.data.data?.user) };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }
@@ -413,7 +424,7 @@ export const AuthService = {
       if (!response.data.success) {
         return { success: false, message: response.data.message || 'Failed to update profile' };
       }
-      return { success: true, message: response.data.message, user: response.data.data?.user };
+      return { success: true, message: response.data.message, user: normalizeAuthUser(response.data.data?.user) };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }
@@ -462,7 +473,7 @@ export const AuthService = {
         success: true,
         token: response.data.data.token,
         refreshToken: response.data.data.refresh_token,
-        user: response.data.data.user,
+        user: normalizeAuthUser(response.data.data.user),
       };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
@@ -495,7 +506,7 @@ export const AuthService = {
       if (!response.data.success) {
         return { success: false, message: response.data.message || 'Failed to schedule account deletion' };
       }
-      return { success: true, message: response.data.message, user: response.data.data?.user };
+      return { success: true, message: response.data.message, user: normalizeAuthUser(response.data.data?.user) };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }
@@ -513,7 +524,7 @@ export const AuthService = {
       if (!response.data.success) {
         return { success: false, message: response.data.message || 'Failed to cancel account deletion' };
       }
-      return { success: true, message: response.data.message, user: response.data.data?.user };
+      return { success: true, message: response.data.message, user: normalizeAuthUser(response.data.data?.user) };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };
     }
@@ -535,7 +546,7 @@ export const AuthService = {
         success: true,
         token: response.data.data.token,
         refreshToken: response.data.data.refresh_token,
-        user: response.data.data.user,
+        user: normalizeAuthUser(response.data.data.user),
       };
     } catch (error: unknown) {
       return { success: false, message: extractErrorMessage(error) };

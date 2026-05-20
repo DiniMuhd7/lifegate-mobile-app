@@ -413,7 +413,7 @@ func (r *Repository) FindOrCreateGoogleUser(email, name, userID, patientID strin
 		PatientID: patientID,
 		Name:      name,
 		Email:     email,
-		Role:      "patient",
+		Role:      "user",
 	}
 	if err := r.db.QueryRow(
 		`INSERT INTO users (user_id, patient_id, name, email, password_hash, role)
