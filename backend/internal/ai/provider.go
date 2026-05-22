@@ -295,7 +295,12 @@ type AIResponse struct {
 	// ProfileUpdate carries health profile fields collected from the patient during
 	// triage when their health profile is incomplete. The genai service persists
 	// these values to the users table after each turn.
-	ProfileUpdate     *ProfileUpdate   `json:"profileUpdate,omitempty"`
+	ProfileUpdate *ProfileUpdate `json:"profileUpdate,omitempty"`
+
+	// OpenClaw physician review fields — populated only when the AI is asked to
+	// perform a structured clinical review (not during normal EDIS triage).
+	PhysicianDecision string `json:"physician_decision,omitempty"` // "Approved" | "Rejected"
+	RejectionReason   string `json:"rejection_reason,omitempty"`
 }
 
 // ProfileUpdate carries health profile fields collected from the patient during

@@ -3,8 +3,11 @@ package openclaw
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 )
 
 // caseNeedingReply is an Active case owned by an OpenClaw physician where the
@@ -20,18 +23,52 @@ type caseNeedingReply struct {
 	CaseTitle     string
 	CaseDesc      string
 	// EDIS outputs
-	Condition    string
-	Urgency      string
-	HPI          string // raw JSONB text (may be empty)
-	AIResponse   string // raw JSONB text (may be empty)
+	Condition  string
+	Urgency    string
+	HPI        string // raw JSONB text (may be empty)
+	AIResponse string // raw JSONB text (may be empty)
 }
 
-// completableCase is an Active OpenClaw case whose last IM is from the physician
-// and where EDIS has already set a condition — ready to be auto-completed.
-type completableCase struct {
+// caseForReview is an Active OpenClaw case whose last IM is from the physician
+// (AI already replied) and where EDIS has set a condition — ready for the AI
+// physician to perform a structured clinical review.
+type caseForReview struct {
 	CaseID      string
 	PhysicianID string
+	AgentSlug   string
 	PatientID   string
+	PatientName string
+	// EDIS outputs
+	Condition  string
+	Urgency    string
+	CaseTitle  string
+	CaseDesc   string
+	HPI        string // raw JSONB text (may be empty)
+	AIResponse string // full ai_response JSONB text
+	// Patient profile (used to check allergies, interactions, etc.)
+	Allergies          string
+	MedicalHistory     string
+	CurrentMedications string
+	BloodType          string
+	Genotype           string
+}
+
+// reviewInput carries the AI physician's structured review decision.
+type reviewInput struct {
+	Notes                 string
+	PhysicianDecision     string              // "Approved" | "Rejected"
+	RejectionReason       string              // required when Rejected
+	UpdatedPrescription   *ai.Prescription    // nil = accept EDIS as-is
+	UpdatedInvestigations []ai.Investigation  // nil = accept EDIS as-is
+	UpdatedConditions     []ai.ConditionScore // nil = accept EDIS as-is
+}
+
+// physicianAIOutputDoc is the JSONB written to physician_ai_output when the AI
+// physician overrides the EDIS recommendation.  Mirrors physician.PhysicianAIOutput.
+type physicianAIOutputDoc struct {
+	Prescription   *ai.Prescription    `json:"prescription,omitempty"`
+	Investigations []ai.Investigation  `json:"investigations,omitempty"`
+	Conditions     []ai.ConditionScore `json:"conditions,omitempty"`
 }
 
 // imMessage is a single row from instant_messages used to reconstruct history.
@@ -108,17 +145,34 @@ func (r *Repository) ListCasesNeedingReply(ctx context.Context, limit int) ([]ca
 	return cases, rows.Err()
 }
 
-// ListCompletableCases returns Active OpenClaw cases where:
+// ListCasesReadyForReview returns Active OpenClaw cases where:
 //   - EDIS has set a condition (non-empty)
 //   - The last IM message was sent by the physician (AI has already replied)
-func (r *Repository) ListCompletableCases(ctx context.Context, limit int) ([]completableCase, error) {
+//
+// It returns the full EDIS AI response and patient profile so the review
+// system prompt can be built without an additional DB round-trip.
+func (r *Repository) ListCasesReadyForReview(ctx context.Context, limit int) ([]caseForReview, error) {
 	const q = `
 		SELECT
 			d.id::text,
 			d.physician_id::text,
-			d.user_id::text
+			u_phys.openclaw_agent_slug,
+			d.user_id::text,
+			COALESCE(u_pat.name, ''),
+			COALESCE(d.condition, ''),
+			COALESCE(d.urgency, ''),
+			COALESCE(d.title, ''),
+			COALESCE(d.description, ''),
+			COALESCE(d.hpi::text, ''),
+			COALESCE(d.ai_response::text, '{}'),
+			COALESCE(u_pat.allergies, ''),
+			COALESCE(u_pat.medical_history, ''),
+			COALESCE(u_pat.current_medications, ''),
+			COALESCE(u_pat.blood_type, ''),
+			COALESCE(u_pat.genotype, '')
 		FROM diagnoses d
 		JOIN users u_phys ON u_phys.id = d.physician_id
+		JOIN users u_pat  ON u_pat.id  = d.user_id
 		WHERE d.status = 'Active'
 		  AND u_phys.openclaw_agent_slug IS NOT NULL
 		  AND d.condition IS NOT NULL AND d.condition <> ''
@@ -138,10 +192,18 @@ func (r *Repository) ListCompletableCases(ctx context.Context, limit int) ([]com
 	}
 	defer rows.Close()
 
-	var cases []completableCase
+	var cases []caseForReview
 	for rows.Next() {
-		var c completableCase
-		if err := rows.Scan(&c.CaseID, &c.PhysicianID, &c.PatientID); err != nil {
+		var c caseForReview
+		if err := rows.Scan(
+			&c.CaseID, &c.PhysicianID, &c.AgentSlug,
+			&c.PatientID, &c.PatientName,
+			&c.Condition, &c.Urgency,
+			&c.CaseTitle, &c.CaseDesc,
+			&c.HPI, &c.AIResponse,
+			&c.Allergies, &c.MedicalHistory, &c.CurrentMedications,
+			&c.BloodType, &c.Genotype,
+		); err != nil {
 			return nil, err
 		}
 		cases = append(cases, c)
@@ -149,23 +211,52 @@ func (r *Repository) ListCompletableCases(ctx context.Context, limit int) ([]com
 	return cases, rows.Err()
 }
 
-// CompleteCase transitions an Active case to Completed with an Approved decision.
-// Returns (patientID, nil) on success, ("", nil) if the row was not found or
+// ReviewCase transitions an Active case to Completed using the AI physician's
+// structured review decision.  It mirrors the exact SQL used by
+// physician.Repository.ReviewReport for the "Completed" transition, ensuring
+// identical behaviour to the physician case review screen.
+//
+// Returns (patientID, nil) on success, ("", nil) if the case was not found or
 // already completed (idempotent), and ("", err) on a real DB error.
-func (r *Repository) CompleteCase(ctx context.Context, caseID, physicianID string) (patientID string, err error) {
+func (r *Repository) ReviewCase(ctx context.Context, caseID, physicianID string, input reviewInput) (patientID string, err error) {
+	// Build physician_ai_output JSON when the AI provided any overrides.
+	var aiOutArg interface{}
+	if input.UpdatedPrescription != nil || len(input.UpdatedInvestigations) > 0 || len(input.UpdatedConditions) > 0 {
+		out := physicianAIOutputDoc{
+			Prescription:   input.UpdatedPrescription,
+			Investigations: input.UpdatedInvestigations,
+			Conditions:     input.UpdatedConditions,
+		}
+		b, _ := json.Marshal(out)
+		aiOutArg = string(b)
+	}
+
+	// Identical to physician.Repository.ReviewReport for Action="Completed":
+	// physician_notes is only overwritten when the AI provided non-empty notes;
+	// physician_ai_output is only overwritten when overrides are present.
 	const q = `
 		UPDATE diagnoses
-		SET    status             = 'Completed',
-		       physician_decision = 'Approved',
-		       updated_at         = NOW()
-		WHERE  id           = $1::uuid
-		  AND  physician_id = $2::uuid
-		  AND  status       = 'Active'
+		SET physician_notes     = CASE WHEN $2 <> '' THEN $2 ELSE physician_notes END,
+		    status              = 'Completed',
+		    physician_decision  = $3,
+		    rejection_reason    = $4,
+		    physician_ai_output = CASE WHEN $5::jsonb IS NOT NULL THEN $5::jsonb ELSE physician_ai_output END,
+		    updated_at          = NOW()
+		WHERE id           = $1::uuid
+		  AND physician_id = $6::uuid
+		  AND status       = 'Active'
 		RETURNING user_id::text`
 
-	err = r.db.QueryRowContext(ctx, q, caseID, physicianID).Scan(&patientID)
+	err = r.db.QueryRowContext(ctx, q,
+		caseID,
+		input.Notes,
+		input.PhysicianDecision,
+		input.RejectionReason,
+		aiOutArg,
+		physicianID,
+	).Scan(&patientID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil // already completed or not owned — safe to ignore
+		return "", nil // already completed or not owned — idempotent
 	}
 	return patientID, err
 }

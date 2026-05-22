@@ -164,65 +164,291 @@ func (w *Worker) handleReply(ctx context.Context, c caseNeedingReply) error {
 	return nil
 }
 
-// ── Completion cycle ─────────────────────────────────────────────────────────
+// ── Review cycle ─────────────────────────────────────────────────────────────
 
 func (w *Worker) runCompletionCycle(ctx context.Context) {
-	cases, err := w.repo.ListCompletableCases(ctx, completeBatchLimit)
+	cases, err := w.repo.ListCasesReadyForReview(ctx, completeBatchLimit)
 	if err != nil {
-		log.Printf("[openclaw-worker] list completable cases: %v", err)
+		log.Printf("[openclaw-worker] list cases ready for review: %v", err)
 		return
 	}
 
 	for _, c := range cases {
-		if err := w.handleCompletion(ctx, c); err != nil {
-			log.Printf("[openclaw-worker] complete case %s: %v", c.CaseID, err)
+		if err := w.handleReview(ctx, c); err != nil {
+			log.Printf("[openclaw-worker] review case %s (agent=%s): %v",
+				c.CaseID, c.AgentSlug, err)
 		}
 	}
 }
 
-func (w *Worker) handleCompletion(ctx context.Context, c completableCase) error {
-	patientID, err := w.repo.CompleteCase(ctx, c.CaseID, c.PhysicianID)
+// handleReview performs a full structured clinical review for a completed
+// AI-reply case.  It mirrors the physician case review screen flow exactly:
+//  1. Build a review system prompt with EDIS diagnostic output + patient profile.
+//  2. Ask the AI physician to return a structured JSON review decision.
+//  3. Parse the decision (Approved / Rejected) along with optional overrides
+//     for prescription, conditions, and investigations.
+//  4. Call ReviewCase (identical SQL to physician.Repository.ReviewReport) to
+//     persist the decision, physician_notes, and any physician_ai_output.
+//  5. Broadcast diagnosis.update to the patient and physician.review.status to
+//     all physicians, then send a push notification to the patient.
+func (w *Worker) handleReview(ctx context.Context, c caseForReview) error {
+	// 1. Build the structured review system prompt.
+	systemPrompt, err := w.buildReviewSystemPrompt(c)
 	if err != nil {
-		return err
+		return fmt.Errorf("build review prompt: %w", err)
+	}
+
+	// 2. Call AI with a single instruction to produce the review JSON.
+	messages := []ai.ChatMessage{
+		{Role: "user", Text: "Please review this case now and provide your structured clinical assessment as the JSON object."},
+	}
+	resp, err := w.ai.Chat(ctx, systemPrompt, messages)
+	if err != nil {
+		return fmt.Errorf("ai.Chat (review): %w", err)
+	}
+
+	// 3. Validate and normalise the decision.
+	decision := strings.TrimSpace(resp.PhysicianDecision)
+	if decision != "Approved" && decision != "Rejected" {
+		// AI returned an invalid or missing decision — default to Approved so
+		// the case is not left hanging, and log the anomaly.
+		log.Printf("[openclaw-worker] case %s: unexpected physician_decision %q — defaulting to Approved",
+			c.CaseID, decision)
+		decision = "Approved"
+	}
+
+	// 4. Build the repository input from the AI response.
+	input := reviewInput{
+		Notes:             strings.TrimSpace(resp.Text),
+		PhysicianDecision: decision,
+		RejectionReason:   strings.TrimSpace(resp.RejectionReason),
+	}
+	// Only set overrides when the AI explicitly provided non-nil / non-empty values.
+	if resp.Prescription != nil {
+		input.UpdatedPrescription = resp.Prescription
+	}
+	if len(resp.Conditions) > 0 {
+		input.UpdatedConditions = resp.Conditions
+	}
+	if len(resp.Investigations) > 0 {
+		input.UpdatedInvestigations = resp.Investigations
+	}
+
+	// 5. Persist the decision via ReviewCase (mirrors ReviewReport SQL exactly).
+	patientID, err := w.repo.ReviewCase(ctx, c.CaseID, c.PhysicianID, input)
+	if err != nil {
+		return fmt.Errorf("ReviewCase: %w", err)
 	}
 	if patientID == "" {
 		return nil // already completed — idempotent
 	}
 
-	// Notify the patient via WebSocket.
-	if w.hub != nil && patientID != "" {
-		payload, _ := json.Marshal(map[string]string{
+	// 6. Broadcast WebSocket events.
+	if w.hub != nil {
+		diagPayload, _ := json.Marshal(map[string]string{
 			"diagnosisId": c.CaseID,
 			"status":      "Completed",
+			"decision":    decision,
 		})
-		w.hub.BroadcastToUser(patientID, "diagnosis.update", payload)
-	}
+		w.hub.BroadcastToUser(patientID, "diagnosis.update", diagPayload)
 
-	// Notify all physicians so their queues refresh.
-	if w.hub != nil {
 		queuePayload, _ := json.Marshal(map[string]string{
-			"caseId": c.CaseID,
-			"status": "Completed",
+			"caseId":   c.CaseID,
+			"status":   "Completed",
+			"decision": decision,
 		})
 		w.hub.BroadcastToRole("professional", "physician.review.status", queuePayload)
 	}
 
-	// Optional push notification to patient.
-	if w.push != nil && patientID != "" {
-		w.push.SendToUser(ctx, patientID,
-			"Case Reviewed",
-			"Your case has been reviewed and completed by your physician. Check the app for your results.",
-			map[string]string{"type": "case_completed", "diagnosisId": c.CaseID},
+	// 7. Push notification to patient.
+	if w.push != nil {
+		var title, body string
+		if decision == "Approved" {
+			title = "Case Reviewed"
+			body = "Your case has been reviewed and approved by your physician. Open the app to see your full diagnosis and treatment plan."
+		} else {
+			title = "Case Review Update"
+			body = "Your physician has completed your case review. Open the app to see the updated assessment."
+		}
+		w.push.SendToUser(ctx, patientID, title, body,
+			map[string]string{"type": "case_reviewed", "diagnosisId": c.CaseID},
 		)
 	}
 
-	log.Printf("[openclaw-worker] completed case %s (physician=%s, patient=%s)",
-		c.CaseID, c.PhysicianID, patientID)
+	log.Printf("[openclaw-worker] reviewed case %s (agent=%s, patient=%s, decision=%s)",
+		c.CaseID, c.AgentSlug, patientID, decision)
 	return nil
 }
 
-// ── System prompt builder ────────────────────────────────────────────────────
+// ── System prompt builders ────────────────────────────────────────────────────
 
+// buildReviewSystemPrompt constructs the structured clinical review prompt for
+// the AI physician.  It embeds the full EDIS diagnostic output and patient
+// profile so the AI can make a clinically informed approve/reject decision
+// with optional prescription, condition, and investigation overrides.
+//
+// The response schema maps onto ai.AIResponse fields:
+//
+//	{ "text": "...", "physician_decision": "Approved"|"Rejected",
+//	  "rejection_reason": "...", "prescription": {...}|null,
+//	  "conditions": [...]|null, "investigations": [...]|null }
+func (w *Worker) buildReviewSystemPrompt(c caseForReview) (string, error) {
+	persona, err := w.loadPersona(c.AgentSlug)
+	if err != nil {
+		return "", err
+	}
+
+	// Parse EDIS AI response JSONB for structured prescription / conditions / investigations.
+	var edis struct {
+		Diagnosis *struct {
+			Condition string `json:"condition"`
+			Urgency   string `json:"urgency"`
+		} `json:"diagnosis"`
+		Prescription   *ai.Prescription    `json:"prescription"`
+		Conditions     []ai.ConditionScore `json:"conditions"`
+		Investigations []ai.Investigation  `json:"investigations"`
+	}
+	if c.AIResponse != "" && c.AIResponse != "{}" {
+		_ = json.Unmarshal([]byte(c.AIResponse), &edis)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(persona)
+	sb.WriteString("\n\n---\n\n")
+	sb.WriteString("## CASE REVIEW TASK\n\n")
+	sb.WriteString("You are performing a formal clinical review of the EDIS AI-generated diagnosis for this patient. ")
+	sb.WriteString("This is your final validation step before the case is closed. ")
+	sb.WriteString("Your decision carries full medical authority as the assigned physician.\n\n")
+	sb.WriteString("---\n\n")
+
+	// Patient profile section.
+	sb.WriteString("### PATIENT INFORMATION\n")
+	fmt.Fprintf(&sb, "**Name:** %s\n", c.PatientName)
+	if c.BloodType != "" || c.Genotype != "" {
+		if c.BloodType != "" {
+			fmt.Fprintf(&sb, "**Blood Type:** %s", c.BloodType)
+		}
+		if c.Genotype != "" {
+			if c.BloodType != "" {
+				sb.WriteString("  |  ")
+			}
+			fmt.Fprintf(&sb, "**Genotype:** %s", c.Genotype)
+		}
+		sb.WriteString("\n")
+	}
+	allergies := c.Allergies
+	if allergies == "" {
+		allergies = "None recorded"
+	}
+	fmt.Fprintf(&sb, "**Known Allergies:** %s\n", allergies)
+	if c.MedicalHistory != "" {
+		fmt.Fprintf(&sb, "**Medical History:** %s\n", c.MedicalHistory)
+	}
+	if c.CurrentMedications != "" {
+		fmt.Fprintf(&sb, "**Current Medications:** %s\n", c.CurrentMedications)
+	}
+	sb.WriteString("\n---\n\n")
+
+	// Case details section.
+	sb.WriteString("### CASE DETAILS\n")
+	if c.CaseTitle != "" {
+		fmt.Fprintf(&sb, "**Chief Complaint:** %s\n", c.CaseTitle)
+	}
+	if c.CaseDesc != "" {
+		fmt.Fprintf(&sb, "**Presenting Symptoms:** %s\n", c.CaseDesc)
+	}
+	if hpi := extractHPIText(c.HPI); hpi != "" {
+		fmt.Fprintf(&sb, "**History of Presenting Illness:** %s\n", hpi)
+	}
+	sb.WriteString("\n---\n\n")
+
+	// EDIS diagnostic output section.
+	sb.WriteString("### EDIS AI DIAGNOSTIC OUTPUT\n\n")
+
+	condition := c.Condition
+	urgency := c.Urgency
+	if edis.Diagnosis != nil {
+		if edis.Diagnosis.Condition != "" {
+			condition = edis.Diagnosis.Condition
+		}
+		if edis.Diagnosis.Urgency != "" {
+			urgency = edis.Diagnosis.Urgency
+		}
+	}
+	if condition != "" {
+		fmt.Fprintf(&sb, "**Primary Diagnosis:** %s", condition)
+		if urgency != "" {
+			fmt.Fprintf(&sb, " (%s urgency)", urgency)
+		}
+		sb.WriteString("\n\n")
+	}
+
+	if len(edis.Conditions) > 0 {
+		sb.WriteString("**Differential Diagnoses:**\n")
+		for i, cond := range edis.Conditions {
+			fmt.Fprintf(&sb, "%d. %s — %d%% confidence — %s\n",
+				i+1, cond.Condition, cond.Confidence, cond.Description)
+		}
+		sb.WriteString("\n")
+	}
+
+	if p := edis.Prescription; p != nil {
+		sb.WriteString("**Recommended Prescription:**\n")
+		if p.Medicine != "" {
+			fmt.Fprintf(&sb, "- Medicine: %s\n", p.Medicine)
+		}
+		if p.Dosage != "" {
+			fmt.Fprintf(&sb, "- Dosage: %s\n", p.Dosage)
+		}
+		if p.Frequency != "" {
+			fmt.Fprintf(&sb, "- Frequency: %s\n", p.Frequency)
+		}
+		if p.Duration != "" {
+			fmt.Fprintf(&sb, "- Duration: %s\n", p.Duration)
+		}
+		if p.Instructions != "" {
+			fmt.Fprintf(&sb, "- Instructions: %s\n", p.Instructions)
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(edis.Investigations) > 0 {
+		sb.WriteString("**Recommended Investigations:**\n")
+		for _, inv := range edis.Investigations {
+			fmt.Fprintf(&sb, "- %s — %s (%s)\n", inv.Test, inv.Reason, inv.Urgency)
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("---\n\n")
+	sb.WriteString("## YOUR REVIEW DECISION\n\n")
+	sb.WriteString("Respond with ONLY valid JSON matching this exact schema (no markdown fences, no prose):\n\n")
+	sb.WriteString("{\n")
+	sb.WriteString("  \"text\": \"Your clinical chart notes (2-3 sentences of physician reasoning, written as chart documentation)\",\n")
+	sb.WriteString("  \"physician_decision\": \"Approved\",\n")
+	sb.WriteString("  \"rejection_reason\": \"\",\n")
+	sb.WriteString("  \"prescription\": null,\n")
+	sb.WriteString("  \"conditions\": null,\n")
+	sb.WriteString("  \"investigations\": null\n")
+	sb.WriteString("}\n\n")
+	sb.WriteString("CLINICAL REVIEW RULES:\n")
+	sb.WriteString("- `physician_decision` MUST be exactly \"Approved\" or \"Rejected\"\n")
+	sb.WriteString("- `text` is ALWAYS required — write as physician chart documentation, not patient-facing prose\n")
+	sb.WriteString("- `rejection_reason` is required only when physician_decision is \"Rejected\" — state what is clinically unsafe or incorrect\n")
+	sb.WriteString("- Set `prescription` only if modifying the EDIS prescription; use null to accept as-is\n")
+	sb.WriteString("- Set `conditions` only if reordering or amending the differential; use null to accept as-is\n")
+	sb.WriteString("- Set `investigations` only if modifying recommended tests; use null to accept as-is\n")
+	sb.WriteString("- CRITICAL: check patient allergies against any prescription before approving\n")
+	sb.WriteString("- CRITICAL: check for drug interactions with current medications\n")
+	sb.WriteString("- Reject ONLY when the EDIS output is clinically unsafe or significantly incorrect\n")
+	sb.WriteString("- Respond ONLY with the JSON object — no markdown, no explanations outside the JSON\n")
+
+	return sb.String(), nil
+}
+
+// buildSystemPrompt constructs the patient-facing reply system prompt for the
+// AI physician.  It embeds the agent persona and current case context so the AI
+// can respond naturally as the patient's assigned doctor.
 func (w *Worker) buildSystemPrompt(c caseNeedingReply) (string, error) {
 	persona, err := w.loadPersona(c.AgentSlug)
 	if err != nil {
