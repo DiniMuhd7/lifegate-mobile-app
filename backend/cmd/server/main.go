@@ -43,6 +43,7 @@ import (
 	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthmetrics"
+	callssvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/calls"
 	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
@@ -858,6 +859,22 @@ func main() {
 		imGroup.GET("/:diagnosisId/unread", imHandler.UnreadCount)
 		// POST /im/:diagnosisId/typing — broadcast typing indicator
 		imGroup.POST("/:diagnosisId/typing", imHandler.SendTypingIndicator)
+	}
+
+	// ── Voice & Video Calls ────────────────────────────────────────────────────
+	callsHandler := callssvc.NewHandler(hub, pushSvc, database)
+	callsGroup := api.Group("/calls", middleware.Auth(cfg.JWTSecret))
+	{
+		// POST /calls/offer           — caller initiates, relays SDP offer to callee
+		callsGroup.POST("/offer", callsHandler.Offer)
+		// POST /calls/answer          — callee accepts, relays SDP answer to caller
+		callsGroup.POST("/answer", callsHandler.Answer)
+		// POST /calls/:callId/reject  — callee declines incoming call
+		callsGroup.POST("/:callId/reject", callsHandler.Reject)
+		// POST /calls/:callId/end     — either party ends the call
+		callsGroup.POST("/:callId/end", callsHandler.End)
+		// POST /calls/:callId/ice     — relay WebRTC ICE candidate to peer
+		callsGroup.POST("/:callId/ice", callsHandler.IceCandidate)
 	}
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)

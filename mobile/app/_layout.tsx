@@ -5,9 +5,21 @@ import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { IncomingCallOverlay } from '../components/IncomingCallOverlay';
+import { VoiceCallScreen } from '../components/VoiceCallScreen';
+import { VideoCallScreen } from '../components/VideoCallScreen';
 import { useAuthStore } from '../stores/auth-store';
+import { useCallStore } from '../stores/call-store';
 import { installWebAlertPolyfill } from '../utils/installWebAlertPolyfill';
 import { initializeAdsWithConsent } from '../utils/adsConsent';
+import wsService from '../services/websocket-service';
+import type {
+  CallRingingPayload,
+  CallAnsweredPayload,
+  CallRejectedPayload,
+  CallEndedPayload,
+  CallIceCandidatePayload,
+} from '../types/call-types';
 
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
@@ -24,6 +36,42 @@ export default function RootLayout() {
       initializeAdsWithConsent();
     }
   }, []);
+
+  // ── Call WebSocket event listeners ─────────────────────────────────────────
+  useEffect(() => {
+    const store = useCallStore.getState();
+
+    const unsubs = [
+      wsService.on('call.ringing', (data) => {
+        store.onCallRinging(data as CallRingingPayload);
+      }),
+      wsService.on('call.answered', (data) => {
+        store.onCallAnswered(data as CallAnsweredPayload);
+      }),
+      wsService.on('call.rejected', (data) => {
+        store.onCallRejected(data as CallRejectedPayload);
+      }),
+      wsService.on('call.ended', (data) => {
+        store.onCallEnded(data as CallEndedPayload);
+      }),
+      wsService.on('call.ice-candidate', (data) => {
+        store.onIceCandidate(data as CallIceCandidatePayload);
+      }),
+    ];
+
+    return () => unsubs.forEach((u) => u());
+  }, []);
+
+  // Read active call for conditional rendering (avoids re-creating the layout
+  // on unrelated store changes by reading only the fields we need).
+  const callType   = useCallStore((s) => s.activeCall?.callType ?? null);
+  const callStatus = useCallStore((s) => s.activeCall?.status ?? null);
+  const hasActiveCall =
+    callType !== null &&
+    callStatus !== null &&
+    callStatus !== 'ended' &&
+    callStatus !== 'rejected' &&
+    callStatus !== 'missed';
 
   return (
     <ErrorBoundary>
@@ -46,6 +94,11 @@ export default function RootLayout() {
         </Stack>
         {/* Offline indicator — floats above all screens */}
         <OfflineBanner />
+        {/* Incoming call — full-screen overlay, shown when call.ringing arrives */}
+        <IncomingCallOverlay />
+        {/* Active call screens — rendered as top-level overlays via Modal */}
+        {hasActiveCall && callType === 'voice' && <VoiceCallScreen />}
+        {hasActiveCall && callType === 'video' && <VideoCallScreen />}
       </View>
     </ErrorBoundary>
   );

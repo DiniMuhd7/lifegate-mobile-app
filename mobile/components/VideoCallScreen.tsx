@@ -1,0 +1,483 @@
+/**
+ * VideoCallScreen
+ *
+ * WhatsApp video call inspired UI.
+ * A full-screen WebView handles both remote video (full-screen) and local
+ * camera (picture-in-picture). A React Native overlay provides the control
+ * bar and status header.
+ */
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import WebView, { WebViewMessageEvent } from 'react-native-webview';
+import { useCallStore } from '../stores/call-store';
+
+// ─── WebRTC HTML ──────────────────────────────────────────────────────────────
+
+const VIDEO_WEBRTC_HTML = `<!DOCTYPE html>
+<html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#000;width:100vw;height:100vh;overflow:hidden}
+#rv{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:none}
+#lv{position:absolute;bottom:100px;right:12px;width:90px;height:130px;border-radius:12px;
+    object-fit:cover;display:none;border:2px solid rgba(255,255,255,0.4);background:#111}
+</style>
+</head><body>
+<video id="rv" autoplay playsinline></video>
+<video id="lv" autoplay muted playsinline></video>
+<script>
+const ICE={iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'},
+  {urls:'stun:stun2.l.google.com:19302'}
+]};
+let pc=null,ls=null,facingMode='user';
+
+function post(type,data){
+  try{window.ReactNativeWebView.postMessage(JSON.stringify({type,data}));}
+  catch(e){window.parent&&window.parent.postMessage(JSON.stringify({type,data}),'*');}
+}
+
+async function startMedia(vid){
+  ls=await navigator.mediaDevices.getUserMedia({
+    audio:{echoCancellation:true,noiseSuppression:true},
+    video:vid?{facingMode,width:{ideal:640},height:{ideal:480}}:false
+  });
+  if(vid){const lv=document.getElementById('lv');lv.srcObject=ls;lv.style.display='block';}
+  post('media-ready',{hasVideo:vid});
+}
+
+function buildPC(){
+  pc=new RTCPeerConnection(ICE);
+  ls.getTracks().forEach(t=>pc.addTrack(t,ls));
+  pc.onicecandidate=e=>{if(e.candidate)post('ice-candidate',e.candidate.toJSON());};
+  pc.onconnectionstatechange=()=>{
+    post('connection-state',{state:pc.connectionState});
+    if(pc.connectionState==='connected')post('connected',{});
+    if(pc.connectionState==='failed'||pc.connectionState==='disconnected')post('disconnected',{});
+  };
+  pc.ontrack=e=>{
+    const rv=document.getElementById('rv');
+    rv.srcObject=e.streams[0];
+    rv.style.display='block';
+    post('remote-stream',{});
+  };
+}
+
+async function handleStart(d){
+  await startMedia(true);
+  buildPC();
+  if(d.isCaller){
+    const o=await pc.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:true});
+    await pc.setLocalDescription(o);
+    post('offer',{type:o.type,sdp:o.sdp});
+  }
+}
+
+async function handleIncomingOffer(sdp){
+  await startMedia(true);
+  buildPC();
+  await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  const a=await pc.createAnswer();
+  await pc.setLocalDescription(a);
+  post('answer',{type:a.type,sdp:a.sdp});
+}
+
+async function handleAnswer(sdp){if(pc)await pc.setRemoteDescription(new RTCSessionDescription(sdp));}
+async function handleIce(c){if(pc&&c)try{await pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){}}
+function handleMuteAudio(m){if(ls)ls.getAudioTracks().forEach(t=>t.enabled=!m);}
+function handleMuteVideo(m){if(ls)ls.getVideoTracks().forEach(t=>t.enabled=!m);}
+function handleEnd(){
+  if(ls){ls.getTracks().forEach(t=>t.stop());ls=null;}
+  if(pc){pc.close();pc=null;}
+}
+
+async function handleFlip(){
+  if(!ls||!pc)return;
+  const oldTrack=ls.getVideoTracks()[0];
+  facingMode=facingMode==='user'?'environment':'user';
+  try{
+    const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode},audio:false});
+    const newTrack=ns.getVideoTracks()[0];
+    const sender=pc.getSenders().find(s=>s.track&&s.track.kind==='video');
+    if(sender)await sender.replaceTrack(newTrack);
+    if(oldTrack){oldTrack.stop();ls.removeTrack(oldTrack);}
+    ls.addTrack(newTrack);
+    document.getElementById('lv').srcObject=ls;
+  }catch(e){post('error',{message:e.message});}
+}
+
+[document,window].forEach(el=>el.addEventListener('message',async e=>{
+  if(typeof e.data!=='string')return;
+  try{
+    const m=JSON.parse(e.data);
+    if(m.type==='start')await handleStart(m.data);
+    else if(m.type==='offer')await handleIncomingOffer(m.data);
+    else if(m.type==='answer')await handleAnswer(m.data);
+    else if(m.type==='ice-candidate')await handleIce(m.data);
+    else if(m.type==='mute-audio')handleMuteAudio(m.data.muted);
+    else if(m.type==='mute-video')handleMuteVideo(m.data.muted);
+    else if(m.type==='flip')handleFlip();
+    else if(m.type==='end')handleEnd();
+  }catch(err){post('error',{message:err.message});}
+}));
+post('webview-ready',{});
+</script></body></html>`;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getInitials(name: string): string {
+  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase();
+}
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+const AVATAR_COLORS = ['#128c7e', '#1a73e8', '#8e44ad', '#c0392b', '#e67e22'];
+
+function avatarColor(name: string): string {
+  let hash = 0;
+  for (const ch of name) hash = ch.charCodeAt(0) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function VideoCallScreen() {
+  const insets = useSafeAreaInsets();
+  const webviewRef = useRef<WebView>(null);
+
+  const activeCall         = useCallStore((s) => s.activeCall);
+  const pendingSdpAnswer   = useCallStore((s) => s.pendingSdpAnswer);
+  const offerReady         = useCallStore((s) => s.offerReady);
+  const answerReady        = useCallStore((s) => s.answerReady);
+  const setCallActive      = useCallStore((s) => s.setCallActive);
+  const endActiveCall      = useCallStore((s) => s.endActiveCall);
+  const drainIceCandidates = useCallStore((s) => s.drainIceCandidates);
+
+  const [webviewReady, setWebviewReady] = useState(false);
+  const [remoteStreamActive, setRemoteStreamActive] = useState(false);
+  const [mutedAudio, setMutedAudio] = useState(false);
+  const [mutedVideo, setMutedVideo] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fade-in animation for the waiting avatar (shown before remote stream)
+  const avatarOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (remoteStreamActive) {
+      Animated.timing(avatarOpacity, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+    } else {
+      avatarOpacity.setValue(1);
+    }
+  }, [remoteStreamActive, avatarOpacity]);
+
+  // Duration timer
+  useEffect(() => {
+    if (activeCall?.status === 'active') {
+      timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setDuration(0);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [activeCall?.status]);
+
+  // Start WebRTC once WebView is ready
+  useEffect(() => {
+    if (!webviewReady || !activeCall) return;
+    const isCaller = activeCall.role === 'caller';
+    sendToWebView(
+      isCaller
+        ? { type: 'start', data: { isCaller: true, callType: 'video' } }
+        : { type: 'offer', data: (activeCall as any).sdpOffer },
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webviewReady]);
+
+  // Forward pending SDP answer
+  useEffect(() => {
+    if (webviewReady && pendingSdpAnswer) {
+      sendToWebView({ type: 'answer', data: JSON.parse(pendingSdpAnswer) });
+      useCallStore.setState({ pendingSdpAnswer: null });
+    }
+  }, [webviewReady, pendingSdpAnswer]);
+
+  // Forward queued ICE candidates
+  const pendingIce = useCallStore((s) => s.pendingIceCandidates);
+  useEffect(() => {
+    if (!webviewReady || pendingIce.length === 0) return;
+    const drained = drainIceCandidates();
+    drained.forEach((c) => sendToWebView({ type: 'ice-candidate', data: c }));
+  }, [webviewReady, pendingIce, drainIceCandidates]);
+
+  const sendToWebView = useCallback((msg: object) => {
+    webviewRef.current?.injectJavaScript(
+      `window.dispatchEvent(new MessageEvent('message',{data:${JSON.stringify(JSON.stringify(msg))}}));true;`,
+    );
+  }, []);
+
+  const handleWebViewMessage = useCallback(
+    async (event: WebViewMessageEvent) => {
+      try {
+        const msg = JSON.parse(event.nativeEvent.data) as { type: string; data: any };
+        switch (msg.type) {
+          case 'webview-ready':
+            setWebviewReady(true);
+            break;
+          case 'offer':
+            await offerReady(msg.data.sdp);
+            break;
+          case 'answer':
+            await answerReady(msg.data.sdp);
+            break;
+          case 'ice-candidate':
+            if (activeCall?.callId) {
+              const { CallService } = await import('../services/call-service');
+              CallService.sendIceCandidate(activeCall.callId, msg.data).catch(() => {});
+            }
+            break;
+          case 'remote-stream':
+            setRemoteStreamActive(true);
+            break;
+          case 'connected':
+            setCallActive();
+            break;
+          case 'disconnected':
+            endActiveCall();
+            break;
+          default:
+            break;
+        }
+      } catch {}
+    },
+    [activeCall, offerReady, answerReady, setCallActive, endActiveCall],
+  );
+
+  const handleToggleMuteAudio = useCallback(() => {
+    const next = !mutedAudio;
+    setMutedAudio(next);
+    sendToWebView({ type: 'mute-audio', data: { muted: next } });
+  }, [mutedAudio, sendToWebView]);
+
+  const handleToggleMuteVideo = useCallback(() => {
+    const next = !mutedVideo;
+    setMutedVideo(next);
+    sendToWebView({ type: 'mute-video', data: { muted: next } });
+  }, [mutedVideo, sendToWebView]);
+
+  const handleFlipCamera = useCallback(() => {
+    sendToWebView({ type: 'flip', data: {} });
+  }, [sendToWebView]);
+
+  const handleEndCall = useCallback(async () => {
+    sendToWebView({ type: 'end', data: {} });
+    await endActiveCall();
+  }, [endActiveCall, sendToWebView]);
+
+  const statusLabel = useMemo(() => {
+    switch (activeCall?.status) {
+      case 'calling':    return 'Calling…';
+      case 'ringing':    return 'Ringing…';
+      case 'connecting': return 'Connecting…';
+      case 'active':     return formatDuration(duration);
+      case 'ended':      return 'Call ended';
+      case 'rejected':   return 'Call declined';
+      default:           return '';
+    }
+  }, [activeCall?.status, duration]);
+
+  if (!activeCall) return null;
+
+  const peerName = activeCall.peerName;
+  const initials = getInitials(peerName);
+  const bgColor  = avatarColor(peerName);
+  const isWaiting = !remoteStreamActive;
+
+  return (
+    <Modal visible animationType="fade" statusBarTranslucent>
+      <View style={styles.container}>
+        {/* Full-screen Video WebView */}
+        <WebView
+          ref={webviewRef}
+          source={{ html: VIDEO_WEBRTC_HTML }}
+          style={StyleSheet.absoluteFill}
+          javaScriptEnabled
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          originWhitelist={['*']}
+          onMessage={handleWebViewMessage}
+          onError={() => {}}
+          allowsFullscreenVideo={false}
+          scrollEnabled={false}
+        />
+
+        {/* Waiting overlay — shown before remote stream arrives */}
+        {isWaiting && (
+          <Animated.View style={[styles.waitingOverlay, { opacity: avatarOpacity }]}>
+            <View style={[styles.waitingAvatar, { backgroundColor: bgColor }]}>
+              <Text style={styles.waitingAvatarText}>{initials}</Text>
+            </View>
+            <Text style={styles.waitingName}>{peerName}</Text>
+            <Text style={styles.waitingStatus}>{statusLabel}</Text>
+          </Animated.View>
+        )}
+
+        {/* Top status bar */}
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+          <Text style={styles.topName} numberOfLines={1}>{peerName}</Text>
+          {activeCall.status === 'active' && (
+            <Text style={styles.topStatus}>{statusLabel}</Text>
+          )}
+        </View>
+
+        {/* Bottom control bar */}
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}>
+          {/* Flip camera */}
+          <Pressable onPress={handleFlipCamera} style={styles.ctrlBtn} accessibilityLabel="Flip camera">
+            <Ionicons name="camera-reverse-outline" size={22} color="#fff" />
+          </Pressable>
+
+          {/* Mute microphone */}
+          <Pressable onPress={handleToggleMuteAudio} style={[styles.ctrlBtn, mutedAudio && styles.ctrlBtnRed]} accessibilityLabel={mutedAudio ? 'Unmute' : 'Mute'}>
+            <Ionicons name={mutedAudio ? 'mic-off' : 'mic'} size={22} color="#fff" />
+          </Pressable>
+
+          {/* End call */}
+          <Pressable onPress={handleEndCall} style={styles.endBtn} accessibilityLabel="End call">
+            <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+          </Pressable>
+
+          {/* Camera on/off */}
+          <Pressable onPress={handleToggleMuteVideo} style={[styles.ctrlBtn, mutedVideo && styles.ctrlBtnRed]} accessibilityLabel={mutedVideo ? 'Turn camera on' : 'Turn camera off'}>
+            <Ionicons name={mutedVideo ? 'videocam-off' : 'videocam'} size={22} color="#fff" />
+          </Pressable>
+
+          {/* Spacer to balance the layout */}
+          <View style={styles.ctrlBtn} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const DARK = 'rgba(0,0,0,0.5)';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  waitingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#111',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitingAvatar: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitingAvatarText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '700',
+  },
+  waitingName: {
+    marginTop: 16,
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  waitingStatus: {
+    marginTop: 6,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  topName: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  topStatus: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Platform.OS === 'android' ? 16 : 20,
+    paddingTop: 20,
+    paddingHorizontal: 24,
+    backgroundColor: DARK,
+  },
+  ctrlBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctrlBtnRed: {
+    backgroundColor: 'rgba(234,67,53,0.85)',
+  },
+  endBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#ea4335',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#ea4335',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
+});

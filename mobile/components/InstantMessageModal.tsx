@@ -52,6 +52,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useIMStore } from '../stores/im-store';
 import { useAuthStore } from '../stores/auth-store';
+import { useCallStore } from '../stores/call-store';
 import { IMMessage } from '../types/im-types';
 import wsService from '../services/websocket-service';
 
@@ -182,6 +183,11 @@ interface InstantMessageModalProps {
   perspective: 'patient' | 'physician';
   /** Called when the modal should be closed. */
   onClose: () => void;
+  /**
+   * Optional: display name to use for call screens. Falls back to counterpartName.
+   * This is passed through to the call store so the call screen shows the correct name.
+   */
+  callDisplayName?: string;
 }
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -278,6 +284,7 @@ export function InstantMessageModal({
   counterpartName,
   perspective,
   onClose,
+  callDisplayName,
 }: InstantMessageModalProps) {
   const insets = useSafeAreaInsets();
   const { height: SCREEN_H } = useWindowDimensions();
@@ -286,6 +293,18 @@ export function InstantMessageModal({
   const SNAP_DISMISS = SCREEN_H * 0.08;
   const { user } = useAuthStore();
   const myRole: 'user' | 'professional' = perspective === 'patient' ? 'user' : 'professional';
+
+  // ── Call handlers ──────────────────────────────────────────────────────────
+  const initiateCall = useCallStore((s) => s.initiateCall);
+  const peerNameForCall = callDisplayName ?? counterpartName;
+
+  const handleVoiceCall = useCallback(() => {
+    initiateCall('', peerNameForCall, 'voice', diagnosisId);
+  }, [initiateCall, peerNameForCall, diagnosisId]);
+
+  const handleVideoCall = useCallback(() => {
+    initiateCall('', peerNameForCall, 'video', diagnosisId);
+  }, [initiateCall, peerNameForCall, diagnosisId]);
 
   // Scoped selector — only re-renders when THIS conversation changes, not others.
   const conv = useIMStore((s) => s.conversations[diagnosisId]);
@@ -624,6 +643,24 @@ export function InstantMessageModal({
             </View>
 
             <View style={styles.headerActions}>
+              {/* Voice call */}
+              <TouchableOpacity
+                onPress={handleVoiceCall}
+                style={styles.iconBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Voice call"
+              >
+                <Ionicons name="call-outline" size={18} color="#374151" />
+              </TouchableOpacity>
+              {/* Video call */}
+              <TouchableOpacity
+                onPress={handleVideoCall}
+                style={styles.iconBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Video call"
+              >
+                <Ionicons name="videocam-outline" size={19} color="#374151" />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={toggleFullScreen}
                 style={styles.iconBtn}
