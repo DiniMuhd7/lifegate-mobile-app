@@ -49,6 +49,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/payments"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/openclaw"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
@@ -225,6 +226,14 @@ func main() {
 	// Auto-assignment worker — assigns new pending cases to verified physicians,
 	// sends patient IM updates, and reassigns cases not completed within 30 minutes.
 	go physicianSvc.StartAutoAssignment(context.Background())
+
+	// OpenClaw AI physician worker — generates and posts AI responses for the 24
+	// OpenClaw physician agents, then auto-completes cases once EDIS has produced
+	// a diagnosis and the AI physician has replied.
+	openclawRepo := openclaw.NewRepository(database)
+	openclawWorker := openclaw.New(openclawRepo, aiProvider, hub, cfg.OpenClawAgentsDir)
+	openclawWorker.SetPushNotifier(pushSvc)
+	go openclawWorker.Start(context.Background())
 
 	// Wire physician push broadcasts into the AI service so escalated cases
 	// trigger Expo push notifications even when physicians are in the background.

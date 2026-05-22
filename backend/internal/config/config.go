@@ -70,6 +70,11 @@ type Config struct {
 	VAPIDPublicKey  string
 	VAPIDPrivateKey string
 	VAPIDSubject    string // mailto: or https: contact URI
+
+	// OpenClawAgentsDir is the filesystem path to the lifegate-openclaw/agents/
+	// directory.  Defaults to "../lifegate-openclaw/agents" (relative to the
+	// backend working directory).  Override with OPENCLAW_AGENTS_DIR.
+	OpenClawAgentsDir string
 }
 
 func Load() *Config {
@@ -142,6 +147,8 @@ func Load() *Config {
 		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
 		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
 		VAPIDSubject:    getEnv("VAPID_SUBJECT", "mailto:contact@dshub.com.ng"),
+
+		OpenClawAgentsDir: getEnv("OPENCLAW_AGENTS_DIR", "../lifegate-openclaw/agents"),
 	}
 }
 
