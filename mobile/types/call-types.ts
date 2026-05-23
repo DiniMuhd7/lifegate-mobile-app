@@ -17,6 +17,8 @@ export interface ActiveCall {
   callId: string | null;
   peerId: string;
   peerName: string;
+  /** HTTPS URL of the peer's profile photo, or undefined when not set. */
+  peerAvatarUrl?: string;
   callType: CallType;
   status: CallStatus;
   role: 'caller' | 'callee';
@@ -29,6 +31,8 @@ export interface IncomingCall {
   callId: string;
   callerId: string;
   callerName: string;
+  /** HTTPS URL of the caller's profile photo, or undefined when not set. */
+  callerAvatarUrl?: string;
   callType: CallType;
   /** The SDP offer string from the caller's WebRTC peer connection */
   sdpOffer: string;
@@ -41,6 +45,7 @@ export interface CallRingingPayload {
   call_id: string;
   caller_id: string;
   caller_name: string;
+  caller_avatar_url?: string;
   call_type: CallType;
   diagnosis_id: string;
   sdp_offer: string;

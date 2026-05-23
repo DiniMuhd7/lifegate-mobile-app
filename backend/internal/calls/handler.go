@@ -126,6 +126,8 @@ func (h *Handler) Offer(c *gin.Context) {
 
 	callerName := h.lookupName(callerID)
 	calleeName := h.lookupName(calleeID)
+	calleeAvatarURL := h.lookupAvatarURL(calleeID)
+	callerAvatarURL := h.lookupAvatarURL(callerID)
 
 	// Check if callee is an OpenClaw AI physician — auto-reject if so.
 	isOpenClaw, _ := h.isOpenClawPhysician(calleeID)
@@ -182,20 +184,22 @@ func (h *Handler) Offer(c *gin.Context) {
 		h.hub.BroadcastToUser(callerID, "call.answered", answerPayload)
 
 		c.JSON(http.StatusOK, gin.H{"data": gin.H{
-			"call_id":     session.CallID,
-			"callee_name": calleeName,
+			"call_id":           session.CallID,
+			"callee_name":       calleeName,
+			"callee_avatar_url": calleeAvatarURL,
 		}})
 		return
 	}
 
 	// Broadcast call.ringing to the callee.
 	ringPayload, _ := json.Marshal(map[string]interface{}{
-		"call_id":      session.CallID,
-		"caller_id":    callerID,
-		"caller_name":  callerName,
-		"call_type":    req.CallType,
-		"diagnosis_id": req.DiagnosisID,
-		"sdp_offer":    req.SDPOffer,
+		"call_id":          session.CallID,
+		"caller_id":        callerID,
+		"caller_name":      callerName,
+		"caller_avatar_url": callerAvatarURL,
+		"call_type":        req.CallType,
+		"diagnosis_id":     req.DiagnosisID,
+		"sdp_offer":        req.SDPOffer,
 	})
 	h.hub.BroadcastToUser(calleeID, "call.ringing", ringPayload)
 
@@ -219,8 +223,9 @@ func (h *Handler) Offer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
-		"call_id":     session.CallID,
-		"callee_name": calleeName,
+		"call_id":           session.CallID,
+		"callee_name":       calleeName,
+		"callee_avatar_url": calleeAvatarURL,
 	}})
 }
 
@@ -385,6 +390,15 @@ func (h *Handler) lookupName(userID string) string {
 		return "Unknown"
 	}
 	return name
+}
+
+// lookupAvatarURL returns the user's profile photo URL, or "" if not set.
+func (h *Handler) lookupAvatarURL(userID string) string {
+	var url *string
+	if err := h.db.QueryRow(`SELECT avatar_url FROM users WHERE id = $1`, userID).Scan(&url); err != nil || url == nil {
+		return ""
+	}
+	return *url
 }
 
 func (h *Handler) isOpenClawPhysician(userID string) (bool, error) {

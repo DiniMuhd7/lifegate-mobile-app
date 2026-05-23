@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Easing,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -388,10 +389,11 @@ export function VoiceCallScreen() {
 
   if (!activeCall) return null;
 
-  const peerName  = activeCall.peerName;
-  const initials  = getInitials(peerName);
-  const bgColor   = avatarColor(peerName);
-  const isRinging = activeCall.status === 'calling' || activeCall.status === 'ringing';
+  const peerName      = activeCall.peerName;
+  const peerAvatarUrl = activeCall.peerAvatarUrl;
+  const initials      = getInitials(peerName);
+  const bgColor       = avatarColor(peerName);
+  const isRinging     = activeCall.status === 'calling' || activeCall.status === 'ringing';
 
   // Play ringtone while the call is ringing / waiting to be answered
   useRingtone(isRinging);
@@ -432,10 +434,18 @@ export function VoiceCallScreen() {
             />
           )}
 
-          {/* Avatar */}
-          <View style={[styles.avatar, { backgroundColor: bgColor }]}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          {/* Avatar — shows profile photo when available, else coloured initials */}
+          {peerAvatarUrl ? (
+            <Image
+              source={{ uri: peerAvatarUrl }}
+              style={styles.avatarPhoto}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: bgColor }]}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
 
           <Text style={styles.peerName}>{peerName}</Text>
           <Text style={styles.statusText}>{statusLabel}</Text>
@@ -526,6 +536,18 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+  },
+  avatarPhoto: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

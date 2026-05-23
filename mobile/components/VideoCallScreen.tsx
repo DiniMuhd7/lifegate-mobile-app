@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Easing,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -464,11 +465,12 @@ export function VideoCallScreen() {
 
   if (!activeCall) return null;
 
-  const peerName  = activeCall.peerName;
-  const initials  = getInitials(peerName);
-  const bgColor   = avatarColor(peerName);
-  const isWaiting = !remoteStreamActive;
-  const isRinging = activeCall.status === 'calling' || activeCall.status === 'ringing';
+  const peerName      = activeCall.peerName;
+  const peerAvatarUrl = activeCall.peerAvatarUrl;
+  const initials      = getInitials(peerName);
+  const bgColor       = avatarColor(peerName);
+  const isWaiting     = !remoteStreamActive;
+  const isRinging     = activeCall.status === 'calling' || activeCall.status === 'ringing';
 
   // Play ringtone while the call is ringing / waiting to be answered
   useRingtone(isRinging);
@@ -498,9 +500,17 @@ export function VideoCallScreen() {
         {/* Waiting overlay — shown before remote stream arrives */}
         {isWaiting && (
           <Animated.View style={[styles.waitingOverlay, { opacity: avatarOpacity }]}>
-            <View style={[styles.waitingAvatar, { backgroundColor: bgColor }]}>
-              <Text style={styles.waitingAvatarText}>{initials}</Text>
-            </View>
+            {peerAvatarUrl ? (
+              <Image
+                source={{ uri: peerAvatarUrl }}
+                style={styles.waitingAvatarPhoto}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.waitingAvatar, { backgroundColor: bgColor }]}>
+                <Text style={styles.waitingAvatarText}>{initials}</Text>
+              </View>
+            )}
             <Text style={styles.waitingName}>{peerName}</Text>
             <Text style={styles.waitingStatus}>{statusLabel}</Text>
           </Animated.View>
@@ -565,6 +575,13 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  waitingAvatarPhoto: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   waitingAvatarText: {
     color: '#fff',

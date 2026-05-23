@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -109,7 +110,7 @@ export function IncomingCallOverlay() {
 
   if (!incomingCall) return null;
 
-  const { callerName, callType } = incomingCall;
+  const { callerName, callerAvatarUrl, callType } = incomingCall;
   const initials = getInitials(callerName);
   const bgColor  = avatarColor(callerName);
   const isVideo  = callType === 'video';
@@ -142,9 +143,17 @@ export function IncomingCallOverlay() {
             { backgroundColor: bgColor, transform: [{ scale: ringScale }], opacity: ringOpacity },
           ]}
         />
-        <View style={[styles.avatar, { backgroundColor: bgColor }]}>
-          <Text style={styles.avatarText}>{initials}</Text>
-        </View>
+        {callerAvatarUrl ? (
+          <Image
+            source={{ uri: callerAvatarUrl }}
+            style={styles.avatarPhoto}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.avatar, { backgroundColor: bgColor }]}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+        )}
       </View>
 
       {/* Caller name */}
@@ -216,6 +225,13 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarPhoto: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   avatarText: {
     color: '#fff',

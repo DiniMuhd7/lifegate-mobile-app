@@ -38,7 +38,7 @@ interface CallState {
    * Open a new outgoing call.  The call screen mounts a WebView that will
    * generate the SDP offer and then call `setCallId` + `offerReady`.
    */
-  initiateCall: (peerId: string, peerName: string, callType: CallType, diagnosisId: string) => void;
+  initiateCall: (peerId: string, peerName: string, callType: CallType, diagnosisId: string, peerAvatarUrl?: string) => void;
 
   /**
    * Called by the call screen once the WebView has generated an SDP offer.
@@ -101,12 +101,13 @@ export const useCallStore = create<CallState>((set, get) => ({
 
   // ── Caller initiates ─────────────────────────────────────────────────────────
 
-  initiateCall: (peerId, peerName, callType, diagnosisId) => {
+  initiateCall: (peerId, peerName, callType, diagnosisId, peerAvatarUrl) => {
     set({
       activeCall: {
         callId: null,
         peerId,
         peerName,
+        peerAvatarUrl,
         callType,
         status: 'calling',
         role: 'caller',
@@ -132,6 +133,7 @@ export const useCallStore = create<CallState>((set, get) => ({
               ...s.activeCall,
               callId: result.call_id,
               peerName: result.callee_name || s.activeCall.peerName,
+              peerAvatarUrl: result.callee_avatar_url || s.activeCall.peerAvatarUrl,
               status: 'ringing',
             }
           : null,
@@ -164,6 +166,7 @@ export const useCallStore = create<CallState>((set, get) => ({
         callId: incomingCall.callId,
         peerId: incomingCall.callerId,
         peerName: incomingCall.callerName,
+        peerAvatarUrl: incomingCall.callerAvatarUrl,
         callType: incomingCall.callType,
         status: 'connecting',
         role: 'callee',
@@ -221,6 +224,7 @@ export const useCallStore = create<CallState>((set, get) => ({
         callId: payload.call_id,
         callerId: payload.caller_id,
         callerName: payload.caller_name,
+        callerAvatarUrl: payload.caller_avatar_url,
         callType: payload.call_type,
         sdpOffer: payload.sdp_offer,
         diagnosisId: payload.diagnosis_id,

@@ -10,13 +10,13 @@ export const CallService = {
     diagnosisId: string,
     callType: 'voice' | 'video',
     sdpOffer: string,
-  ): Promise<{ call_id: string; callee_name: string }> => {
+  ): Promise<{ call_id: string; callee_name: string; callee_avatar_url?: string }> => {
     const res = await api.post('/calls/offer', {
       diagnosis_id: diagnosisId,
       call_type: callType,
       sdp_offer: sdpOffer,
     });
-    return res.data?.data as { call_id: string; callee_name: string };
+    return res.data?.data as { call_id: string; callee_name: string; callee_avatar_url?: string };
   },
 
   /**
