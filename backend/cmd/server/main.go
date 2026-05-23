@@ -862,7 +862,7 @@ func main() {
 	}
 
 	// ── Voice & Video Calls ────────────────────────────────────────────────────
-	callsHandler := callssvc.NewHandler(hub, pushSvc, database)
+	callsHandler := callssvc.NewHandler(hub, pushSvc, database, cfg.OpenClawAgentsDir, cfg.OpenAIAPIKey, cfg.OpenAIModel)
 	callsGroup := api.Group("/calls", middleware.Auth(cfg.JWTSecret))
 	{
 		// POST /calls/offer           — caller initiates, relays SDP offer to callee
