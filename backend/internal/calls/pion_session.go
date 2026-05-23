@@ -91,8 +91,10 @@ type openClawSession struct {
 	calleeID    string // physician's user ID
 
 	// Lifecycle
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx         context.Context
+	cancel      context.CancelFunc
+	connectedCh chan struct{} // closed once PeerConnectionStateConnected is first reached
+	connOnce    sync.Once    // ensures connectedCh is closed exactly once
 }
 
 // ── Constructor ───────────────────────────────────────────────────────────────
@@ -183,6 +185,7 @@ func newOpenClawSession(
 		db:              db,
 		diagnosisID:     sess.DiagnosisID,
 		calleeID:        sess.CalleeID,
+		connectedCh:     make(chan struct{}),
 	}
 
 	// ── WebRTC negotiation ────────────────────────────────────────────────
@@ -203,6 +206,22 @@ func newOpenClawSession(
 		s.Close()
 		return nil, nil, fmt.Errorf("pion: create answer: %w", err)
 	}
+
+	// IMPORTANT: register OnICECandidate BEFORE SetLocalDescription.
+	// ICE gathering begins the instant SetLocalDescription is called, and Pion
+	// may fire the callback before Start() has a chance to register it.
+	// Any candidates fired before Start() would be silently dropped, leaving
+	// the patient's WebRTC peer with no remote candidates and no media path.
+	s.pc.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c == nil {
+			return // nil signals gathering complete
+		}
+		payload, err := candidateToJSON(c, s.callID)
+		if err == nil {
+			s.hub.BroadcastToUser(s.callerID, "call.ice-candidate", payload)
+		}
+	})
+
 	if err := pc.SetLocalDescription(answer); err != nil {
 		s.Close()
 		return nil, nil, fmt.Errorf("pion: set local description: %w", err)
@@ -214,25 +233,21 @@ func newOpenClawSession(
 // ── Start — wire callbacks ────────────────────────────────────────────────────
 
 // Start wires up the Pion event callbacks and begins the audio processing
-// goroutines.  Call this after the session has been stored so that ICE
-// candidates can be forwarded correctly.
+// goroutines.  Call this after broadcasting the SDP answer to the patient.
+// NOTE: OnICECandidate is already registered inside newOpenClawSession() before
+// SetLocalDescription — do not re-register it here.
 func (s *openClawSession) Start() {
-	// Trickle ICE — forward each candidate to the patient via the hub.
-	s.pc.OnICECandidate(func(c *webrtc.ICECandidate) {
-		if c == nil {
-			return // gathering complete
-		}
-		payload, err := candidateToJSON(c, s.callID)
-		if err == nil {
-			s.hub.BroadcastToUser(s.callerID, "call.ice-candidate", payload)
-		}
-	})
-
-	// Log connection-state changes for debugging.
+	// Signal connectedCh when the peer connection is established so that
+	// sendGreeting() can wait for real connectivity instead of guessing.
+	// Only PeerConnectionStateFailed is a permanent terminal state; Disconnected
+	// is transient and the connection frequently self-heals — do NOT Close on it.
 	s.pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		log.Printf("pion[%s]: connection state → %s", s.callID, state)
-		if state == webrtc.PeerConnectionStateFailed ||
-			state == webrtc.PeerConnectionStateDisconnected {
+		switch state {
+		case webrtc.PeerConnectionStateConnected:
+			s.connOnce.Do(func() { close(s.connectedCh) })
+		case webrtc.PeerConnectionStateFailed:
+			// Failed is permanent — tear down the session.
 			s.Close()
 		}
 	})
@@ -254,11 +269,16 @@ func (s *openClawSession) Start() {
 // ── Greeting ─────────────────────────────────────────────────────────────────
 
 func (s *openClawSession) sendGreeting() {
-	// Wait briefly for the WebRTC connection to establish.
+	// Wait for ICE to reach Connected before speaking.
+	// 15-second fallback guards against a missed state-change event
+	// (e.g. extreme NAT traversal delay or a Pion edge case).
 	select {
 	case <-s.ctx.Done():
 		return
-	case <-time.After(2 * time.Second):
+	case <-s.connectedCh:
+		// ICE connected — proceed immediately.
+	case <-time.After(15 * time.Second):
+		// Timeout — attempt the greeting anyway.
 	}
 
 	greeting := fmt.Sprintf("Hello%s, this is Dr. %s. How can I help you today?",
