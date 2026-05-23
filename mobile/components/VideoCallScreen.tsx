@@ -70,6 +70,16 @@ function buildPC(){
     if(pc.connectionState==='failed'||pc.connectionState==='disconnected')post('disconnected',{});
   };
   pc.ontrack=e=>{
+    // Play remote audio regardless of track kind.
+    // Only update the video element and notify the app when a video track arrives,
+    // so the physician avatar overlay stays visible for audio-only peers (e.g. AI physician).
+    if(e.track.kind==='audio'){
+      const au=document.createElement('audio');
+      au.autoplay=true;
+      au.srcObject=e.streams[0];
+      document.body.appendChild(au);
+      return;
+    }
     const rv=document.getElementById('rv');
     rv.srcObject=e.streams[0];
     rv.style.display='block';
@@ -266,6 +276,16 @@ export function VideoCallScreen() {
             }
           };
           pc.ontrack = (e: any) => {
+            // Audio-only remote (e.g. AI physician): play the audio but keep
+            // the physician avatar overlay visible (don't set remoteStreamActive).
+            if (e.track.kind === 'audio') {
+              const au = new W.Audio();
+              au.autoplay = true;
+              au.srcObject = e.streams[0];
+              au.play().catch(() => {});
+              return;
+            }
+            // Video track — show remote video and hide the waiting overlay.
             const c = videoContainerRef.current as unknown as HTMLElement;
             if (c && !W.document.getElementById('lifegate-remote-video')) {
               const rv = W.document.createElement('video');

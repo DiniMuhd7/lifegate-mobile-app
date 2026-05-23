@@ -64,8 +64,9 @@ type openClawSession struct {
 	model     string // GPT-4o model name
 
 	// Physician persona (AGENT.md + SOUL.md)
-	persona      string
-	physicianName string
+	persona        string
+	physicianName  string
+	physicianGender string // "male" | "female" — read from users.gender; drives TTS voice
 
 	// Patient info and case context fetched at session start.
 	patientName  string
@@ -118,6 +119,14 @@ func newOpenClawSession(
 
 	physicianName := slugToDisplayName(agentSlug)
 
+	// ── Load physician gender from DB (drives TTS voice selection) ───────
+	// Prefer the explicit DB gender field over slug-based name guessing.
+	physicianGender, err := loadPhysicianGender(db, sess.CalleeID)
+	if err != nil {
+		log.Printf("pion: load physician gender for %s: %v — falling back to slug", sess.CalleeID, err)
+		physicianGender = ""
+	}
+
 	// ── Load case context from DB ─────────────────────────────────────────
 	patientName, caseContext, err := loadCaseContext(db, sess.DiagnosisID)
 	if err != nil {
@@ -158,8 +167,9 @@ func newOpenClawSession(
 		hub:           hub,
 		openAIKey:     openAIKey,
 		model:         model,
-		persona:       persona,
-		physicianName: physicianName,
+		persona:         persona,
+		physicianName:  physicianName,
+		physicianGender: physicianGender,
 		patientName:   patientName,
 		caseContext:   caseContext,
 		ctx:           ctx,
@@ -351,7 +361,13 @@ func (s *openClawSession) processTurn() {
 // playText synthesises text to OGG/Opus and writes the frames to the
 // outgoing audio track.
 func (s *openClawSession) playText(text string) {
-	voice := VoiceForSlug(s.agentSlug)
+	// Use DB gender if available; fall back to slug-based name guessing.
+	var voice string
+	if s.physicianGender != "" {
+		voice = VoiceForGender(s.physicianGender)
+	} else {
+		voice = VoiceForSlug(s.agentSlug)
+	}
 	oggData, err := Synthesize(s.ctx, s.openAIKey, text, voice)
 	if err != nil {
 		log.Printf("pion[%s]: tts error: %v", s.callID, err)
@@ -510,6 +526,19 @@ func possessiveName(name string) string {
 		return ""
 	}
 	return ", " + name
+}
+
+// loadPhysicianGender queries the users table for the physician's gender
+// ("male" | "female") using their user ID.  The value is used to select the
+// correct OpenAI TTS voice so it reliably matches every physician regardless
+// of their name's origin.
+func loadPhysicianGender(db *sql.DB, physicianUserID string) (string, error) {
+	var gender string
+	err := db.QueryRow(
+		`SELECT COALESCE(LOWER(gender), '') FROM users WHERE id = $1`,
+		physicianUserID,
+	).Scan(&gender)
+	return strings.TrimSpace(gender), err
 }
 
 // loadCaseContext fetches patient name and a brief case summary from the DB.

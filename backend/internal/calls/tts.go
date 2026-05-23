@@ -17,13 +17,26 @@ import (
 
 const ttsEndpoint = "https://api.openai.com/v1/audio/speech"
 
-// voiceForSlug picks an OpenAI TTS voice that matches the physician's gender.
-// OpenAI voices: alloy (neutral), echo (male), fable (male), onyx (male),
-// nova (female), shimmer (female).
+// OpenAI TTS voices available (May 2026):
+//   male   — echo (clear, professional), fable, onyx
+//   female — nova (warm, professional), shimmer
+//   neutral— alloy
+
+// VoiceForGender returns the best-matching OpenAI TTS voice for a known
+// gender string ("male" | "female").  It is preferred over VoiceForSlug
+// whenever the physician's gender is available from the database.
+func VoiceForGender(gender string) string {
+	if strings.EqualFold(strings.TrimSpace(gender), "female") {
+		return "nova" // warm, professional female voice
+	}
+	return "echo" // clear, professional male voice
+}
+
+// VoiceForSlug is a fallback that guesses gender from the physician's first
+// name embedded in the slug (format "dr-<first>-<last>").  Used only when
+// the DB gender field is unavailable.
 //
-// The slug encodes the physician's full name, e.g. "dr-ngozi-okafor".
-// Female first names that appear in the OpenClaw roster are listed here; all
-// others default to a male voice.
+// Female first names present in the OpenClaw physician roster are listed here.
 var femaleFirstNames = map[string]bool{
 	"ngozi": true, "amara": true, "chisom": true, "blessing": true,
 	"adaeze": true, "fatima": true, "aisha": true, "zainab": true,
@@ -36,12 +49,11 @@ func VoiceForSlug(slug string) string {
 	parts := strings.Split(strings.ToLower(slug), "-")
 	// slug format: "dr-<first>-<last>" — first name is parts[1]
 	if len(parts) >= 2 {
-		first := parts[1]
-		if femaleFirstNames[first] {
-			return "nova" // warm, professional female voice
+		if femaleFirstNames[parts[1]] {
+			return "nova"
 		}
 	}
-	return "echo" // clear, professional male voice
+	return "echo"
 }
 
 // Synthesize calls the OpenAI TTS API and returns a valid OGG/Opus byte
