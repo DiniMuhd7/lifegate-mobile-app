@@ -172,7 +172,13 @@ func (h *Handler) Offer(c *gin.Context) {
 		}
 
 		pionSess, answer, err := newOpenClawSession(
-			c.Request.Context(),
+			// Use context.Background() — NOT c.Request.Context().
+			// net/http cancels the request context the moment the HTTP handler
+			// returns (after c.JSON sends the response).  Using the request
+			// context as parent would cancel the Pion session and all its audio
+			// goroutines (sendGreeting, collectAudio, pipelineLoop) within
+			// milliseconds of the call being answered.
+			context.Background(),
 			h.hub, h.db,
 			h.provider, h.openAIKey,
 			session, agentSlug, h.agentsDir,
