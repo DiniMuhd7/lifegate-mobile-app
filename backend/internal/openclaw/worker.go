@@ -525,8 +525,16 @@ func (w *Worker) buildSystemPrompt(c caseNeedingReply) (string, error) {
 	return sb.String(), nil
 }
 
-// loadPersona reads AGENT.md + SOUL.md for the given slug, concatenates them,
-// and caches the result.  The cache is never invalidated — restart to reload.
+// loadPersona reads the four identity files for the given agent slug,
+// concatenates them into a single system prompt, and caches the result.
+// File order: AGENT.md → IDENTITY.md → USER.md → SOUL.md
+//   • AGENT.md   — clinical role, validation authority, prescribing authority
+//   • IDENTITY.md — personal profile, languages spoken, cultural competencies
+//   • USER.md    — patient interaction philosophy, Nigerian communication style
+//   • SOUL.md    — ethics, anti-hallucination doctrine, patient safety
+// IDENTITY.md and USER.md are optional — missing files are silently skipped
+// (graceful degradation when an agent directory only has the two core files).
+// The cache is never invalidated — restart the server to reload agent files.
 func (w *Worker) loadPersona(slug string) (string, error) {
 	w.personaMu.RLock()
 	cached, ok := w.personaCache[slug]
@@ -535,19 +543,36 @@ func (w *Worker) loadPersona(slug string) (string, error) {
 		return cached, nil
 	}
 
-	agentPath := filepath.Join(w.agentsDir, slug, "AGENT.md")
-	soulPath := filepath.Join(w.agentsDir, slug, "SOUL.md")
+	agentDir := filepath.Join(w.agentsDir, slug)
 
-	agentBytes, err := os.ReadFile(agentPath)
+	// Required files — fail fast if either is missing.
+	agentBytes, err := os.ReadFile(filepath.Join(agentDir, "AGENT.md"))
 	if err != nil {
-		return "", fmt.Errorf("read %s: %w", agentPath, err)
+		return "", fmt.Errorf("read AGENT.md for %s: %w", slug, err)
 	}
-	soulBytes, err := os.ReadFile(soulPath)
+	soulBytes, err := os.ReadFile(filepath.Join(agentDir, "SOUL.md"))
 	if err != nil {
-		return "", fmt.Errorf("read %s: %w", soulPath, err)
+		return "", fmt.Errorf("read SOUL.md for %s: %w", slug, err)
 	}
 
-	combined := string(agentBytes) + "\n\n---\n\n" + string(soulBytes)
+	// Optional context files — silently skip if not present.
+	identityBytes, _ := os.ReadFile(filepath.Join(agentDir, "IDENTITY.md"))
+	userBytes, _ := os.ReadFile(filepath.Join(agentDir, "USER.md"))
+
+	var sb strings.Builder
+	sb.WriteString(string(agentBytes))
+	if len(identityBytes) > 0 {
+		sb.WriteString("\n\n---\n\n")
+		sb.WriteString(string(identityBytes))
+	}
+	if len(userBytes) > 0 {
+		sb.WriteString("\n\n---\n\n")
+		sb.WriteString(string(userBytes))
+	}
+	sb.WriteString("\n\n---\n\n")
+	sb.WriteString(string(soulBytes))
+
+	combined := sb.String()
 
 	w.personaMu.Lock()
 	w.personaCache[slug] = combined
