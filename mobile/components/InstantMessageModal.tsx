@@ -379,10 +379,6 @@ export function InstantMessageModal({
     initiateCall('', peerNameForCall, 'voice', diagnosisId);
   }, [initiateCall, peerNameForCall, diagnosisId]);
 
-  const handleVideoCall = useCallback(() => {
-    initiateCall('', peerNameForCall, 'video', diagnosisId);
-  }, [initiateCall, peerNameForCall, diagnosisId]);
-
   // Scoped selector — only re-renders when THIS conversation changes, not others.
   const conv = useIMStore((s) => s.conversations[diagnosisId]);
   const loadConversation      = useIMStore((s) => s.loadConversation);
@@ -728,15 +724,6 @@ export function InstantMessageModal({
                 accessibilityLabel="Voice call"
               >
                 <Ionicons name="call-outline" size={18} color="#374151" />
-              </TouchableOpacity>
-              {/* Video call */}
-              <TouchableOpacity
-                onPress={handleVideoCall}
-                style={styles.iconBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Video call"
-              >
-                <Ionicons name="videocam-outline" size={19} color="#374151" />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={toggleFullScreen}

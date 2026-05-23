@@ -120,25 +120,6 @@ const PhysicianCard = React.memo<{
           <Ionicons name="call" size={13} color="#fff" />
           <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Call</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => onCallPress(physician.id, physician.name, 'video')}
-          activeOpacity={0.78}
-          style={{
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            backgroundColor: '#fff',
-            borderWidth: 1.5,
-            borderColor: '#0f766e',
-            borderRadius: 8,
-            paddingVertical: 7,
-          }}
-        >
-          <Ionicons name="videocam" size={13} color="#0f766e" />
-          <Text style={{ fontSize: 10, fontWeight: '700', color: '#0f766e' }}>Video</Text>
-        </TouchableOpacity>
       </View>
     )}
   </View>
