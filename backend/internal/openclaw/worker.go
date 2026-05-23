@@ -152,12 +152,27 @@ func (w *Worker) handleReply(ctx context.Context, c caseNeedingReply) error {
 
 	// 4. Persist the reply as a physician IM message.
 	physicianName := w.cachedPhysicianName(c.AgentSlug)
-	if err := w.repo.InsertPhysicianMessage(ctx, c.CaseID, c.PhysicianID, physicianName, replyText); err != nil {
+	msgID, err := w.repo.InsertPhysicianMessage(ctx, c.CaseID, c.PhysicianID, physicianName, replyText)
+	if err != nil {
 		return fmt.Errorf("insert physician message: %w", err)
 	}
 
 	// 5. Broadcast the new message to the patient via WebSocket.
-	w.broadcastNewMessage(c.CaseID, c.PatientID, c.PhysicianID, physicianName, replyText)
+	w.broadcastNewMessage(msgID, c.CaseID, c.PatientID, c.PhysicianID, physicianName, replyText)
+
+	// 6. Push notification so the patient is alerted even when the app is in
+	//    the background or closed.
+	if w.push != nil && c.PatientID != "" {
+		pushData := map[string]string{
+			"type":        "im_message",
+			"diagnosisId": c.CaseID,
+		}
+		w.push.SendToUser(ctx, c.PatientID,
+			"New message from your doctor",
+			physicianName+" sent you a message",
+			pushData,
+		)
+	}
 
 	log.Printf("[openclaw-worker] replied to case %s (agent=%s, patient=%s)",
 		c.CaseID, c.AgentSlug, c.PatientID)
@@ -573,11 +588,12 @@ func buildChatMessages(history []imMessage) []ai.ChatMessage {
 }
 
 // broadcastNewMessage pushes an im.message WebSocket event to the patient.
-func (w *Worker) broadcastNewMessage(caseID, patientID, physicianID, physicianName, content string) {
+func (w *Worker) broadcastNewMessage(msgID, caseID, patientID, physicianID, physicianName, content string) {
 	if w.hub == nil || patientID == "" {
 		return
 	}
 	payload, _ := json.Marshal(map[string]interface{}{
+		"id":           msgID,
 		"diagnosis_id": caseID,
 		"sender_id":    physicianID,
 		"sender_role":  "professional",

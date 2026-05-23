@@ -286,12 +286,15 @@ func (r *Repository) GetConversationHistory(ctx context.Context, diagnosisID str
 	return msgs, rows.Err()
 }
 
-// InsertPhysicianMessage persists a physician IM reply for a case.
-func (r *Repository) InsertPhysicianMessage(ctx context.Context, caseID, physicianID, physicianName, content string) error {
+// InsertPhysicianMessage persists a physician IM reply for a case and returns
+// the UUID of the newly created message.
+func (r *Repository) InsertPhysicianMessage(ctx context.Context, caseID, physicianID, physicianName, content string) (string, error) {
 	const q = `
 		INSERT INTO instant_messages (diagnosis_id, sender_id, sender_role, sender_name, content)
-		VALUES ($1, $2::uuid, 'professional', $3, $4)`
+		VALUES ($1, $2::uuid, 'professional', $3, $4)
+		RETURNING id::text`
 
-	_, err := r.db.ExecContext(ctx, q, caseID, physicianID, physicianName, content)
-	return err
+	var msgID string
+	err := r.db.QueryRowContext(ctx, q, caseID, physicianID, physicianName, content).Scan(&msgID)
+	return msgID, err
 }
