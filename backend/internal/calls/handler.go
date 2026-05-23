@@ -42,6 +42,11 @@ const (
 	statusRinging = "ringing"
 	statusActive  = "active"
 	statusEnded   = "ended"
+
+	// ringTimeout is how long the caller waits before an unanswered call is
+	// automatically ended.  The mobile client should mirror this value so its
+	// ring-tone stops at the same time.
+	ringTimeout = 45 * time.Second
 )
 
 type callSession struct {
@@ -235,6 +240,10 @@ func (h *Handler) Offer(c *gin.Context) {
 			notifData,
 		)
 	}
+
+	// Auto-expire unanswered calls after ringTimeout so the caller is not left
+	// ringing indefinitely when the callee is offline or ignores the call.
+	go h.expireRingingCall(session, callerName)
 
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{
 		"call_id":           session.CallID,
@@ -443,4 +452,51 @@ func newCallID() string {
 		return fmt.Sprintf("CALL-%d", time.Now().UnixNano())
 	}
 	return "CALL-" + hex.EncodeToString(b)
+}
+
+// expireRingingCall waits ringTimeout and, if the call is still in the ringing
+// state, ends it automatically.  This prevents the caller from ringing
+// indefinitely when the callee is offline, misses the notification, or
+// simply does not answer.
+func (h *Handler) expireRingingCall(session *callSession, callerName string) {
+	time.Sleep(ringTimeout)
+
+	// LoadAndDelete is atomic — if it returns false the call was already
+	// answered, rejected, or ended by one of the other endpoints.
+	v, ok := h.sessions.LoadAndDelete(session.CallID)
+	if !ok {
+		return
+	}
+	s := v.(*callSession)
+
+	// If the session was answered between the Sleep and the LoadAndDelete
+	// (extremely unlikely but possible), restore it and do nothing.
+	if s.Status != statusRinging {
+		h.sessions.Store(session.CallID, s)
+		return
+	}
+
+	s.Status = statusEnded
+
+	// Tell the caller the call was not answered.
+	endedPayload, _ := json.Marshal(map[string]string{
+		"call_id": session.CallID,
+		"reason":  "no_answer",
+	})
+	h.hub.BroadcastToUser(s.CallerID, "call.ended", endedPayload)
+
+	// Send a missed-call push notification to the callee.
+	if h.push != nil {
+		label := s.CallType
+		h.push.SendToUser(
+			context.Background(), s.CalleeID,
+			"Missed Call",
+			fmt.Sprintf("You missed a %s call from %s", label, callerName),
+			map[string]string{
+				"type":     "missed_call",
+				"callId":   s.CallID,
+				"callType": s.CallType,
+			},
+		)
+	}
 }

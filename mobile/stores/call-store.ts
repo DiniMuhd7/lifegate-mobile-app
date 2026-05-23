@@ -11,6 +11,23 @@ import {
 } from '../types/call-types';
 import { CallService } from '../services/call-service';
 
+// ─── Ring timeout ─────────────────────────────────────────────────────────────
+// Mirror the server-side ringTimeout (45 s).  This is a safety-net so the
+// caller's UI stops ringing even when the WebSocket is disconnected and the
+// server's call.ended event never arrives.
+const RING_TIMEOUT_MS = 50_000; // 50 s (slightly longer than server's 45 s)
+let _ringTimer: ReturnType<typeof setTimeout> | null = null;
+function _startRingTimer(onTimeout: () => void) {
+  _clearRingTimer();
+  _ringTimer = setTimeout(onTimeout, RING_TIMEOUT_MS);
+}
+function _clearRingTimer() {
+  if (_ringTimer !== null) {
+    clearTimeout(_ringTimer);
+    _ringTimer = null;
+  }
+}
+
 // ─── State Shape ──────────────────────────────────────────────────────────────
 
 interface CallState {
@@ -140,6 +157,15 @@ export const useCallStore = create<CallState>((set, get) => ({
             }
           : null,
       }));
+      // Start a local ring timeout so the caller is never left ringing
+      // indefinitely if the WebSocket drops before the server's call.ended.
+      if (get().activeCall?.status === 'ringing') {
+        _startRingTimer(() => {
+          if (get().activeCall?.status === 'ringing') {
+            get().endActiveCall();
+          }
+        });
+      }
     } catch {
       // If offer fails, clear the call so screen can show error.
       set({ activeCall: null });
@@ -209,6 +235,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   endActiveCall: async () => {
+    _clearRingTimer();
     const { activeCall } = get();
     if (!activeCall) return;
     // Show 'ended' briefly so the user sees feedback before the screen unmounts.
@@ -244,6 +271,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   onCallAnswered: (payload) => {
+    _clearRingTimer();
     // We are the caller — callee (or AI physician) accepted and sent their SDP answer.
     const { activeCall } = get();
     if (!activeCall) return;
@@ -266,6 +294,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   onCallRejected: (payload) => {
+    _clearRingTimer();
     const { activeCall } = get();
     if (!activeCall) return;
     // Same null-callId guard as onCallAnswered — WS may arrive before HTTP.
@@ -286,6 +315,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   onCallEnded: (payload) => {
+    _clearRingTimer();
     const { activeCall } = get();
     if (!activeCall || activeCall.callId !== payload.call_id) return;
     set({
@@ -312,6 +342,7 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   clearActiveCall: () => {
+    _clearRingTimer();
     set({ activeCall: null, pendingIceCandidates: [], pendingSdpAnswer: null });
   },
 
