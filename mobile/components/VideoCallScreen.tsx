@@ -161,6 +161,10 @@ function avatarColor(name: string): string {
 export function VideoCallScreen() {
   const insets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
+  // Web-platform WebRTC refs (browser native APIs — no WebView needed on web)
+  const pcWebRef          = useRef<any>(null);
+  const lsWebRef          = useRef<any>(null);
+  const videoContainerRef = useRef<any>(null); // <View> that hosts DOM <video> elements on web
 
   const activeCall         = useCallStore((s) => s.activeCall);
   const pendingSdpAnswer   = useCallStore((s) => s.pendingSdpAnswer);
@@ -227,11 +231,145 @@ export function VideoCallScreen() {
     drained.forEach((c) => sendToWebView({ type: 'ice-candidate', data: c }));
   }, [webviewReady, pendingIce, drainIceCandidates]);
 
+  // ── Web-platform WebRTC command handler ───────────────────────────────────
+  const handleWebCommand = useCallback(async (msg: { type: string; data: any }) => {
+    const W = globalThis as any;
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+    switch (msg.type) {
+      case 'start':
+      case 'offer': {
+        const isCaller = msg.type === 'start' && !!msg.data?.isCaller;
+        try {
+          const stream = await (navigator as any).mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true },
+            video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          });
+          lsWebRef.current = stream;
+          // Attach local video (PiP) to the video container div
+          const container = videoContainerRef.current as unknown as HTMLElement;
+          if (container) {
+            const lv = W.document.createElement('video');
+            lv.id = 'lifegate-local-video';
+            lv.autoplay = true; lv.playsInline = true; lv.muted = true;
+            lv.style.cssText = 'position:absolute;bottom:100px;right:12px;width:90px;height:130px;border-radius:12px;object-fit:cover;z-index:10;border:2px solid rgba(255,255,255,0.4);background:#111;';
+            lv.srcObject = stream;
+            container.appendChild(lv);
+          }
+          const pc = new W.RTCPeerConnection(ICE);
+          pcWebRef.current = pc;
+          stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
+          pc.onicecandidate = async (e: any) => {
+            if (e.candidate && activeCall?.callId) {
+              const { CallService } = await import('../services/call-service');
+              CallService.sendIceCandidate(activeCall!.callId!, e.candidate.toJSON()).catch(() => {});
+            }
+          };
+          pc.ontrack = (e: any) => {
+            const c = videoContainerRef.current as unknown as HTMLElement;
+            if (c && !W.document.getElementById('lifegate-remote-video')) {
+              const rv = W.document.createElement('video');
+              rv.id = 'lifegate-remote-video';
+              rv.autoplay = true; rv.playsInline = true;
+              rv.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;';
+              rv.srcObject = e.streams[0];
+              c.insertBefore(rv, c.firstChild);
+            }
+            setRemoteStreamActive(true);
+          };
+          pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'connected') setCallActive();
+            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') endActiveCall();
+          };
+          if (isCaller) {
+            const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+            await pc.setLocalDescription(offer);
+            await offerReady(offer.sdp ?? '');
+          } else if (msg.data) {
+            await pc.setRemoteDescription(new W.RTCSessionDescription(msg.data));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await answerReady(answer.sdp ?? '');
+          }
+        } catch (err: any) {
+          console.error('[video/web] start error:', err.message);
+        }
+        break;
+      }
+      case 'answer': {
+        if (pcWebRef.current && msg.data) {
+          try { await pcWebRef.current.setRemoteDescription(new W.RTCSessionDescription(msg.data)); } catch {}
+        }
+        break;
+      }
+      case 'ice-candidate': {
+        if (pcWebRef.current && msg.data) {
+          try { await pcWebRef.current.addIceCandidate(new W.RTCIceCandidate(msg.data)); } catch {}
+        }
+        break;
+      }
+      case 'mute-audio': {
+        lsWebRef.current?.getAudioTracks().forEach((t: any) => { t.enabled = !msg.data.muted; });
+        break;
+      }
+      case 'mute-video': {
+        lsWebRef.current?.getVideoTracks().forEach((t: any) => { t.enabled = !msg.data.muted; });
+        break;
+      }
+      case 'flip': {
+        if (!lsWebRef.current || !pcWebRef.current) break;
+        try {
+          const oldTrack = lsWebRef.current.getVideoTracks()[0];
+          const cur = oldTrack?.getSettings?.()?.facingMode;
+          const next = cur === 'environment' ? 'user' : 'environment';
+          const ns = await (navigator as any).mediaDevices.getUserMedia({ video: { facingMode: next }, audio: false });
+          const newTrack = ns.getVideoTracks()[0];
+          const sender = (pcWebRef.current.getSenders?.() ?? []).find((s: any) => s.track?.kind === 'video');
+          if (sender) await sender.replaceTrack(newTrack);
+          oldTrack?.stop();
+          const lv = W.document?.getElementById('lifegate-local-video');
+          if (lv) { const ns2 = new W.MediaStream([newTrack, ...lsWebRef.current.getAudioTracks()]); lv.srcObject = ns2; lsWebRef.current = ns2; }
+        } catch (err: any) { console.error('[video/web] flip error:', err.message); }
+        break;
+      }
+      case 'end': {
+        lsWebRef.current?.getTracks().forEach((t: any) => t.stop());
+        pcWebRef.current?.close();
+        lsWebRef.current = null; pcWebRef.current = null;
+        ['lifegate-remote-video', 'lifegate-local-video'].forEach(id => {
+          const el = W.document?.getElementById(id);
+          if (el) { el.srcObject = null; el.parentNode?.removeChild(el); }
+        });
+        break;
+      }
+      default: break;
+    }
+  }, [activeCall, offerReady, answerReady, setCallActive, endActiveCall, setRemoteStreamActive]);
+
+  // On web there is no WebView to fire 'webview-ready', so set it immediately.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    setWebviewReady(true);
+    return () => {
+      lsWebRef.current?.getTracks().forEach((t: any) => t.stop());
+      pcWebRef.current?.close();
+      const W = globalThis as any;
+      ['lifegate-remote-video', 'lifegate-local-video'].forEach(id => {
+        const el = W.document?.getElementById(id);
+        if (el) { el.srcObject = null; el.parentNode?.removeChild(el); }
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const sendToWebView = useCallback((msg: object) => {
+    if (Platform.OS === 'web') {
+      handleWebCommand(msg as { type: string; data: any });
+      return;
+    }
     webviewRef.current?.injectJavaScript(
       `window.dispatchEvent(new MessageEvent('message',{data:${JSON.stringify(JSON.stringify(msg))}}));true;`,
     );
-  }, []);
+  }, [handleWebCommand]);
 
   const handleWebViewMessage = useCallback(
     async (event: WebViewMessageEvent) => {
@@ -313,20 +451,24 @@ export function VideoCallScreen() {
   return (
     <Modal visible animationType="fade" statusBarTranslucent>
       <View style={styles.container}>
-        {/* Full-screen Video WebView */}
-        <WebView
-          ref={webviewRef}
-          source={{ html: VIDEO_WEBRTC_HTML }}
-          style={StyleSheet.absoluteFill}
-          javaScriptEnabled
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          originWhitelist={['*']}
-          onMessage={handleWebViewMessage}
-          onError={() => {}}
-          allowsFullscreenVideo={false}
-          scrollEnabled={false}
-        />
+        {/* Full-screen Video WebView — native only; web uses browser APIs + DOM video elements */}
+        {Platform.OS === 'web' ? (
+          <View ref={videoContainerRef} style={StyleSheet.absoluteFill} />
+        ) : (
+          <WebView
+            ref={webviewRef}
+            source={{ html: VIDEO_WEBRTC_HTML }}
+            style={StyleSheet.absoluteFill}
+            javaScriptEnabled
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            originWhitelist={['*']}
+            onMessage={handleWebViewMessage}
+            onError={() => {}}
+            allowsFullscreenVideo={false}
+            scrollEnabled={false}
+          />
+        )}
 
         {/* Waiting overlay — shown before remote stream arrives */}
         {isWaiting && (

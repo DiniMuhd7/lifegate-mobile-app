@@ -135,6 +135,10 @@ function avatarColor(name: string): string {
 export function VoiceCallScreen() {
   const insets = useSafeAreaInsets();
   const webviewRef = useRef<WebView>(null);
+  // Web-platform WebRTC refs (browser native APIs — no WebView needed on web)
+  const pcWebRef   = useRef<any>(null);
+  const lsWebRef   = useRef<any>(null);
+  const audioElRef = useRef<any>(null);
 
   const activeCall       = useCallStore((s) => s.activeCall);
   const pendingSdpAnswer = useCallStore((s) => s.pendingSdpAnswer);
@@ -215,11 +219,108 @@ export function VoiceCallScreen() {
     drained.forEach((c) => sendToWebView({ type: 'ice-candidate', data: c }));
   }, [webviewReady, pendingIce, drainIceCandidates]);
 
+  // ── Web-platform WebRTC command handler ─────────────────────────────────────
+  // On web the page IS already a browser, so we drive RTCPeerConnection directly
+  // instead of going through a hidden WebView.
+  const handleWebCommand = useCallback(async (msg: { type: string; data: any }) => {
+    const W = globalThis as any;
+    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+    switch (msg.type) {
+      case 'start':
+      case 'offer': {
+        const isCaller = msg.type === 'start' && !!msg.data?.isCaller;
+        try {
+          const stream = await (navigator as any).mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+            video: false,
+          });
+          lsWebRef.current = stream;
+          const pc = new W.RTCPeerConnection(ICE);
+          pcWebRef.current = pc;
+          stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
+          pc.onicecandidate = async (e: any) => {
+            if (e.candidate && activeCall?.callId) {
+              const { CallService } = await import('../services/call-service');
+              CallService.sendIceCandidate(activeCall!.callId!, e.candidate.toJSON()).catch(() => {});
+            }
+          };
+          pc.ontrack = (e: any) => {
+            if (!audioElRef.current) {
+              audioElRef.current = new W.Audio();
+              audioElRef.current.autoplay = true;
+            }
+            audioElRef.current.srcObject = e.streams[0];
+            audioElRef.current.play().catch(() => {});
+          };
+          pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'connected') setCallActive();
+            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') endActiveCall();
+          };
+          if (isCaller) {
+            const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
+            await pc.setLocalDescription(offer);
+            await offerReady(offer.sdp ?? '');
+          } else if (msg.data) {
+            await pc.setRemoteDescription(new W.RTCSessionDescription(msg.data));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await answerReady(answer.sdp ?? '');
+          }
+        } catch (err: any) {
+          console.error('[voice/web] start error:', err.message);
+        }
+        break;
+      }
+      case 'answer': {
+        if (pcWebRef.current && msg.data) {
+          try { await pcWebRef.current.setRemoteDescription(new W.RTCSessionDescription(msg.data)); } catch {}
+        }
+        break;
+      }
+      case 'ice-candidate': {
+        if (pcWebRef.current && msg.data) {
+          try { await pcWebRef.current.addIceCandidate(new W.RTCIceCandidate(msg.data)); } catch {}
+        }
+        break;
+      }
+      case 'mute': {
+        lsWebRef.current?.getAudioTracks().forEach((t: any) => { t.enabled = !msg.data.muted; });
+        break;
+      }
+      case 'end': {
+        lsWebRef.current?.getTracks().forEach((t: any) => t.stop());
+        pcWebRef.current?.close();
+        lsWebRef.current = null;
+        pcWebRef.current = null;
+        if (audioElRef.current) { audioElRef.current.srcObject = null; audioElRef.current = null; }
+        break;
+      }
+      default: break;
+    }
+  }, [activeCall, offerReady, answerReady, setCallActive, endActiveCall]);
+
+  // On web there is no WebView to fire 'webview-ready', so set it immediately.
+  // Also clean up native WebRTC resources on unmount.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    setWebviewReady(true);
+    return () => {
+      lsWebRef.current?.getTracks().forEach((t: any) => t.stop());
+      pcWebRef.current?.close();
+      if (audioElRef.current) { audioElRef.current.srcObject = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const sendToWebView = useCallback((msg: object) => {
+    if (Platform.OS === 'web') {
+      handleWebCommand(msg as { type: string; data: any });
+      return;
+    }
     webviewRef.current?.injectJavaScript(
       `window.dispatchEvent(new MessageEvent('message',{data:${JSON.stringify(JSON.stringify(msg))}}));true;`,
     );
-  }, []);
+  }, [handleWebCommand]);
 
   const handleWebViewMessage = useCallback(
     async (event: WebViewMessageEvent) => {
@@ -295,19 +396,20 @@ export function VoiceCallScreen() {
     <Modal visible animationType="slide" statusBarTranslucent>
       <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
 
-        {/* Hidden audio WebView */}
-        <WebView
-          ref={webviewRef}
-          source={{ html: VOICE_WEBRTC_HTML }}
-          style={styles.hiddenWebView}
-          javaScriptEnabled
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          originWhitelist={['*']}
-          onMessage={handleWebViewMessage}
-          // Silence console logs from WebView in release builds
-          onError={() => {}}
-        />
+        {/* Hidden audio WebView — native only; web uses browser APIs directly */}
+        {Platform.OS !== 'web' && (
+          <WebView
+            ref={webviewRef}
+            source={{ html: VOICE_WEBRTC_HTML }}
+            style={styles.hiddenWebView}
+            javaScriptEnabled
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            originWhitelist={['*']}
+            onMessage={handleWebViewMessage}
+            onError={() => {}}
+          />
+        )}
 
         {/* Header */}
         <View style={styles.header}>
