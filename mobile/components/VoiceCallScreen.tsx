@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { useCallStore } from '../stores/call-store';
+import { useRingtone } from '../hooks/useRingtone';
 
 // ─── WebRTC HTML ──────────────────────────────────────────────────────────────
 // Injected into a hidden WebView; handles RTCPeerConnection for audio.
@@ -387,10 +388,13 @@ export function VoiceCallScreen() {
 
   if (!activeCall) return null;
 
-  const peerName = activeCall.peerName;
-  const initials = getInitials(peerName);
-  const bgColor  = avatarColor(peerName);
+  const peerName  = activeCall.peerName;
+  const initials  = getInitials(peerName);
+  const bgColor   = avatarColor(peerName);
   const isRinging = activeCall.status === 'calling' || activeCall.status === 'ringing';
+
+  // Play ringtone while the call is ringing / waiting to be answered
+  useRingtone(isRinging);
 
   return (
     <Modal visible animationType="slide" statusBarTranslucent>
