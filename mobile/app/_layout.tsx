@@ -66,12 +66,9 @@ export default function RootLayout() {
   // on unrelated store changes by reading only the fields we need).
   const callType   = useCallStore((s) => s.activeCall?.callType ?? null);
   const callStatus = useCallStore((s) => s.activeCall?.status ?? null);
-  const hasActiveCall =
-    callType !== null &&
-    callStatus !== null &&
-    callStatus !== 'ended' &&
-    callStatus !== 'rejected' &&
-    callStatus !== 'missed';
+  // The store auto-clears activeCall after a delay when status becomes 'ended'
+  // or 'rejected', so screens remain mounted long enough to show feedback.
+  const hasActiveCall = callType !== null && callStatus !== null;
 
   return (
     <ErrorBoundary>

@@ -134,7 +134,9 @@ export const useCallStore = create<CallState>((set, get) => ({
               callId: result.call_id,
               peerName: result.callee_name || s.activeCall.peerName,
               peerAvatarUrl: result.callee_avatar_url || s.activeCall.peerAvatarUrl,
-              status: 'ringing',
+              // Don't regress status if call.answered already advanced it to
+              // 'connecting' (OpenClaw WS arrives before HTTP response).
+              status: s.activeCall.status === 'calling' ? 'ringing' : s.activeCall.status,
             }
           : null,
       }));
@@ -208,8 +210,17 @@ export const useCallStore = create<CallState>((set, get) => ({
 
   endActiveCall: async () => {
     const { activeCall } = get();
-    set({ activeCall: null, pendingIceCandidates: [], pendingSdpAnswer: null });
-    if (!activeCall?.callId) return;
+    if (!activeCall) return;
+    // Show 'ended' briefly so the user sees feedback before the screen unmounts.
+    set({
+      activeCall: { ...activeCall, status: 'ended' },
+      pendingIceCandidates: [],
+      pendingSdpAnswer: null,
+    });
+    setTimeout(() => {
+      if (get().activeCall?.status === 'ended') set({ activeCall: null });
+    }, 1500);
+    if (!activeCall.callId) return;
     try {
       await CallService.endCall(activeCall.callId);
     } catch {}
@@ -268,6 +279,10 @@ export const useCallStore = create<CallState>((set, get) => ({
       pendingIceCandidates: [],
       pendingSdpAnswer: null,
     });
+    // Auto-dismiss after a short delay so the user sees "Call declined" feedback.
+    setTimeout(() => {
+      if (get().activeCall?.status === 'rejected') set({ activeCall: null });
+    }, 2500);
   },
 
   onCallEnded: (payload) => {
@@ -278,6 +293,10 @@ export const useCallStore = create<CallState>((set, get) => ({
       pendingIceCandidates: [],
       pendingSdpAnswer: null,
     });
+    // Auto-dismiss after a short delay so the user sees "Call ended" feedback.
+    setTimeout(() => {
+      if (get().activeCall?.status === 'ended') set({ activeCall: null });
+    }, 2500);
   },
 
   onIceCandidate: (payload) => {

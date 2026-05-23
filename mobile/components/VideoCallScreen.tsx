@@ -68,7 +68,9 @@ function buildPC(){
   pc.onconnectionstatechange=()=>{
     post('connection-state',{state:pc.connectionState});
     if(pc.connectionState==='connected')post('connected',{});
-    if(pc.connectionState==='failed'||pc.connectionState==='disconnected')post('disconnected',{});
+    // 'disconnected' is a transient ICE state — do NOT treat it as terminal.
+    // Only 'failed' is a permanent unrecoverable failure.
+    if(pc.connectionState==='failed')post('disconnected',{});
   };
   pc.ontrack=e=>{
     // Play remote audio regardless of track kind.
@@ -303,7 +305,8 @@ export function VideoCallScreen() {
           };
           pc.onconnectionstatechange = () => {
             if (pc.connectionState === 'connected') setCallActive();
-            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') endActiveCall();
+            // 'disconnected' is a transient ICE state — only 'failed' is terminal.
+            if (pc.connectionState === 'failed') endActiveCall();
           };
           if (isCaller) {
             const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
