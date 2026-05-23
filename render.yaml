@@ -87,8 +87,14 @@ services:
 
       # WebRTC TURN server — REQUIRED for voice calls on Render.
       # Render containers cannot receive inbound UDP, so WebRTC ICE will always fail
-      # without a TURN relay.  Recommended providers: Metered (metered.ca free tier),
-      # Twilio NTS, or self-hosted coturn.
+      # without a TURN relay.
+      #
+      # Recommended: set METERED_API_KEY — the backend fetches fresh credentials from
+      # the Metered REST API (https://lifegate.metered.live) and caches them for 23 h.
+      # Static TURN_URLS/USERNAME/CREDENTIAL are the fallback when the key is absent.
+      - key: METERED_API_KEY
+        sync: false            # secret — set in Render dashboard (value from metered.ca)
+      # Static TURN fallback — only needed if METERED_API_KEY is not set.
       # TURN_URLS: comma-separated turn/turns URIs, e.g.:
       #   turn:global.relay.metered.ca:80,turns:global.relay.metered.ca:443
       - key: TURN_URLS

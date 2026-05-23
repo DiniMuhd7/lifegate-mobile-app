@@ -34,31 +34,6 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 )
 
-// ── ICE server configuration ──────────────────────────────────────────────────
-
-// buildICEConfig constructs a WebRTC configuration with STUN servers and,
-// optionally, a TURN server for NAT traversal on cloud platforms (Render, etc.)
-// where random UDP ports are not reachable from the public internet.
-func buildICEConfig(turnURLs, turnUsername, turnCredential string) webrtc.Configuration {
-	servers := []webrtc.ICEServer{
-		{URLs: []string{"stun:stun.l.google.com:19302"}},
-		{URLs: []string{"stun:stun1.l.google.com:19302"}},
-	}
-	if turnURLs != "" {
-		urls := strings.Split(turnURLs, ",")
-		for i, u := range urls {
-			urls[i] = strings.TrimSpace(u)
-		}
-		servers = append(servers, webrtc.ICEServer{
-			URLs:           urls,
-			Username:       turnUsername,
-			Credential:     turnCredential,
-			CredentialType: webrtc.ICECredentialTypePassword,
-		})
-	}
-	return webrtc.Configuration{ICEServers: servers}
-}
-
 // ── openClawSession ───────────────────────────────────────────────────────────
 
 // openClawSession is a live WebRTC session on the server side, acting as the
@@ -130,7 +105,7 @@ func newOpenClawSession(
 	sess *callSession,
 	agentSlug, agentsDir string,
 	offerSDP string,
-	turnURLs, turnUsername, turnCredential string,
+	iceConfig webrtc.Configuration,
 ) (*openClawSession, *webrtc.SessionDescription, error) {
 
 	ctx, cancel := context.WithCancel(parentCtx)
@@ -160,7 +135,7 @@ func newOpenClawSession(
 	}
 
 	// ── Build Pion PeerConnection ─────────────────────────────────────────
-	pc, err := webrtc.NewPeerConnection(buildICEConfig(turnURLs, turnUsername, turnCredential))
+	pc, err := webrtc.NewPeerConnection(iceConfig)
 	if err != nil {
 		cancel()
 		return nil, nil, fmt.Errorf("pion: new peer connection: %w", err)

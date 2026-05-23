@@ -81,6 +81,7 @@ type Config struct {
 	// will fail because the server-side Pion peer cannot receive UDP media traffic.
 	// Use a provider such as Metered (metered.ca), Twilio (NTS), or self-hosted coturn.
 	// TURN_URLS: comma-separated turn/turns URIs, e.g. "turn:global.relay.metered.ca:80,turns:global.relay.metered.ca:443"
+	MeteredAPIKey  string // METERED_API_KEY — preferred; enables dynamic credential fetch
 	TURNURLs       string
 	TURNUsername   string
 	TURNCredential string
@@ -162,6 +163,7 @@ func Load() *Config {
 		TURNURLs:       getEnv("TURN_URLS", ""),
 		TURNUsername:   getEnv("TURN_USERNAME", ""),
 		TURNCredential: getEnv("TURN_CREDENTIAL", ""),
+		MeteredAPIKey:  getEnv("METERED_API_KEY", ""),
 	}
 }
 

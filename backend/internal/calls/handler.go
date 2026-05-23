@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -73,26 +75,28 @@ type Handler struct {
 	pionSessions sync.Map // callID → *openClawSession (AI physician calls)
 
 	// OpenClaw AI config
-	// provider is the shared AI provider instance (same as EDIS/OpenClaw IM) so
-	// the model name is always in sync. openAIKey is kept separately because
-	// Whisper (STT) and TTS use OpenAI audio endpoints regardless of which chat
-	// provider is active.
 	agentsDir  string
 	provider   ai.AIProvider
 	openAIKey  string
 
-	// TURN server config for WebRTC NAT traversal.
+	// Metered TURN — primary ICE source (dynamic credentials, auto-rotated).
+	// If meteredAPIKey is set, getICEConfig() fetches from
+	// https://<app>.metered.live/api/v1/turn/credentials?apiKey=<key>.
+	meteredAPIKey string
+
+	// Static TURN fallback — used when meteredAPIKey is empty.
 	turnURLs       string
 	turnUsername   string
 	turnCredential string
+
+	// Cached ICE servers fetched from Metered (valid for ~24 h).
+	iceMu        sync.RWMutex
+	iceServers   []webrtc.ICEServer
+	iceExpiresAt time.Time
 }
 
 // NewHandler creates a new call handler.
-// provider must be the same ai.AIProvider instance used by EDIS and OpenClaw IM
-// so that the model name is guaranteed to be consistent across all AI subsystems.
-// openAIKey is the raw OpenAI API key used exclusively for Whisper STT and TTS
-// (audio endpoints that are always OpenAI-specific regardless of the chat provider).
-func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir string, provider ai.AIProvider, openAIKey, turnURLs, turnUsername, turnCredential string) *Handler {
+func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir string, provider ai.AIProvider, openAIKey, meteredAPIKey, turnURLs, turnUsername, turnCredential string) *Handler {
 	return &Handler{
 		hub:            hub,
 		push:           push,
@@ -100,10 +104,106 @@ func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir string
 		agentsDir:      agentsDir,
 		provider:       provider,
 		openAIKey:      openAIKey,
+		meteredAPIKey:  meteredAPIKey,
 		turnURLs:       turnURLs,
 		turnUsername:   turnUsername,
 		turnCredential: turnCredential,
 	}
+}
+
+// getICEConfig returns the WebRTC ICE configuration to use for Pion sessions.
+// When a Metered API key is set it fetches fresh credentials (cached for 23 h
+// to stay well within Metered's 24 h TTL). Falls back to static TURN config.
+func (h *Handler) getICEConfig(ctx context.Context) webrtc.Configuration {
+	servers := h.fetchICEServers(ctx)
+	return webrtc.Configuration{ICEServers: servers}
+}
+
+// fetchICEServers returns ICE servers, using the Metered API when configured.
+func (h *Handler) fetchICEServers(ctx context.Context) []webrtc.ICEServer {
+	if h.meteredAPIKey != "" {
+		// Return cached servers if still fresh.
+		h.iceMu.RLock()
+		if time.Now().Before(h.iceExpiresAt) && len(h.iceServers) > 0 {
+			servers := h.iceServers
+			h.iceMu.RUnlock()
+			return servers
+		}
+		h.iceMu.RUnlock()
+
+		// Fetch fresh credentials from Metered.
+		servers, err := fetchMeteredServers(ctx, h.meteredAPIKey)
+		if err != nil {
+			log.Printf("[calls] Metered TURN fetch: %v — falling back to static config", err)
+		} else {
+			h.iceMu.Lock()
+			h.iceServers = servers
+			h.iceExpiresAt = time.Now().Add(23 * time.Hour)
+			h.iceMu.Unlock()
+			return servers
+		}
+	}
+	return buildStaticICEServers(h.turnURLs, h.turnUsername, h.turnCredential)
+}
+
+// fetchMeteredServers calls the Metered REST API and returns Pion ICEServer values.
+func fetchMeteredServers(ctx context.Context, apiKey string) ([]webrtc.ICEServer, error) {
+	url := "https://lifegate.metered.live/api/v1/turn/credentials?apiKey=" + apiKey
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("metered API %d: %s", resp.StatusCode, body)
+	}
+
+	// Metered returns [{"urls":"stun:..."},...,{"urls":"turn:...","username":"...","credential":"..."}]
+	var raw []struct {
+		URLs       string `json:"urls"`
+		Username   string `json:"username"`
+		Credential string `json:"credential"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		return nil, err
+	}
+	servers := make([]webrtc.ICEServer, 0, len(raw))
+	for _, s := range raw {
+		entry := webrtc.ICEServer{URLs: []string{s.URLs}}
+		if s.Username != "" {
+			entry.Username = s.Username
+			entry.Credential = s.Credential
+			entry.CredentialType = webrtc.ICECredentialTypePassword
+		}
+		servers = append(servers, entry)
+	}
+	return servers, nil
+}
+
+// buildStaticICEServers constructs servers from explicit TURN env vars.
+func buildStaticICEServers(turnURLs, turnUsername, turnCredential string) []webrtc.ICEServer {
+	servers := []webrtc.ICEServer{
+		{URLs: []string{"stun:stun.l.google.com:19302"}},
+		{URLs: []string{"stun:stun1.l.google.com:19302"}},
+	}
+	if turnURLs != "" {
+		urls := strings.Split(turnURLs, ",")
+		for i, u := range urls {
+			urls[i] = strings.TrimSpace(u)
+		}
+		servers = append(servers, webrtc.ICEServer{
+			URLs:           urls,
+			Username:       turnUsername,
+			Credential:     turnCredential,
+			CredentialType: webrtc.ICECredentialTypePassword,
+		})
+	}
+	return servers
 }
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -192,7 +292,7 @@ func (h *Handler) Offer(c *gin.Context) {
 			h.provider, h.openAIKey,
 			session, agentSlug, h.agentsDir,
 			req.SDPOffer,
-			h.turnURLs, h.turnUsername, h.turnCredential,
+			h.getICEConfig(c.Request.Context()),
 		)
 		if err != nil {
 			h.sessions.Delete(session.CallID)
@@ -517,10 +617,10 @@ func (h *Handler) expireRingingCall(session *callSession, callerName string) {
 	}
 }
 
-// IceServers returns the ICE server configuration (STUN + optional TURN) for
-// the client to use when creating an RTCPeerConnection.  Authenticated clients
-// (patients and physicians) may call this endpoint.  TURN credentials are
-// included when configured via TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL.
+// IceServers returns the ICE server configuration (STUN + TURN) for the client
+// to use when creating an RTCPeerConnection.  When METERED_API_KEY is set, fresh
+// credentials are fetched from Metered and cached for 23 h.  Falls back to
+// static TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL when not configured.
 func (h *Handler) IceServers(c *gin.Context) {
 	type iceServerDTO struct {
 		URLs       []string `json:"urls"`
@@ -528,22 +628,17 @@ func (h *Handler) IceServers(c *gin.Context) {
 		Credential string   `json:"credential,omitempty"`
 	}
 
-	servers := []iceServerDTO{
-		{URLs: []string{"stun:stun.l.google.com:19302"}},
-		{URLs: []string{"stun:stun1.l.google.com:19302"}},
-	}
-
-	if h.turnURLs != "" {
-		urls := strings.Split(h.turnURLs, ",")
-		for i, u := range urls {
-			urls[i] = strings.TrimSpace(u)
+	raw := h.fetchICEServers(c.Request.Context())
+	servers := make([]iceServerDTO, 0, len(raw))
+	for _, s := range raw {
+		dto := iceServerDTO{URLs: s.URLs}
+		if s.Username != "" {
+			dto.Username = s.Username
 		}
-		servers = append(servers, iceServerDTO{
-			URLs:       urls,
-			Username:   h.turnUsername,
-			Credential: h.turnCredential,
-		})
+		if cred, ok := s.Credential.(string); ok && cred != "" {
+			dto.Credential = cred
+		}
+		servers = append(servers, dto)
 	}
-
 	c.JSON(http.StatusOK, gin.H{"data": servers})
 }
