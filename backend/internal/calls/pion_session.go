@@ -216,7 +216,7 @@ func (s *openClawSession) Start() {
 		if c == nil {
 			return // gathering complete
 		}
-		payload, err := candidateToJSON(c)
+		payload, err := candidateToJSON(c, s.callID)
 		if err == nil {
 			s.hub.BroadcastToUser(s.callerID, "call.ice-candidate", payload)
 		}
@@ -585,12 +585,18 @@ func loadCaseContext(db *sql.DB, diagnosisID string) (patientName, context strin
 
 // candidateToJSON serialises a Pion ICECandidate to the JSON payload format
 // expected by the frontend call.ice-candidate WebSocket event.
-func candidateToJSON(c *webrtc.ICECandidate) ([]byte, error) {
+// The candidate fields are nested under "candidate" as an RTCIceCandidateInit
+// object, matching the CallIceCandidatePayload TypeScript interface.
+func candidateToJSON(c *webrtc.ICECandidate, callID string) ([]byte, error) {
 	init := c.ToJSON()
-	payload := map[string]interface{}{
+	candidate := map[string]interface{}{
 		"candidate":     init.Candidate,
 		"sdpMid":        init.SDPMid,
 		"sdpMLineIndex": init.SDPMLineIndex,
+	}
+	payload := map[string]interface{}{
+		"call_id":   callID,
+		"candidate": candidate,
 	}
 	return json.Marshal(payload)
 }

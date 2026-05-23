@@ -174,14 +174,18 @@ func (h *Handler) Offer(c *gin.Context) {
 		h.pionSessions.Store(session.CallID, pionSess)
 		session.Status = statusActive
 
-		// Wire ICE callbacks and start audio pipeline.
-		pionSess.Start()
-
+		// Send the SDP answer to the patient BEFORE starting the audio pipeline.
+		// This ensures the patient's RTCPeerConnection calls setRemoteDescription
+		// before any trickle ICE candidates arrive, avoiding a race where
+		// addIceCandidate fires before the remote description is set.
 		answerPayload, _ := json.Marshal(map[string]string{
 			"call_id":    session.CallID,
 			"sdp_answer": answer.SDP,
 		})
 		h.hub.BroadcastToUser(callerID, "call.answered", answerPayload)
+
+		// Wire ICE callbacks and start audio pipeline AFTER sending the answer.
+		pionSess.Start()
 
 		c.JSON(http.StatusOK, gin.H{"data": gin.H{
 			"call_id":           session.CallID,
