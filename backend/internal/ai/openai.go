@@ -35,9 +35,7 @@ Content string `json:"content"`
 msgs := []openAIMessage{{Role: "system", Content: systemPrompt}}
 for _, m := range messages {
 role := "user"
-if strings.EqualFold(m.Role, "AI") {
-role = "assistant"
-} else if strings.EqualFold(m.Role, "SYSTEM") {
+		if strings.EqualFold(m.Role, "AI") || strings.EqualFold(m.Role, "assistant") {
 role = "system"
 }
 msgs = append(msgs, openAIMessage{Role: role, Content: m.Text})

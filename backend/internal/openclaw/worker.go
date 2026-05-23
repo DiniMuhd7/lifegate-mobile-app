@@ -518,7 +518,9 @@ func (w *Worker) buildSystemPrompt(c caseNeedingReply) (string, error) {
 	sb.WriteString("- Use 1–2 relevant emojis naturally — do not overuse them.\n")
 	sb.WriteString("- Do NOT mention EDIS, AI, algorithms, or any technology — speak as a human physician.\n")
 	sb.WriteString("- Do NOT use medical jargon without immediately explaining it in plain terms.\n")
-	sb.WriteString("- Respond ONLY with the message text — no JSON, no markdown headers, no labels.\n")
+	sb.WriteString("- Respond with ONLY a JSON object containing a single 'text' field with your message.\n")
+	sb.WriteString("  Example: {\"text\": \"Hello, I've reviewed your results and...\"}\n")
+	sb.WriteString("  No other JSON fields, no markdown, no prose outside the JSON object.\n")
 
 	return sb.String(), nil
 }

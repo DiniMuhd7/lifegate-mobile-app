@@ -33,7 +33,7 @@ func (cl *claudeCodeProvider) Chat(ctx context.Context, systemPrompt string, mes
 	for _, m := range messages {
 		role := "user"
 		content := m.Text
-		if strings.EqualFold(m.Role, "AI") {
+		if strings.EqualFold(m.Role, "AI") || strings.EqualFold(m.Role, "assistant") {
 			role = "assistant"
 		} else if strings.EqualFold(m.Role, "SYSTEM") {
 			// Anthropic messages API does not support a "system" role in the messages

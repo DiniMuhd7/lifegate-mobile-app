@@ -44,7 +44,7 @@ Parts: []part{{Text: "Understood. I will respond as LifeGate health assistant in
 for _, m := range messages {
 role := "user"
 text := m.Text
-if strings.EqualFold(m.Role, "AI") {
+if strings.EqualFold(m.Role, "AI") || strings.EqualFold(m.Role, "assistant") {
 role = "model"
 } else if strings.EqualFold(m.Role, "SYSTEM") {
 // Gemini only supports "user" and "model" roles — prepend a clear label so
