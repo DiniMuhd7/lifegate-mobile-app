@@ -9,7 +9,9 @@ services:
     name: lifegate-backend
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    # Build context is the repo root so the Dockerfile can access both the
+    # backend source and lifegate-openclaw/agents persona files.
+    dockerContext: .
     plan: standard          # standard plan required for zero-downtime deploys + scaling
     region: oregon
     branch: main
@@ -77,6 +79,11 @@ services:
         value: codex-mini-latest
       - key: CLAUDE_CODE_MODEL
         value: claude-opus-4-5
+
+      # OpenClaw AI physician worker — path to agent persona files inside the container.
+      # The Dockerfile copies lifegate-openclaw/agents/ to /app/agents/ at build time.
+      - key: OPENCLAW_AGENTS_DIR
+        value: /app/agents
 
       # Payments — Flutterwave
       # Configure webhook URL in Flutterwave dashboard → Settings → Webhooks:

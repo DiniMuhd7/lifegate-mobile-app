@@ -43,9 +43,15 @@ services:
   # ── Backend (horizontally scaled — 2 stateless replicas behind nginx) ──────
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # Build context is the repo root so the Dockerfile can copy both the
+      # backend source and the lifegate-openclaw/agents persona files.
+      context: .
+      dockerfile: ./backend/Dockerfile
     env_file: ./backend/.env
+    environment:
+      # Override the default agents path so the binary finds them at the
+      # path they are copied to inside the Docker image.
+      - OPENCLAW_AGENTS_DIR=/app/agents
     # No host port binding — traffic arrives only through the nginx proxy.
     expose:
       - '5000'
