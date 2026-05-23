@@ -53,7 +53,7 @@ import * as Haptics from 'expo-haptics';
 import { useIMStore } from '../stores/im-store';
 import { useAuthStore } from '../stores/auth-store';
 import { useCallStore } from '../stores/call-store';
-import { IMMessage } from '../types/im-types';
+import { IMMessage, CallTranscriptMeta } from '../types/im-types';
 import wsService from '../services/websocket-service';
 
 // ─── Dimensions ───────────────────────────────────────────────────────────────
@@ -190,6 +190,74 @@ interface InstantMessageModalProps {
   callDisplayName?: string;
 }
 
+// ─── Transcript card ─────────────────────────────────────────────────────────
+
+const TranscriptCard = React.memo(
+  ({ message, meta }: { message: IMMessage; meta: CallTranscriptMeta }) => {
+    const [expanded, setExpanded] = useState(false);
+    const time = new Date(message.created_at).toLocaleTimeString([], {
+      hour:   '2-digit',
+      minute: '2-digit',
+    });
+    const icon: 'videocam-outline' | 'call-outline' =
+      meta.call_type === 'video' ? 'videocam-outline' : 'call-outline';
+    const label = meta.call_type === 'video' ? 'Video' : 'Voice';
+    const exchangeCount = meta.turns.filter((t) => t.speaker === 'patient').length;
+
+    return (
+      <View style={styles.transcriptCard}>
+        {/* Header row — always visible */}
+        <TouchableOpacity
+          style={styles.transcriptHeader}
+          onPress={() => setExpanded((e) => !e)}
+          activeOpacity={0.75}
+        >
+          <View style={styles.transcriptIconWrap}>
+            <Ionicons name={icon} size={16} color="#0AADA2" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.transcriptTitle}>{label} Call Transcript</Text>
+            <Text style={styles.transcriptMeta}>
+              {exchangeCount} exchange{exchangeCount !== 1 ? 's' : ''} · {time}
+            </Text>
+          </View>
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color="#9ca3af"
+          />
+        </TouchableOpacity>
+
+        {/* Turn-by-turn transcript — shown when expanded */}
+        {expanded && (
+          <View style={styles.transcriptBody}>
+            {meta.turns.map((turn, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.transcriptTurn,
+                  turn.speaker === 'patient' ? styles.transcriptTurnPatient : styles.transcriptTurnPhysician,
+                ]}
+              >
+                <Text style={styles.transcriptSpeaker}>
+                  {turn.speaker === 'patient' ? 'You' : message.sender_name}
+                </Text>
+                <Text style={styles.transcriptText}>{turn.text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Timestamp footer */}
+        <View style={styles.transcriptFooter}>
+          <Text style={styles.transcriptFooterText}>{time}</Text>
+          <Ionicons name="checkmark-done" size={11} color="#9ca3af" style={{ marginLeft: 3 }} />
+        </View>
+      </View>
+    );
+  },
+);
+
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
 interface BubbleProps {
@@ -213,6 +281,15 @@ const Bubble = React.memo(
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }, [message.content]);
+
+    /* ── Call-transcript card ── */
+    if (message.metadata?.type === 'call_transcript') {
+      return (
+        <View style={[styles.transcriptWrapper, { marginTop: isFirstInGroup ? 10 : 4 }]}>
+          <TranscriptCard message={message} meta={message.metadata as CallTranscriptMeta} />
+        </View>
+      );
+    }
 
     /* ── Failed state: red bubble, tap to retry ── */
     if (message._failed) {
@@ -1213,5 +1290,94 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: '#d1d5db',
+  },
+  // ── Call-transcript card ──────────────────────────────────────────────────
+  transcriptWrapper: {
+    alignSelf: 'stretch',
+    marginHorizontal: 0,
+    marginBottom: 2,
+  },
+  transcriptCard: {
+    backgroundColor: '#f0fffe',
+    borderWidth: 1,
+    borderColor: '#99e6e2',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  transcriptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  transcriptIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e0faf8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  transcriptTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0e7c76',
+  },
+  transcriptMeta: {
+    fontSize: 11,
+    color: '#6b9e9a',
+    marginTop: 1,
+  },
+  transcriptBody: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#b2e8e5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  transcriptTurn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  transcriptTurnPatient: {
+    backgroundColor: '#e0faf8',
+    alignSelf: 'flex-end',
+    maxWidth: '92%',
+  },
+  transcriptTurnPhysician: {
+    backgroundColor: '#ffffff',
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#d1faf7',
+  },
+  transcriptSpeaker: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6b9e9a',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  transcriptText: {
+    fontSize: 13,
+    color: '#1f2937',
+    lineHeight: 18,
+  },
+  transcriptFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#b2e8e5',
+  },
+  transcriptFooterText: {
+    fontSize: 10,
+    color: '#9ca3af',
   },
 });

@@ -2,6 +2,7 @@ package im
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -11,14 +12,17 @@ var ErrNotFound = errors.New("instant message not found")
 
 // Message is a single IM entry persisted in instant_messages.
 type Message struct {
-	ID          string    `json:"id"`
-	DiagnosisID string    `json:"diagnosis_id"`
-	SenderID    string    `json:"sender_id"`
-	SenderRole  string    `json:"sender_role"` // "user" | "professional"
-	SenderName  string    `json:"sender_name"`
-	Content     string    `json:"content"`
-	CreatedAt   time.Time `json:"created_at"`
-	ReadAt      *time.Time `json:"read_at"`
+	ID          string          `json:"id"`
+	DiagnosisID string          `json:"diagnosis_id"`
+	SenderID    string          `json:"sender_id"`
+	SenderRole  string          `json:"sender_role"` // "user" | "professional"
+	SenderName  string          `json:"sender_name"`
+	Content     string          `json:"content"`
+	CreatedAt   time.Time       `json:"created_at"`
+	ReadAt      *time.Time      `json:"read_at"`
+	// Metadata carries optional structured data (e.g. call-transcript payload).
+	// Stored as JSONB in the database; nil when not set.
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
 }
 
 // Repository handles persistence for instant messages.
@@ -36,14 +40,18 @@ func (r *Repository) Create(diagnosisID, senderID, senderRole, senderName, conte
 	const q = `
 		INSERT INTO instant_messages (diagnosis_id, sender_id, sender_role, sender_name, content)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, diagnosis_id, sender_id, sender_role, sender_name, content, created_at, read_at`
+		RETURNING id, diagnosis_id, sender_id, sender_role, sender_name, content, created_at, read_at, metadata`
 
 	msg := &Message{}
+	var meta []byte
 	err := r.db.QueryRow(q, diagnosisID, senderID, senderRole, senderName, content).
 		Scan(&msg.ID, &msg.DiagnosisID, &msg.SenderID, &msg.SenderRole,
-			&msg.SenderName, &msg.Content, &msg.CreatedAt, &msg.ReadAt)
+			&msg.SenderName, &msg.Content, &msg.CreatedAt, &msg.ReadAt, &meta)
 	if err != nil {
 		return nil, err
+	}
+	if meta != nil {
+		msg.Metadata = json.RawMessage(meta)
 	}
 	return msg, nil
 }
@@ -51,7 +59,7 @@ func (r *Repository) Create(diagnosisID, senderID, senderRole, senderName, conte
 // ListByDiagnosis returns all messages for a diagnosis ordered oldest-first.
 func (r *Repository) ListByDiagnosis(diagnosisID string) ([]Message, error) {
 	const q = `
-		SELECT id, diagnosis_id, sender_id, sender_role, sender_name, content, created_at, read_at
+		SELECT id, diagnosis_id, sender_id, sender_role, sender_name, content, created_at, read_at, metadata
 		FROM   instant_messages
 		WHERE  diagnosis_id = $1
 		ORDER  BY created_at ASC`
@@ -65,9 +73,13 @@ func (r *Repository) ListByDiagnosis(diagnosisID string) ([]Message, error) {
 	var msgs []Message
 	for rows.Next() {
 		var m Message
+		var meta []byte
 		if err := rows.Scan(&m.ID, &m.DiagnosisID, &m.SenderID, &m.SenderRole,
-			&m.SenderName, &m.Content, &m.CreatedAt, &m.ReadAt); err != nil {
+			&m.SenderName, &m.Content, &m.CreatedAt, &m.ReadAt, &meta); err != nil {
 			return nil, err
+		}
+		if meta != nil {
+			m.Metadata = json.RawMessage(meta)
 		}
 		msgs = append(msgs, m)
 	}

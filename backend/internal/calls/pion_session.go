@@ -79,6 +79,11 @@ type openClawSession struct {
 	bufMu  sync.Mutex
 	opusBuf [][]byte // each slice is one RTP payload (one Opus frame)
 
+	// Persistence — used to save the call transcript when the session ends.
+	db          *sql.DB
+	diagnosisID string
+	calleeID    string // physician's user ID
+
 	// Lifecycle
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -159,6 +164,9 @@ func newOpenClawSession(
 		caseContext:   caseContext,
 		ctx:           ctx,
 		cancel:        cancel,
+		db:            db,
+		diagnosisID:   sess.DiagnosisID,
+		calleeID:      sess.CalleeID,
 	}
 
 	// ── WebRTC negotiation ────────────────────────────────────────────────
@@ -377,6 +385,82 @@ func (s *openClawSession) playText(text string) {
 // AddICECandidate delivers a patient-side ICE candidate to the Pion PC.
 func (s *openClawSession) AddICECandidate(init webrtc.ICECandidateInit) error {
 	return s.pc.AddICECandidate(init)
+}
+
+// ── SaveTranscript ────────────────────────────────────────────────────────────
+
+// SaveTranscript persists the call conversation history as a single IM message
+// (with metadata type "call_transcript") so the patient can review it in the
+// Instant Message panel after the call ends.
+//
+// It is a no-op when the call produced no dialogue.
+func (s *openClawSession) SaveTranscript() {
+	s.histMu.Lock()
+	history := make([]voiceTurn, len(s.history))
+	copy(history, s.history)
+	s.histMu.Unlock()
+
+	if len(history) == 0 || s.db == nil || s.diagnosisID == "" {
+		return
+	}
+
+	// ── Build ordered turns slice ─────────────────────────────────────────
+	type turn struct {
+		Speaker string `json:"speaker"` // "patient" | "physician"
+		Text    string `json:"text"`
+	}
+	turns := make([]turn, 0, len(history)*2)
+	for _, h := range history {
+		if h.Patient != "" {
+			turns = append(turns, turn{Speaker: "patient", Text: h.Patient})
+		}
+		if h.Physician != "" {
+			turns = append(turns, turn{Speaker: "physician", Text: h.Physician})
+		}
+	}
+
+	// ── Marshal metadata ──────────────────────────────────────────────────
+	type transcriptMeta struct {
+		Type     string `json:"type"`
+		CallType string `json:"call_type"`
+		Turns    []turn `json:"turns"`
+	}
+	meta, err := json.Marshal(transcriptMeta{
+		Type:     "call_transcript",
+		CallType: s.callType,
+		Turns:    turns,
+	})
+	if err != nil {
+		log.Printf("pion[%s]: marshal transcript: %v", s.callID, err)
+		return
+	}
+
+	// ── Human-readable content (required non-empty by the DB constraint) ──
+	label := "Voice"
+	if s.callType == "video" {
+		label = "Video"
+	}
+	content := fmt.Sprintf("📞 %s call transcript • %s",
+		label,
+		time.Now().Format("2 Jan 2006, 15:04"),
+	)
+
+	// ── Insert as a 'professional' IM message ─────────────────────────────
+	const q = `
+		INSERT INTO instant_messages
+			(diagnosis_id, sender_id, sender_role, sender_name, content, metadata)
+		VALUES ($1, $2, 'professional', $3, $4, $5::jsonb)`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if _, err := s.db.ExecContext(ctx, q,
+		s.diagnosisID, s.calleeID, s.physicianName, content, string(meta),
+	); err != nil {
+		log.Printf("pion[%s]: save transcript: %v", s.callID, err)
+	} else {
+		log.Printf("pion[%s]: transcript saved (%d turns)", s.callID, len(turns))
+	}
 }
 
 // ── Close ─────────────────────────────────────────────────────────────────────

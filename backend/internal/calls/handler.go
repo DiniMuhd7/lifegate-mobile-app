@@ -288,8 +288,11 @@ func (h *Handler) End(c *gin.Context) {
 	senderID := uid(c)
 
 	// Tear down AI physician session if present.
+	// SaveTranscript must be called before Close so the history is still intact.
 	if v, ok := h.pionSessions.LoadAndDelete(callID); ok {
-		v.(*openClawSession).Close()
+		ocs := v.(*openClawSession)
+		ocs.SaveTranscript()
+		ocs.Close()
 	}
 
 	v, ok := h.sessions.Load(callID)
