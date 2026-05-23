@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { Diagnosis } from 'types/chat-types';
@@ -39,9 +39,11 @@ interface DiagnosisCardProps {
   diagnosis: Diagnosis;
   diagnosisId?: string;
   isExistingCase?: boolean;
+  /** Called when the patient taps a call button. Only rendered when diagnosisId is present. */
+  onCallPress?: (callType: 'voice' | 'video') => void;
 }
 
-export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCard({ diagnosis, diagnosisId, isExistingCase }) {
+export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCard({ diagnosis, diagnosisId, isExistingCase, onCallPress }) {
   if (!diagnosis?.condition?.trim()) return null;
 
   const config =
@@ -163,6 +165,74 @@ export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCa
             <Ionicons name="chevron-forward" size={12} color="#0AADA2" />
           </View>
         ) : null}
+
+        {/* ── Call-to-action: connect with physician ─────────────────────── */}
+        {/* Show voice + video call buttons whenever a case has been saved    */}
+        {/* (diagnosisId is present) and the urgency warrants a doctor visit. */}
+        {diagnosisId && onCallPress && diagnosis.urgency !== 'LOW' && (
+          <View
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTopWidth: 1,
+              borderTopColor: isExistingCase ? '#99f6e4' : config.border,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 10,
+                fontWeight: '700',
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: 0.7,
+                marginBottom: 8,
+              }}
+            >
+              Talk to your doctor now
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {/* Voice call */}
+              <TouchableOpacity
+                onPress={() => onCallPress('voice')}
+                activeOpacity={0.78}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: '#0f766e',
+                  borderRadius: 10,
+                  paddingVertical: 9,
+                }}
+              >
+                <Ionicons name="call" size={15} color="#fff" />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Voice Call</Text>
+              </TouchableOpacity>
+
+              {/* Video call */}
+              <TouchableOpacity
+                onPress={() => onCallPress('video')}
+                activeOpacity={0.78}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  backgroundColor: '#fff',
+                  borderWidth: 1.5,
+                  borderColor: '#0f766e',
+                  borderRadius: 10,
+                  paddingVertical: 9,
+                }}
+              >
+                <Ionicons name="videocam" size={15} color="#0f766e" />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#0f766e' }}>Video Call</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </Pressable>
   );

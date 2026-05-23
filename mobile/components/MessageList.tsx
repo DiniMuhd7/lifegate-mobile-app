@@ -17,6 +17,7 @@ export interface Message {
   failureCode?: 'INSUFFICIENT_CREDITS' | 'GENERIC';
   diagnosis?: Diagnosis;
   prescription?: Prescription;
+  hasPrescription?: boolean;
   diagnosisId?: string;
   isExistingCase?: boolean;
   // Raw timestamp (ms) for grouping by date
@@ -41,6 +42,8 @@ interface MessageListProps {
   onConfirmClinical?: () => void;
   /** Called when the patient opts to stay in General Mode */
   onCancelClinical?: () => void;
+  /** Called when the patient taps a voice or video call button on a diagnosis/physician card */
+  onCallPress?: (diagnosisId: string, callType: 'voice' | 'video', physicianId?: string, physicianName?: string) => void;
 }
 
 const formatDividerDate = (ts: number): string => {
@@ -63,6 +66,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onTopUp,
   onConfirmClinical,
   onCancelClinical,
+  onCallPress,
 }) => {
   const flatRef = useRef<FlatList<ListItem>>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
@@ -283,9 +287,10 @@ export const MessageList: React.FC<MessageListProps> = ({
         showClinicalContent={activeMode === 'clinical_diagnosis'}
         isFirstInGroup={isFirstInGroup}
         isLastInGroup={isLastInGroup}
+        onCallPress={onCallPress}
       />
     );
-  }, [onRetry, onFollowUp, initialCountRef, activeMode]);
+  }, [onRetry, onFollowUp, initialCountRef, activeMode, onCallPress]);
 
   return (
     <View style={{ flex: 1 }}>

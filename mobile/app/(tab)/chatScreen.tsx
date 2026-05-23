@@ -29,6 +29,7 @@ import { ProfileMenu } from 'components/ProfileMenu';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
+import { useCallStore } from 'stores/call-store';
 
 import { TypingIndicator } from 'components/TypingIndicator';
 import type { Conversation, ConversationCategory, SessionMode } from 'types/chat-types';
@@ -308,6 +309,7 @@ const ChatScreen: React.FC = () => {
         failureCode: msg.failureCode,
         diagnosis: msg.diagnosis,
         prescription: msg.prescription,
+        hasPrescription: msg.hasPrescription,
         diagnosisId: msg.diagnosisId,
         isExistingCase: msg.isExistingCase,
         followUpQuestions: msg.followUpQuestions,
@@ -351,6 +353,15 @@ const ChatScreen: React.FC = () => {
       sendMessage(text);
     },
     [sendMessage]
+  );
+
+  const initiateCall = useCallStore((s) => s.initiateCall);
+
+  const handleCallPress = useCallback(
+    (diagnosisId: string, callType: 'voice' | 'video', physicianId?: string, physicianName?: string) => {
+      initiateCall(physicianId ?? '', physicianName ?? 'Your Doctor', callType, diagnosisId);
+    },
+    [initiateCall]
   );
 
   const handleNewChat = useCallback(() => {
@@ -821,6 +832,7 @@ const ChatScreen: React.FC = () => {
                   onTopUp={() => router.push('/(tab)/settings/subscription')}
                   onConfirmClinical={confirmClinicalMode}
                   onCancelClinical={cancelClinicalMode}
+                  onCallPress={handleCallPress}
                 />
               </View>
             )}

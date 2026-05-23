@@ -67,6 +67,12 @@ interface MessageBubbleProps {
   isFirstInGroup?: boolean;
   /** Whether this is the last bubble in a consecutive same-sender group */
   isLastInGroup?: boolean;
+  /**
+   * Called when the patient taps a call button on a diagnosis card or
+   * physician preview card.  Only present for clinical-mode AI messages that
+   * have a saved diagnosisId.
+   */
+  onCallPress?: (diagnosisId: string, callType: 'voice' | 'video', physicianId?: string, physicianName?: string) => void;
 }
 
 /** Returns true when the string is a raw JSON object the AI accidentally leaked. */
@@ -105,7 +111,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
   showClinicalContent = true,
   isFirstInGroup = true,
   isLastInGroup = true,
-}) => {
+  onCallPress,
+}: MessageBubbleProps) => {
   const displayMessage = !message ? FALLBACK_MESSAGE : isRawJson(message) ? FALLBACK_MESSAGE : message;
 
   // History messages start fully visible — no animation, no JS-thread work.
@@ -336,7 +343,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
             {/* Diagnosis card */}
             {showClinicalContent && diagnosis && diagnosis.condition?.trim() && (
-              <DiagnosisCard diagnosis={diagnosis} diagnosisId={diagnosisId} isExistingCase={isExistingCase} />
+              <DiagnosisCard
+                diagnosis={diagnosis}
+                diagnosisId={diagnosisId}
+                isExistingCase={isExistingCase}
+                onCallPress={diagnosisId && onCallPress
+                  ? (callType) => onCallPress(diagnosisId, callType)
+                  : undefined
+                }
+              />
             )}
 
             {/* Differential diagnosis */}
@@ -393,7 +408,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = React.memo(({
 
             {/* Physician preview cards — only shown in clinical mode when patient requests a physician */}
             {physicianSuggestions && (
-              <PhysicianPreviewList physicians={physicianSuggestions} />
+              <PhysicianPreviewList
+                physicians={physicianSuggestions}
+                diagnosisId={diagnosisId}
+                onCallPress={diagnosisId && onCallPress
+                  ? (physicianId, physicianName, callType) =>
+                      onCallPress(diagnosisId, callType, physicianId, physicianName)
+                  : undefined
+                }
+              />
             )}
 
             {/* Follow-up chips — only shown while triage is still in progress (no diagnosis yet) */}

@@ -1,19 +1,26 @@
 import React, { useCallback } from 'react';
-import { View, Text, FlatList } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { VerifiedPhysician } from 'types/chat-types';
 
 interface PhysicianPreviewListProps {
   physicians: VerifiedPhysician[];
+  /** If present, call buttons are shown on each physician card. */
+  diagnosisId?: string;
+  onCallPress?: (physicianId: string, physicianName: string, callType: 'voice' | 'video') => void;
 }
 
 // ---------------------------------------------------------------------------
 // Card — memoized so re-renders of the parent list don't recreate every card
 // ---------------------------------------------------------------------------
-const PhysicianCard = React.memo<{ physician: VerifiedPhysician }>(({ physician }) => (
+const PhysicianCard = React.memo<{
+  physician: VerifiedPhysician;
+  diagnosisId?: string;
+  onCallPress?: (physicianId: string, physicianName: string, callType: 'voice' | 'video') => void;
+}>(({ physician, diagnosisId, onCallPress }) => (
   <View
     style={{
-      width: 140,
+      width: 158,
       backgroundColor: '#ffffff',
       borderRadius: 14,
       padding: 12,
@@ -92,6 +99,48 @@ const PhysicianCard = React.memo<{ physician: VerifiedPhysician }>(({ physician 
         </Text>
       </View>
     )}
+
+    {/* Call buttons — only shown when a diagnosisId + callback are provided */}
+    {diagnosisId && onCallPress && (
+      <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+        <TouchableOpacity
+          onPress={() => onCallPress(physician.id, physician.name, 'voice')}
+          activeOpacity={0.78}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            backgroundColor: '#0f766e',
+            borderRadius: 8,
+            paddingVertical: 7,
+          }}
+        >
+          <Ionicons name="call" size={13} color="#fff" />
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Call</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => onCallPress(physician.id, physician.name, 'video')}
+          activeOpacity={0.78}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            backgroundColor: '#fff',
+            borderWidth: 1.5,
+            borderColor: '#0f766e',
+            borderRadius: 8,
+            paddingVertical: 7,
+          }}
+        >
+          <Ionicons name="videocam" size={13} color="#0f766e" />
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#0f766e' }}>Video</Text>
+        </TouchableOpacity>
+      </View>
+    )}
   </View>
 ));
 PhysicianCard.displayName = 'PhysicianCard';
@@ -103,7 +152,7 @@ PhysicianCard.displayName = 'PhysicianCard';
  * Displayed inline in the chat when the patient requests a physician
  * in Clinical Diagnosis mode.
  */
-export const PhysicianPreviewList: React.FC<PhysicianPreviewListProps> = ({ physicians }) => {
+export const PhysicianPreviewList: React.FC<PhysicianPreviewListProps> = ({ physicians, diagnosisId, onCallPress }) => {
   // Never render an inline empty-state card — if there are no physicians, the AI
   // text response already guides the patient. Only render when we have real cards.
   if (!physicians || physicians.length === 0) {
@@ -111,8 +160,10 @@ export const PhysicianPreviewList: React.FC<PhysicianPreviewListProps> = ({ phys
   }
 
   const renderCard = useCallback(
-    ({ item }: { item: VerifiedPhysician }) => <PhysicianCard physician={item} />,
-    [],
+    ({ item }: { item: VerifiedPhysician }) => (
+      <PhysicianCard physician={item} diagnosisId={diagnosisId} onCallPress={onCallPress} />
+    ),
+    [diagnosisId, onCallPress],
   );
 
   const keyExtractor = useCallback((item: VerifiedPhysician) => item.id, []);
