@@ -21,7 +21,8 @@ func NewGeminiProvider(cfg *config.Config) AIProvider {
 return &geminiProvider{apiKey: cfg.GeminiAPIKey, model: cfg.GeminiModel}
 }
 
-func (g *geminiProvider) Name() string { return "gemini" }
+func (g *geminiProvider) Name() string  { return "gemini" }
+func (g *geminiProvider) Model() string { return g.model }
 
 func (g *geminiProvider) Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIResponse, error) {
 type part struct {

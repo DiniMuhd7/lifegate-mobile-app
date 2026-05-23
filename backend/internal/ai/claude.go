@@ -21,7 +21,8 @@ func NewClaudeProvider(cfg *config.Config) AIProvider {
 return &claudeProvider{apiKey: cfg.AnthropicAPIKey, model: cfg.AnthropicModel}
 }
 
-func (cl *claudeProvider) Name() string { return "claude" }
+func (cl *claudeProvider) Name() string  { return "claude" }
+func (cl *claudeProvider) Model() string { return cl.model }
 
 func (cl *claudeProvider) Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIResponse, error) {
 type claudeMessage struct {

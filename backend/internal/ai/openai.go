@@ -26,6 +26,8 @@ return &openAIProvider{apiKey: cfg.OpenAIAPIKey, model: cfg.OpenAIModel}
 
 func (o *openAIProvider) Name() string { return "openai" }
 
+func (o *openAIProvider) Model() string { return o.model }
+
 func (o *openAIProvider) Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIResponse, error) {
 type openAIMessage struct {
 Role    string `json:"role"`

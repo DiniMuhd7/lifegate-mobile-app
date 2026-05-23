@@ -329,6 +329,11 @@ type ClinicalSummary struct {
 
 type AIProvider interface {
 	Name() string
+	// Model returns the underlying model identifier (e.g. "gpt-4o", "claude-3-5-sonnet").
+	// This lets call-site code that needs the raw model string (e.g. voice chat,
+	// whisper/TTS) source it from the same provider instance as EDIS/OpenClaw IM,
+	// ensuring no config drift between the AI subsystems.
+	Model() string
 	Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIResponse, error)
 }
 
@@ -362,6 +367,13 @@ providers []AIProvider
 }
 
 func (a *autoProvider) Name() string { return "auto" }
+
+func (a *autoProvider) Model() string {
+	if len(a.providers) > 0 {
+		return a.providers[0].Model()
+	}
+	return ""
+}
 
 // perProviderTimeout caps each individual provider attempt inside autoProvider.
 // Applies only when AI_PROVIDER=auto; with a single provider (e.g. openai) the

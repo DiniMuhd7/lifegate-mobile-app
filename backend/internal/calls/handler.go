@@ -16,6 +16,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pion/webrtc/v3"
+
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 )
 
 // httpClient is shared across all OpenAI API calls originating from this package.
@@ -65,20 +67,28 @@ type Handler struct {
 	pionSessions sync.Map // callID → *openClawSession (AI physician calls)
 
 	// OpenClaw AI config
-	agentsDir   string
-	openAIKey   string
-	openAIModel string
+	// provider is the shared AI provider instance (same as EDIS/OpenClaw IM) so
+	// the model name is always in sync. openAIKey is kept separately because
+	// Whisper (STT) and TTS use OpenAI audio endpoints regardless of which chat
+	// provider is active.
+	agentsDir  string
+	provider   ai.AIProvider
+	openAIKey  string
 }
 
 // NewHandler creates a new call handler.
-func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir, openAIKey, openAIModel string) *Handler {
+// provider must be the same ai.AIProvider instance used by EDIS and OpenClaw IM
+// so that the model name is guaranteed to be consistent across all AI subsystems.
+// openAIKey is the raw OpenAI API key used exclusively for Whisper STT and TTS
+// (audio endpoints that are always OpenAI-specific regardless of the chat provider).
+func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir string, provider ai.AIProvider, openAIKey string) *Handler {
 	return &Handler{
-		hub:         hub,
-		push:        push,
-		db:          db,
-		agentsDir:   agentsDir,
-		openAIKey:   openAIKey,
-		openAIModel: openAIModel,
+		hub:       hub,
+		push:      push,
+		db:        db,
+		agentsDir: agentsDir,
+		provider:  provider,
+		openAIKey: openAIKey,
 	}
 }
 
@@ -159,7 +169,7 @@ func (h *Handler) Offer(c *gin.Context) {
 		pionSess, answer, err := newOpenClawSession(
 			c.Request.Context(),
 			h.hub, h.db,
-			h.openAIKey, h.openAIModel,
+			h.provider, h.openAIKey,
 			session, agentSlug, h.agentsDir,
 			req.SDPOffer,
 		)

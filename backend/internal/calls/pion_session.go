@@ -30,6 +30,8 @@ import (
 
 	"github.com/pion/webrtc/v3"
 	"github.com/pion/webrtc/v3/pkg/media"
+
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 )
 
 // ── ICE server configuration ──────────────────────────────────────────────────
@@ -60,8 +62,11 @@ type openClawSession struct {
 	hub Broadcaster
 
 	// AI pipeline config
+	// provider is the same ai.AIProvider used by EDIS and OpenClaw IM — model
+	// name is sourced via provider.Model() so it stays in sync automatically.
+	// openAIKey is the raw key needed exclusively by Whisper STT and TTS.
+	provider  ai.AIProvider
 	openAIKey string
-	model     string // GPT-4o model name
 
 	// Physician persona (AGENT.md + SOUL.md)
 	persona        string
@@ -102,7 +107,8 @@ func newOpenClawSession(
 	parentCtx context.Context,
 	hub Broadcaster,
 	db *sql.DB,
-	openAIKey, model string,
+	provider ai.AIProvider,
+	openAIKey string,
 	sess *callSession,
 	agentSlug, agentsDir string,
 	offerSDP string,
@@ -158,25 +164,25 @@ func newOpenClawSession(
 	}
 
 	s := &openClawSession{
-		callID:        sess.CallID,
-		callType:      sess.CallType,
-		callerID:      sess.CallerID,
-		agentSlug:     agentSlug,
-		pc:            pc,
-		audioTrack:    audioTrack,
-		hub:           hub,
-		openAIKey:     openAIKey,
-		model:         model,
+		callID:          sess.CallID,
+		callType:        sess.CallType,
+		callerID:        sess.CallerID,
+		agentSlug:       agentSlug,
+		pc:              pc,
+		audioTrack:      audioTrack,
+		hub:             hub,
+		provider:        provider,
+		openAIKey:       openAIKey,
 		persona:         persona,
-		physicianName:  physicianName,
+		physicianName:   physicianName,
 		physicianGender: physicianGender,
-		patientName:   patientName,
-		caseContext:   caseContext,
-		ctx:           ctx,
-		cancel:        cancel,
-		db:            db,
-		diagnosisID:   sess.DiagnosisID,
-		calleeID:      sess.CalleeID,
+		patientName:     patientName,
+		caseContext:     caseContext,
+		ctx:             ctx,
+		cancel:          cancel,
+		db:              db,
+		diagnosisID:     sess.DiagnosisID,
+		calleeID:        sess.CalleeID,
 	}
 
 	// ── WebRTC negotiation ────────────────────────────────────────────────
@@ -335,7 +341,7 @@ func (s *openClawSession) processTurn() {
 
 	reply, err := VoiceChat(
 		s.ctx,
-		s.openAIKey, s.model,
+		s.openAIKey, s.provider.Model(),
 		s.persona, s.physicianName, s.patientName, s.caseContext,
 		histCopy, transcript,
 	)

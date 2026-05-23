@@ -21,7 +21,8 @@ func NewCodexProvider(cfg *config.Config) AIProvider {
 	return &codexProvider{apiKey: cfg.OpenAIAPIKey, model: cfg.CodexModel}
 }
 
-func (c *codexProvider) Name() string { return "codex" }
+func (c *codexProvider) Name() string  { return "codex" }
+func (c *codexProvider) Model() string { return c.model }
 
 func (c *codexProvider) Chat(ctx context.Context, systemPrompt string, messages []ChatMessage) (*AIResponse, error) {
 	type codexMessage struct {

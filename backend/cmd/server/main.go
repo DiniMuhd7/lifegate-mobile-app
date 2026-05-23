@@ -862,7 +862,11 @@ func main() {
 	}
 
 	// ── Voice & Video Calls ────────────────────────────────────────────────────
-	callsHandler := callssvc.NewHandler(hub, pushSvc, database, cfg.OpenClawAgentsDir, cfg.OpenAIAPIKey, cfg.OpenAIModel)
+	// aiProvider is the same instance used by EDIS and OpenClaw IM, so the model
+	// name is guaranteed to stay in sync across all AI subsystems.
+	// cfg.OpenAIAPIKey is passed separately as the raw key for Whisper STT and TTS
+	// (OpenAI audio endpoints used regardless of which chat provider is active).
+	callsHandler := callssvc.NewHandler(hub, pushSvc, database, cfg.OpenClawAgentsDir, aiProvider, cfg.OpenAIAPIKey)
 	callsGroup := api.Group("/calls", middleware.Auth(cfg.JWTSecret))
 	{
 		// POST /calls/offer           — caller initiates, relays SDP offer to callee
