@@ -546,9 +546,9 @@ func loadCaseContext(db *sql.DB, diagnosisID string) (patientName, context strin
 	const q = `
 		SELECT
 			u.name,
-			d.condition,
-			d.urgency,
-			COALESCE(d.case_description, ''),
+			COALESCE(d.condition, ''),
+			COALESCE(d.urgency, ''),
+			COALESCE(d.description, ''),
 			COALESCE(u.medical_history, ''),
 			COALESCE(u.allergies, ''),
 			COALESCE(u.current_medications, '')

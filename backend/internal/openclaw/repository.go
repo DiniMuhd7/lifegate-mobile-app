@@ -183,6 +183,14 @@ func (r *Repository) ListCasesReadyForReview(ctx context.Context, limit int) ([]
 			ORDER BY im.created_at DESC
 			LIMIT 1
 		  ) = 'professional'
+		  -- Require at least one patient message to prevent premature completion
+		  -- caused by the auto-assign initial greeting (sender_role='professional')
+		  -- being the first and only message in the conversation.
+		  AND EXISTS (
+			SELECT 1 FROM instant_messages im2
+			WHERE im2.diagnosis_id = d.id
+			  AND im2.sender_role = 'user'
+		  )
 		ORDER BY d.physician_assigned_at ASC
 		LIMIT $1`
 

@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCallStore } from '../stores/call-store';
+import { useRingtone } from '../hooks/useRingtone';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -107,6 +108,9 @@ export function IncomingCallOverlay() {
     if (autoRejectTimer.current) clearTimeout(autoRejectTimer.current);
     await rejectIncomingCall();
   }, [rejectIncomingCall]);
+
+  // Ring on the callee's device while the overlay is visible.
+  useRingtone(!!incomingCall);
 
   if (!incomingCall) return null;
 
