@@ -230,7 +230,7 @@ export function VideoCallScreen() {
   // Forward pending SDP answer
   useEffect(() => {
     if (webviewReady && pendingSdpAnswer) {
-      sendToWebView({ type: 'answer', data: JSON.parse(pendingSdpAnswer) });
+      sendToWebView({ type: 'answer', data: { type: 'answer', sdp: pendingSdpAnswer } });
       useCallStore.setState({ pendingSdpAnswer: null });
     }
   }, [webviewReady, pendingSdpAnswer]);
@@ -271,9 +271,12 @@ export function VideoCallScreen() {
           pcWebRef.current = pc;
           stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
           pc.onicecandidate = async (e: any) => {
-            if (e.candidate && activeCall?.callId) {
-              const { CallService } = await import('../services/call-service');
-              CallService.sendIceCandidate(activeCall!.callId!, e.candidate.toJSON()).catch(() => {});
+            if (e.candidate) {
+              const callId = useCallStore.getState().activeCall?.callId;
+              if (callId) {
+                const { CallService } = await import('../services/call-service');
+                CallService.sendIceCandidate(callId, e.candidate.toJSON()).catch(() => {});
+              }
             }
           };
           pc.ontrack = (e: any) => {

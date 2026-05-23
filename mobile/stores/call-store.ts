@@ -233,18 +233,38 @@ export const useCallStore = create<CallState>((set, get) => ({
   },
 
   onCallAnswered: (payload) => {
-    // We are the caller — callee accepted and sent their SDP answer.
+    // We are the caller — callee (or AI physician) accepted and sent their SDP answer.
     const { activeCall } = get();
-    if (!activeCall || activeCall.callId !== payload.call_id) return;
+    if (!activeCall) return;
+    // For OpenClaw AI calls the WebSocket message arrives BEFORE the HTTP response
+    // returns, so callId may still be null.  Accept the answer if callId matches
+    // OR has not been set yet (null).
+    if (activeCall.callId !== null && activeCall.callId !== payload.call_id) return;
     // Queue the answer; call screen will consume it once its WebView is ready.
-    set({ pendingSdpAnswer: payload.sdp_answer });
+    // Also store callId and advance status in case the WS beat the HTTP response.
+    set((s) => ({
+      pendingSdpAnswer: payload.sdp_answer,
+      activeCall: s.activeCall
+        ? {
+            ...s.activeCall,
+            callId: s.activeCall.callId ?? payload.call_id,
+            status: 'connecting',
+          }
+        : null,
+    }));
   },
 
   onCallRejected: (payload) => {
     const { activeCall } = get();
-    if (!activeCall || activeCall.callId !== payload.call_id) return;
+    if (!activeCall) return;
+    // Same null-callId guard as onCallAnswered — WS may arrive before HTTP.
+    if (activeCall.callId !== null && activeCall.callId !== payload.call_id) return;
     set({
-      activeCall: { ...activeCall, status: 'rejected' },
+      activeCall: {
+        ...activeCall,
+        callId: activeCall.callId ?? payload.call_id,
+        status: 'rejected',
+      },
       pendingIceCandidates: [],
       pendingSdpAnswer: null,
     });

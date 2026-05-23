@@ -206,9 +206,11 @@ export function VoiceCallScreen() {
   }, [webviewReady]);
 
   // Forward a pending SDP answer to the WebView once it is ready.
+  // NOTE: pendingSdpAnswer is a raw SDP string, NOT JSON — wrap it in the
+  // RTCSessionDescription-compatible object before passing to WebRTC.
   useEffect(() => {
     if (webviewReady && pendingSdpAnswer) {
-      sendToWebView({ type: 'answer', data: JSON.parse(pendingSdpAnswer) });
+      sendToWebView({ type: 'answer', data: { type: 'answer', sdp: pendingSdpAnswer } });
       useCallStore.setState({ pendingSdpAnswer: null });
     }
   }, [webviewReady, pendingSdpAnswer]);
@@ -241,9 +243,15 @@ export function VoiceCallScreen() {
           pcWebRef.current = pc;
           stream.getTracks().forEach((t: any) => pc.addTrack(t, stream));
           pc.onicecandidate = async (e: any) => {
-            if (e.candidate && activeCall?.callId) {
-              const { CallService } = await import('../services/call-service');
-              CallService.sendIceCandidate(activeCall!.callId!, e.candidate.toJSON()).catch(() => {});
+            if (e.candidate) {
+              // Read callId from the store directly to avoid a stale closure:
+              // callId is null when the PC is first created (before offerReady
+              // resolves) but will be set by the time ICE candidates fire.
+              const callId = useCallStore.getState().activeCall?.callId;
+              if (callId) {
+                const { CallService } = await import('../services/call-service');
+                CallService.sendIceCandidate(callId, e.candidate.toJSON()).catch(() => {});
+              }
             }
           };
           pc.ontrack = (e: any) => {
