@@ -47,4 +47,22 @@ export const CallService = {
   ): Promise<void> => {
     await api.post(`/calls/${callId}/ice`, { candidate });
   },
+
+  /**
+   * Fetch the ICE server configuration (STUN + TURN) from the server.
+   * On cloud platforms (Render, etc.) UDP is not reachable, so TURN is
+   * required for WebRTC media to traverse NAT.
+   */
+  getIceServers: async (): Promise<RTCIceServer[]> => {
+    try {
+      const res = await api.get('/calls/ice-servers');
+      return (res.data?.data as RTCIceServer[]) ?? [];
+    } catch {
+      // Fall back to public STUN if the endpoint fails.
+      return [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ];
+    }
+  },
 };

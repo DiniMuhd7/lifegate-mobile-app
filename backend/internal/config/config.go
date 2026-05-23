@@ -75,6 +75,15 @@ type Config struct {
 	// directory.  Defaults to "../lifegate-openclaw/agents" (relative to the
 	// backend working directory).  Override with OPENCLAW_AGENTS_DIR.
 	OpenClawAgentsDir string
+
+	// TURN server credentials for WebRTC NAT traversal.
+	// Without TURN, WebRTC calls on cloud platforms (Render, Railway, Fly.io)
+	// will fail because the server-side Pion peer cannot receive UDP media traffic.
+	// Use a provider such as Metered (metered.ca), Twilio (NTS), or self-hosted coturn.
+	// TURN_URLS: comma-separated turn/turns URIs, e.g. "turn:global.relay.metered.ca:80,turns:global.relay.metered.ca:443"
+	TURNURLs       string
+	TURNUsername   string
+	TURNCredential string
 }
 
 func Load() *Config {
@@ -149,6 +158,10 @@ func Load() *Config {
 		VAPIDSubject:    getEnv("VAPID_SUBJECT", "mailto:contact@dshub.com.ng"),
 
 		OpenClawAgentsDir: getEnv("OPENCLAW_AGENTS_DIR", "../lifegate-openclaw/agents"),
+
+		TURNURLs:       getEnv("TURN_URLS", ""),
+		TURNUsername:   getEnv("TURN_USERNAME", ""),
+		TURNCredential: getEnv("TURN_CREDENTIAL", ""),
 	}
 }
 

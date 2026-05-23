@@ -38,7 +38,7 @@ msgs := []openAIMessage{{Role: "system", Content: systemPrompt}}
 for _, m := range messages {
 role := "user"
 		if strings.EqualFold(m.Role, "AI") || strings.EqualFold(m.Role, "assistant") {
-role = "system"
+role = "assistant"
 }
 msgs = append(msgs, openAIMessage{Role: role, Content: m.Text})
 }

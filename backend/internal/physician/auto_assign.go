@@ -392,6 +392,7 @@ func (r *Repository) findAvailableVerifiedPhysician(ctx context.Context, exclude
 			WHERE u.role = 'professional'
 			  AND u.account_status = 'active'
 			  AND u.mdcn_verified = TRUE
+			  AND u.openclaw_agent_slug IS NOT NULL
 			  AND u.id != $1::uuid
 			ORDER BY
 			  (SELECT COUNT(*) FROM diagnoses d WHERE d.physician_id = u.id AND d.status = 'Active') ASC,
@@ -405,6 +406,7 @@ func (r *Repository) findAvailableVerifiedPhysician(ctx context.Context, exclude
 			WHERE u.role = 'professional'
 			  AND u.account_status = 'active'
 			  AND u.mdcn_verified = TRUE
+			  AND u.openclaw_agent_slug IS NOT NULL
 			ORDER BY
 			  (SELECT COUNT(*) FROM diagnoses d WHERE d.physician_id = u.id AND d.status = 'Active') ASC,
 			  (SELECT COUNT(*) FROM diagnoses d2 WHERE d2.physician_id = u.id AND d2.status = 'Completed') DESC,

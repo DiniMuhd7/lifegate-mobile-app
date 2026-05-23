@@ -26,17 +26,15 @@ import { useRingtone } from '../hooks/useRingtone';
 // ─── WebRTC HTML ──────────────────────────────────────────────────────────────
 // Injected into a hidden WebView; handles RTCPeerConnection for audio.
 
-const VOICE_WEBRTC_HTML = `<!DOCTYPE html>
+function buildVoiceWebRTCHTML(iceServers: RTCIceServer[]): string {
+  const iceJSON = JSON.stringify({ iceServers });
+  return `<!DOCTYPE html>
 <html><head><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <style>body{margin:0;background:#000}</style>
 </head><body>
 <audio id="ra" autoplay></audio>
 <script>
-const ICE = {iceServers:[
-  {urls:'stun:stun.l.google.com:19302'},
-  {urls:'stun:stun1.l.google.com:19302'},
-  {urls:'stun:stun2.l.google.com:19302'}
-]};
+const ICE = ${iceJSON};
 let pc=null,ls=null;
 
 function post(type,data){
@@ -108,6 +106,7 @@ function handleEnd(){
 }));
 post('webview-ready',{});
 </script></body></html>`;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,6 +143,12 @@ export function VoiceCallScreen() {
   const lsWebRef   = useRef<any>(null);
   const audioElRef = useRef<any>(null);
 
+  // ICE server config fetched from /api/calls/ice-servers (includes TURN when configured).
+  const [iceServers, setIceServers] = useState<RTCIceServer[]>([
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ]);
+
   const activeCall       = useCallStore((s) => s.activeCall);
   const pendingSdpAnswer = useCallStore((s) => s.pendingSdpAnswer);
   const offerReady       = useCallStore((s) => s.offerReady);
@@ -158,6 +163,15 @@ export function VoiceCallScreen() {
   const [speakerOn, setSpeakerOn] = useState(true);
   const [duration, setDuration] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fetch ICE servers from backend on mount (includes TURN when configured).
+  useEffect(() => {
+    import('../services/call-service').then(({ CallService }) => {
+      CallService.getIceServers().then((servers) => {
+        if (servers.length > 0) setIceServers(servers);
+      }).catch(() => {});
+    });
+  }, []);
 
   // Pulsing ring animation for "ringing" status
   const ringScale = useRef(new Animated.Value(1)).current;
@@ -230,7 +244,7 @@ export function VoiceCallScreen() {
   // instead of going through a hidden WebView.
   const handleWebCommand = useCallback(async (msg: { type: string; data: any }) => {
     const W = globalThis as any;
-    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+    const ICE = { iceServers };
     switch (msg.type) {
       case 'start':
       case 'offer': {
@@ -310,7 +324,7 @@ export function VoiceCallScreen() {
       }
       default: break;
     }
-  }, [activeCall, offerReady, answerReady, setCallActive, endActiveCall]);
+  }, [activeCall, offerReady, answerReady, setCallActive, endActiveCall, iceServers]);
 
   // On web there is no WebView to fire 'webview-ready', so set it immediately.
   // Also clean up native WebRTC resources on unmount.
@@ -417,7 +431,7 @@ export function VoiceCallScreen() {
         {Platform.OS !== 'web' && (
           <WebView
             ref={webviewRef}
-            source={{ html: VOICE_WEBRTC_HTML }}
+            source={{ html: buildVoiceWebRTCHTML(iceServers) }}
             style={styles.hiddenWebView}
             javaScriptEnabled
             allowsInlineMediaPlayback

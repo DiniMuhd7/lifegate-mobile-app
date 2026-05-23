@@ -134,6 +134,9 @@ func main() {
 	// AI provider
 	aiProvider := ai.NewProvider(cfg)
 	log.Printf("AI provider: %s", aiProvider.Name())
+	if cfg.OpenAIAPIKey == "" {
+		log.Printf("WARNING: OPENAI_API_KEY is not set — OpenClaw IM replies and voice call audio will fail silently. Set the key in the Render dashboard (Settings → Environment).")
+	}
 
 	// Layers
 	authRepo := auth.NewRepository(database)
@@ -866,7 +869,7 @@ func main() {
 	// name is guaranteed to stay in sync across all AI subsystems.
 	// cfg.OpenAIAPIKey is passed separately as the raw key for Whisper STT and TTS
 	// (OpenAI audio endpoints used regardless of which chat provider is active).
-	callsHandler := callssvc.NewHandler(hub, pushSvc, database, cfg.OpenClawAgentsDir, aiProvider, cfg.OpenAIAPIKey)
+	callsHandler := callssvc.NewHandler(hub, pushSvc, database, cfg.OpenClawAgentsDir, aiProvider, cfg.OpenAIAPIKey, cfg.TURNURLs, cfg.TURNUsername, cfg.TURNCredential)
 	callsGroup := api.Group("/calls", middleware.Auth(cfg.JWTSecret))
 	{
 		// POST /calls/offer           — caller initiates, relays SDP offer to callee
@@ -879,6 +882,8 @@ func main() {
 		callsGroup.POST("/:callId/end", callsHandler.End)
 		// POST /calls/:callId/ice     — relay WebRTC ICE candidate to peer
 		callsGroup.POST("/:callId/ice", callsHandler.IceCandidate)
+		// GET  /calls/ice-servers     — ICE server config (STUN + optional TURN)
+		callsGroup.GET("/ice-servers", callsHandler.IceServers)
 	}
 
 	// WebSocket (supports optional ?token= for user-aware broadcasting)

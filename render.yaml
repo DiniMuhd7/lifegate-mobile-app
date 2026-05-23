@@ -85,6 +85,19 @@ services:
       - key: OPENCLAW_AGENTS_DIR
         value: /app/agents
 
+      # WebRTC TURN server — REQUIRED for voice calls on Render.
+      # Render containers cannot receive inbound UDP, so WebRTC ICE will always fail
+      # without a TURN relay.  Recommended providers: Metered (metered.ca free tier),
+      # Twilio NTS, or self-hosted coturn.
+      # TURN_URLS: comma-separated turn/turns URIs, e.g.:
+      #   turn:global.relay.metered.ca:80,turns:global.relay.metered.ca:443
+      - key: TURN_URLS
+        sync: false            # secret — set in Render dashboard
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
+
       # Payments — Flutterwave
       # Configure webhook URL in Flutterwave dashboard → Settings → Webhooks:
       #   https://edis.dshub.com.ng/api/payments/webhook

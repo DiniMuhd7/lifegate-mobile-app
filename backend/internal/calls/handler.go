@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,6 +80,11 @@ type Handler struct {
 	agentsDir  string
 	provider   ai.AIProvider
 	openAIKey  string
+
+	// TURN server config for WebRTC NAT traversal.
+	turnURLs       string
+	turnUsername   string
+	turnCredential string
 }
 
 // NewHandler creates a new call handler.
@@ -86,14 +92,17 @@ type Handler struct {
 // so that the model name is guaranteed to be consistent across all AI subsystems.
 // openAIKey is the raw OpenAI API key used exclusively for Whisper STT and TTS
 // (audio endpoints that are always OpenAI-specific regardless of the chat provider).
-func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir string, provider ai.AIProvider, openAIKey string) *Handler {
+func NewHandler(hub Broadcaster, push PushNotifier, db *sql.DB, agentsDir string, provider ai.AIProvider, openAIKey, turnURLs, turnUsername, turnCredential string) *Handler {
 	return &Handler{
-		hub:       hub,
-		push:      push,
-		db:        db,
-		agentsDir: agentsDir,
-		provider:  provider,
-		openAIKey: openAIKey,
+		hub:            hub,
+		push:           push,
+		db:             db,
+		agentsDir:      agentsDir,
+		provider:       provider,
+		openAIKey:      openAIKey,
+		turnURLs:       turnURLs,
+		turnUsername:   turnUsername,
+		turnCredential: turnCredential,
 	}
 }
 
@@ -183,6 +192,7 @@ func (h *Handler) Offer(c *gin.Context) {
 			h.provider, h.openAIKey,
 			session, agentSlug, h.agentsDir,
 			req.SDPOffer,
+			h.turnURLs, h.turnUsername, h.turnCredential,
 		)
 		if err != nil {
 			h.sessions.Delete(session.CallID)
@@ -505,4 +515,35 @@ func (h *Handler) expireRingingCall(session *callSession, callerName string) {
 			},
 		)
 	}
+}
+
+// IceServers returns the ICE server configuration (STUN + optional TURN) for
+// the client to use when creating an RTCPeerConnection.  Authenticated clients
+// (patients and physicians) may call this endpoint.  TURN credentials are
+// included when configured via TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL.
+func (h *Handler) IceServers(c *gin.Context) {
+	type iceServerDTO struct {
+		URLs       []string `json:"urls"`
+		Username   string   `json:"username,omitempty"`
+		Credential string   `json:"credential,omitempty"`
+	}
+
+	servers := []iceServerDTO{
+		{URLs: []string{"stun:stun.l.google.com:19302"}},
+		{URLs: []string{"stun:stun1.l.google.com:19302"}},
+	}
+
+	if h.turnURLs != "" {
+		urls := strings.Split(h.turnURLs, ",")
+		for i, u := range urls {
+			urls[i] = strings.TrimSpace(u)
+		}
+		servers = append(servers, iceServerDTO{
+			URLs:       urls,
+			Username:   h.turnUsername,
+			Credential: h.turnCredential,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": servers})
 }
