@@ -63,7 +63,11 @@ type reviewInput struct {
 	Notes                 string
 	PhysicianDecision     string              // "Approved" | "Rejected"
 	RejectionReason       string              // required when Rejected
-	UpdatedPrescription   *ai.Prescription    // nil = accept EDIS as-is
+	HealthTips            string              // short personalised health tip for the patient
+	UpdatedCondition      string              // override top-level condition column; "" = keep EDIS value
+	UpdatedUrgency        string              // override top-level urgency column; "" = keep EDIS value
+	UpdatedPrescription   *ai.Prescription    // nil = accept EDIS as-is (single medication)
+	UpdatedPrescriptions  []ai.Prescription   // multiple medications; takes precedence over UpdatedPrescription when non-empty
 	UpdatedInvestigations []ai.Investigation  // nil = accept EDIS as-is
 	UpdatedConditions     []ai.ConditionScore // nil = accept EDIS as-is
 }
@@ -72,6 +76,7 @@ type reviewInput struct {
 // physician overrides the EDIS recommendation.  Mirrors physician.PhysicianAIOutput.
 type physicianAIOutputDoc struct {
 	Prescription   *ai.Prescription    `json:"prescription,omitempty"`
+	Prescriptions  []ai.Prescription   `json:"prescriptions,omitempty"`
 	Investigations []ai.Investigation  `json:"investigations,omitempty"`
 	Conditions     []ai.ConditionScore `json:"conditions,omitempty"`
 }
@@ -240,27 +245,40 @@ func (r *Repository) ListCasesReadyForReview(ctx context.Context, limit int) ([]
 func (r *Repository) ReviewCase(ctx context.Context, caseID, physicianID string, input reviewInput) (patientID string, err error) {
 	// Build physician_ai_output JSON when the AI provided any overrides.
 	var aiOutArg interface{}
-	if input.UpdatedPrescription != nil || len(input.UpdatedInvestigations) > 0 || len(input.UpdatedConditions) > 0 {
+	hasOverrides := input.UpdatedPrescription != nil ||
+		len(input.UpdatedPrescriptions) > 0 ||
+		len(input.UpdatedInvestigations) > 0 ||
+		len(input.UpdatedConditions) > 0
+	if hasOverrides {
 		out := physicianAIOutputDoc{
 			Prescription:   input.UpdatedPrescription,
+			Prescriptions:  input.UpdatedPrescriptions,
 			Investigations: input.UpdatedInvestigations,
 			Conditions:     input.UpdatedConditions,
+		}
+		// When multiple prescriptions are provided, keep the singular field in
+		// sync for backward compatibility (mirrors physician.PhysicianAIOutput).
+		if len(input.UpdatedPrescriptions) > 0 && out.Prescription == nil {
+			out.Prescription = &input.UpdatedPrescriptions[0]
 		}
 		b, _ := json.Marshal(out)
 		aiOutArg = string(b)
 	}
 
-	// Identical to physician.Repository.ReviewReport for Action="Completed":
-	// physician_notes is only overwritten when the AI provided non-empty notes;
-	// physician_ai_output is only overwritten when overrides are present.
+	// physician_notes, physician_health_tips: only overwritten when non-empty.
+	// physician_ai_output: only overwritten when overrides are present.
+	// condition, urgency: only overwritten when the AI explicitly provides a new value.
 	const q = `
 		UPDATE diagnoses
-		SET physician_notes     = CASE WHEN $2 <> '' THEN $2 ELSE physician_notes END,
-		    status              = 'Completed',
-		    physician_decision  = $3,
-		    rejection_reason    = $4,
-		    physician_ai_output = CASE WHEN $5::jsonb IS NOT NULL THEN $5::jsonb ELSE physician_ai_output END,
-		    updated_at          = NOW()
+		SET physician_notes       = CASE WHEN $2 <> '' THEN $2 ELSE physician_notes END,
+		    status                = 'Completed',
+		    physician_decision    = $3,
+		    rejection_reason      = $4,
+		    physician_ai_output   = CASE WHEN $5::jsonb IS NOT NULL THEN $5::jsonb ELSE physician_ai_output END,
+		    physician_health_tips = CASE WHEN $7 <> '' THEN $7 ELSE physician_health_tips END,
+		    condition             = CASE WHEN $8 <> '' THEN $8 ELSE condition END,
+		    urgency               = CASE WHEN $9 <> '' THEN $9 ELSE urgency END,
+		    updated_at            = NOW()
 		WHERE id           = $1::uuid
 		  AND physician_id = $6::uuid
 		  AND status       = 'Active'
@@ -273,6 +291,9 @@ func (r *Repository) ReviewCase(ctx context.Context, caseID, physicianID string,
 		input.RejectionReason,
 		aiOutArg,
 		physicianID,
+		input.HealthTips,
+		input.UpdatedCondition,
+		input.UpdatedUrgency,
 	).Scan(&patientID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil // already completed or not owned — idempotent

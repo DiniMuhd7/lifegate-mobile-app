@@ -283,7 +283,8 @@ type SymptomProfile struct {
 type AIResponse struct {
 	Text         string          `json:"text"`
 	Diagnosis    *Diagnosis      `json:"diagnosis,omitempty"`
-	Prescription *Prescription   `json:"prescription,omitempty"`
+	Prescription  *Prescription   `json:"prescription,omitempty"`
+	Prescriptions []Prescription  `json:"prescriptions,omitempty"` // multiple medications (physician review)
 	HPI          *SymptomProfile `json:"hpi,omitempty"` // structured intake (OLDCARTS)
 
 	// EDIS-specific fields (present when the EDIS system prompt is used).
@@ -302,6 +303,8 @@ type AIResponse struct {
 	// perform a structured clinical review (not during normal EDIS triage).
 	PhysicianDecision string `json:"physician_decision,omitempty"` // "Approved" | "Rejected"
 	RejectionReason   string `json:"rejection_reason,omitempty"`
+	HealthTip         string `json:"health_tip,omitempty"` // short personalised health tip for the patient
+	Urgency           string `json:"urgency,omitempty"`    // override case urgency; "" = keep EDIS value
 }
 
 // ProfileUpdate carries health profile fields collected from the patient during

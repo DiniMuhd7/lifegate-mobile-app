@@ -260,13 +260,24 @@ func (w *Worker) handleReview(ctx context.Context, c caseForReview) error {
 		Notes:             strings.TrimSpace(resp.Text),
 		PhysicianDecision: decision,
 		RejectionReason:   strings.TrimSpace(resp.RejectionReason),
+		HealthTips:        strings.TrimSpace(resp.HealthTip),
 	}
 	// Only set overrides when the AI explicitly provided non-nil / non-empty values.
-	if resp.Prescription != nil {
+	if len(resp.Prescriptions) > 0 {
+		// Multiple prescriptions take precedence over single prescription.
+		input.UpdatedPrescriptions = resp.Prescriptions
+	} else if resp.Prescription != nil {
 		input.UpdatedPrescription = resp.Prescription
 	}
 	if len(resp.Conditions) > 0 {
 		input.UpdatedConditions = resp.Conditions
+		// Keep the top-level condition column in sync with the AI's primary condition.
+		input.UpdatedCondition = resp.Conditions[0].Condition
+	}
+	// Urgency can be set independently of conditions (e.g., AI upgrades severity
+	// without reordering the differential).
+	if strings.TrimSpace(resp.Urgency) != "" {
+		input.UpdatedUrgency = strings.TrimSpace(resp.Urgency)
 	}
 	if len(resp.Investigations) > 0 {
 		input.UpdatedInvestigations = resp.Investigations
@@ -468,16 +479,21 @@ func (w *Worker) buildReviewSystemPrompt(c caseForReview) (string, error) {
 	sb.WriteString("  \"text\": \"Your clinical chart notes (2-3 sentences of physician reasoning, written as chart documentation)\",\n")
 	sb.WriteString("  \"physician_decision\": \"Approved\",\n")
 	sb.WriteString("  \"rejection_reason\": \"\",\n")
+	sb.WriteString("  \"health_tip\": \"A short, personalised, actionable health tip for the patient (1-2 sentences, patient-facing, plain language)\",\n")
+	sb.WriteString("  \"urgency\": \"\",\n")
 	sb.WriteString("  \"prescription\": null,\n")
+	sb.WriteString("  \"prescriptions\": null,\n")
 	sb.WriteString("  \"conditions\": null,\n")
 	sb.WriteString("  \"investigations\": null\n")
 	sb.WriteString("}\n\n")
 	sb.WriteString("CLINICAL REVIEW RULES:\n")
 	sb.WriteString("- `physician_decision` MUST be exactly \"Approved\" or \"Rejected\"\n")
 	sb.WriteString("- `text` is ALWAYS required — write as physician chart documentation, not patient-facing prose\n")
+	sb.WriteString("- `health_tip` is ALWAYS required — write 1-2 sentences of personalised, actionable advice for the patient based on their condition and context (e.g. diet, rest, warning signs to watch for, when to return)\n")
 	sb.WriteString("- `rejection_reason` is required only when physician_decision is \"Rejected\" — state what is clinically unsafe or incorrect\n")
-	sb.WriteString("- Set `prescription` only if modifying the EDIS prescription; use null to accept as-is\n")
-	sb.WriteString("- Set `conditions` only if reordering or amending the differential; use null to accept as-is\n")
+	sb.WriteString("- `urgency` must be one of: \"Low\", \"Moderate\", \"High\", \"Critical\". Set only if the EDIS urgency rating is clinically incorrect; use empty string to keep the EDIS value\n")
+	sb.WriteString("- For medications: use `prescriptions` (array) when the patient requires more than one medication; use `prescription` (single object) for a single medication; use null to accept EDIS as-is\n")
+	sb.WriteString("- Set `conditions` only if reordering or amending the differential; use null to accept as-is. When set, conditions[0] becomes the primary diagnosis\n")
 	sb.WriteString("- Set `investigations` only if modifying recommended tests; use null to accept as-is\n")
 	sb.WriteString("- CRITICAL: check patient allergies against any prescription before approving\n")
 	sb.WriteString("- CRITICAL: check for drug interactions with current medications\n")
