@@ -115,7 +115,7 @@ func (s *Service) autoAssignPendingCases(ctx context.Context) {
 		s.broadcastQueueChange(pc.CaseID, physicianID, "Active")
 
 		doctorName := normalizedDoctorName(physicianName)
-		message := fmt.Sprintf("Hello, I am Dr. %s and I will review your case within 15 minutes.", doctorName)
+		message := fmt.Sprintf("Hello, I am Dr. %s and I have been assigned to review your case. Please reply to this message so I can proceed with your final evaluation.", doctorName)
 		s.notifyPatientWithAutomatedDoctorMessage(ctx, pc.CaseID, patientID, physicianID, doctorName, message, false)
 	}
 }
