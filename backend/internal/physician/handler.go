@@ -618,3 +618,76 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile updated"})
 }
+
+// GetAIMode returns the current AI mode state for the physician.
+//
+// @Summary      Get AI mode status
+// @Description  Returns whether AI mode is currently enabled for the requesting physician.
+// @Tags         physician
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object{ai_mode_enabled=bool}}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/ai-mode [get]
+func (h *Handler) GetAIMode(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	enabled, err := h.svc.GetAIMode(pid)
+	if err != nil {
+		internalError(c, err, "GetAIMode handler")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"ai_mode_enabled": enabled}})
+}
+
+// ToggleAIMode enables or disables AI mode for the requesting physician.
+// When enabled, the OpenClaw worker automatically handles patient interactions
+// for cases assigned to this physician, mirroring the 24 built-in AI physicians.
+//
+// @Summary      Toggle AI mode
+// @Description  Enables or disables AI mode for the requesting physician.
+// @Tags         physician
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body  object{enabled=bool}  true  "Toggle payload"
+// @Success      200  {object}  object{success=bool,data=object{ai_mode_enabled=bool}}
+// @Failure      400  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /physician/ai-mode [post]
+func (h *Handler) ToggleAIMode(c *gin.Context) {
+	physicianID, _ := c.Get("userID")
+	pid, _ := physicianID.(string)
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	enabled, err := h.svc.ToggleAIMode(pid, req.Enabled)
+	if err != nil {
+		internalError(c, err, "ToggleAIMode handler")
+		return
+	}
+
+	action := "disabled"
+	if enabled {
+		action = "enabled"
+	}
+	auditpkg.Log(c.Request.Context(), pid, "physician", "physician.ai_mode_toggled", "users", pid,
+		map[string]interface{}{"ai_mode_enabled": !enabled},
+		map[string]interface{}{"ai_mode_enabled": enabled},
+		nil,
+		c.ClientIP(),
+	)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "AI mode " + action,
+		"data":    gin.H{"ai_mode_enabled": enabled},
+	})
+}

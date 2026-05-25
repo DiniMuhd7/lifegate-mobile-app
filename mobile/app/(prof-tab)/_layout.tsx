@@ -1,5 +1,5 @@
 import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
-import { View } from 'react-native';
+import { AppState, AppStateStatus, View } from 'react-native';
 import { LoadingScreen } from 'components/LoadingScreen';
 import { SessionErrorScreen } from 'components/SessionErrorScreen';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +15,7 @@ import wsService from 'services/websocket-service';
 import { playIMArrivalTone } from 'services/message-tone';
 import { getToken } from 'utils/tokenStorage';
 import { IMMessage } from 'types/im-types';
+import { EngagementService } from 'services/engagement-service';
 
 export default function ProfTabLayout() {
   const router = useRouter();
@@ -24,6 +25,32 @@ export default function ProfTabLayout() {
   const IM_POPUP_COOLDOWN_MS = 3000;
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const authUser = useAuthStore((s) => s.user);
+
+  // ── Engagement session — start on mount, end on unmount ───────────────────
+  useEffect(() => {
+    if (!authUser?.id) return;
+    EngagementService.startSession();
+    return () => { EngagementService.endSession(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.id]);
+
+  // ── AppState: end session on background, resume on foreground ────────────
+  const appState = useRef<AppStateStatus>(AppState.currentState);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const wasActive = appState.current === 'active';
+      const goingToBackground = nextState === 'background' || nextState === 'inactive';
+      if (wasActive && goingToBackground) {
+        EngagementService.endSession();
+      }
+      if (nextState === 'active' && appState.current !== 'active') {
+        EngagementService.startSession();
+      }
+      appState.current = nextState;
+    });
+    return () => sub.remove();
+  }, []);
 
   // Mount physician real-time events
   usePhysicianWebSocket();
@@ -142,7 +169,7 @@ export default function ProfTabLayout() {
   }, [banner, router]);
 
   // ── Auth guard ────────────────────────────────────────────────────────────
-  const authUser = useAuthStore((s) => s.user);
+
   const sessionLoading = useAuthStore((s) => s.sessionLoading);
   const sessionError = useAuthStore((s) => s.sessionError);
   const restoreSession = useAuthStore((s) => s.restoreSession);

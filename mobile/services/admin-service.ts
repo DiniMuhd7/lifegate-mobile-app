@@ -20,6 +20,7 @@ import type {
   NDPASnapshot,
   AlertThreshold,
   MedicationReleaseRow,
+  AnalyticsData,
 } from '../types/admin-types';
 
 export const AdminService = {
@@ -203,5 +204,10 @@ export const AdminService = {
 
   async approveMedicationRelease(id: string): Promise<void> {
     await api.post(`/admin/medication-releases/${id}/approve`);
+  },
+
+  async getAnalytics(days = 30): Promise<AnalyticsData> {
+    const { data } = await api.get('/admin/analytics', { params: { days } });
+    return data.data as AnalyticsData;
   },
 };

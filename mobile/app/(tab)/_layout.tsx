@@ -33,6 +33,7 @@ import { IMMessage } from 'types/im-types';
 import { registerPatientPushToken, addNotificationResponseListener, addNotificationReceivedListener } from 'utils/pushNotifications';
 import { registerWebPush } from 'services/webPushRegistration';
 import { startHealthMonitoring, stopHealthMonitoring } from 'utils/backgroundHealthMonitor';
+import { EngagementService } from 'services/engagement-service';
 
 function isHealthProfileIncomplete(user: User | null): boolean {
   if (!user || user.role !== 'user') return false;
@@ -235,6 +236,14 @@ export default function TabLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // ── Engagement session — start on mount, end on unmount ───────────────────
+  useEffect(() => {
+    if (!user?.id) return;
+    EngagementService.startSession();
+    return () => { EngagementService.endSession(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // ── Abandoned-session detection (save state when app goes to background) ──
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
@@ -261,6 +270,9 @@ export default function TabLayout() {
       const goingToBackground = nextState === 'background' || nextState === 'inactive';
 
       if (wasActive && goingToBackground) {
+        // End engagement tracking when app goes to background.
+        EngagementService.endSession();
+
         // Snapshot current conversation state.
         const { conversations, activeConversationId, userId } = useChatStore.getState();
         const activeConv = conversations.find((conversation) => conversation.id === activeConversationId);
@@ -303,6 +315,9 @@ export default function TabLayout() {
       }
 
       if (nextState === 'active' && appState.current !== 'active') {
+        // Resume engagement tracking when app returns to foreground.
+        EngagementService.startSession();
+
         // App returned to foreground — mark session active again.
         const { activeServerSessionId, updateSession } = useSessionStore.getState();
         if (activeServerSessionId) {

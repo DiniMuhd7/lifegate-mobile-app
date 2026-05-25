@@ -172,6 +172,31 @@ export const ProfessionalService = {
   },
 
   /**
+   * Fetch current AI mode status
+   * GET /physician/ai-mode
+   */
+  async getAIMode(): Promise<boolean> {
+    const response = await api.get<{ success: boolean; data: { ai_mode_enabled: boolean } }>(
+      '/physician/ai-mode'
+    );
+    if (!response.data.success) throw new Error('Failed to fetch AI mode status');
+    return response.data.data.ai_mode_enabled;
+  },
+
+  /**
+   * Enable or disable AI mode for the physician
+   * POST /physician/ai-mode
+   */
+  async toggleAIMode(enabled: boolean): Promise<boolean> {
+    const response = await api.post<{ success: boolean; data: { ai_mode_enabled: boolean } }>(
+      '/physician/ai-mode',
+      { enabled }
+    );
+    if (!response.data.success) throw new Error('Failed to toggle AI mode');
+    return response.data.data.ai_mode_enabled;
+  },
+
+  /**
    * Fetch full case detail for the physician review screen
    * GET /physician/cases/:id
    */

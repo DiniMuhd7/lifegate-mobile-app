@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  Switch,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -27,6 +28,10 @@ export default function PhysicianProfileScreen() {
   const [editFormLoading, setEditFormLoading] = useState(false);
   const [passwordFormLoading, setPasswordFormLoading] = useState(false);
 
+  // AI mode state
+  const [aiModeEnabled, setAiModeEnabled] = useState(false);
+  const [aiModeLoading, setAiModeLoading] = useState(false);
+
   // Edit profile form state
   const [editForm, setEditForm] = useState({
     firstName: user?.name?.split(' ')[0] || '',
@@ -46,6 +51,8 @@ export default function PhysicianProfileScreen() {
         phone: user.phone || '',
       });
     }
+    // Fetch AI mode status
+    ProfessionalService.getAIMode().then(setAiModeEnabled).catch(() => {});
   }, []);
 
   const handleLogout = async () => {
@@ -71,6 +78,24 @@ export default function PhysicianProfileScreen() {
       Alert.alert('Error', err?.message ?? 'Failed to update profile');
     } finally {
       setEditFormLoading(false);
+    }
+  };
+
+  const handleToggleAIMode = async (value: boolean) => {
+    setAiModeLoading(true);
+    try {
+      const newValue = await ProfessionalService.toggleAIMode(value);
+      setAiModeEnabled(newValue);
+      Alert.alert(
+        'AI Mode',
+        newValue
+          ? 'AI mode is now enabled. Cases assigned to you will be handled automatically by the AI.'
+          : 'AI mode disabled. You will handle cases manually.',
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'Failed to toggle AI mode');
+    } finally {
+      setAiModeLoading(false);
     }
   };
 
@@ -232,6 +257,40 @@ export default function PhysicianProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
             </TouchableOpacity>
+          </View>
+
+          {/* AI Mode Section */}
+          <View className="mb-8">
+            <Text className="mb-4 text-lg font-bold text-gray-800">
+              <Ionicons name="hardware-chip-outline" size={18} color="#0AADA2" /> AI Mode
+            </Text>
+            <View className="rounded-lg bg-gray-50 p-4">
+              <View className="flex-row items-center justify-between">
+                <View className="mr-4 flex-1">
+                  <Text className="text-sm font-semibold text-gray-800">Enable AI Mode</Text>
+                  <Text className="mt-1 text-xs text-gray-500">
+                    When enabled, your account operates like an OpenClaw AI physician.
+                    Patient cases assigned to you will be handled automatically by the AI
+                    until you disable this mode.
+                  </Text>
+                </View>
+                <Switch
+                  value={aiModeEnabled}
+                  onValueChange={handleToggleAIMode}
+                  disabled={aiModeLoading}
+                  trackColor={{ false: '#d1d5db', true: '#0AADA2' }}
+                  thumbColor={aiModeEnabled ? '#ffffff' : '#f3f4f6'}
+                />
+              </View>
+              {aiModeEnabled && (
+                <View className="mt-3 flex-row items-center gap-2 rounded-md bg-teal-50 p-2">
+                  <Ionicons name="information-circle-outline" size={16} color="#0AADA2" />
+                  <Text className="flex-1 text-xs text-teal-700">
+                    AI mode is active. Cases will be handled automatically.
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 

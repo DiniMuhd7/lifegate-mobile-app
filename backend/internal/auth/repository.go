@@ -39,6 +39,7 @@ type User struct {
 	MdcnVerified           bool       `json:"mdcn_verified" db:"mdcn_verified"`
 	MdcnVerifiedAt         *time.Time `json:"mdcn_verified_at,omitempty" db:"mdcn_verified_at"`
 	OpenClawAgentSlug      *string    `json:"openclaw_agent_slug,omitempty" db:"openclaw_agent_slug"`
+	AIModeEnabled          bool       `json:"ai_mode_enabled" db:"ai_mode_enabled"`
 	DeletionScheduledAt    *time.Time `json:"deletion_scheduled_at,omitempty" db:"deletion_scheduled_at"`
 	CreatedAt              time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt              time.Time  `json:"updated_at" db:"updated_at"`
@@ -77,7 +78,7 @@ func (r *Repository) FindUserByEmail(email string) (*User, error) {
         current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
         COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-        mdcn_verified, mdcn_verified_at, openclaw_agent_slug, deletion_scheduled_at, created_at, updated_at
+        mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at
  FROM users WHERE email = $1`, email)
 	return scanUser(row)
 }
@@ -106,7 +107,7 @@ func (r *Repository) FindUserByID(id string) (*User, error) {
         current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
         COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-        mdcn_verified, mdcn_verified_at, openclaw_agent_slug, deletion_scheduled_at, created_at, updated_at
+        mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at
  FROM users WHERE id = $1`, id)
 	return scanUser(row)
 }
@@ -121,7 +122,7 @@ func scanUser(row *sql.Row) (*User, error) {
 		&u.State, &u.Country, &u.Specialization,
 		&u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
 		&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
-		&u.OpenClawAgentSlug, &u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
+		&u.OpenClawAgentSlug, &u.AIModeEnabled, &u.DeletionScheduledAt, &u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -141,7 +142,7 @@ func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
            current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
            COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
            COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, deletion_scheduled_at, created_at, updated_at`,
+           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
 		userID, now)
 	return scanUser(row)
 }
@@ -358,7 +359,7 @@ func (r *Repository) ScheduleAccountDeletion(userID string) (*User, error) {
 	           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country, COALESCE(specialization,''),
 		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
 		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, deletion_scheduled_at, created_at, updated_at`,
+		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
 		userID, scheduledAt)
 	return scanUser(row)
 }
@@ -375,7 +376,7 @@ func (r *Repository) CancelAccountDeletion(userID string) (*User, error) {
 	           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country, COALESCE(specialization,''),
 		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
 		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
-		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, deletion_scheduled_at, created_at, updated_at`,
+		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
 		userID)
 	return scanUser(row)
 }

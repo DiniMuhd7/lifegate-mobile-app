@@ -228,6 +228,108 @@ type AlertThreshold struct {
 	UpdatedBy   string  `json:"updatedBy,omitempty"`
 }
 
+// ─── Analytics types ─────────────────────────────────────────────────────────
+
+// DailyPoint is a single (date, count) data point for time-series charts.
+type DailyPoint struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+// DemographicPoint is a (label, count, pct) slice item.
+type DemographicPoint struct {
+	Label string  `json:"label"`
+	Count int     `json:"count"`
+	Pct   float64 `json:"pct"`
+}
+
+// RevenuePoint is a daily revenue data point (amount in Naira).
+type RevenuePoint struct {
+	Date   string `json:"date"`
+	Amount int64  `json:"amount"`
+}
+
+// AnalyticsData is the full analytics payload returned by GetAnalytics.
+type AnalyticsData struct {
+	PeriodDays int `json:"periodDays"`
+
+	// ── Global KPIs ──────────────────────────────────────────────────────────
+	TotalRegisteredUsers      int     `json:"totalRegisteredUsers"`
+	TotalRegisteredPhysicians int     `json:"totalRegisteredPhysicians"`
+	AvgCasesPerPatient        float64 `json:"avgCasesPerPatient"`
+
+	// ── Acquisition ──────────────────────────────────────────────────────────
+	NewUsersTotal      int          `json:"newUsersTotal"`
+	NewPhysiciansTotal int          `json:"newPhysiciansTotal"`
+	DailyNewUsers      []DailyPoint `json:"dailyNewUsers"`
+	DailyNewCases      []DailyPoint `json:"dailyNewCases"`
+
+	// ── Engagement / activity ─────────────────────────────────────────────────
+	DailyActiveCases    []DailyPoint `json:"dailyActiveCases"`
+	DailyCompletedCases []DailyPoint `json:"dailyCompletedCases"`
+	DailyActivePatients []DailyPoint `json:"dailyActivePatients"`
+
+	// ── Outcomes ─────────────────────────────────────────────────────────────
+	TotalCompletedCases int     `json:"totalCompletedCases"`
+	TotalEscalatedCases int     `json:"totalEscalatedCases"`
+	CompletionRatePct   float64 `json:"completionRatePct"`
+	EscalationRatePct   float64 `json:"escalationRatePct"`
+	AvgCaseDurationMins float64 `json:"avgCaseDurationMins"`
+
+	// ── Retention ─────────────────────────────────────────────────────────────
+	RetentionD7  float64 `json:"retentionD7"`
+	RetentionD30 float64 `json:"retentionD30"`
+
+	// ── Patient demographics ──────────────────────────────────────────────────
+	GenderBreakdown   []DemographicPoint `json:"genderBreakdown"`
+	AgeGroupBreakdown []DemographicPoint `json:"ageGroupBreakdown"`
+	BloodTypeBreakdown []DemographicPoint `json:"bloodTypeBreakdown"`
+	GenotypeBreakdown []DemographicPoint `json:"genotypeBreakdown"`
+	LanguageBreakdown []DemographicPoint `json:"languageBreakdown"`
+
+	// ── Geographic ───────────────────────────────────────────────────────────
+	CountryBreakdown []DemographicPoint `json:"countryBreakdown"`
+	StateBreakdown   []DemographicPoint `json:"stateBreakdown"`
+
+	// ── Medical insights ──────────────────────────────────────────────────────
+	UrgencyBreakdown []DemographicPoint `json:"urgencyBreakdown"`
+	TopConditions    []DemographicPoint `json:"topConditions"`
+
+	// ── Revenue ───────────────────────────────────────────────────────────────
+	RevenuePeriodTotal  int64          `json:"revenuePeriodTotal"`
+	TotalRevenueAllTime int64          `json:"totalRevenueAllTime"`
+	TotalPayingUsers    int            `json:"totalPayingUsers"`
+	TotalTransactions   int            `json:"totalTransactions"`
+	AvgRevenuePerUser   float64        `json:"avgRevenuePerUser"`
+	DailyRevenue        []RevenuePoint `json:"dailyRevenue"`
+
+	// ── Physician productivity ────────────────────────────────────────────────
+	DailyPhysicianResolutions []DailyPoint           `json:"dailyPhysicianResolutions"`
+	TopPhysicians             []PhysicianProductivity `json:"topPhysicians"`
+
+	// ── Session / engagement time ─────────────────────────────────────────────
+	AvgSessionMinsPatient    float64      `json:"avgSessionMinsPatient"`    // avg session duration for patients
+	AvgSessionMinsPhysician  float64      `json:"avgSessionMinsPhysician"`  // avg session duration for physicians
+	TotalSessionsPatient     int          `json:"totalSessionsPatient"`     // completed sessions by patients in period
+	TotalSessionsPhysician   int          `json:"totalSessionsPhysician"`   // completed sessions by physicians in period
+	AvgSessionsPerPatient    float64      `json:"avgSessionsPerPatient"`    // sessions per unique patient
+	DailyAvgSessionMins      []FloatPoint `json:"dailyAvgSessionMins"`      // daily avg session length (all roles)
+	DailySessionsPatient     []DailyPoint `json:"dailySessionsPatient"`     // daily session count — patients
+	DailySessionsPhysician   []DailyPoint `json:"dailySessionsPhysician"`   // daily session count — physicians
+}
+
+// PhysicianProductivity is a per-physician resolved case count.
+type PhysicianProductivity struct {
+	Name          string `json:"name"`
+	ResolvedCases int    `json:"resolvedCases"`
+}
+
+// FloatPoint is a daily data point with a float64 value (e.g. avg duration).
+type FloatPoint struct {
+	Date  string  `json:"date"`
+	Value float64 `json:"value"`
+}
+
 // ─── Repository ───────────────────────────────────────────────────────────────
 
 type Repository struct {
@@ -1373,3 +1475,618 @@ func formatDuration(seconds int64) string {
 
 // FormatWait returns a human-readable wait time (exported for handler use).
 func FormatWait(seconds int64) string { return formatDuration(seconds) }
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+// GetAnalytics computes the full analytics payload for the admin dashboard.
+// All time-series queries use a daily granularity over the last `days` days.
+func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
+	a := &AnalyticsData{PeriodDays: days}
+
+	// ── Global KPIs ──────────────────────────────────────────────────────────
+	r.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'patient'`).Scan(&a.TotalRegisteredUsers)
+	r.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'professional'`).Scan(&a.TotalRegisteredPhysicians)
+	var totalCases int
+	r.db.QueryRow(`SELECT COUNT(*) FROM diagnoses`).Scan(&totalCases)
+	if a.TotalRegisteredUsers > 0 {
+		a.AvgCasesPerPatient = float64(totalCases) / float64(a.TotalRegisteredUsers)
+	}
+
+	// ── Acquisition: new patient registrations per day ───────────────────────
+	rows, err := r.db.Query(`
+		SELECT to_char(created_at::date, 'YYYY-MM-DD'), COUNT(*)
+		FROM users
+		WHERE role = 'patient'
+		  AND created_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY created_at::date
+		ORDER BY created_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily new users: %w", err)
+	}
+	newUsersTotal := 0
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		newUsersTotal += p.Count
+		a.DailyNewUsers = append(a.DailyNewUsers, p)
+	}
+	rows.Close()
+	a.NewUsersTotal = newUsersTotal
+
+	// ── New physicians registered in period ──────────────────────────────────
+	if err := r.db.QueryRow(`
+		SELECT COUNT(*) FROM users
+		WHERE role = 'professional'
+		  AND created_at >= NOW() - ($1 || ' days')::interval`, days,
+	).Scan(&a.NewPhysiciansTotal); err != nil {
+		return nil, fmt.Errorf("new physicians: %w", err)
+	}
+
+	// ── New cases per day ────────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT to_char(created_at::date, 'YYYY-MM-DD'), COUNT(*)
+		FROM diagnoses
+		WHERE created_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY created_at::date
+		ORDER BY created_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily new cases: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyNewCases = append(a.DailyNewCases, p)
+	}
+	rows.Close()
+
+	// ── Active cases per day ─────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT to_char(updated_at::date, 'YYYY-MM-DD'), COUNT(*)
+		FROM diagnoses
+		WHERE status = 'Active'
+		  AND updated_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY updated_at::date
+		ORDER BY updated_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily active cases: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyActiveCases = append(a.DailyActiveCases, p)
+	}
+	rows.Close()
+
+	// ── Completed cases per day ──────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT to_char(updated_at::date, 'YYYY-MM-DD'), COUNT(*)
+		FROM diagnoses
+		WHERE status = 'Completed'
+		  AND updated_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY updated_at::date
+		ORDER BY updated_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily completed cases: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyCompletedCases = append(a.DailyCompletedCases, p)
+	}
+	rows.Close()
+
+	// ── Daily active patients ────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT to_char(updated_at::date, 'YYYY-MM-DD'), COUNT(DISTINCT user_id)
+		FROM diagnoses
+		WHERE updated_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY updated_at::date
+		ORDER BY updated_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily active patients: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyActivePatients = append(a.DailyActivePatients, p)
+	}
+	rows.Close()
+
+	// ── Outcome metrics ──────────────────────────────────────────────────────
+	var totalInPeriod int
+	r.db.QueryRow(`
+		SELECT COUNT(*),
+		       COUNT(*) FILTER (WHERE status='Completed'),
+		       COUNT(*) FILTER (WHERE escalated=TRUE)
+		FROM diagnoses
+		WHERE created_at >= NOW() - ($1 || ' days')::interval`, days,
+	).Scan(&totalInPeriod, &a.TotalCompletedCases, &a.TotalEscalatedCases)
+	if totalInPeriod > 0 {
+		a.CompletionRatePct = float64(a.TotalCompletedCases) / float64(totalInPeriod) * 100
+		a.EscalationRatePct = float64(a.TotalEscalatedCases) / float64(totalInPeriod) * 100
+	}
+	r.db.QueryRow(`
+		SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 60), 0)
+		FROM diagnoses
+		WHERE status = 'Completed'
+		  AND updated_at >= NOW() - ($1 || ' days')::interval`, days,
+	).Scan(&a.AvgCaseDurationMins)
+
+	// ── Retention ────────────────────────────────────────────────────────────
+	var cohortD7, retainedD7 int
+	r.db.QueryRow(`SELECT COUNT(DISTINCT user_id) FROM diagnoses WHERE created_at BETWEEN NOW()-'14 days'::interval AND NOW()-'7 days'::interval`).Scan(&cohortD7)
+	r.db.QueryRow(`SELECT COUNT(DISTINCT d1.user_id) FROM diagnoses d1
+		JOIN diagnoses d2 ON d2.user_id = d1.user_id AND d2.created_at >= NOW()-'7 days'::interval
+		WHERE d1.created_at BETWEEN NOW()-'14 days'::interval AND NOW()-'7 days'::interval`).Scan(&retainedD7)
+	if cohortD7 > 0 { a.RetentionD7 = float64(retainedD7) / float64(cohortD7) * 100 }
+
+	var cohortD30, retainedD30 int
+	r.db.QueryRow(`SELECT COUNT(DISTINCT user_id) FROM diagnoses WHERE created_at BETWEEN NOW()-'60 days'::interval AND NOW()-'30 days'::interval`).Scan(&cohortD30)
+	r.db.QueryRow(`SELECT COUNT(DISTINCT d1.user_id) FROM diagnoses d1
+		JOIN diagnoses d2 ON d2.user_id = d1.user_id AND d2.created_at >= NOW()-'30 days'::interval
+		WHERE d1.created_at BETWEEN NOW()-'60 days'::interval AND NOW()-'30 days'::interval`).Scan(&retainedD30)
+	if cohortD30 > 0 { a.RetentionD30 = float64(retainedD30) / float64(cohortD30) * 100 }
+
+	// ── Gender breakdown ─────────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(gender,''), 'Unknown'), COUNT(*)
+		FROM users WHERE role = 'patient'
+		GROUP BY gender ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("gender breakdown: %w", err)
+	}
+	var genderTotal int
+	var genderRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		genderTotal += p.Count
+		genderRows = append(genderRows, p)
+	}
+	rows.Close()
+	for i := range genderRows {
+		if genderTotal > 0 {
+			genderRows[i].Pct = float64(genderRows[i].Count) / float64(genderTotal) * 100
+		}
+	}
+	a.GenderBreakdown = genderRows
+
+	// ── Age group breakdown (computed from DOB) ───────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT
+		  CASE
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) < 18 THEN 'Under 18'
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 18 AND 25 THEN '18–25'
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 26 AND 35 THEN '26–35'
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 36 AND 45 THEN '36–45'
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 46 AND 60 THEN '46–60'
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) > 60 THEN 'Over 60'
+		    ELSE 'Unknown'
+		  END AS age_group,
+		  COUNT(*) AS cnt
+		FROM users
+		WHERE role = 'patient'
+		  AND dob IS NOT NULL AND dob <> ''
+		GROUP BY age_group
+		ORDER BY MIN(
+		  CASE
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) < 18 THEN 1
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 18 AND 25 THEN 2
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 26 AND 35 THEN 3
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 36 AND 45 THEN 4
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) BETWEEN 46 AND 60 THEN 5
+		    WHEN EXTRACT(YEAR FROM AGE(NOW(), TO_DATE(NULLIF(dob,''), 'YYYY-MM-DD'))) > 60 THEN 6
+		    ELSE 7
+		  END)`)
+	if err != nil {
+		return nil, fmt.Errorf("age group breakdown: %w", err)
+	}
+	var ageTotal int
+	var ageRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		ageTotal += p.Count
+		ageRows = append(ageRows, p)
+	}
+	rows.Close()
+	for i := range ageRows {
+		if ageTotal > 0 {
+			ageRows[i].Pct = float64(ageRows[i].Count) / float64(ageTotal) * 100
+		}
+	}
+	a.AgeGroupBreakdown = ageRows
+
+	// ── Blood type breakdown ─────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(blood_type,''), 'Unknown'), COUNT(*)
+		FROM users WHERE role = 'patient'
+		GROUP BY blood_type ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("blood type breakdown: %w", err)
+	}
+	var btTotal int
+	var btRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		btTotal += p.Count
+		btRows = append(btRows, p)
+	}
+	rows.Close()
+	for i := range btRows {
+		if btTotal > 0 {
+			btRows[i].Pct = float64(btRows[i].Count) / float64(btTotal) * 100
+		}
+	}
+	a.BloodTypeBreakdown = btRows
+
+	// ── Genotype breakdown ───────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(UPPER(genotype),''), 'Unknown'), COUNT(*)
+		FROM users WHERE role = 'patient'
+		GROUP BY genotype ORDER BY COUNT(*) DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("genotype breakdown: %w", err)
+	}
+	var gtTotal int
+	var gtRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		gtTotal += p.Count
+		gtRows = append(gtRows, p)
+	}
+	rows.Close()
+	for i := range gtRows {
+		if gtTotal > 0 {
+			gtRows[i].Pct = float64(gtRows[i].Count) / float64(gtTotal) * 100
+		}
+	}
+	a.GenotypeBreakdown = gtRows
+
+	// ── Language breakdown ───────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(language,''), 'Unknown'), COUNT(*)
+		FROM users WHERE role = 'patient'
+		GROUP BY language ORDER BY COUNT(*) DESC LIMIT 10`)
+	if err != nil {
+		return nil, fmt.Errorf("language breakdown: %w", err)
+	}
+	var langTotal int
+	var langRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		langTotal += p.Count
+		langRows = append(langRows, p)
+	}
+	rows.Close()
+	for i := range langRows {
+		if langTotal > 0 {
+			langRows[i].Pct = float64(langRows[i].Count) / float64(langTotal) * 100
+		}
+	}
+	a.LanguageBreakdown = langRows
+
+	// ── Country breakdown (top 10) ────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(country,''), 'Unknown'), COUNT(*)
+		FROM users WHERE role = 'patient'
+		GROUP BY country ORDER BY COUNT(*) DESC LIMIT 10`)
+	if err != nil {
+		return nil, fmt.Errorf("country breakdown: %w", err)
+	}
+	var countryTotal int
+	var countryRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		countryTotal += p.Count
+		countryRows = append(countryRows, p)
+	}
+	rows.Close()
+	for i := range countryRows {
+		if countryTotal > 0 {
+			countryRows[i].Pct = float64(countryRows[i].Count) / float64(countryTotal) * 100
+		}
+	}
+	a.CountryBreakdown = countryRows
+
+	// ── State breakdown (top 10) ─────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(state,''), 'Unknown'), COUNT(*)
+		FROM users WHERE role = 'patient'
+		GROUP BY state ORDER BY COUNT(*) DESC LIMIT 10`)
+	if err != nil {
+		return nil, fmt.Errorf("state breakdown: %w", err)
+	}
+	var stateTotal int
+	var stateRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		stateTotal += p.Count
+		stateRows = append(stateRows, p)
+	}
+	rows.Close()
+	for i := range stateRows {
+		if stateTotal > 0 {
+			stateRows[i].Pct = float64(stateRows[i].Count) / float64(stateTotal) * 100
+		}
+	}
+	a.StateBreakdown = stateRows
+
+	// ── Urgency breakdown ────────────────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(urgency,''), 'Unknown'), COUNT(*)
+		FROM diagnoses
+		WHERE created_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY urgency ORDER BY COUNT(*) DESC`, days)
+	if err != nil {
+		return nil, fmt.Errorf("urgency breakdown: %w", err)
+	}
+	var urgTotal int
+	var urgRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		urgTotal += p.Count
+		urgRows = append(urgRows, p)
+	}
+	rows.Close()
+	for i := range urgRows {
+		if urgTotal > 0 {
+			urgRows[i].Pct = float64(urgRows[i].Count) / float64(urgTotal) * 100
+		}
+	}
+	a.UrgencyBreakdown = urgRows
+
+	// ── Top medical conditions (top 10) ──────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT COALESCE(NULLIF(TRIM(condition),''), 'Unspecified'), COUNT(*)
+		FROM diagnoses
+		WHERE created_at >= NOW() - ($1 || ' days')::interval
+		  AND condition IS NOT NULL AND TRIM(condition) <> ''
+		GROUP BY TRIM(condition)
+		ORDER BY COUNT(*) DESC LIMIT 10`, days)
+	if err != nil {
+		return nil, fmt.Errorf("top conditions: %w", err)
+	}
+	var condTotal int
+	var condRows []DemographicPoint
+	for rows.Next() {
+		var p DemographicPoint
+		if err := rows.Scan(&p.Label, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		condTotal += p.Count
+		condRows = append(condRows, p)
+	}
+	rows.Close()
+	for i := range condRows {
+		if condTotal > 0 {
+			condRows[i].Pct = float64(condRows[i].Count) / float64(condTotal) * 100
+		}
+	}
+	a.TopConditions = condRows
+
+	// ── Revenue metrics ──────────────────────────────────────────────────────
+	r.db.QueryRow(`
+		SELECT COALESCE(SUM(amount),0), COUNT(*), COUNT(DISTINCT user_id)
+		FROM payment_transactions
+		WHERE status = 'success'
+		  AND created_at >= NOW() - ($1 || ' days')::interval`, days,
+	).Scan(&a.RevenuePeriodTotal, &a.TotalTransactions, &a.TotalPayingUsers)
+
+	r.db.QueryRow(`
+		SELECT COALESCE(SUM(amount),0)
+		FROM payment_transactions WHERE status = 'success'`,
+	).Scan(&a.TotalRevenueAllTime)
+
+	if a.TotalPayingUsers > 0 {
+		a.AvgRevenuePerUser = float64(a.RevenuePeriodTotal) / float64(a.TotalPayingUsers)
+	}
+
+	rows, err = r.db.Query(`
+		SELECT to_char(created_at::date, 'YYYY-MM-DD'), COALESCE(SUM(amount),0)
+		FROM payment_transactions
+		WHERE status = 'success'
+		  AND created_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY created_at::date
+		ORDER BY created_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily revenue: %w", err)
+	}
+	for rows.Next() {
+		var rp RevenuePoint
+		if err := rows.Scan(&rp.Date, &rp.Amount); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyRevenue = append(a.DailyRevenue, rp)
+	}
+	rows.Close()
+
+	// ── Physician daily resolutions ──────────────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT to_char(updated_at::date, 'YYYY-MM-DD'), COUNT(*)
+		FROM diagnoses
+		WHERE status = 'Completed'
+		  AND physician_id IS NOT NULL
+		  AND updated_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY updated_at::date
+		ORDER BY updated_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("physician daily resolutions: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyPhysicianResolutions = append(a.DailyPhysicianResolutions, p)
+	}
+	rows.Close()
+
+	// ── Top 5 physicians by resolved cases ───────────────────────────────────
+	rows, err = r.db.Query(`
+		SELECT u.name, COUNT(*) AS resolved
+		FROM diagnoses d
+		JOIN users u ON u.id = d.physician_id
+		WHERE d.status = 'Completed'
+		  AND d.updated_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY u.name
+		ORDER BY resolved DESC
+		LIMIT 5`, days)
+	if err != nil {
+		return nil, fmt.Errorf("top physicians: %w", err)
+	}
+	for rows.Next() {
+		var p PhysicianProductivity
+		if err := rows.Scan(&p.Name, &p.ResolvedCases); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.TopPhysicians = append(a.TopPhysicians, p)
+	}
+	rows.Close()
+
+	// ── Session / engagement time ─────────────────────────────────────────────
+	// Aggregate stats per role for completed sessions (duration_secs IS NOT NULL)
+	r.db.QueryRow(`
+		SELECT
+		  COALESCE(AVG(duration_secs) FILTER (WHERE role='patient'),0)        / 60.0,
+		  COALESCE(AVG(duration_secs) FILTER (WHERE role='professional'),0)   / 60.0,
+		  COUNT(*)  FILTER (WHERE role='patient'),
+		  COUNT(*)  FILTER (WHERE role='professional')
+		FROM app_sessions
+		WHERE duration_secs IS NOT NULL
+		  AND started_at >= NOW() - ($1 || ' days')::interval`, days,
+	).Scan(
+		&a.AvgSessionMinsPatient,
+		&a.AvgSessionMinsPhysician,
+		&a.TotalSessionsPatient,
+		&a.TotalSessionsPhysician,
+	)
+
+	// Avg sessions per unique patient
+	var uniquePatientSessions int
+	r.db.QueryRow(`
+		SELECT COUNT(DISTINCT user_id)
+		FROM app_sessions
+		WHERE role='patient'
+		  AND started_at >= NOW() - ($1 || ' days')::interval`, days,
+	).Scan(&uniquePatientSessions)
+	if uniquePatientSessions > 0 {
+		a.AvgSessionsPerPatient = float64(a.TotalSessionsPatient) / float64(uniquePatientSessions)
+	}
+
+	// Daily avg session length (all roles combined)
+	rows, err = r.db.Query(`
+		SELECT to_char(started_at::date,'YYYY-MM-DD'),
+		       COALESCE(AVG(duration_secs),0) / 60.0
+		FROM app_sessions
+		WHERE duration_secs IS NOT NULL
+		  AND started_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY started_at::date
+		ORDER BY started_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily avg session: %w", err)
+	}
+	for rows.Next() {
+		var fp FloatPoint
+		if err := rows.Scan(&fp.Date, &fp.Value); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailyAvgSessionMins = append(a.DailyAvgSessionMins, fp)
+	}
+	rows.Close()
+
+	// Daily session counts — patients
+	rows, err = r.db.Query(`
+		SELECT to_char(started_at::date,'YYYY-MM-DD'), COUNT(*)
+		FROM app_sessions
+		WHERE role='patient'
+		  AND started_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY started_at::date
+		ORDER BY started_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily sessions patient: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailySessionsPatient = append(a.DailySessionsPatient, p)
+	}
+	rows.Close()
+
+	// Daily session counts — physicians
+	rows, err = r.db.Query(`
+		SELECT to_char(started_at::date,'YYYY-MM-DD'), COUNT(*)
+		FROM app_sessions
+		WHERE role='professional'
+		  AND started_at >= NOW() - ($1 || ' days')::interval
+		GROUP BY started_at::date
+		ORDER BY started_at::date`, days)
+	if err != nil {
+		return nil, fmt.Errorf("daily sessions physician: %w", err)
+	}
+	for rows.Next() {
+		var p DailyPoint
+		if err := rows.Scan(&p.Date, &p.Count); err != nil {
+			rows.Close(); return nil, err
+		}
+		a.DailySessionsPhysician = append(a.DailySessionsPhysician, p)
+	}
+	rows.Close()
+
+	// Ensure nil slices become empty arrays in JSON
+	if a.DailyNewUsers == nil              { a.DailyNewUsers = []DailyPoint{} }
+	if a.DailyNewCases == nil              { a.DailyNewCases = []DailyPoint{} }
+	if a.DailyActiveCases == nil           { a.DailyActiveCases = []DailyPoint{} }
+	if a.DailyCompletedCases == nil        { a.DailyCompletedCases = []DailyPoint{} }
+	if a.DailyActivePatients == nil        { a.DailyActivePatients = []DailyPoint{} }
+	if a.DailyPhysicianResolutions == nil  { a.DailyPhysicianResolutions = []DailyPoint{} }
+	if a.GenderBreakdown == nil            { a.GenderBreakdown = []DemographicPoint{} }
+	if a.AgeGroupBreakdown == nil          { a.AgeGroupBreakdown = []DemographicPoint{} }
+	if a.BloodTypeBreakdown == nil         { a.BloodTypeBreakdown = []DemographicPoint{} }
+	if a.GenotypeBreakdown == nil          { a.GenotypeBreakdown = []DemographicPoint{} }
+	if a.LanguageBreakdown == nil          { a.LanguageBreakdown = []DemographicPoint{} }
+	if a.CountryBreakdown == nil           { a.CountryBreakdown = []DemographicPoint{} }
+	if a.StateBreakdown == nil             { a.StateBreakdown = []DemographicPoint{} }
+	if a.UrgencyBreakdown == nil           { a.UrgencyBreakdown = []DemographicPoint{} }
+	if a.TopConditions == nil              { a.TopConditions = []DemographicPoint{} }
+	if a.DailyRevenue == nil               { a.DailyRevenue = []RevenuePoint{} }
+	if a.TopPhysicians == nil              { a.TopPhysicians = []PhysicianProductivity{} }
+	if a.DailyAvgSessionMins == nil        { a.DailyAvgSessionMins = []FloatPoint{} }
+	if a.DailySessionsPatient == nil       { a.DailySessionsPatient = []DailyPoint{} }
+	if a.DailySessionsPhysician == nil     { a.DailySessionsPhysician = []DailyPoint{} }
+
+	return a, nil
+}

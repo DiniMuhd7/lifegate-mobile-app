@@ -48,6 +48,21 @@ func NewService(repo *Repository, nats *natsclient.Client, broadcaster Broadcast
 // SetPushNotifier wires in a push notification sender for patient notifications.
 func (s *Service) SetPushNotifier(p PushNotifier) { s.push = p }
 
+// ToggleAIMode enables or disables AI mode for a human physician.
+// When enabled, new cases assigned to this physician are handled automatically
+// by the OpenClaw worker, mirroring the behaviour of the built-in AI agents.
+func (s *Service) ToggleAIMode(physicianID string, enable bool) (bool, error) {
+	if err := s.repo.ToggleAIMode(physicianID, enable); err != nil {
+		return false, err
+	}
+	return enable, nil
+}
+
+// GetAIMode returns the current AI mode state for the physician.
+func (s *Service) GetAIMode(physicianID string) (bool, error) {
+	return s.repo.GetAIMode(physicianID)
+}
+
 // SetSLABreachRecorder wires in the admin service for SLA breach recording.
 func (s *Service) SetSLABreachRecorder(r SLABreachRecorder) { s.slaRecorder = r }
 

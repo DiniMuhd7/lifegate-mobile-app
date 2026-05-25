@@ -268,3 +268,99 @@ export type MedicationReleaseRow = {
   requestedAt: string;
   alreadyApproved: boolean;
 };
+
+// ─── Analytics types ──────────────────────────────────────────────────────────
+
+export type DailyPoint = {
+  date: string;   // "YYYY-MM-DD"
+  count: number;
+};
+
+export type RevenuePoint = {
+  date: string;
+  amount: number;
+};
+
+export type DemographicPoint = {
+  label: string;
+  count: number;
+  pct: number;
+};
+
+export type PhysicianProductivity = {
+  name: string;
+  resolvedCases: number;
+};
+
+export type AnalyticsData = {
+  periodDays: number;
+
+  // Global KPIs
+  totalRegisteredUsers: number;
+  totalRegisteredPhysicians: number;
+  avgCasesPerPatient: number;
+
+  // Acquisition
+  newUsersTotal: number;
+  newPhysiciansTotal: number;
+  dailyNewUsers: DailyPoint[];
+  dailyNewCases: DailyPoint[];
+
+  // Engagement
+  dailyActiveCases: DailyPoint[];
+  dailyCompletedCases: DailyPoint[];
+  dailyActivePatients: DailyPoint[];
+
+  // Outcomes
+  totalCompletedCases: number;
+  totalEscalatedCases: number;
+  completionRatePct: number;
+  escalationRatePct: number;
+  avgCaseDurationMins: number;
+
+  // Retention
+  retentionD7: number;
+  retentionD30: number;
+
+  // Patient demographics
+  genderBreakdown: DemographicPoint[];
+  ageGroupBreakdown: DemographicPoint[];
+  bloodTypeBreakdown: DemographicPoint[];
+  genotypeBreakdown: DemographicPoint[];
+  languageBreakdown: DemographicPoint[];
+
+  // Geographic
+  countryBreakdown: DemographicPoint[];
+  stateBreakdown: DemographicPoint[];
+
+  // Medical insights
+  urgencyBreakdown: DemographicPoint[];
+  topConditions: DemographicPoint[];
+
+  // Revenue
+  revenuePeriodTotal: number;
+  totalRevenueAllTime: number;
+  totalPayingUsers: number;
+  totalTransactions: number;
+  avgRevenuePerUser: number;
+  dailyRevenue: RevenuePoint[];
+
+  // Physician productivity
+  dailyPhysicianResolutions: DailyPoint[];
+  topPhysicians: PhysicianProductivity[];
+
+  // Session / engagement time
+  avgSessionMinsPatient: number;      // avg session length in minutes — patients
+  avgSessionMinsPhysician: number;    // avg session length in minutes — physicians
+  totalSessionsPatient: number;       // completed patient sessions in period
+  totalSessionsPhysician: number;     // completed physician sessions in period
+  avgSessionsPerPatient: number;      // sessions per unique patient
+  dailyAvgSessionMins: FloatPoint[];  // daily avg session duration (all roles)
+  dailySessionsPatient: DailyPoint[]; // daily session count — patients
+  dailySessionsPhysician: DailyPoint[];// daily session count — physicians
+};
+
+export type FloatPoint = {
+  date: string;
+  value: number;
+};

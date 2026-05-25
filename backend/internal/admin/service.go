@@ -133,3 +133,9 @@ func (s *Service) GetAlertThresholds() ([]AlertThreshold, error) {
 func (s *Service) UpdateAlertThreshold(adminID, key string, value float64, enabled bool) error {
 	return s.repo.UpdateAlertThreshold(adminID, key, value, enabled)
 }
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+func (s *Service) GetAnalytics(days int) (*AnalyticsData, error) {
+	return s.repo.GetAnalytics(days)
+}

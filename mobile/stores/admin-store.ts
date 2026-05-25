@@ -17,6 +17,7 @@ import type {
   NDPASnapshot,
   AlertThreshold,
   LifecoinRedemptionRequest,
+  AnalyticsData,
 } from '../types/admin-types';
 
 type AdminState = {
@@ -42,6 +43,10 @@ type AdminState = {
   alertThresholds: AlertThreshold[];
   pendingRedemptions: LifecoinRedemptionRequest[];
   redemptionsLoading: boolean;
+
+  // Analytics
+  analyticsData: AnalyticsData | null;
+  analyticsLoading: boolean;
 
   // Filters
   filters: AdminCaseFilters;
@@ -84,6 +89,7 @@ type AdminState = {
   approveRedemption: (id: string) => Promise<void>;
   rejectRedemption: (id: string, note?: string) => Promise<void>;
   triggerExploreRefresh: () => Promise<void>;
+  fetchAnalytics: (days?: number) => Promise<void>;
   fetchAll: () => Promise<void>;
   setFilters: (f: Partial<AdminCaseFilters>) => void;
   clearError: () => void;
@@ -110,6 +116,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   alertThresholds: [],
   pendingRedemptions: [],
   redemptionsLoading: false,
+  analyticsData: null,
+  analyticsLoading: false,
   filters: { status: '', urgency: '', search: '', page: 1, pageSize: 20 },
   loading: false,
   refreshing: false,
@@ -337,6 +345,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   triggerExploreRefresh: async () => {
     await AdminService.triggerExploreRefresh();
+  },
+
+  fetchAnalytics: async (days = 30) => {
+    set({ analyticsLoading: true });
+    try {
+      const analyticsData = await AdminService.getAnalytics(days);
+      set({ analyticsData, analyticsLoading: false });
+    } catch (e: any) {
+      set({ error: e?.message ?? 'Failed to load analytics', analyticsLoading: false });
+    }
   },
 
   fetchAll: async () => {

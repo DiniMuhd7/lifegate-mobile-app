@@ -57,6 +57,27 @@ func NewRepository(db *sql.DB) *Repository {
 return &Repository{db: db}
 }
 
+// ToggleAIMode enables or disables AI mode for a human physician.
+// When enabled the physician's account is handled by the OpenClaw worker
+// exactly like a built-in AI physician agent.
+func (r *Repository) ToggleAIMode(physicianID string, enable bool) error {
+	_, err := r.db.Exec(
+		`UPDATE users SET ai_mode_enabled = $2, updated_at = NOW() WHERE id = $1 AND role = 'professional'`,
+		physicianID, enable,
+	)
+	return err
+}
+
+// GetAIMode returns the current ai_mode_enabled flag for a physician.
+func (r *Repository) GetAIMode(physicianID string) (bool, error) {
+	var enabled bool
+	err := r.db.QueryRow(
+		`SELECT ai_mode_enabled FROM users WHERE id = $1 AND role = 'professional'`,
+		physicianID,
+	).Scan(&enabled)
+	return enabled, err
+}
+
 func (r *Repository) GetReports(physicianID string, page, pageSize int) ([]Report, int, error) {
 offset := (page - 1) * pageSize
 rows, err := r.db.Query(

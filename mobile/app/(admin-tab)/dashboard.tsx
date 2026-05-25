@@ -446,7 +446,7 @@ function FilterBar({
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
-type Panel = 'overview' | 'sla' | 'edis' | 'physicians' | 'cases' | 'breaches' | 'reassignments' | 'audit' | 'transactions' | 'compliance';
+type Panel = 'overview' | 'sla' | 'edis' | 'physicians' | 'cases' | 'breaches' | 'reassignments' | 'audit' | 'transactions' | 'compliance' | 'analytics';
 
 const PANELS: { key: Panel; label: string; icon: string }[] = [
   { key: 'overview',       label: 'Overview',    icon: 'grid'            },
@@ -459,6 +459,7 @@ const PANELS: { key: Panel; label: string; icon: string }[] = [
   { key: 'audit',          label: 'Audit',       icon: 'document-text'   },
   { key: 'transactions',   label: 'Payments',    icon: 'card'            },
   { key: 'compliance',     label: 'Compliance',  icon: 'shield-checkmark'},
+  { key: 'analytics',      label: 'Analytics',   icon: 'bar-chart'       },
 ];
 
 export default function AdminDashboardScreen() {
@@ -471,6 +472,7 @@ export default function AdminDashboardScreen() {
     auditEvents, auditTotal, auditLoading,
     transactions, transactionsTotal, transactionsLoading,
     ndpaSnapshots, complianceLoading,
+    analyticsData, analyticsLoading, fetchAnalytics,
     loading, error,
     fetchAll, fetchCases, fetchSLABreachAlerts, fetchReassignmentLog,
     fetchAuditLog, fetchAllTransactions, fetchNDPASnapshots, generateNDPASnapshot,
@@ -479,6 +481,7 @@ export default function AdminDashboardScreen() {
   } = useAdminStore();
 
   const [activePanel, setActivePanel] = useState<Panel>('overview');
+  const [analyticsDays, setAnalyticsDays] = useState(30);
   const [refreshing, setRefreshing] = useState(false);
   const [exploreRefreshing, setExploreRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -512,8 +515,10 @@ export default function AdminDashboardScreen() {
       fetchAllTransactions();
     } else if (activePanel === 'compliance') {
       fetchNDPASnapshots();
+    } else if (activePanel === 'analytics') {
+      fetchAnalytics(analyticsDays);
     }
-  }, [activePanel, fetchSLABreachAlerts, fetchReassignmentLog, fetchAuditLog, fetchAllTransactions, fetchNDPASnapshots]);
+  }, [activePanel, analyticsDays, fetchSLABreachAlerts, fetchReassignmentLog, fetchAuditLog, fetchAllTransactions, fetchNDPASnapshots, fetchAnalytics]);
 
   const applyFilters = useCallback((extra?: { status?: string; urgency?: string; search?: string }) => {
     fetchCases({ status: statusFilter, urgency: urgencyFilter, search, page: 1, ...extra });
@@ -1249,6 +1254,421 @@ export default function AdminDashboardScreen() {
     );
   };
 
+  // ── Analytics panel ───────────────────────────────────────────────────────
+
+  const renderAnalytics = () => {
+    const isWide = Platform.OS === 'web';
+    const a = analyticsData;
+
+    // ── Sub-components (defined inline so they close over `a`) ─────────────
+
+    const PeriodBtn = ({ d, label }: { d: number; label: string }) => (
+      <TouchableOpacity
+        onPress={() => { setAnalyticsDays(d); fetchAnalytics(d); }}
+        className="px-4 py-1.5 rounded-full mr-2"
+        style={{ backgroundColor: analyticsDays === d ? '#0AADA2' : '#e2e8f0' }}>
+        <Text className="text-xs font-bold"
+          style={{ color: analyticsDays === d ? '#fff' : '#64748b' }}>{label}</Text>
+      </TouchableOpacity>
+    );
+
+    // Compact KPI badge
+    const KPI = ({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color: string }) => (
+      <View className="flex-1 mx-1 bg-white rounded-2xl p-3"
+        style={{ elevation: 2, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, minWidth: 80 }}>
+        <View className="w-7 h-1 rounded-full mb-2" style={{ backgroundColor: color }} />
+        <Text className="text-xl font-black text-gray-900 leading-tight">{value}</Text>
+        {sub && <Text className="text-[10px] font-semibold mt-0.5" style={{ color }}>{sub}</Text>}
+        <Text className="text-[10px] text-gray-400 mt-0.5 leading-snug">{label}</Text>
+      </View>
+    );
+
+    // Horizontal bar row
+    const HBar = ({ label, count, pct, color, rank }: {
+      label: string; count: number; pct: number; color: string; rank?: number;
+    }) => (
+      <View className="mb-2.5">
+        <View className="flex-row items-center justify-between mb-1">
+          <View className="flex-row items-center flex-1 mr-2">
+            {rank !== undefined && (
+              <Text className="text-[10px] font-bold w-5 text-gray-400 mr-1">#{rank + 1}</Text>
+            )}
+            <Text className="text-xs text-gray-700 flex-1" numberOfLines={1}>{label}</Text>
+          </View>
+          <Text className="text-xs font-bold text-gray-800">{count.toLocaleString()}</Text>
+          <Text className="text-[10px] text-gray-400 w-10 text-right">{pct.toFixed(1)}%</Text>
+        </View>
+        <View className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: color + '22' }}>
+          <View className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }} />
+        </View>
+      </View>
+    );
+
+    // Mini sparkline bar chart
+    const Spark = ({ points, color, label, note }: {
+      points: { date: string; count: number }[]; color: string; label: string; note?: string;
+    }) => {
+      const vals = points.slice(-21);
+      const max = Math.max(...vals.map(p => p.count), 1);
+      const total = vals.reduce((s, p) => s + p.count, 0);
+      return (
+        <View className="bg-white rounded-2xl p-4 flex-1 mx-1"
+          style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, minHeight: 110 }}>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-xs font-bold text-gray-600">{label}</Text>
+            <Text className="text-xs font-black" style={{ color }}>{total.toLocaleString()}</Text>
+          </View>
+          <View className="flex-row items-end flex-1" style={{ gap: 2, height: 44 }}>
+            {vals.map((p, i) => (
+              <View key={i} className="flex-1 rounded-t-sm"
+                style={{
+                  height: Math.max(3, (p.count / max) * 44),
+                  backgroundColor: i === vals.length - 1 ? color : color + '55',
+                }} />
+            ))}
+          </View>
+          {note && <Text className="text-[9px] text-gray-400 mt-1">{note}</Text>}
+        </View>
+      );
+    };
+
+    // Revenue sparkline (uses amount not count)
+    const RevSpark = ({ points, color, label }: {
+      points: { date: string; amount: number }[]; color: string; label: string;
+    }) => {
+      const vals = points.slice(-21);
+      const max = Math.max(...vals.map(p => p.amount), 1);
+      const total = vals.reduce((s, p) => s + p.amount, 0);
+      return (
+        <View className="bg-white rounded-2xl p-4 flex-1 mx-1"
+          style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, minHeight: 110 }}>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-xs font-bold text-gray-600">{label}</Text>
+            <Text className="text-xs font-black" style={{ color }}>₦{total.toLocaleString('en-NG')}</Text>
+          </View>
+          <View className="flex-row items-end flex-1" style={{ gap: 2, height: 44 }}>
+            {vals.map((p, i) => (
+              <View key={i} className="flex-1 rounded-t-sm"
+                style={{
+                  height: Math.max(3, (p.amount / max) * 44),
+                  backgroundColor: i === vals.length - 1 ? color : color + '55',
+                }} />
+            ))}
+          </View>
+        </View>
+      );
+    };
+
+    // Section card wrapper
+    const Card = ({ children, className: cn2 }: { children: React.ReactNode; className?: string }) => (
+      <View className={`bg-white rounded-2xl p-4 mb-4 ${cn2 ?? ''}`}
+        style={{ elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 }}>
+        {children}
+      </View>
+    );
+
+    // Small stat pill
+    const Pill = ({ label, value, color }: { label: string; value: string; color: string }) => (
+      <View className="rounded-xl px-3 py-2 mr-2 mb-2" style={{ backgroundColor: color + '15' }}>
+        <Text className="text-[10px] text-gray-500">{label}</Text>
+        <Text className="text-sm font-black" style={{ color }}>{value}</Text>
+      </View>
+    );
+
+    if (analyticsLoading && !a) {
+      return (
+        <View className="items-center py-20">
+          <ActivityIndicator size="large" color="#0AADA2" />
+          <Text className="text-gray-400 mt-4 text-sm font-medium">Loading analytics…</Text>
+        </View>
+      );
+    }
+
+    const fmtNaira = (v: number) => `₦${v.toLocaleString('en-NG')}`;
+    const fmtPct = (v: number) => `${v.toFixed(1)}%`;
+    const fmtMins = (v: number) => v >= 60 ? `${(v / 60).toFixed(1)}h` : `${Math.round(v)}m`;
+
+    return (
+      <View>
+
+        {/* ── Period selector ────────────────────────────────────────────── */}
+        <View className="flex-row items-center mb-5">
+          <PeriodBtn d={7} label="7 days" />
+          <PeriodBtn d={30} label="30 days" />
+          <PeriodBtn d={90} label="90 days" />
+          {analyticsLoading && <ActivityIndicator size="small" color="#0AADA2" style={{ marginLeft: 8 }} />}
+        </View>
+
+        {/* ── Global KPIs strip ──────────────────────────────────────────── */}
+        <View className={`flex-row mb-4 ${isWide ? 'flex-wrap' : ''}`}>
+          <KPI label="Registered Patients" value={(a?.totalRegisteredUsers ?? 0).toLocaleString()} color="#0AADA2" />
+          <KPI label="Physicians" value={(a?.totalRegisteredPhysicians ?? 0).toLocaleString()} color="#6366f1" />
+          <KPI label="Avg Cases/Patient" value={(a?.avgCasesPerPatient ?? 0).toFixed(1)} color="#f97316" />
+        </View>
+        <View className={`flex-row mb-6 ${isWide ? 'flex-wrap' : ''}`}>
+          <KPI label={`New Patients (${a?.periodDays ?? 30}d)`} value={(a?.newUsersTotal ?? 0).toLocaleString()}
+            sub={`+${a?.newPhysiciansTotal ?? 0} physicians`} color="#22c55e" />
+          <KPI label="Completed Cases" value={(a?.totalCompletedCases ?? 0).toLocaleString()}
+            sub={fmtPct(a?.completionRatePct ?? 0)} color="#0ea5e9" />
+          <KPI label="Escalated Cases" value={(a?.totalEscalatedCases ?? 0).toLocaleString()}
+            sub={fmtPct(a?.escalationRatePct ?? 0)} color="#ef4444" />
+        </View>
+
+        {/* ── Revenue ────────────────────────────────────────────────────── */}
+        <SectionHeader title="Revenue" icon="cash" accent="#22c55e" />
+        <Card>
+          <View className={`flex-row flex-wrap mb-3`}>
+            <Pill label={`Period Revenue (${a?.periodDays ?? 30}d)`} value={fmtNaira(a?.revenuePeriodTotal ?? 0)} color="#22c55e" />
+            <Pill label="All-Time Revenue" value={fmtNaira(a?.totalRevenueAllTime ?? 0)} color="#0ea5e9" />
+            <Pill label="Paying Users" value={(a?.totalPayingUsers ?? 0).toLocaleString()} color="#6366f1" />
+            <Pill label="Transactions" value={(a?.totalTransactions ?? 0).toLocaleString()} color="#f97316" />
+            <Pill label="Avg / User" value={fmtNaira(Math.round(a?.avgRevenuePerUser ?? 0))} color="#0AADA2" />
+          </View>
+          <RevSpark points={a?.dailyRevenue ?? []} color="#22c55e" label="Daily Revenue" />
+        </Card>
+
+        {/* ── Acquisition trend ─────────────────────────────────────────── */}
+        <SectionHeader title="Acquisition" icon="person-add" accent="#0AADA2" />
+        <View className="flex-row mb-4">
+          <Spark points={a?.dailyNewUsers ?? []} color="#0AADA2" label="New Patients/day" />
+          <Spark points={a?.dailyNewCases ?? []} color="#ec4899" label="New Cases/day" />
+        </View>
+
+        {/* ── Engagement trend ──────────────────────────────────────────── */}
+        <SectionHeader title="Engagement" icon="pulse" accent="#6366f1" />
+        <View className="flex-row mb-4">
+          <Spark points={a?.dailyActivePatients ?? []} color="#6366f1" label="Active Patients/day" />
+          <Spark points={a?.dailyPhysicianResolutions ?? []} color="#f97316" label="Physician Resolutions/day" />
+        </View>
+
+        {/* ── Retention ─────────────────────────────────────────────────── */}
+        <SectionHeader title="Retention" icon="refresh-circle" accent="#22c55e" />
+        <Card>
+          <View className="flex-row">
+            <View className="flex-1 items-center py-2">
+              <Text className="text-3xl font-black" style={{ color: '#22c55e' }}>{fmtPct(a?.retentionD7 ?? 0)}</Text>
+              <Text className="text-xs text-gray-500 mt-1">Day-7 Retention</Text>
+              <Text className="text-[10px] text-gray-400 mt-0.5">Users who returned after 7 days</Text>
+            </View>
+            <View className="w-px bg-gray-100" />
+            <View className="flex-1 items-center py-2">
+              <Text className="text-3xl font-black" style={{ color: '#0ea5e9' }}>{fmtPct(a?.retentionD30 ?? 0)}</Text>
+              <Text className="text-xs text-gray-500 mt-1">Day-30 Retention</Text>
+              <Text className="text-[10px] text-gray-400 mt-0.5">Users who returned after 30 days</Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* ── Case outcomes ─────────────────────────────────────────────── */}
+        <SectionHeader title="Case Outcomes" icon="checkmark-done-circle" accent="#8b5cf6" />
+        <Card>
+          <View className="flex-row flex-wrap">
+            <Pill label="Completion Rate" value={fmtPct(a?.completionRatePct ?? 0)} color="#22c55e" />
+            <Pill label="Escalation Rate" value={fmtPct(a?.escalationRatePct ?? 0)} color="#ef4444" />
+            <Pill label="Avg Resolution Time" value={fmtMins(a?.avgCaseDurationMins ?? 0)} color="#8b5cf6" />
+          </View>
+          <View className="mt-3">
+            {(a?.urgencyBreakdown ?? []).map((u, i) => (
+              <HBar key={i} label={u.label} count={u.count} pct={u.pct}
+                color={URGENCY_COLORS[u.label] ?? '#94a3b8'} />
+            ))}
+          </View>
+        </Card>
+
+        {/* ── Top medical conditions ────────────────────────────────────── */}
+        <SectionHeader title="Top Medical Conditions" icon="medkit" accent="#ec4899" />
+        <Card>
+          {(a?.topConditions ?? []).map((c, i) => (
+            <HBar key={i} label={c.label} count={c.count} pct={c.pct} color="#ec4899" rank={i} />
+          ))}
+          {(a?.topConditions ?? []).length === 0 && (
+            <Text className="text-sm text-gray-400 text-center py-4">No condition data yet</Text>
+          )}
+        </Card>
+
+        {/* ── Geographic distribution ───────────────────────────────────── */}
+        <SectionHeader title="Geographic Distribution" icon="globe" accent="#0ea5e9" />
+        <View className={isWide ? 'flex-row gap-3 mb-1' : ''}>
+          <Card className={isWide ? 'flex-1' : ''}>
+            <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Country</Text>
+            {(a?.countryBreakdown ?? []).map((c, i) => (
+              <HBar key={i} label={c.label} count={c.count} pct={c.pct} color="#0ea5e9" rank={i} />
+            ))}
+            {(a?.countryBreakdown ?? []).length === 0 && (
+              <Text className="text-sm text-gray-400 text-center py-2">No data</Text>
+            )}
+          </Card>
+          <Card className={isWide ? 'flex-1' : ''}>
+            <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">State / Region</Text>
+            {(a?.stateBreakdown ?? []).map((s, i) => (
+              <HBar key={i} label={s.label} count={s.count} pct={s.pct} color="#6366f1" rank={i} />
+            ))}
+            {(a?.stateBreakdown ?? []).length === 0 && (
+              <Text className="text-sm text-gray-400 text-center py-2">No data</Text>
+            )}
+          </Card>
+        </View>
+
+        {/* ── Patient demographics ──────────────────────────────────────── */}
+        <SectionHeader title="Patient Demographics" icon="people" accent="#8b5cf6" />
+        {/* Gender & Language row */}
+        <View className={isWide ? 'flex-row gap-3 mb-1' : ''}>
+          <Card className={isWide ? 'flex-1' : ''}>
+            <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Gender</Text>
+            {(a?.genderBreakdown ?? []).map((g, i) => (
+              <HBar key={i} label={g.label} count={g.count} pct={g.pct}
+                color={['#0AADA2','#6366f1','#ec4899'][i] ?? '#94a3b8'} />
+            ))}
+          </Card>
+          <Card className={isWide ? 'flex-1' : ''}>
+            <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Language</Text>
+            {(a?.languageBreakdown ?? []).map((l, i) => (
+              <HBar key={i} label={l.label} count={l.count} pct={l.pct} color="#f97316" rank={i} />
+            ))}
+            {(a?.languageBreakdown ?? []).length === 0 && (
+              <Text className="text-sm text-gray-400 text-center py-2">No data</Text>
+            )}
+          </Card>
+        </View>
+        {/* Age groups */}
+        <Card>
+          <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Age Groups</Text>
+          <View className={isWide ? 'flex-row flex-wrap' : ''}>
+            {(a?.ageGroupBreakdown ?? []).map((ag, i) => {
+              const colors = ['#0AADA2','#6366f1','#ec4899','#f97316','#22c55e','#0ea5e9','#8b5cf6'];
+              return (
+                <View key={i} className={isWide ? 'w-1/3 pr-4 mb-2' : 'mb-2'}>
+                  <HBar label={ag.label} count={ag.count} pct={ag.pct}
+                    color={colors[i % colors.length]} />
+                </View>
+              );
+            })}
+            {(a?.ageGroupBreakdown ?? []).length === 0 && (
+              <Text className="text-sm text-gray-400 py-2">No DOB data on file</Text>
+            )}
+          </View>
+        </Card>
+        {/* Blood type & Genotype row */}
+        <View className={isWide ? 'flex-row gap-3 mb-1' : ''}>
+          <Card className={isWide ? 'flex-1' : ''}>
+            <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Blood Type</Text>
+            {(a?.bloodTypeBreakdown ?? []).map((b, i) => (
+              <HBar key={i} label={b.label} count={b.count} pct={b.pct} color="#ef4444" />
+            ))}
+            {(a?.bloodTypeBreakdown ?? []).length === 0 && (
+              <Text className="text-sm text-gray-400 text-center py-2">No data</Text>
+            )}
+          </Card>
+          <Card className={isWide ? 'flex-1' : ''}>
+            <Text className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Genotype</Text>
+            {(a?.genotypeBreakdown ?? []).map((g, i) => (
+              <HBar key={i} label={g.label} count={g.count} pct={g.pct} color="#eab308" />
+            ))}
+            {(a?.genotypeBreakdown ?? []).length === 0 && (
+              <Text className="text-sm text-gray-400 text-center py-2">No data</Text>
+            )}
+          </Card>
+        </View>
+
+        {/* ── Top Physicians leaderboard ────────────────────────────────── */}
+        <SectionHeader title="Top Physicians" icon="trophy" accent="#f97316" />
+        <Card>
+          {(a?.topPhysicians ?? []).map((p, i) => {
+            const max = Math.max(...(a?.topPhysicians ?? []).map(x => x.resolvedCases), 1);
+            const medalColors = ['#f59e0b', '#94a3b8', '#b45309'];
+            return (
+              <View key={i} className="mb-3 last:mb-0">
+                <View className="flex-row items-center mb-1.5">
+                  <View className="w-6 h-6 rounded-full items-center justify-center mr-2"
+                    style={{ backgroundColor: i < 3 ? medalColors[i] + '25' : '#f1f5f9' }}>
+                    <Text className="text-[10px] font-black"
+                      style={{ color: i < 3 ? medalColors[i] : '#94a3b8' }}>
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                    </Text>
+                  </View>
+                  <Text className="flex-1 text-sm font-semibold text-gray-800" numberOfLines={1}>{p.name}</Text>
+                  <Text className="text-sm font-black" style={{ color: '#f97316' }}>
+                    {p.resolvedCases} {p.resolvedCases === 1 ? 'case' : 'cases'}
+                  </Text>
+                </View>
+                <View className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#f97316' + '20' }}>
+                  <View className="h-full rounded-full"
+                    style={{ width: `${(p.resolvedCases / max) * 100}%`, backgroundColor: i === 0 ? '#f97316' : '#fdba74' }} />
+                </View>
+              </View>
+            );
+          })}
+          {(a?.topPhysicians ?? []).length === 0 && (
+            <Text className="text-sm text-gray-400 text-center py-4">No resolved cases yet</Text>
+          )}
+        </Card>
+
+        {/* ── Session / Engagement Time ─────────────────────────────────── */}
+        <SectionHeader title="Session & Engagement" icon="time" accent="#8b5cf6" />
+        {/* KPI cards row */}
+        <View className="flex-row -mx-1 mb-3">
+          <KPI
+            label="Avg Patient Session"
+            value={`${(a?.avgSessionMinsPatient ?? 0).toFixed(1)} min`}
+            color="#8b5cf6"
+          />
+          <KPI
+            label="Avg Physician Session"
+            value={`${(a?.avgSessionMinsPhysician ?? 0).toFixed(1)} min`}
+            color="#06b6d4"
+          />
+        </View>
+        <View className="flex-row -mx-1 mb-3">
+          <KPI
+            label="Patient Sessions"
+            value={(a?.totalSessionsPatient ?? 0).toLocaleString()}
+            color="#8b5cf6"
+          />
+          <KPI
+            label="Physician Sessions"
+            value={(a?.totalSessionsPhysician ?? 0).toLocaleString()}
+            color="#06b6d4"
+          />
+        </View>
+        <Card>
+          <View className="flex-row flex-wrap">
+            <Pill label="Avg Sessions / Patient" value={(a?.avgSessionsPerPatient ?? 0).toFixed(2)} color="#8b5cf6" />
+          </View>
+        </Card>
+        {/* Daily avg session duration as sparkline (map FloatPoint → DailyPoint-like) */}
+        {(a?.dailyAvgSessionMins ?? []).length > 0 && (
+          <View className="flex-row -mx-1 mb-3">
+            <Spark
+              points={(a?.dailyAvgSessionMins ?? []).map(p => ({ date: p.date, count: Math.round(p.value) }))}
+              color="#8b5cf6"
+              label="Daily Avg Session (min)"
+            />
+          </View>
+        )}
+        {/* Daily session counts */}
+        {((a?.dailySessionsPatient ?? []).length > 0 || (a?.dailySessionsPhysician ?? []).length > 0) && (
+          <View className="flex-row -mx-1 mb-4">
+            {(a?.dailySessionsPatient ?? []).length > 0 && (
+              <Spark
+                points={a?.dailySessionsPatient ?? []}
+                color="#8b5cf6"
+                label="Patient Sessions/day"
+              />
+            )}
+            {(a?.dailySessionsPhysician ?? []).length > 0 && (
+              <Spark
+                points={a?.dailySessionsPhysician ?? []}
+                color="#06b6d4"
+                label="Physician Sessions/day"
+              />
+            )}
+          </View>
+        )}
+
+      </View>
+    );
+  };
+
   // ── Panel renderer ────────────────────────────────────────────────────────
 
   const renderPanel = () => {
@@ -1263,6 +1683,7 @@ export default function AdminDashboardScreen() {
       case 'audit':         return renderAuditLog();
       case 'transactions':  return renderTransactions();
       case 'compliance':    return renderCompliance();
+      case 'analytics':     return renderAnalytics();
     }
   };
 

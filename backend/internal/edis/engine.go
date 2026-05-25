@@ -357,6 +357,10 @@ func (e *Engine) enforcePreferredLanguage(ctx context.Context, raw *ai.AIRespons
 		if strings.TrimSpace(rewritten.Prescription.Instructions) != "" {
 			raw.Prescription.Instructions = rewritten.Prescription.Instructions
 		}
+		// Route is a clinical term — preserve the rewritten value if provided.
+		if strings.TrimSpace(rewritten.Prescription.Route) != "" {
+			raw.Prescription.Route = rewritten.Prescription.Route
+		}
 	}
 
 	return raw

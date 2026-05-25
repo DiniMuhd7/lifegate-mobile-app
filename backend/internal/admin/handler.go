@@ -882,3 +882,32 @@ func (h *Handler) ApproveMedicationRelease(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Medication release approved"})
 }
 
+// ─── GET /api/admin/analytics ─────────────────────────────────────────────────
+
+// GetAnalytics returns the full Firebase-style analytics payload for the admin dashboard.
+//
+// @Summary      Admin analytics
+// @Tags         admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        days  query  integer  false  "Number of days to look back (default 30)"
+// @Success      200  {object}  object{success=bool,data=object}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /admin/analytics [get]
+func (h *Handler) GetAnalytics(c *gin.Context) {
+	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	if days < 7 {
+		days = 7
+	}
+	if days > 365 {
+		days = 365
+	}
+	data, err := h.svc.GetAnalytics(days)
+	if err != nil {
+		log.Printf("[admin] GetAnalytics: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to load analytics"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
+}
+

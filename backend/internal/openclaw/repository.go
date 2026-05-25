@@ -10,12 +10,15 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 )
 
-// caseNeedingReply is an Active case owned by an OpenClaw physician where the
-// most recent IM message was sent by the patient — the AI must reply.
+// caseNeedingReply is an Active case owned by an OpenClaw physician (or a human
+// physician with AI mode enabled) where the most recent IM message was sent by
+// the patient — the AI must reply.
 type caseNeedingReply struct {
 	CaseID        string
 	PhysicianID   string
 	AgentSlug     string
+	PhysicianName string // actual display name (used when IsHumanAIMode=true)
+	IsHumanAIMode bool   // true when the physician enabled AI mode rather than being a built-in agent
 	PatientID     string
 	PatientName   string
 	PatientGender string
@@ -29,15 +32,17 @@ type caseNeedingReply struct {
 	AIResponse string // raw JSONB text (may be empty)
 }
 
-// caseForReview is an Active OpenClaw case whose last IM is from the physician
-// (AI already replied) and where EDIS has set a condition — ready for the AI
-// physician to perform a structured clinical review.
+// caseForReview is an Active OpenClaw case (or a human AI mode physician case)
+// whose last IM is from the physician (AI already replied) and where EDIS has
+// set a condition — ready for the AI physician to perform a structured clinical review.
 type caseForReview struct {
-	CaseID      string
-	PhysicianID string
-	AgentSlug   string
-	PatientID   string
-	PatientName string
+	CaseID        string
+	PhysicianID   string
+	AgentSlug     string
+	PhysicianName string // actual display name (used when IsHumanAIMode=true)
+	IsHumanAIMode bool   // true when the physician enabled AI mode
+	PatientID     string
+	PatientName   string
 	// EDIS outputs
 	Condition  string
 	Urgency    string
@@ -89,14 +94,18 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// ListCasesNeedingReply returns Active OpenClaw cases where the most recent
-// instant message was sent by the patient (sender_role = 'user').
+// ListCasesNeedingReply returns Active cases where the most recent instant
+// message was sent by the patient (sender_role = 'user').  Includes both:
+//   - Built-in OpenClaw AI physicians (openclaw_agent_slug IS NOT NULL), and
+//   - Human physicians who have enabled AI mode (ai_mode_enabled = TRUE).
 func (r *Repository) ListCasesNeedingReply(ctx context.Context, limit int) ([]caseNeedingReply, error) {
 	const q = `
 		SELECT
 			d.id::text,
 			d.physician_id::text,
-			u_phys.openclaw_agent_slug,
+			COALESCE(u_phys.openclaw_agent_slug, ''),
+			COALESCE(u_phys.name, ''),
+			u_phys.ai_mode_enabled,
 			d.user_id::text,
 			COALESCE(u_pat.name, ''),
 			COALESCE(u_pat.gender, ''),
@@ -111,7 +120,7 @@ func (r *Repository) ListCasesNeedingReply(ctx context.Context, limit int) ([]ca
 		JOIN users u_phys ON u_phys.id = d.physician_id
 		JOIN users u_pat  ON u_pat.id  = d.user_id
 		WHERE d.status = 'Active'
-		  AND u_phys.openclaw_agent_slug IS NOT NULL
+		  AND (u_phys.openclaw_agent_slug IS NOT NULL OR u_phys.ai_mode_enabled = TRUE)
 		  AND (
 			SELECT sender_role
 			FROM instant_messages im
@@ -132,7 +141,7 @@ func (r *Repository) ListCasesNeedingReply(ctx context.Context, limit int) ([]ca
 	for rows.Next() {
 		var c caseNeedingReply
 		if err := rows.Scan(
-			&c.CaseID, &c.PhysicianID, &c.AgentSlug,
+			&c.CaseID, &c.PhysicianID, &c.AgentSlug, &c.PhysicianName, &c.IsHumanAIMode,
 			&c.PatientID, &c.PatientName, &c.PatientGender, &c.Language,
 			&c.CaseTitle, &c.CaseDesc,
 			&c.Condition, &c.Urgency,
@@ -156,7 +165,9 @@ func (r *Repository) ListCasesReadyForReview(ctx context.Context, limit int) ([]
 		SELECT
 			d.id::text,
 			d.physician_id::text,
-			u_phys.openclaw_agent_slug,
+			COALESCE(u_phys.openclaw_agent_slug, ''),
+			COALESCE(u_phys.name, ''),
+			u_phys.ai_mode_enabled,
 			d.user_id::text,
 			COALESCE(u_pat.name, ''),
 			COALESCE(d.condition, ''),
@@ -174,7 +185,7 @@ func (r *Repository) ListCasesReadyForReview(ctx context.Context, limit int) ([]
 		JOIN users u_phys ON u_phys.id = d.physician_id
 		JOIN users u_pat  ON u_pat.id  = d.user_id
 		WHERE d.status = 'Active'
-		  AND u_phys.openclaw_agent_slug IS NOT NULL
+		  AND (u_phys.openclaw_agent_slug IS NOT NULL OR u_phys.ai_mode_enabled = TRUE)
 		  AND d.condition IS NOT NULL AND d.condition <> ''
 		  AND (
 			SELECT sender_role
@@ -204,7 +215,7 @@ func (r *Repository) ListCasesReadyForReview(ctx context.Context, limit int) ([]
 	for rows.Next() {
 		var c caseForReview
 		if err := rows.Scan(
-			&c.CaseID, &c.PhysicianID, &c.AgentSlug,
+			&c.CaseID, &c.PhysicianID, &c.AgentSlug, &c.PhysicianName, &c.IsHumanAIMode,
 			&c.PatientID, &c.PatientName,
 			&c.Condition, &c.Urgency,
 			&c.CaseTitle, &c.CaseDesc,

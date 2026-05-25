@@ -68,6 +68,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/institutional"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/research"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/engagement"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -530,6 +531,9 @@ func main() {
 		physicianGroup.GET("/payouts", physicianHandler.GetPayouts)
 		physicianGroup.POST("/payouts/request", physicianHandler.RequestPayout)
 		physicianGroup.PATCH("/profile", physicianHandler.UpdateProfile)
+		// AI mode toggle — lets a human physician delegate case handling to the OpenClaw worker
+		physicianGroup.GET("/ai-mode", physicianHandler.GetAIMode)
+		physicianGroup.POST("/ai-mode", physicianHandler.ToggleAIMode)
 		// Register/update device push token for in-app notifications
 		physicianGroup.POST("/push-token", func(c *gin.Context) {
 			var req notifications.RegisterTokenRequest
@@ -697,6 +701,15 @@ func main() {
 		sessionsGroup.DELETE("/:id", sessionsHandler.Delete)
 	}
 
+	// App-level engagement session tracking (foreground start / background end)
+	engagementRepo := engagement.NewRepository(database)
+	engagementHandler := engagement.NewHandler(engagementRepo)
+	engagementGroup := api.Group("/sessions/app", middleware.Auth(cfg.JWTSecret))
+	{
+		engagementGroup.POST("/start", engagementHandler.StartSession)
+		engagementGroup.POST("/:id/end", engagementHandler.EndSession)
+	}
+
 	// Admin routes — require both a valid JWT and the "admin" role.
 	adminGroup := api.Group("/admin", middleware.Auth(cfg.JWTSecret), middleware.AdminOnly())
 	{
@@ -706,6 +719,7 @@ func main() {
 		adminGroup.GET("/sla/breach-alerts", adminHandler.GetSLABreachAlerts)
 		adminGroup.GET("/sla/reassignment-log", adminHandler.GetReassignmentLog)
 		adminGroup.GET("/metrics/edis", adminHandler.GetEDISMetrics)
+		adminGroup.GET("/analytics", adminHandler.GetAnalytics)
 
 		// Physician account management
 		adminGroup.GET("/physicians", adminHandler.GetPhysicians)

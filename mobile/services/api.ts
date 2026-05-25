@@ -177,7 +177,17 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const config = error.config as any;
 
-    if (error.response?.status === 401 && !config?._refreshed) {
+    // Never attempt a silent token refresh for auth endpoints themselves
+    // (/auth/login, /auth/refresh, /auth/logout).  A 401 from those endpoints
+    // is a legitimate rejection (wrong credentials, expired token) and should
+    // be surfaced directly to the caller — not intercepted.
+    const reqUrl: string = config?.url ?? '';
+    const isAuthEndpoint =
+      reqUrl.includes('/auth/login') ||
+      reqUrl.includes('/auth/refresh') ||
+      reqUrl.includes('/auth/logout');
+
+    if (error.response?.status === 401 && !config?._refreshed && !isAuthEndpoint) {
       // Prevent retry loops — mark this request as already-retried.
       config._refreshed = true;
 

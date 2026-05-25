@@ -123,8 +123,16 @@ func (w *Worker) runReplyCycle(ctx context.Context) {
 }
 
 func (w *Worker) handleReply(ctx context.Context, c caseNeedingReply) error {
-	// 1. Build the physician system prompt from agent definition files.
-	systemPrompt, err := w.buildSystemPrompt(c)
+	// 1. Build the physician system prompt.
+	//    For built-in agents load the agent persona files; for human physicians
+	//    in AI mode build a generic competent-physician persona on the fly.
+	var systemPrompt string
+	var err error
+	if c.IsHumanAIMode || c.AgentSlug == "" {
+		systemPrompt, err = w.buildHumanAIReplyPrompt(c)
+	} else {
+		systemPrompt, err = w.buildSystemPrompt(c)
+	}
 	if err != nil {
 		return fmt.Errorf("build system prompt: %w", err)
 	}
@@ -151,7 +159,15 @@ func (w *Worker) handleReply(ctx context.Context, c caseNeedingReply) error {
 	}
 
 	// 4. Persist the reply as a physician IM message.
-	physicianName := w.cachedPhysicianName(c.AgentSlug)
+	var physicianName string
+	if c.IsHumanAIMode || c.AgentSlug == "" {
+		physicianName = c.PhysicianName
+		if physicianName == "" {
+			physicianName = "Dr. (AI Mode)"
+		}
+	} else {
+		physicianName = w.cachedPhysicianName(c.AgentSlug)
+	}
 	msgID, err := w.repo.InsertPhysicianMessage(ctx, c.CaseID, c.PhysicianID, physicianName, replyText)
 	if err != nil {
 		return fmt.Errorf("insert physician message: %w", err)
@@ -208,7 +224,14 @@ func (w *Worker) runCompletionCycle(ctx context.Context) {
 //     all physicians, then send a push notification to the patient.
 func (w *Worker) handleReview(ctx context.Context, c caseForReview) error {
 	// 1. Build the structured review system prompt.
-	systemPrompt, err := w.buildReviewSystemPrompt(c)
+	//    Human AI mode physicians use a generic competent-physician review prompt.
+	var systemPrompt string
+	var err error
+	if c.IsHumanAIMode || c.AgentSlug == "" {
+		systemPrompt, err = w.buildHumanAIReviewPrompt(c)
+	} else {
+		systemPrompt, err = w.buildReviewSystemPrompt(c)
+	}
 	if err != nil {
 		return fmt.Errorf("build review prompt: %w", err)
 	}
@@ -415,6 +438,9 @@ func (w *Worker) buildReviewSystemPrompt(c caseForReview) (string, error) {
 		if p.Dosage != "" {
 			fmt.Fprintf(&sb, "- Dosage: %s\n", p.Dosage)
 		}
+		if p.Route != "" {
+			fmt.Fprintf(&sb, "- Route: %s\n", p.Route)
+		}
 		if p.Frequency != "" {
 			fmt.Fprintf(&sb, "- Frequency: %s\n", p.Frequency)
 		}
@@ -523,6 +549,57 @@ func (w *Worker) buildSystemPrompt(c caseNeedingReply) (string, error) {
 	sb.WriteString("  No other JSON fields, no markdown, no prose outside the JSON object.\n")
 
 	return sb.String(), nil
+}
+
+// buildHumanAIReplyPrompt builds a generic physician reply system prompt for a
+// human physician operating in AI mode.  No agent persona files are needed.
+func (w *Worker) buildHumanAIReplyPrompt(c caseNeedingReply) (string, error) {
+	name := c.PhysicianName
+	if name == "" {
+		name = "Dr. (LifeGate Physician)"
+	}
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "You are %s, a licensed medical doctor on the LifeGate platform currently operating in AI-assisted mode.\n", name)
+	sb.WriteString(`You respond to patient messages with the same clinical standards expected of any LifeGate physician.
+
+RULES:
+- Always greet the patient warmly and professionally.
+- Gather relevant symptom history before offering clinical opinions.
+- Do NOT make a definitive diagnosis without sufficient information.
+- Express appropriate clinical empathy; acknowledge the patient's concern.
+- If the conversation has progressed to a clear clinical picture, summarise your assessment and next steps clearly.
+- Always remind the patient to follow up in person for examinations or urgent matters.
+- Never dismiss patient concerns or give false reassurance.
+- You operate under Nigerian medical ethics and MDCN standards.
+- Communicate in the same language the patient is using (currently: ` + c.Language + `).
+- Keep responses concise and clear; avoid medical jargon unless explained.
+`)
+	if c.PatientGender != "" {
+		fmt.Fprintf(&sb, "\nPatient gender: %s\n", c.PatientGender)
+	}
+	if c.Condition != "" {
+		fmt.Fprintf(&sb, "Working diagnosis: %s (urgency: %s)\n", c.Condition, c.Urgency)
+	}
+	return sb.String(), nil
+}
+
+// buildHumanAIReviewPrompt builds a structured case-review system prompt for a
+// human physician operating in AI mode.
+func (w *Worker) buildHumanAIReviewPrompt(c caseForReview) (string, error) {
+	name := c.PhysicianName
+	if name == "" {
+		name = "Dr. (LifeGate Physician)"
+	}
+	// Delegate to the standard buildReviewSystemPrompt logic but inject the
+	// physician name inline at the top.  We re-use buildReviewSystemPrompt by
+	// temporarily constructing a caseForReview with an empty slug and inserting
+	// the header manually.
+	base, err := w.buildReviewSystemPrompt(c)
+	if err != nil {
+		return "", err
+	}
+	header := fmt.Sprintf("You are %s, a licensed physician on the LifeGate platform operating in AI-assisted mode.\n\n", name)
+	return header + base, nil
 }
 
 // loadPersona reads the four identity files for the given agent slug,
