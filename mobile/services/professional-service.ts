@@ -146,7 +146,7 @@ export const ProfessionalService = {
   async completeCase(caseId: string, notes: string): Promise<void> {
     const response = await api.post<{ success: boolean; message: string }>(
       `/physician/reports/${caseId}/review`,
-      { action: 'Completed', notes }
+      { action: 'Completed', notes, physician_decision: 'Approved' }
     );
     if (!response.data.success) throw new Error(response.data.message || 'Failed to complete case');
   },

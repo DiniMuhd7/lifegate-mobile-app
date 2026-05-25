@@ -239,10 +239,10 @@ func enrichFromAI(d *DiagnosisDetail, aiJSON, physicianAIJSON, hpiJSON string) {
 	}
 
 	// Redact prescription from the API response unless the physician has
-	// formally approved the case. This enforces the gate server-side so that
-	// clients inspecting raw API traffic cannot read prescription data before
-	// approval.
-	isApproved := d.Status == "Completed" && d.PhysicianDecision == "Approved"
+	// formally approved the case, or an admin has granted early medication
+	// release. This enforces the gate server-side so that clients inspecting
+	// raw API traffic cannot read prescription data before approval.
+	isApproved := (d.Status == "Completed" && d.PhysicianDecision == "Approved") || d.MedicationReleaseApproved
 	if !isApproved {
 		d.Prescription = nil
 		d.Prescriptions = nil

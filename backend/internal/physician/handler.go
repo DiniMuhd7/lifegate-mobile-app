@@ -123,6 +123,15 @@ func (h *Handler) ReviewReport(c *gin.Context) {
 		return
 	}
 
+	// Validate: physician_decision must be Approved or Rejected when completing a case.
+	if req.Action == "Completed" && req.PhysicianDecision != "Approved" && req.PhysicianDecision != "Rejected" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "physician_decision must be 'Approved' or 'Rejected' when action is Completed",
+		})
+		return
+	}
+
 	// Validate: rejection reason is required when decision is Rejected.
 	if req.PhysicianDecision == "Rejected" && req.RejectionReason == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
