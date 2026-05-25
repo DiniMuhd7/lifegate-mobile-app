@@ -50,7 +50,7 @@ const SLOT_ICONS: Record<number, string> = {
 };
 
 export default function CheckinsScreen() {
-  const { streak, slots, initialized, initialize, claimSlot, lifecoins: checkinEarned } = useCheckinStore();
+  const { streak, longestStreak, bonusMultiplier, slots, initialized, initialize, claimSlot, lifecoins: checkinEarned } = useCheckinStore();
   const { diagnoses, fetchDiagnoses } = useDiagnosisStore();
 
   const latestDiagnosis = diagnoses[0] ?? null;
@@ -299,6 +299,18 @@ export default function CheckinsScreen() {
                   days
                 </Text>
               </View>
+              {bonusMultiplier > 1 && (
+                <View style={{
+                  marginTop: 4,
+                  backgroundColor: '#7c3aed',
+                  borderRadius: 6,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  alignSelf: 'flex-start',
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>×{bonusMultiplier} bonus</Text>
+                </View>
+              )}
             </View>
 
             <View

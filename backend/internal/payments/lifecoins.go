@@ -70,6 +70,93 @@ type flwTransferResponse struct {
 	} `json:"data"`
 }
 
+// ngnPerDxCredit is the Naira cost of one DX credit when purchased via LifeCoins.
+// Derived from the Starter bundle rate (₦2,500 ÷ 5 credits = ₦500 per credit).
+const ngnPerDxCredit = 500
+
+// GetCoinsPerCredit returns the number of LifeCoins required to unlock one
+// DX credit, calculated from the live naira_per_coin configuration.
+func (s *Service) GetCoinsPerCredit() int {
+	nairaPerCoin := s.getNairaPerCoin()
+	if nairaPerCoin <= 0 {
+		nairaPerCoin = defaultNairaPerCoin
+	}
+	// Ceiling division: always round up so the patient pays at least full value.
+	return (ngnPerDxCredit + nairaPerCoin - 1) / nairaPerCoin
+}
+
+// SpendLifecoinsForDxCredit atomically deducts the LifeCoins equivalent of one
+// DX credit from the patient's wallet and grants them 1 DX credit.
+// Returns the number of coins deducted so the caller can confirm the transaction
+// in the response. Returns an "insufficient balance" error (detected by
+// isInsufficientBalance) when the wallet cannot cover the cost.
+func (s *Service) SpendLifecoinsForDxCredit(userID string) (coinsDeducted int, err error) {
+	if err := s.ensureLifecoinWallet(userID); err != nil {
+		return 0, err
+	}
+
+	coinsNeeded := s.GetCoinsPerCredit()
+	nairaPerCoin := s.getNairaPerCoin()
+	nairaAmount := coinsNeeded * nairaPerCoin
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Atomically deduct coins — only succeeds when balance >= coinsNeeded.
+	var newBalance int
+	if scanErr := tx.QueryRow(
+		`UPDATE lifecoins_wallet
+		 SET balance = balance - $2, updated_at = NOW()
+		 WHERE user_id = $1::uuid AND balance >= $2
+		 RETURNING balance`,
+		userID, coinsNeeded,
+	).Scan(&newBalance); scanErr == sql.ErrNoRows {
+		return 0, fmt.Errorf("insufficient balance: need %d LifeCoins to unlock a Dx Credit", coinsNeeded)
+	} else if scanErr != nil {
+		return 0, scanErr
+	}
+
+	// Record the spend in the LifeCoins ledger.
+	if _, execErr := tx.Exec(
+		`INSERT INTO lifecoins_transactions
+		 (user_id, type, source, coins, naira_amount, description, transfer_status)
+		 VALUES ($1::uuid, 'redeem', 'dx_credit', $2, $3, 'Dx Credit — paid via LifeCoins', 'success')`,
+		userID, coinsNeeded, nairaAmount,
+	); execErr != nil {
+		return 0, execErr
+	}
+
+	// Record in payment_transactions so the credits ledger reconciles correctly.
+	txRef := fmt.Sprintf("LC-DX-%s-%d", userID[:8], time.Now().UnixNano())
+	if _, execErr := tx.Exec(
+		`INSERT INTO payment_transactions
+		 (user_id, tx_ref, amount, credits_granted, status, bundle_id, currency)
+		 VALUES ($1::uuid, $2, $3, 1, 'success', 'lifecoin_dx', 'NGN')`,
+		userID, txRef, nairaAmount,
+	); execErr != nil {
+		return 0, execErr
+	}
+
+	// Grant 1 DX credit to the user's credits wallet.
+	if _, execErr := tx.Exec(
+		`INSERT INTO credits (user_id, balance, updated_at)
+		 VALUES ($1::uuid, 1, NOW())
+		 ON CONFLICT (user_id)
+		 DO UPDATE SET balance = credits.balance + 1, updated_at = NOW()`,
+		userID,
+	); execErr != nil {
+		return 0, execErr
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return coinsNeeded, nil
+}
+
 // getNairaPerCoin reads the naira_per_coin configuration value from the DB.
 func (s *Service) getNairaPerCoin() int {
 	var val string
@@ -497,11 +584,22 @@ func (s *Service) GetLifecoinTransactions(userID string, limit, offset int) ([]L
 	return out, rows.Err()
 }
 
+// ClaimCheckinSlotResult carries what actually happened after a claim attempt.
+type ClaimCheckinSlotResult struct {
+	AlreadyClaimed  bool       `json:"alreadyClaimed"`
+	CoinsEarned     int        `json:"coinsEarned"`    // base × multiplier
+	BaseCoins       int        `json:"baseCoins"`
+	BonusMultiplier int        `json:"bonusMultiplier"`
+	Streak          *StreakInfo `json:"streak"`
+}
+
 // ClaimCheckinSlot awards Lifecoins for a daily check-in slot.
 // It is idempotent: if the user already claimed this slot on the given date
-// (user_id + slot_id + claim_date) the second call is a no-op.
+// (user_id + slot_id + claim_date) the second call returns AlreadyClaimed=true.
 // claimDate is optional (YYYY-MM-DD); if empty it defaults to today UTC.
-func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int, claimDate string) error {
+// Streak is updated on the first claim of each calendar day; subsequent slot
+// claims on the same day keep the same streak value.
+func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int, claimDate string) (*ClaimCheckinSlotResult, error) {
 	if coins <= 0 {
 		coins = 1
 	}
@@ -518,14 +616,43 @@ func (s *Service) ClaimCheckinSlot(userID string, slotID, coins int, claimDate s
 		userID, slotID, claimDate, coins,
 	).Scan(&claimed)
 	if err == sql.ErrNoRows {
-		return nil // already claimed for this date
+		streak, _ := s.GetStreak(userID)
+		return &ClaimCheckinSlotResult{AlreadyClaimed: true, Streak: streak}, nil
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.EarnLifecoins(userID, "checkin", fmt.Sprintf("Daily check-in — slot %d", slotID), coins)
+	// Advance the server streak and compute the multiplier.
+	streak, err := s.updateStreak(userID, claimDate)
+	if err != nil {
+		// Non-fatal: streak failure must not prevent coin award.
+		streak = &StreakInfo{CurrentStreak: 1, LongestStreak: 1,
+			LastCheckinDate: claimDate, BonusMultiplier: 1}
+	}
+
+	// Apply the streak multiplier to the base coins.
+	totalCoins := coins * streak.BonusMultiplier
+
+	desc := fmt.Sprintf("Daily check-in — slot %d", slotID)
+	if streak.BonusMultiplier > 1 {
+		desc = fmt.Sprintf("Daily check-in — slot %d (×%d streak bonus, day %d)",
+			slotID, streak.BonusMultiplier, streak.CurrentStreak)
+	}
+
+	if earnErr := s.EarnLifecoins(userID, "checkin", desc, totalCoins); earnErr != nil {
+		return nil, earnErr
+	}
+
+	return &ClaimCheckinSlotResult{
+		AlreadyClaimed:  false,
+		CoinsEarned:     totalCoins,
+		BaseCoins:       coins,
+		BonusMultiplier: streak.BonusMultiplier,
+		Streak:          streak,
+	}, nil
 }
+
 
 // SubmitCheckinAnswers persists a user's check-in answers for a slot.
 func (s *Service) SubmitCheckinAnswers(userID string, slotID int, answers []map[string]interface{}) error {
@@ -549,6 +676,117 @@ var slotLabels = map[int]string{
 	3: "Noon",
 	5: "Evening",
 	6: "Night",
+}
+
+// ─── Streak ───────────────────────────────────────────────────────────────────
+
+// StreakInfo is the public view of a patient's daily check-in streak.
+type StreakInfo struct {
+	CurrentStreak int    `json:"currentStreak"`
+	LongestStreak int    `json:"longestStreak"`
+	LastCheckinDate string `json:"lastCheckinDate"` // YYYY-MM-DD or ""
+	BonusMultiplier int    `json:"bonusMultiplier"` // 1 = normal, 2 = 2×, etc.
+}
+
+// streakMultiplier returns the coins multiplier for the given streak length.
+//
+//	streak ≥ 30 → 5×   (month-long devotion)
+//	streak ≥ 14 → 3×
+//	streak ≥  7 → 2×
+//	otherwise  → 1×
+func streakMultiplier(streak int) int {
+	switch {
+	case streak >= 30:
+		return 5
+	case streak >= 14:
+		return 3
+	case streak >= 7:
+		return 2
+	default:
+		return 1
+	}
+}
+
+// GetStreak returns the server-authoritative streak for a user.
+func (s *Service) GetStreak(userID string) (*StreakInfo, error) {
+	var info StreakInfo
+	var last sql.NullString
+	err := s.db.QueryRow(
+		`SELECT current_streak, longest_streak, COALESCE(last_checkin_date::text, '')
+		 FROM user_streaks WHERE user_id = $1::uuid`, userID,
+	).Scan(&info.CurrentStreak, &info.LongestStreak, &last)
+	if err == sql.ErrNoRows {
+		// No record yet — user hasn't checked in before.
+		return &StreakInfo{BonusMultiplier: 1}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	info.LastCheckinDate = last.String
+	info.BonusMultiplier = streakMultiplier(info.CurrentStreak)
+	return &info, nil
+}
+
+// updateStreak atomically advances (or resets) the server streak for a user
+// after a successful check-in claim. Returns the updated StreakInfo.
+// Must be called within the same logical operation as ClaimCheckinSlot so that
+// streak advances only when a real claim succeeds.
+func (s *Service) updateStreak(userID, claimDate string) (*StreakInfo, error) {
+	if claimDate == "" {
+		claimDate = time.Now().UTC().Format("2006-01-02")
+	}
+
+	var cur, longest int
+	var last sql.NullString
+
+	// Fetch current state (or start fresh).
+	err := s.db.QueryRow(
+		`SELECT current_streak, longest_streak, last_checkin_date::text
+		 FROM user_streaks WHERE user_id = $1::uuid`, userID,
+	).Scan(&cur, &longest, &last)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
+	lastDate := last.String
+
+	// Idempotent — if the streak was already advanced today, return current state.
+	if lastDate == claimDate {
+		multi := streakMultiplier(cur)
+		return &StreakInfo{CurrentStreak: cur, LongestStreak: longest,
+			LastCheckinDate: lastDate, BonusMultiplier: multi}, nil
+	}
+
+	// Advance streak if claimed yesterday, reset otherwise.
+	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
+	if lastDate == yesterday {
+		cur++
+	} else {
+		cur = 1
+	}
+	if cur > longest {
+		longest = cur
+	}
+
+	if _, execErr := s.db.Exec(
+		`INSERT INTO user_streaks (user_id, current_streak, longest_streak, last_checkin_date, updated_at)
+		 VALUES ($1::uuid, $2, $3, $4::date, NOW())
+		 ON CONFLICT (user_id)
+		 DO UPDATE SET current_streak    = EXCLUDED.current_streak,
+		               longest_streak    = EXCLUDED.longest_streak,
+		               last_checkin_date = EXCLUDED.last_checkin_date,
+		               updated_at        = NOW()`,
+		userID, cur, longest, claimDate,
+	); execErr != nil {
+		return nil, execErr
+	}
+
+	return &StreakInfo{
+		CurrentStreak:   cur,
+		LongestStreak:   longest,
+		LastCheckinDate: claimDate,
+		BonusMultiplier: streakMultiplier(cur),
+	}, nil
 }
 
 // GetCheckinPhysicianInfo returns the physician assigned to the patient's most

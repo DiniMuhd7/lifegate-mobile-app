@@ -26,6 +26,7 @@ import { MessageList } from 'components/MessageList';
 import type { Message as ChatMessage } from 'components/MessageList';
 import { ChatInputBar } from 'components/ChatInputBar';
 import { ProfileMenu } from 'components/ProfileMenu';
+import StreakBanner from 'components/StreakBanner';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
@@ -116,6 +117,9 @@ const ChatScreen: React.FC = () => {
   const deleteConversation = useChatStore((state) => state.deleteConversation);
   const confirmClinicalMode = useChatStore((state) => state.confirmClinicalMode);
   const cancelClinicalMode = useChatStore((state) => state.cancelClinicalMode);
+  const pendingLifecoinConsent = useChatStore((state) => state.pendingLifecoinConsent);
+  const confirmLifecoinPayment = useChatStore((state) => state.confirmLifecoinPayment);
+  const cancelLifecoinPayment = useChatStore((state) => state.cancelLifecoinPayment);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === activeConversationId) || null,
@@ -758,6 +762,7 @@ const ChatScreen: React.FC = () => {
                 </View>
 
                 {/* ── Conversation starter chips ── */}
+                <StreakBanner />
                 <Text
                   style={{
                     fontSize: 11,
@@ -844,6 +849,90 @@ const ChatScreen: React.FC = () => {
                 <Text className="text-sm font-medium text-red-700 flex-1">{error}</Text>
                 <TouchableOpacity onPress={clearError}>
                   <Ionicons name="close" size={16} color="#dc2626" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* LifeCoins consent card — shown when DX credits are exhausted
+                but the patient has enough LifeCoins to cover the cost. */}
+            {pendingLifecoinConsent && (
+              <View
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 8,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: '#a78bfa',
+                  backgroundColor: '#faf5ff',
+                  padding: 14,
+                  gap: 10,
+                }}
+              >
+                {/* Header */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="wallet-outline" size={18} color="#7c3aed" />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#4c1d95', flex: 1 }}>
+                    No Dx Credits — pay with LifeCoins?
+                  </Text>
+                </View>
+
+                {/* Balance & cost summary */}
+                <Text style={{ fontSize: 13, color: '#5b21b6', lineHeight: 19 }}>
+                  You have{' '}
+                  <Text style={{ fontWeight: '700' }}>
+                    {pendingLifecoinConsent.lifecoinsBalance} LifeCoins
+                  </Text>
+                  . Using{' '}
+                  <Text style={{ fontWeight: '700' }}>
+                    {pendingLifecoinConsent.coinsPerCredit} LifeCoins
+                  </Text>{' '}
+                  will unlock 1 Dx Credit so a licensed physician can review your case.
+                </Text>
+
+                {/* Action row */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+                  <TouchableOpacity
+                    onPress={confirmLifecoinPayment}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#7c3aed',
+                      borderRadius: 10,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>
+                      Use {pendingLifecoinConsent.coinsPerCredit} LifeCoins
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={cancelLifecoinPayment}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: '#a78bfa',
+                      borderRadius: 10,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: '#7c3aed', fontSize: 13, fontWeight: '600' }}>
+                      Not now
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Purchase / subscribe shortcut */}
+                <TouchableOpacity
+                  onPress={() => router.push('/(tab)/settings/subscription')}
+                  style={{ alignItems: 'center', paddingTop: 2 }}
+                >
+                  <Text style={{ fontSize: 12, color: '#7c3aed', textDecorationLine: 'underline' }}>
+                    Buy a bundle or subscribe to Premium instead
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}

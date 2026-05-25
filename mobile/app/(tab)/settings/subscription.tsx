@@ -711,7 +711,19 @@ export default function SubscriptionScreen() {
           {creditBundles.map((bundle, idx) => {
             const selected = selectedBundle === bundle.id;
             const isValue  = idx === creditBundles.length - 1;
-            const perCredit = bundle.amountNaira / bundle.credits;
+            const perCredit = (bundle.promoNaira ?? bundle.amountNaira) / bundle.credits;
+
+            // Promo countdown — how many hours/mins remain
+            let promoCountdown: string | null = null;
+            if (bundle.promoExpiresAt) {
+              const msLeft = new Date(bundle.promoExpiresAt).getTime() - Date.now();
+              if (msLeft > 0) {
+                const hLeft = Math.floor(msLeft / 3600000);
+                const mLeft = Math.floor((msLeft % 3600000) / 60000);
+                promoCountdown = hLeft > 0 ? `${hLeft}h ${mLeft}m left` : `${mLeft}m left`;
+              }
+            }
+
             return (
               <Pressable
                 key={bundle.id}
@@ -726,6 +738,15 @@ export default function SubscriptionScreen() {
                     {isValue && (
                       <View className="px-2 py-0.5 rounded-full bg-[#ECFDF5] border border-[#A7F3D0]">
                         <Text className="text-[10px] font-bold text-[#047857]">Best value</Text>
+                      </View>
+                    )}
+                    {/* Flash-sale promo badge */}
+                    {bundle.promoLabel && promoCountdown && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3,
+                        backgroundColor: '#fef3c7', borderRadius: 999,
+                        paddingHorizontal: 6, paddingVertical: 2,
+                        borderWidth: 1, borderColor: '#fbbf24' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#92400e' }}>⚡ {bundle.promoLabel}</Text>
                       </View>
                     )}
                   </View>
@@ -744,12 +765,36 @@ export default function SubscriptionScreen() {
                 </View>
 
                 <View className="flex-row items-center justify-between mb-3">
-                  <Text className="text-lg font-bold text-gray-900">
-                    {currency === 'USD' ? `$${bundle.amountUSD.toFixed(2)}` : `₦${bundle.amountNaira.toLocaleString()}`}
-                  </Text>
-                  <Text className="text-xs text-gray-400">
-                    ₦{perCredit.toLocaleString()} per credit
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                    {/* Show promo price with strikethrough original if active */}
+                    {bundle.promoNaira && promoCountdown ? (
+                      <>
+                        <Text className="text-lg font-black text-red-600">
+                          {currency === 'USD'
+                            ? `$${(bundle.promoNaira / 1600).toFixed(2)}`
+                            : `₦${bundle.promoNaira.toLocaleString()}`}
+                        </Text>
+                        <Text style={{ fontSize: 13, color: '#9ca3af', textDecorationLine: 'line-through' }}>
+                          {currency === 'USD' ? `$${bundle.amountUSD.toFixed(2)}` : `₦${bundle.amountNaira.toLocaleString()}`}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text className="text-lg font-bold text-gray-900">
+                        {currency === 'USD' ? `$${bundle.amountUSD.toFixed(2)}` : `₦${bundle.amountNaira.toLocaleString()}`}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                    <Text className="text-xs text-gray-400">
+                      ₦{Math.round(perCredit).toLocaleString()} per credit
+                    </Text>
+                    {/* Countdown timer */}
+                    {promoCountdown && (
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#dc2626' }}>
+                        ⏱ {promoCountdown}
+                      </Text>
+                    )}
+                  </View>
                 </View>
 
                 <View className="gap-1">

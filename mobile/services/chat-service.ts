@@ -116,7 +116,15 @@ export class ChatService {
         message.includes('insufficient') && message.includes('credit');
 
       if (isCreditGate) {
-        throw new Error('INSUFFICIENT_CREDITS');
+        // Carry the LifeCoins balance & cost-per-credit from the response so
+        // the chat store can offer a LifeCoins fallback payment to the patient.
+        const creditsError = new Error('INSUFFICIENT_CREDITS') as Error & {
+          lifecoinsBalance?: number;
+          coinsPerCredit?: number;
+        };
+        creditsError.lifecoinsBalance = (error?.response?.data?.lifecoinsBalance as number) ?? 0;
+        creditsError.coinsPerCredit = (error?.response?.data?.coinsPerCredit as number) ?? 50;
+        throw creditsError;
       }
 
       // Detect axios timeout (ECONNABORTED) or network-level failure so the

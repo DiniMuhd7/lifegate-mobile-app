@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from 'services/api';
+import { PaymentService } from 'services/payment-service';
 import { useLifecoinsWalletStore } from './lifecoins-wallet-store';
 
 const STORAGE_KEY = 'checkin_store_v1';
@@ -195,6 +196,8 @@ function todayStr(): string {
 interface PersistedCheckinData {
   lifecoins: number;
   streak: number;
+  longestStreak: number;
+  bonusMultiplier: number; // current streak multiplier: 1 | 2 | 3 | 5
   lastDailyCheckinDate: string | null;
   slots: HourlySlot[];
 }
@@ -204,7 +207,9 @@ interface PersistedCheckinData {
 interface CheckinState extends PersistedCheckinData {
   initialized: boolean;
   initialize: () => Promise<void>;
-  claimSlot: (id: number) => Promise<{ success: boolean; coinsEarned: number }>;
+  claimSlot: (id: number) => Promise<{ success: boolean; coinsEarned: number; bonusMultiplier: number }>;
+  /** Sync streak from backend (call after initialize or on app foreground). */
+  syncStreak: () => Promise<void>;
   /** Reset all in-memory state. Call on logout so the next user starts clean. */
   reset: () => void;
 }
@@ -220,6 +225,8 @@ async function persist(data: PersistedCheckinData) {
 export const useCheckinStore = create<CheckinState>((set, get) => ({
   lifecoins: 0,
   streak: 0,
+  longestStreak: 0,
+  bonusMultiplier: 1,
   lastDailyCheckinDate: null,
   slots: defaultSlots(),
   initialized: false,
@@ -255,32 +262,40 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
   },
 
   claimSlot: async (id: number) => {
-    const { slots, lifecoins, streak, lastDailyCheckinDate } = get();
+    const { slots, lifecoins, streak, longestStreak, lastDailyCheckinDate } = get();
     const today = todayStr();
     const now = new Date();
     const currentHour = now.getHours();
     const slot = slots.find((s) => s.id === id);
-    if (!slot) return { success: false, coinsEarned: 0 };
-    if (slot.claimedDate === today) return { success: false, coinsEarned: 0 };
-    if (currentHour < slot.unlockHour) return { success: false, coinsEarned: 0 };
+    if (!slot) return { success: false, coinsEarned: 0, bonusMultiplier: 1 };
+    if (slot.claimedDate === today) return { success: false, coinsEarned: 0, bonusMultiplier: 1 };
+    if (currentHour < slot.unlockHour) return { success: false, coinsEarned: 0, bonusMultiplier: 1 };
     // Slot window has closed — missed, no reward
-    if (currentHour >= slot.deadlineHour) return { success: false, coinsEarned: 0 };
+    if (currentHour >= slot.deadlineHour) return { success: false, coinsEarned: 0, bonusMultiplier: 1 };
 
-    // Maintain streak — advance on first claim of the day
+    // Maintain local streak — advance on first claim of the day
     let newStreak = streak;
     let newLastDate = lastDailyCheckinDate;
+    let newMultiplier = 1;
     if (lastDailyCheckinDate !== today) {
       const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
       newStreak = lastDailyCheckinDate === yesterday ? streak + 1 : 1;
       newLastDate = today;
     }
+    // Compute multiplier from local streak so UI updates instantly
+    if (newStreak >= 30) newMultiplier = 5;
+    else if (newStreak >= 14) newMultiplier = 3;
+    else if (newStreak >= 7) newMultiplier = 2;
 
+    const totalCoins = slot.coins * newMultiplier;
     const updatedSlots = slots.map((s) =>
       s.id === id ? { ...s, claimedDate: today } : s
     );
     const next: PersistedCheckinData = {
-      lifecoins: lifecoins + slot.coins,
+      lifecoins: lifecoins + totalCoins,
       streak: newStreak,
+      longestStreak: Math.max(longestStreak, newStreak),
+      bonusMultiplier: newMultiplier,
       lastDailyCheckinDate: newLastDate,
       slots: updatedSlots,
     };
@@ -290,21 +305,46 @@ export const useCheckinStore = create<CheckinState>((set, get) => ({
     try { await persist(next); } catch { /* non-fatal */ }
 
     // Update the wallet store immediately so the profile total reflects the new coins.
-    useLifecoinsWalletStore.getState().addCoins('checkin', slot.coins, 'Daily check-in bonus');
+    useLifecoinsWalletStore.getState().addCoins('checkin', totalCoins,
+      newMultiplier > 1
+        ? `Daily check-in (×${newMultiplier} streak bonus, day ${newStreak})`
+        : 'Daily check-in bonus');
 
-    // Persist to backend — awaited so the server wallet is up-to-date before the
-    // next syncFromBackend call. Errors are non-fatal; local state is authoritative.
+    // Persist to backend — the server applies its own multiplier & updates streak.
+    // We sync back the authoritative streak so local state stays accurate.
     try {
-      await api.post('/lifecoins/checkin', { slot_id: id, coins: slot.coins });
+      type ClaimResp = { success: boolean; data: { coinsEarned: number; bonusMultiplier: number; streak: { currentStreak: number; longestStreak: number; bonusMultiplier: number } } };
+      const res = await api.post<ClaimResp>('/lifecoins/checkin', { slot_id: id, coins: slot.coins });
+      if (res.data?.data?.streak) {
+        const srv = res.data.data.streak;
+        set({
+          streak: srv.currentStreak,
+          longestStreak: srv.longestStreak,
+          bonusMultiplier: srv.bonusMultiplier,
+        });
+      }
     } catch { /* non-fatal */ }
 
-    return { success: true, coinsEarned: slot.coins };
+    return { success: true, coinsEarned: totalCoins, bonusMultiplier: newMultiplier };
+  },
+
+  syncStreak: async () => {
+    try {
+      const info = await PaymentService.getStreak();
+      set({
+        streak: info.currentStreak,
+        longestStreak: info.longestStreak,
+        bonusMultiplier: info.bonusMultiplier,
+      });
+    } catch { /* non-fatal — local state remains */ }
   },
 
   reset: () => {
     set({
       lifecoins: 0,
       streak: 0,
+      longestStreak: 0,
+      bonusMultiplier: 1,
       lastDailyCheckinDate: null,
       slots: defaultSlots(),
       initialized: false,

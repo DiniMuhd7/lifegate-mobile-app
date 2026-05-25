@@ -15,6 +15,7 @@ export type SystemMessageType =
   | 'MODE_DOWNGRADE'     // Notifies patient they've been silently moved to General Mode
   | 'REFUND_PENDING'     // AI failed — credit refund is processing
   | 'REFUND_SUCCESS'     // Credit was successfully refunded
+  | 'LIFECOIN_CONSENT'   // Offer to spend LifeCoins to unlock a DX credit
   | 'INFO';              // Generic informational system message
 
 // Message status for optimistic UI

@@ -71,6 +71,19 @@ export type ChatState = {
    */
   pendingClinicalMessage: { text: string; category?: ConversationCategory; conversationId: string } | null;
 
+  /**
+   * Set when DX credits are exhausted but the patient has enough LifeCoins to
+   * cover the cost of one credit.  Cleared after the patient confirms or
+   * declines the LifeCoins payment.
+   */
+  pendingLifecoinConsent: {
+    /** The ID of the failed USER message that should be retried on confirmation. */
+    messageId: string;
+    conversationId: string;
+    lifecoinsBalance: number;
+    coinsPerCredit: number;
+  } | null;
+
   // Actions
   initializeChat: (userId: string) => Promise<void>;
   createConversation: (mode?: SessionMode) => string;
@@ -86,6 +99,10 @@ export type ChatState = {
   confirmClinicalMode: () => Promise<void>;
   /** Patient declined clinical mode — switch back to general and surface an info message. */
   cancelClinicalMode: () => void;
+  /** Patient confirmed LifeCoins payment — spend coins and retry the failed message. */
+  confirmLifecoinPayment: () => Promise<void>;
+  /** Patient declined LifeCoins payment — show the bundle/subscribe prompt instead. */
+  cancelLifecoinPayment: () => void;
   clearError: () => void;
   clearEscalationNotice: (conversationId?: string) => void;
   resetChatState: () => void;
@@ -458,6 +475,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeRequestConversationId: null,
   activeAbortController: null,
   pendingClinicalMessage: null,
+  pendingLifecoinConsent: null,
 
   initializeChat: async (userId: string) => {
     abortActiveRequest(get());
@@ -793,7 +811,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const isInsufficientCredits = (error as Error)?.message === 'INSUFFICIENT_CREDITS';
       const wasClinical = conversationSnapshot.mode === 'clinical_diagnosis';
 
+      // Extract LifeCoins fallback data carried by the credit-gate error.
+      const lifecoinsBalance = isInsufficientCredits ? ((error as any)?.lifecoinsBalance as number ?? 0) : 0;
+      const coinsPerCredit  = isInsufficientCredits ? ((error as any)?.coinsPerCredit  as number ?? 50) : 50;
+      const canPayWithCoins = isInsufficientCredits && lifecoinsBalance >= coinsPerCredit;
+
       // Mark the user's message as failed and, when applicable, downgrade mode.
+      // Mode is only downgraded when LifeCoins cannot cover the cost — if the
+      // patient can pay with coins we keep clinical mode so the retry succeeds.
       set((current) => ({
         conversations: current.conversations.map((conversation) => {
           if (conversation.id !== conversationId) return conversation;
@@ -809,8 +834,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
                   }
                 : message
             ),
-            // Feature #5: silently switch to General Mode when credits run out.
-            ...(isInsufficientCredits && wasClinical
+            // Downgrade to General Mode only when there is no LifeCoins fallback.
+            ...(isInsufficientCredits && wasClinical && !canPayWithCoins
               ? {
                   mode: 'general_health' as SessionMode,
                   category: 'general_health' as ConversationCategory,
@@ -823,19 +848,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeRequestId: null,
         activeRequestConversationId: null,
         activeAbortController: null,
-        // Feature #5: no error banner for insufficient credits — in-chat msg below.
+        // Surface the LifeCoins consent prompt when affordable; otherwise
+        // clear the error banner (in-chat message handles the messaging).
+        pendingLifecoinConsent: canPayWithCoins
+          ? {
+              messageId: userMessage.id,
+              conversationId,
+              lifecoinsBalance,
+              coinsPerCredit,
+            }
+          : null,
         error: isInsufficientCredits ? null : 'Failed to get AI response. Please try again.',
       }));
 
       scheduleConversationPersist(get().userId || '', get().conversations, conversationId);
 
-      // Feature #5: always inject an in-chat insufficient-credit notice.
       if (isInsufficientCredits) {
-        injectSystemMessage(
-          conversationId,
-          TOPUP_MESSAGE,
-          'MODE_DOWNGRADE'
-        );
+        if (!canPayWithCoins) {
+          // LifeCoins balance is also insufficient — show the full top-up prompt.
+          const hasAnyCoins = lifecoinsBalance > 0;
+          const insufficientMsg = hasAnyCoins
+            ? `You have ${lifecoinsBalance} LifeCoins but ${coinsPerCredit} are needed for a Dx Credit. Purchase a bundle or subscribe to LifeGate Premium to access Clinical Diagnosis.`
+            : 'Diagnosis credits are required to access Clinical Diagnosis services. Top up to have licensed doctors review your case and receive a full diagnosis report.';
+          injectSystemMessage(conversationId, insufficientMsg, 'MODE_DOWNGRADE');
+        }
+        // When canPayWithCoins the consent prompt (pendingLifecoinConsent) handles
+        // user communication — no additional in-chat injection needed.
         return;
       }
 
@@ -981,6 +1019,74 @@ export const useChatStore = create<ChatState>((set, get) => ({
     );
   },
 
+  confirmLifecoinPayment: async () => {
+    const state = get();
+    const consent = state.pendingLifecoinConsent;
+    if (!consent) return;
+
+    const { messageId, conversationId, coinsPerCredit } = consent;
+
+    // Clear the consent prompt immediately so the UI reflects action.
+    set({ pendingLifecoinConsent: null, isThinking: true, processingPhase: 'sending', error: null });
+
+    // Inform the patient the transaction is in progress.
+    injectSystemMessage(
+      conversationId,
+      `Using ${coinsPerCredit} LifeCoins to unlock a Dx Credit — please wait…`,
+      'INFO'
+    );
+
+    try {
+      await PaymentService.spendLifecoinsForDx();
+    } catch {
+      set({ isThinking: false, processingPhase: null });
+      injectSystemMessage(
+        conversationId,
+        'Unable to spend LifeCoins right now. Please try again or top up your Dx Credits.',
+        'INFO'
+      );
+      return;
+    }
+
+    // Confirm to the patient that coins were spent.
+    injectSystemMessage(
+      conversationId,
+      `${coinsPerCredit} LifeCoins deducted. Processing your request now…`,
+      'INFO'
+    );
+
+    // Retry the failed message — the new DX credit will be consumed normally.
+    await get().retrySendMessage(messageId);
+  },
+
+  cancelLifecoinPayment: () => {
+    const state = get();
+    const consent = state.pendingLifecoinConsent;
+    if (!consent) return;
+
+    const { conversationId, coinsPerCredit } = consent;
+
+    // Downgrade the conversation to General Mode now that the patient declined.
+    set((current) => ({
+      conversations: current.conversations.map((conv) => {
+        if (conv.id !== conversationId) return conv;
+        return {
+          ...conv,
+          mode: 'general_health' as SessionMode,
+          category: 'general_health' as ConversationCategory,
+          updatedAt: now(),
+        };
+      }),
+      pendingLifecoinConsent: null,
+    }));
+
+    injectSystemMessage(
+      conversationId,
+      `Dx Credits are required for Clinical Diagnosis. You need ${coinsPerCredit} LifeCoins per credit. Purchase a bundle or subscribe to LifeGate Premium to continue.`,
+      'MODE_DOWNGRADE'
+    );
+  },
+
   deleteConversation: (conversationId: string) => {
     const currentState = get();
     if (currentState.activeRequestConversationId === conversationId) {
@@ -1057,6 +1163,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       activeRequestConversationId: null,
       activeAbortController: null,
       pendingClinicalMessage: null,
+      pendingLifecoinConsent: null,
     });
   },
 

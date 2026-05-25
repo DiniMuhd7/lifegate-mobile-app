@@ -224,9 +224,14 @@ func main() {
 	// Mirror every Expo push to browser subscribers as well.
 	pushSvc.SetWebPush(webPushSvc)
 
+	// Retention scheduler — streak reminders (daily 8 PM WAT) + weekly health digest.
+	notifScheduler := notifications.NewScheduler(database, pushSvc)
+	go notifScheduler.StartScheduler(context.Background())
+
 	// Wire push notifications so physicians receive patient-case events
 	// and patients receive completion notifications from physician reviews.
 	physicianSvc.SetPushNotifier(pushSvc)
+	physicianSvc.SetFollowUpScheduler(notifScheduler)
 
 	// Auto-assignment worker — assigns new pending cases to verified physicians,
 	// sends patient IM updates, and reassigns cases not completed within 30 minutes.
@@ -463,10 +468,19 @@ func main() {
 					return
 				}
 				if !ok {
+					// Include the patient's LifeCoins balance so the client can offer
+					// to pay via LifeCoins before falling back to a top-up prompt.
+					var lifecoinsBalance, coinsPerCredit int
+					if lbal, lErr := paymentsSvc.GetLifecoinBalance(uidStr); lErr == nil && lbal != nil {
+						lifecoinsBalance = lbal.Balance
+						coinsPerCredit = paymentsSvc.GetCoinsPerCredit()
+					}
 					c.JSON(http.StatusPaymentRequired, gin.H{
-						"success": false,
-						"code":    "INSUFFICIENT_CREDITS",
-						"message": "You have no diagnosis credits remaining. Please top up to continue.",
+						"success":          false,
+						"code":             "INSUFFICIENT_CREDITS",
+						"message":          "You have no diagnosis credits remaining. Please top up to continue.",
+						"lifecoinsBalance": lifecoinsBalance,
+						"coinsPerCredit":   coinsPerCredit,
 					})
 					c.Abort()
 					return
@@ -592,8 +606,10 @@ func main() {
 	{
 		lifecoinsGroup.GET("/balance", paymentsHandler.GetLifecoinBalance)
 		lifecoinsGroup.GET("/transactions", paymentsHandler.GetLifecoinTransactions)
+		lifecoinsGroup.GET("/streak", paymentsHandler.GetStreak)
 		lifecoinsGroup.POST("/redeem", paymentsHandler.RedeemLifecoins)
 		lifecoinsGroup.POST("/checkin", paymentsHandler.ClaimCheckinSlot)
+		lifecoinsGroup.POST("/use-for-dx", paymentsHandler.UseLifecoinsForDx)
 	}
 	api.POST("/checkins/answers", middleware.Auth(cfg.JWTSecret), paymentsHandler.SubmitCheckinAnswers)
 

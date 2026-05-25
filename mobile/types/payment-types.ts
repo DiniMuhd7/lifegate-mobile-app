@@ -12,6 +12,10 @@ export interface CreditBundle {
   billingCycle: string;   // "" | "monthly" | "annual"
   label: string;
   labelUSD: string;
+  // Optional promo fields — present only when a time-limited offer is active
+  promoLabel?: string;
+  promoNaira?: number;
+  promoExpiresAt?: string; // ISO-8601
 }
 
 export type PaymentStatus = 'pending' | 'success' | 'failed';
@@ -46,6 +50,22 @@ export interface InitiatePaymentResponse {
 
 export interface VerifyPaymentResponse {
   transaction: PaymentTransaction;
+}
+
+export interface StreakInfo {
+  currentStreak: number;
+  longestStreak: number;
+  lastCheckinDate: string; // YYYY-MM-DD or ""
+  bonusMultiplier: number; // 1 = normal, 2 = 2×, 3 = 3×, 5 = 5×
+}
+
+/** Shape returned by POST /lifecoins/checkin */
+export interface CheckinClaimResult {
+  alreadyClaimed: boolean;
+  coinsEarned: number;
+  baseCoins: number;
+  bonusMultiplier: number;
+  streak: StreakInfo;
 }
 
 export interface TransactionLogResponse {

@@ -8,6 +8,7 @@ import type {
   PaymentCurrency,
   PaymentTransaction,
   TransactionLogResponse,
+  StreakInfo,
 } from 'types/payment-types';
 
 export const PaymentService = {
@@ -144,6 +145,27 @@ export const PaymentService = {
       { params: { limit } }
     );
     if (!res.data.success) throw new Error('Failed to fetch credit deductions');
+    return res.data.data;
+  },
+
+  /**
+   * Spend the patient's LifeCoins to unlock one DX credit (with prior consent).
+   * POST /lifecoins/use-for-dx
+   *
+   * Returns the number of LifeCoins deducted. Throws when balance is
+   * insufficient (HTTP 402) or on server error.
+   */
+  async spendLifecoinsForDx(): Promise<{ coinsDeducted: number }> {
+    const res = await api.post<{ success: boolean; data: { coinsDeducted: number } }>(
+      '/lifecoins/use-for-dx'
+    );
+    if (!res.data.success) throw new Error('Failed to spend LifeCoins for Dx Credit');
+    return res.data.data;
+  },
+
+  /** Fetch the authenticated patient's check-in streak from the server. */
+  async getStreak(): Promise<StreakInfo> {
+    const res = await api.get<{ success: boolean; data: StreakInfo }>('/lifecoins/streak');
     return res.data.data;
   },
 };

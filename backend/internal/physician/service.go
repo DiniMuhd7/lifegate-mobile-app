@@ -26,6 +26,12 @@ type SLABreachRecorder interface {
 	RecordSLABreach(physicianID, caseID string, hoursOver float64)
 }
 
+// FollowUpScheduler schedules a follow-up push notification ~24 h after a
+// clinical session completes.  Satisfied by notifications.Scheduler.
+type FollowUpScheduler interface {
+	ScheduleFollowUp(userID, patientName, condition string)
+}
+
 // CaseQueueResult groups the three queues for the dashboard response.
 type CaseQueueResult struct {
 	Pending   []CaseQueueItem `json:"pending"`
@@ -34,11 +40,12 @@ type CaseQueueResult struct {
 }
 
 type Service struct {
-	repo        *Repository
-	nats        *natsclient.Client
-	broadcaster Broadcaster
-	push        PushNotifier // optional — set with SetPushNotifier
-	slaRecorder SLABreachRecorder // optional — set with SetSLABreachRecorder
+	repo         *Repository
+	nats         *natsclient.Client
+	broadcaster  Broadcaster
+	push         PushNotifier      // optional — set with SetPushNotifier
+	slaRecorder  SLABreachRecorder // optional — set with SetSLABreachRecorder
+	followUpSched FollowUpScheduler // optional — set with SetFollowUpScheduler
 }
 
 func NewService(repo *Repository, nats *natsclient.Client, broadcaster Broadcaster) *Service {
@@ -47,6 +54,10 @@ func NewService(repo *Repository, nats *natsclient.Client, broadcaster Broadcast
 
 // SetPushNotifier wires in a push notification sender for patient notifications.
 func (s *Service) SetPushNotifier(p PushNotifier) { s.push = p }
+
+// SetFollowUpScheduler wires in the retention scheduler so completed cases
+// trigger a 24-hour follow-up push to the patient.
+func (s *Service) SetFollowUpScheduler(f FollowUpScheduler) { s.followUpSched = f }
 
 // ToggleAIMode enables or disables AI mode for a human physician.
 // When enabled, new cases assigned to this physician are handled automatically
@@ -219,6 +230,11 @@ func (s *Service) ReviewReport(reportID, physicianID string, input ReviewInput) 
 		if result, bErr := s.repo.ComputeSLABreach(reportID); bErr == nil && result.Breached {
 			s.slaRecorder.RecordSLABreach(physicianID, reportID, result.HoursOver)
 		}
+	}
+
+	// Schedule a 24-hour follow-up push to the patient after case completion.
+	if input.Action == "Completed" && s.followUpSched != nil && patientID != "" {
+		s.followUpSched.ScheduleFollowUp(patientID, "Patient", "your recent")
 	}
 
 	return nil

@@ -49,15 +49,19 @@ type fxRateResponse struct {
 }
 
 type Bundle struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	AmountNaira  int     `json:"amountNaira"`
-	AmountUSD    float64 `json:"amountUSD"`
-	Credits      int     `json:"credits"`
-	IsPremium    bool    `json:"isPremium"`
-	BillingCycle string  `json:"billingCycle"` // "" | "monthly" | "annual"
-	Label        string  `json:"label"`
-	LabelUSD     string  `json:"labelUSD"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	AmountNaira     int     `json:"amountNaira"`
+	AmountUSD       float64 `json:"amountUSD"`
+	Credits         int     `json:"credits"`
+	IsPremium       bool    `json:"isPremium"`
+	BillingCycle    string  `json:"billingCycle"` // "" | "monthly" | "annual"
+	Label           string  `json:"label"`
+	LabelUSD        string  `json:"labelUSD"`
+	// Promo fields — non-nil only when a time-limited offer is active.
+	PromoLabel      *string `json:"promoLabel,omitempty"`
+	PromoNaira      *int    `json:"promoNaira,omitempty"`
+	PromoExpiresAt  *string `json:"promoExpiresAt,omitempty"` // ISO-8601
 }
 
 // PaymentTransaction is the DB row shape.
@@ -199,6 +203,29 @@ func NewService(db *sql.DB, secretKey, publicKey, redirectURL, webhookHash, fxRa
 // GetBundles returns credit bundles using NGN as the source of truth and a cached live FX rate for USD.
 func (s *Service) GetBundles() []Bundle {
 	rate := s.getNGNPerUSD()
+
+	// Load any active promos from the DB (best-effort; silently ignored on error).
+	type promo struct {
+		label      string
+		promoNGN   int
+		expiresAt  string
+	}
+	promos := map[string]promo{}
+	rows, err := s.db.Query(
+		`SELECT bundle_id, promo_label, promo_ngn, expires_at
+		 FROM bundle_promos
+		 WHERE expires_at > NOW()`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var bundleID, lbl, exp string
+			var ngn int
+			if rows.Scan(&bundleID, &lbl, &ngn, &exp) == nil {
+				promos[bundleID] = promo{label: lbl, promoNGN: ngn, expiresAt: exp}
+			}
+		}
+	}
+
 	out := make([]Bundle, 0, len(bundleBase))
 	for _, b := range bundleBase {
 		usd := roundCurrency(float64(b.ngnFixed) / rate)
@@ -214,7 +241,7 @@ func (s *Service) GetBundles() []Bundle {
 			label = fmt.Sprintf("%s · %d Dx Credits · ₦%s", b.name, b.credits, formatNaira(b.ngnFixed))
 			labelUSD = fmt.Sprintf("%s · %d Dx Credits · $%.2f", b.name, b.credits, usd)
 		}
-		out = append(out, Bundle{
+		bundle := Bundle{
 			ID:           b.id,
 			Name:         b.name,
 			AmountNaira:  b.ngnFixed,
@@ -224,7 +251,13 @@ func (s *Service) GetBundles() []Bundle {
 			BillingCycle: b.billingCycle,
 			Label:        label,
 			LabelUSD:     labelUSD,
-		})
+		}
+		if p, ok := promos[b.id]; ok {
+			bundle.PromoLabel = &p.label
+			bundle.PromoNaira = &p.promoNGN
+			bundle.PromoExpiresAt = &p.expiresAt
+		}
+		out = append(out, bundle)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		// Premium plans sort after pay-per-use; within each group sort by credits ascending.

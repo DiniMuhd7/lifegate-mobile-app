@@ -449,11 +449,41 @@ func (h *Handler) ClaimCheckinSlot(c *gin.Context) {
 	if body.Coins <= 0 {
 		body.Coins = 1
 	}
-	if err := h.svc.ClaimCheckinSlot(uid, body.SlotID, body.Coins, body.ClaimDate); err != nil {
+	result, err := h.svc.ClaimCheckinSlot(uid, body.SlotID, body.Coins, body.ClaimDate)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "could not claim slot"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"alreadyClaimed":  result.AlreadyClaimed,
+			"coinsEarned":     result.CoinsEarned,
+			"baseCoins":       result.BaseCoins,
+			"bonusMultiplier": result.BonusMultiplier,
+			"streak":          result.Streak,
+		},
+	})
+}
+
+// GetStreak returns the authenticated patient's current and longest check-in streak.
+//
+// @Summary      Get check-in streak
+// @Tags         lifecoins
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,data=object}
+// @Router       /lifecoins/streak [get]
+func (h *Handler) GetStreak(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	info, err := h.svc.GetStreak(uid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "could not load streak"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": info})
 }
 
 // isInsufficientBalance returns true when the error message starts with "insufficient balance".
@@ -463,6 +493,44 @@ func isInsufficientBalance(err error) bool {
 	}
 	msg := err.Error()
 	return len(msg) >= 22 && msg[:22] == "insufficient balance: "
+}
+
+// UseLifecoinsForDx spends the patient's LifeCoins to unlock one DX credit.
+// Called after the patient consents to the exchange on the client.
+//
+// @Summary      Spend LifeCoins for a Dx Credit
+// @Tags         lifecoins
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  object{success=bool,message=string,data=object{coinsDeducted=integer}}
+// @Failure      402  {object}  object{success=bool,message=string}
+// @Failure      500  {object}  object{success=bool,message=string}
+// @Router       /lifecoins/use-for-dx [post]
+func (h *Handler) UseLifecoinsForDx(c *gin.Context) {
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	coinsDeducted, err := h.svc.SpendLifecoinsForDxCredit(uid)
+	if err != nil {
+		if isInsufficientBalance(err) {
+			c.JSON(http.StatusPaymentRequired, gin.H{
+				"success": false,
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "An internal error occurred. Please try again.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("%d LifeCoins used to unlock 1 Dx Credit.", coinsDeducted),
+		"data":    gin.H{"coinsDeducted": coinsDeducted},
+	})
 }
 
 // TxStatus returns the current status of a transaction from the database only,
