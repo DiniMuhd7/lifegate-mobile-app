@@ -460,6 +460,7 @@ func analyze(raw *ai.AIResponse, category string) *EDISResponse {
 			raw.Diagnosis = nil
 			raw.Prescription = nil
 			raw.FollowUpPlan = nil
+			raw.Text = "Please reply to the questions below so I can generate your final diagnosis report."
 		}
 		if hpiComplete {
 			// Triage is done — suppress follow-up questions so chips don't render

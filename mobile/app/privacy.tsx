@@ -174,6 +174,7 @@ export default function PolicyScreen() {
           <Bullet>Provide, operate, and maintain the LifeGate platform and its services</Bullet>
           <Bullet>Connect you with licensed physicians for clinical review and consultation</Bullet>
           <Bullet>Personalise health recommendations, video content, and platform experience</Bullet>
+          <Bullet>Support public health analytics using aggregated and de-identified data</Bullet>
           <Bullet>Process payments and manage subscription credits</Bullet>
           <Bullet>Send transactional notifications, alerts, and health reminders</Bullet>
           <Bullet>Conduct safety monitoring, fraud detection, and abuse prevention</Bullet>
@@ -214,6 +215,10 @@ export default function PolicyScreen() {
           <Bullet>
             <Text style={{ fontWeight: '600' }}>Cloud infrastructure providers </Text>
             (hosting, database, storage) under data processing agreements
+          </Bullet>
+          <Bullet>
+            <Text style={{ fontWeight: '600' }}>Analytics and research partners </Text>
+            for aggregated, de-identified public health reporting and product improvement
           </Bullet>
           <Bullet>
             <Text style={{ fontWeight: '600' }}>Authorised admin personnel </Text>

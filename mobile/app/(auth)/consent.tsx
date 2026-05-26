@@ -132,8 +132,8 @@ export default function ConsentScreen() {
 
             {/* A1. Acceptance */}
             <Section title="A1. Acceptance of Terms">
-              <Text className="text-xs leading-5 text-gray-700">
-                By accessing or using the LifeGate platform ("Service"), you agree to be bound by
+              <Text className="text-xs leading-5 text-gray-500">
+                Effective Date: January 1, 2026 · Last updated: May 26, 2026
                 these Terms &amp; Conditions and all applicable laws. If you do not agree, you must
                 not use the Service. These terms apply to all users — patients, health professionals,
                 and administrators.
@@ -148,6 +148,14 @@ export default function ConsentScreen() {
               </Text>
               <Bullet text="AI-assisted symptom assessment and health guidance" />
               <Bullet text="Connection of patients with licensed Nigerian physicians" />
+              <Bullet text="Human physician AI-mode workflows with clinician oversight" />
+              <Bullet text="AI physician support tools for guided triage and report drafting" />
+              <Bullet text="EDIS follow-up questions that continue triage until the final report is ready" />
+              <Bullet text="Camera-based medical document scanning and OCR-assisted intake" />
+              <Bullet text="Voice messaging and audio-assisted symptom reporting" />
+              <Bullet text="Progressive Web App access with browser install support" />
+              <Bullet text="Push notifications, unread badges, and return-to-app reminders" />
+              <Bullet text="LifeGate public health analytics built from aggregated or de-identified data" />
               <Bullet text="Secure telemedicine consultations and diagnosis review" />
               <Bullet text="Health records management and follow-up tracking" />
               <Text className="mt-2 text-xs leading-5 text-gray-700">
@@ -186,6 +194,16 @@ export default function ConsentScreen() {
                   of AI-generated content.
                 </Text>
               </View>
+              <Text className="mt-2 text-xs leading-5 text-gray-700">
+                Document scans, voice inputs, notification reminders, and follow-up prompts are
+                designed to help complete your triage and support physician review. They do not
+                replace emergency care or a licensed clinician’s judgement.
+              </Text>
+              <Text className="mt-2 text-xs leading-5 text-gray-700">
+                Human physician AI-mode remains under clinician oversight, and public health
+                analytics are produced from aggregated or de-identified data for service
+                improvement, not for individual medical decision-making.
+              </Text>
             </Section>
 
             {/* A6. Payments */}

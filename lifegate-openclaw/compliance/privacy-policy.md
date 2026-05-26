@@ -8,6 +8,9 @@
 LifeGate is committed to the highest standards of patient data privacy.
 This document describes how patient health data is collected, processed,
 stored, and protected within the OpenClaw AI physician framework.
+It also covers PWA/web usage, camera-based document capture, voice inputs,
+human physician AI-mode workflows, AI physician support, and public health
+analytics features.
 
 ---
 
@@ -18,6 +21,7 @@ stored, and protected within the OpenClaw AI physician framework.
 | Registration data     | Name, email, phone, date of birth, sex, state             | Contract            |
 | Health data           | Symptoms, diagnoses, prescriptions, test results          | Explicit consent    |
 | Session data          | Chat logs, AI triage outputs, physician responses         | Explicit consent    |
+| Media / audio data    | Camera scans, uploaded documents, voice notes            | Explicit consent    |
 | Device / technical    | Device type, OS version, app version                      | Legitimate interest |
 | Payment data          | NHIS ID, transaction reference (not card numbers)         | Contract            |
 | Location data         | State/LGA only (never precise GPS without consent)        | Consent             |
@@ -48,12 +52,17 @@ When patient data is processed by AI or physician agents:
 
 - **EDIS AI Triage:** Processes symptom text to generate differential diagnosis.
   Data stays within LifeGate's secure environment.
+- **Human Physician AI-Mode:** Supports clinician-led review with AI-generated
+  summaries, next-step suggestions, and draft reports.
+- **AI Physician Support:** Produces patient-facing guidance and report drafting
+  assistance under clinical oversight.
 - **Physician Agents:** Access case data only for cases assigned to them.
   No cross-case data access.
 - **Consensus Engine:** Multiple agents review ONE case; data is not pooled
   across different patients.
 - **Analytics Engine:** Uses only anonymised, aggregated data — never
-  individual patient records.
+  individual patient records. This includes public health analytics and
+  population trend reporting.
 
 ---
 
@@ -67,6 +76,7 @@ LifeGate does NOT share patient health data with third parties except:
 | NHIS (government scheme)      | Patient consent; claims processing only         |
 | Legal authority               | Court order or statutory obligation only        |
 | Anonymised research           | Opt-in consent; data de-identified to NDPR standard|
+| Analytics / research partners  | Aggregated or de-identified data only; no direct identifiers |
 
 LifeGate **never** sells patient health data.
 
@@ -97,6 +107,9 @@ LifeGate **never** sells patient health data.
 | Anonymisation                    | K-anonymity for any analytics/research data |
 | Penetration testing              | Annual third-party security assessment      |
 | Data residency                   | All patient data hosted in Nigeria (or region compliant with NDPR) |
+
+PWA install identifiers, notification tokens, and web usage events may also
+be collected to support push alerts, unread badges, and return-to-app reminders.
 
 ---
 

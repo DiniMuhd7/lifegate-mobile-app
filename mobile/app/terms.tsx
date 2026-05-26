@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 
 const TEAL = '#0AADA2';
-const LAST_UPDATED = 'May 6, 2026';
+const LAST_UPDATED = 'May 26, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -146,6 +146,14 @@ export default function TermsScreen() {
           </Para>
           <Bullet>AI-assisted symptom assessment and health triage support</Bullet>
           <Bullet>Connection to licensed physicians for clinical review and consultation</Bullet>
+          <Bullet>Human physician AI-mode workflows that combine clinician oversight with AI support</Bullet>
+          <Bullet>AI physician support tools for guided triage, summaries, and report drafting</Bullet>
+          <Bullet>EDIS follow-up question flows that guide users toward a final clinical report</Bullet>
+          <Bullet>Camera-based medical document scanning and OCR-assisted intake</Bullet>
+          <Bullet>Voice messaging and audio-assisted symptom reporting</Bullet>
+          <Bullet>Progressive Web App access with browser-based install support</Bullet>
+          <Bullet>Push notifications, unread badges, and return-to-app reminders</Bullet>
+          <Bullet>LifeGate public health analytics for de-identified trend monitoring and service improvement</Bullet>
           <Bullet>Health education content, videos, and wellness resources (Explore)</Bullet>
           <Bullet>Lifecoins reward system for health engagement activities</Bullet>
           <Bullet>Diagnostic report viewing, follow-up management, and messaging</Bullet>
@@ -182,6 +190,16 @@ export default function TermsScreen() {
             decision-support tools only. Final clinical decisions are made by licensed physicians.
             LifeGate assumes no liability for clinical outcomes arising from user reliance on
             AI-generated content.
+          </Para>
+          <Para>
+            Document scans, voice inputs, notification content, and all AI-assisted prompts are
+            also support tools only. They are designed to help you reach a more complete clinical
+            summary, not to replace a doctor’s judgement or urgent in-person care.
+          </Para>
+          <Para>
+            Human physician AI-mode and AI physician tools remain subject to clinician oversight.
+            Public health analytics are generated from aggregated or de-identified data and are not
+            used to make individual medical decisions.
           </Para>
         </Section>
 
@@ -246,9 +264,10 @@ export default function TermsScreen() {
         <Section title="9. Third-Party Services">
           <Para>
             The Platform integrates third-party services including but not limited to YouTube (video
-            content), Firebase (notifications), Flutterwave (payments), and Google AdMob
-            (advertising). Your use of these services is subject to the respective third-party terms
-            and privacy policies.
+            content), Firebase and Expo Notifications (push alerts and badges), Flutterwave
+            (payments), Google AdMob / AdSense (advertising), analytics tools, and AI providers
+            used for triage, OCR, report generation, and public health insights. Your use of these
+            services is subject to the respective third-party terms and privacy policies.
           </Para>
           <Para>
             We are not responsible for the content, accuracy, or practices of any third-party service.

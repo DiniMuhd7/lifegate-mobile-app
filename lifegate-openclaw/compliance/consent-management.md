@@ -19,9 +19,14 @@ the National Health Act 2014.
 | **General Clinical Consent** | Consent to receive teleconsultation services      | All users on first registration             |
 | **Data Processing Consent**  | Consent for health data to be processed by AI    | Required before EDIS triage                 |
 | **AI Triage Consent**        | Consent for AI to assist in clinical assessment  | Required per session                        |
+| **AI Physician Consent**     | Consent for AI physician support and draft reports | Required when AI physician mode is used    |
+| **Human Physician AI-Mode Consent** | Consent for clinician-led AI-assisted review | Required for human physician AI-mode sessions |
 | **Multi-Agent Consent**      | Consent for case to be reviewed by multiple agents| Requested when multi-agent routing occurs   |
 | **Data Sharing Consent**     | Consent to share anonymised data for research    | Optional; opt-in only                       |
+| **Public Health Analytics Consent** | Consent to use de-identified data for trend analysis | Optional; opt-in only                 |
 | **Referral Consent**         | Consent for referral letter to be generated      | Required before referral issued             |
+| **Media Capture Consent**    | Consent for camera scans and uploaded documents   | Required for document intake                |
+| **Voice Input Consent**      | Consent for voice notes / audio messages          | Required for voice-assisted reporting       |
 | **Minor Consent**            | Parent/guardian consent for patients < 18        | Required for paediatric care                |
 
 ---
@@ -42,10 +47,13 @@ STEP 3 — Health Data Consent
   - Storage of health information
   - Use of AI to assist clinical decisions
   - Physician agents accessing their data
+  - Human physician AI-mode and AI physician support workflows
+  - Camera scans, uploaded documents, and voice-assisted reporting
   
 STEP 4 — Optional Consents
   User selects yes/no on:
   - Anonymised data for research
+  - Public health analytics and population trend reporting
   - Sharing with NHIS/government (if applicable)
   
 STEP 5 — Consent Record Written
@@ -62,6 +70,7 @@ STEP 5 — Consent Record Written
 Before every EDIS triage session:
 - User is reminded that AI is assisting
 - User can proceed, request human-only review, or cancel
+- If human physician AI-mode is enabled, the user is told that a clinician remains responsible for final review
 - Consent choice is logged per session
 
 ---
@@ -100,6 +109,8 @@ The following require explicit separate consent:
 - Sexual health information
 - Reproductive health information
 - Addiction / substance use history
+- Camera-captured medical documents and uploaded scans
+- Voice recordings used for triage or report drafting
 
 When physician agents access or document these categories:
 1. Patient is prompted to confirm consent for that specific category
