@@ -9,7 +9,7 @@
  *   { title: string, body: string, data?: Record<string, string> }
  */
 
-const CACHE_NAME = 'lifegate-app-shell-v1';
+const CACHE_NAME = 'lifegate-app-shell-v2';
 const APP_SHELL_ASSETS = [
   '/',
   '/manifest.json',
@@ -59,19 +59,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith((async () => {
-    const cachedResponse = await caches.match(event.request);
-    if (cachedResponse) return cachedResponse;
-
-    try {
-      const networkResponse = await fetch(event.request);
-      if (networkResponse && networkResponse.ok) {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(event.request, networkResponse.clone()).catch(() => {});
+  // Only cache a tiny app-shell allowlist. Runtime JS/CSS chunks are fetched
+  // from network to avoid stale UI after deploys.
+  const shellPath = requestUrl.pathname;
+  if (APP_SHELL_ASSETS.includes(shellPath)) {
+    event.respondWith((async () => {
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) return cachedResponse;
+      try {
+        const networkResponse = await fetch(event.request);
+        if (networkResponse && networkResponse.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(event.request, networkResponse.clone()).catch(() => {});
+        }
+        return networkResponse;
+      } catch {
+        return cachedResponse;
       }
-      return networkResponse;
+    })());
+    return;
+  }
+
+  event.respondWith((async () => {
+    try {
+      return await fetch(event.request);
     } catch {
-      return cachedResponse;
+      return caches.match(event.request);
     }
   })());
 });
