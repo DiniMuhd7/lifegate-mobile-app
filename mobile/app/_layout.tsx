@@ -29,7 +29,14 @@ const INSTALL_BANNER_DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 function isStandaloneMode(): boolean {
   if (typeof window === 'undefined') return false;
   const iosStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
-  return iosStandalone || window.matchMedia('(display-mode: standalone)').matches;
+  const standaloneMatch =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    window.matchMedia('(display-mode: window-controls-overlay)').matches;
+  const launchedFromAndroidHost = typeof document !== 'undefined' &&
+    document.referrer.startsWith('android-app://');
+  return iosStandalone || standaloneMatch || launchedFromAndroidHost;
 }
 
 export default function RootLayout() {
@@ -82,6 +89,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    let dismissUntilInMemory = 0;
 
     const markInstalled = () => {
       try {
@@ -92,9 +100,14 @@ export default function RootLayout() {
     };
 
     const isDismissed = () => {
+      if (dismissUntilInMemory > Date.now()) return true;
       try {
         const until = Number(localStorage.getItem(INSTALL_BANNER_DISMISS_UNTIL_KEY) ?? '0');
-        return until > Date.now();
+        if (until > Date.now()) {
+          dismissUntilInMemory = until;
+          return true;
+        }
+        return false;
       } catch {
         return false;
       }
@@ -217,8 +230,8 @@ export default function RootLayout() {
             setShowInstallBanner(false);
             if (Platform.OS !== 'web' || typeof window === 'undefined') return;
             if (isStandaloneMode()) return;
+            const until = Date.now() + INSTALL_BANNER_DISMISS_TTL_MS;
             try {
-              const until = Date.now() + INSTALL_BANNER_DISMISS_TTL_MS;
               localStorage.setItem(INSTALL_BANNER_DISMISS_UNTIL_KEY, String(until));
             } catch {
               // Ignore storage failures; dismiss still applies for current state.

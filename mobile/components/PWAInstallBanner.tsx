@@ -17,7 +17,7 @@ const BANNER_HEIGHT = 92;
 
 export function PWAInstallBanner({ visible, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(-BANNER_HEIGHT)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [standaloneMode, setStandaloneMode] = useState(false);
 
@@ -72,13 +72,13 @@ export function PWAInstallBanner({ visible, onDismiss }: Props) {
 
   useEffect(() => {
     Animated.timing(translateY, {
-      toValue: visible ? 0 : -BANNER_HEIGHT,
+      toValue: 0,
       duration: 260,
       useNativeDriver: true,
     }).start();
   }, [translateY, visible]);
 
-  if (Platform.OS !== 'web' || standaloneMode) return null;
+  if (Platform.OS !== 'web' || standaloneMode || !visible) return null;
 
   async function handleInstall() {
     const promptEvent = deferredPromptRef.current;
