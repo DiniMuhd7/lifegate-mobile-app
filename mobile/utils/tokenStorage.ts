@@ -14,14 +14,19 @@ const REFRESH_TOKEN_KEY = 'lifegate_refresh_token';
 const isClient = typeof window !== 'undefined';
 
 /**
- * On web always use sessionStorage (not localStorage) so that tokens are
- * cleared when the tab closes, reducing the XSS exposure window.
- * The SecureStore probe is only needed on native
- * where older Expo Go runtimes may not support the v15 API.
+ * Web storage policy:
+ * - Refresh token persists in localStorage so users stay signed in across restarts.
+ * - Access token storage (legacy path) stays session-scoped.
  *
+ * The SecureStore probe is only needed on native where older Expo Go
+ * runtimes may not support the v15 API.
  * Cache the probe result so we don't pay the try/catch cost on every call.
  */
 let secureStoreWorks: boolean | null = null;
+
+function usePersistentWebStorage(key: string): boolean {
+  return key === REFRESH_TOKEN_KEY;
+}
 
 async function probeSecureStore(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
@@ -50,7 +55,11 @@ async function storeSet(key: string, value: string): Promise<void> {
   if (await probeSecureStore()) {
     await SecureStore.setItemAsync(key, value);
   } else {
-    sessionStorage.setItem(key, value);
+    if (usePersistentWebStorage(key)) {
+      localStorage.setItem(key, value);
+    } else {
+      sessionStorage.setItem(key, value);
+    }
   }
 }
 
@@ -58,6 +67,9 @@ async function storeGet(key: string): Promise<string | null> {
   if (!isClient) return null;
   if (await probeSecureStore()) {
     return SecureStore.getItemAsync(key);
+  }
+  if (usePersistentWebStorage(key)) {
+    return localStorage.getItem(key);
   }
   return sessionStorage.getItem(key);
 }
@@ -68,6 +80,7 @@ async function storeRemove(key: string): Promise<void> {
     await SecureStore.deleteItemAsync(key);
     return;
   }
+  localStorage.removeItem(key);
   sessionStorage.removeItem(key);
   // Also evict any token that may have been saved in localStorage by an older
   // version of the app (migration: clear stale persisted tokens on logout).

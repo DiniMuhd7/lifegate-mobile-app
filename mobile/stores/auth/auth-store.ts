@@ -103,15 +103,15 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
           if (result.refreshToken) {
             await saveRefreshToken(result.refreshToken);
           }
-          set({ user: result.user, isAuthenticated: true, sessionLoading: false });
+          set({ user: result.user, isAuthenticated: true, sessionLoading: false, sessionError: false });
         } else {
           // Refresh token is invalid or revoked — clear everything.
           await removeRefreshToken();
           setAccessToken(null);
-          set({ isAuthenticated: false, user: null, sessionLoading: false });
+          set({ isAuthenticated: false, user: null, sessionLoading: false, sessionError: false });
         }
       } else {
-        set({ isAuthenticated: false, sessionLoading: false });
+        set({ isAuthenticated: false, sessionLoading: false, sessionError: false });
       }
     } catch {
       // A network/timeout error — the refresh token may still be valid.
@@ -120,7 +120,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       // Keeping the token means "Try Again" can succeed once connectivity is
       // restored (e.g. after returning from an external payment browser).
       setAccessToken(null);
-      set({ isAuthenticated: false, user: null, sessionLoading: false, sessionError: true });
+      set((state) => ({
+        // Keep existing authenticated state during transient restore failures.
+        // This prevents a network blip from force-signing users out in-app.
+        isAuthenticated: state.isAuthenticated,
+        user: state.user,
+        sessionLoading: false,
+        sessionError: true,
+      }));
     } finally {
       _sessionRestoreInProgress = false;
     }

@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logo from 'assets/logo.svg';
 import { INTRO_SEEN_KEY } from './intro';
+import { SessionErrorScreen } from 'components/SessionErrorScreen';
 
 
 
@@ -15,6 +16,9 @@ export default function SplashScreen() {
   // useRootNavigationState().key is undefined until the root <Stack> has mounted.
   // We must not call router.replace() before it is defined.
   const rootNavKey = useRootNavigationState()?.key;
+  const sessionError = useAuthStore((s) => s.sessionError);
+  const restoreSession = useAuthStore((s) => s.restoreSession);
+  const clearSessionError = useAuthStore((s) => s.clearSessionError);
 
   useEffect(() => {
     if (!rootNavKey) return; // Root layout not yet mounted — wait.
@@ -83,6 +87,18 @@ export default function SplashScreen() {
 
     initializeApp();
   }, [rootNavKey]);
+
+  if (rootNavKey && sessionError) {
+    return (
+      <SessionErrorScreen
+        backgroundColor="#032C2C"
+        onRetry={() => {
+          clearSessionError();
+          restoreSession();
+        }}
+      />
+    );
+  }
 
   return (
     <LinearGradient
