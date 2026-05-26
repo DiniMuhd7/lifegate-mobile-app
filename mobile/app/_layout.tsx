@@ -22,6 +22,16 @@ import type {
   CallIceCandidatePayload,
 } from '../types/call-types';
 
+const INSTALL_BANNER_DISMISS_UNTIL_KEY = 'lifegate:pwa-install-banner-dismiss-until';
+const INSTALL_BANNER_INSTALLED_KEY = 'lifegate:pwa-installed';
+const INSTALL_BANNER_DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+
+function isStandaloneMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const iosStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+  return iosStandalone || window.matchMedia('(display-mode: standalone)').matches;
+}
+
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -73,21 +83,66 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
 
+    const markInstalled = () => {
+      try {
+        localStorage.setItem(INSTALL_BANNER_INSTALLED_KEY, '1');
+      } catch {
+        // Ignore storage failures (private mode / browser restrictions).
+      }
+    };
+
+    const isDismissed = () => {
+      try {
+        const until = Number(localStorage.getItem(INSTALL_BANNER_DISMISS_UNTIL_KEY) ?? '0');
+        return until > Date.now();
+      } catch {
+        return false;
+      }
+    };
+
+    const isInstalled = () => {
+      if (isStandaloneMode()) return true;
+      try {
+        return localStorage.getItem(INSTALL_BANNER_INSTALLED_KEY) === '1';
+      } catch {
+        return false;
+      }
+    };
+
+    if (isStandaloneMode()) {
+      markInstalled();
+      setShowInstallBanner(false);
+    }
+
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
+      if (isInstalled() || isDismissed()) {
+        setShowInstallBanner(false);
+        return;
+      }
       setShowInstallBanner(true);
     };
 
     const onAppInstalled = () => {
+      markInstalled();
+      setShowInstallBanner(false);
+    };
+
+    const media = window.matchMedia('(display-mode: standalone)');
+    const onDisplayModeChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) return;
+      markInstalled();
       setShowInstallBanner(false);
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
     window.addEventListener('appinstalled', onAppInstalled);
+    media.addEventListener('change', onDisplayModeChange);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onAppInstalled);
+      media.removeEventListener('change', onDisplayModeChange);
     };
   }, []);
 
@@ -158,7 +213,17 @@ export default function RootLayout() {
         </Stack>
         <PWAInstallBanner
           visible={showInstallBanner}
-          onDismiss={() => setShowInstallBanner(false)}
+          onDismiss={() => {
+            setShowInstallBanner(false);
+            if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+            if (isStandaloneMode()) return;
+            try {
+              const until = Date.now() + INSTALL_BANNER_DISMISS_TTL_MS;
+              localStorage.setItem(INSTALL_BANNER_DISMISS_UNTIL_KEY, String(until));
+            } catch {
+              // Ignore storage failures; dismiss still applies for current state.
+            }
+          }}
         />
         {/* Offline indicator — floats above all screens */}
         <OfflineBanner />

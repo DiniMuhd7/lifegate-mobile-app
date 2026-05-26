@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,34 @@ export function PWAInstallBanner({ visible, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(-BANNER_HEIGHT)).current;
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const [standaloneMode, setStandaloneMode] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const detectStandalone = () => {
+      const iosStandalone = Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+      return iosStandalone || window.matchMedia('(display-mode: standalone)').matches;
+    };
+
+    const updateStandaloneMode = () => {
+      const standalone = detectStandalone();
+      setStandaloneMode(standalone);
+      if (standalone) onDismiss();
+    };
+
+    const media = window.matchMedia('(display-mode: standalone)');
+    const onModeChange = () => updateStandaloneMode();
+
+    updateStandaloneMode();
+    media.addEventListener('change', onModeChange);
+    window.addEventListener('appinstalled', onModeChange);
+
+    return () => {
+      media.removeEventListener('change', onModeChange);
+      window.removeEventListener('appinstalled', onModeChange);
+    };
+  }, [onDismiss]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
@@ -50,7 +78,7 @@ export function PWAInstallBanner({ visible, onDismiss }: Props) {
     }).start();
   }, [translateY, visible]);
 
-  if (Platform.OS !== 'web') return null;
+  if (Platform.OS !== 'web' || standaloneMode) return null;
 
   async function handleInstall() {
     const promptEvent = deferredPromptRef.current;
