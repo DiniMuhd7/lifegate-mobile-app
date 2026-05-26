@@ -1,10 +1,11 @@
 // File: app/_layout.tsx
 import '../global.css' // Ensure global styles are applied to all screens
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { PWAInstallBanner } from '../components/PWAInstallBanner';
 import { IncomingCallOverlay } from '../components/IncomingCallOverlay';
 import { VoiceCallScreen } from '../components/VoiceCallScreen';
 import { VideoCallScreen } from '../components/VideoCallScreen';
@@ -23,6 +24,7 @@ import type {
 
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
@@ -57,6 +59,36 @@ export default function RootLayout() {
     upsertLink('manifest', '/manifest.json');
     upsertLink('icon', '/icon.png');
     upsertLink('apple-touch-icon', '/icon.png');
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+      // Best-effort registration; the app remains usable if this fails.
+    });
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setShowInstallBanner(true);
+    };
+
+    const onAppInstalled = () => {
+      setShowInstallBanner(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
   }, []);
 
   // Restore auth session on every cold start / web page refresh so that
@@ -124,6 +156,10 @@ export default function RootLayout() {
           {/* Auth group — gestures disabled; replace() clears history on login success */}
           <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
         </Stack>
+        <PWAInstallBanner
+          visible={showInstallBanner}
+          onDismiss={() => setShowInstallBanner(false)}
+        />
         {/* Offline indicator — floats above all screens */}
         <OfflineBanner />
         {/* Incoming call — full-screen overlay, shown when call.ringing arrives */}
