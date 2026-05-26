@@ -179,6 +179,7 @@ const SHOWCASE_IMAGES = [
   "IMG-20260519-WA0012.jpg",
   "Screenshot_20260505_151514_LifeGate.jpg",
   "Screenshot_20260505_151534_LifeGate.jpg",
+  "Drive_preview_04.jpg",
   "Screenshot_20260505_151705_LifeGate.jpg",
   "Screenshot_20260505_151750_LifeGate.jpg",
   "Screenshot_20260505_151809_LifeGate.jpg",
