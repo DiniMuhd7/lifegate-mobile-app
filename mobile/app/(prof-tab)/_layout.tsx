@@ -1,5 +1,5 @@
 import { Stack, useRouter, router, useRootNavigationState } from 'expo-router';
-import { AppState, AppStateStatus, View } from 'react-native';
+import { AppState, AppStateStatus, Platform, View } from 'react-native';
 import { LoadingScreen } from 'components/LoadingScreen';
 import { SessionErrorScreen } from 'components/SessionErrorScreen';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -8,8 +8,9 @@ import { usePhysicianWebSocket } from '../../utils/useWebSocket';
 import { InAppNotificationBanner } from '../../components/InAppNotificationBanner';
 import { InstantMessageModal } from '../../components/InstantMessageModal';
 import { useNotificationStore, PhysicianNotification } from '../../stores/notification-store';
+import { useIMStore } from '../../stores/im-store';
 import { registerPhysicianPushToken, addNotificationResponseListener, addNotificationReceivedListener } from '../../utils/pushNotifications';
-import { registerWebPush } from 'services/webPushRegistration';
+import { registerWebPush, syncWebAppBadge } from 'services/webPushRegistration';
 import { useAuthStore } from 'stores/auth-store';
 import wsService from 'services/websocket-service';
 import { playIMArrivalTone } from 'services/message-tone';
@@ -26,6 +27,28 @@ export default function ProfTabLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const addNotification = useNotificationStore((s) => s.addNotification);
   const authUser = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const syncBadge = () => {
+      const imUnread = Object.values(useIMStore.getState().conversations).reduce(
+        (sum, conversation) => sum + conversation.unreadCount,
+        0,
+      );
+      const notificationUnread = useNotificationStore.getState().unreadCount;
+      void syncWebAppBadge(imUnread + notificationUnread);
+    };
+
+    syncBadge();
+    const unsubIM = useIMStore.subscribe(syncBadge);
+    const unsubNotifications = useNotificationStore.subscribe(syncBadge);
+
+    return () => {
+      unsubIM();
+      unsubNotifications();
+    };
+  }, []);
 
   // ── Engagement session — start on mount, end on unmount ───────────────────
   useEffect(() => {

@@ -31,7 +31,7 @@ import { getToken } from 'utils/tokenStorage';
 import { User } from 'types/auth-types';
 import { IMMessage } from 'types/im-types';
 import { registerPatientPushToken, addNotificationResponseListener, addNotificationReceivedListener } from 'utils/pushNotifications';
-import { registerWebPush } from 'services/webPushRegistration';
+import { registerWebPush, syncWebAppBadge } from 'services/webPushRegistration';
 import { startHealthMonitoring, stopHealthMonitoring } from 'utils/backgroundHealthMonitor';
 import { EngagementService } from 'services/engagement-service';
 
@@ -79,6 +79,28 @@ export default function TabLayout() {
       Notifications.setBadgeCountAsync(total).catch(() => {});
     });
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const syncBadge = () => {
+      const imUnread = Object.values(useIMStore.getState().conversations).reduce(
+        (sum, conversation) => sum + conversation.unreadCount,
+        0,
+      );
+      const notificationUnread = useNotificationStore.getState().unreadCount;
+      void syncWebAppBadge(imUnread + notificationUnread);
+    };
+
+    syncBadge();
+    const unsubIM = useIMStore.subscribe(syncBadge);
+    const unsubNotifications = useNotificationStore.subscribe(syncBadge);
+
+    return () => {
+      unsubIM();
+      unsubNotifications();
+    };
   }, []);
 
   useEffect(() => {

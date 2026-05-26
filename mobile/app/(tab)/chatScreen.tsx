@@ -26,7 +26,6 @@ import { MessageList } from 'components/MessageList';
 import type { Message as ChatMessage } from 'components/MessageList';
 import { ChatInputBar } from 'components/ChatInputBar';
 import { ProfileMenu } from 'components/ProfileMenu';
-import StreakBanner from 'components/StreakBanner';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { usePaymentStore } from 'stores/payment-store';
@@ -762,7 +761,6 @@ const ChatScreen: React.FC = () => {
                 </View>
 
                 {/* ── Conversation starter chips ── */}
-                <StreakBanner />
                 <Text
                   style={{
                     fontSize: 11,

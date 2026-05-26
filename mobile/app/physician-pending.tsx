@@ -20,12 +20,13 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Logo from 'assets/logo.svg';
+import LogoImage from 'assets/lifegate-logo.png';
 import { useAuthStore } from 'stores/auth-store';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -190,7 +191,7 @@ export default function PhysicianPendingScreen() {
       >
         {/* Brand logo – top left */}
         <View style={{ position: 'absolute', top: (insets.top || 0) + 16, left: 22 }}>
-          <Logo width={32} height={32} />
+          <Image source={LogoImage} style={{ width: 32, height: 32 }} resizeMode="contain" />
         </View>
 
         {/* Animated icon cluster */}

@@ -12,6 +12,11 @@
 import { Platform } from 'react-native';
 import api from './api';
 
+type BadgedNavigator = Navigator & {
+  clearAppBadge?: () => Promise<void>;
+  setAppBadge?: (count?: number) => Promise<void>;
+};
+
 type WebPushStatus = {
   supported: boolean;
   permission: NotificationPermission | 'unsupported';
@@ -119,6 +124,26 @@ export async function unregisterWebPush(): Promise<void> {
     await api.delete('/web-push/subscribe', { data: { endpoint } });
   } catch (err) {
     console.error('[webpush] Unsubscribe failed:', err);
+  }
+}
+
+export async function syncWebAppBadge(count: number): Promise<void> {
+  if (Platform.OS !== 'web') return;
+  if (typeof navigator === 'undefined') return;
+
+  const badgedNavigator = navigator as BadgedNavigator;
+
+  try {
+    if (count > 0 && typeof badgedNavigator.setAppBadge === 'function') {
+      await badgedNavigator.setAppBadge(count);
+      return;
+    }
+
+    if (typeof badgedNavigator.clearAppBadge === 'function') {
+      await badgedNavigator.clearAppBadge();
+    }
+  } catch {
+    // Browsers that expose the API can still reject when the app is not installed.
   }
 }
 

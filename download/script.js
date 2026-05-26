@@ -173,6 +173,9 @@ function attachDownloadTracking() {
 }
 
 const SHOWCASE_IMAGES = [
+  "Drive_preview_01.jpg",
+  "Drive_preview_02.jpg",
+  "Drive_preview_03.jpg",
   "IMG-20260519-WA0012.jpg",
   "Screenshot_20260505_151514_LifeGate.jpg",
   "Screenshot_20260505_151534_LifeGate.jpg",

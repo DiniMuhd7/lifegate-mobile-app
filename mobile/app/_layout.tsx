@@ -24,6 +24,41 @@ import type {
 export default function RootLayout() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    document.title = 'LifeGate';
+
+    const upsertMeta = (name: string, content: string) => {
+      let tag = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.name = name;
+        document.head.appendChild(tag);
+      }
+      tag.content = content;
+    };
+
+    const upsertLink = (rel: string, href: string) => {
+      let tag = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+      if (!tag) {
+        tag = document.createElement('link');
+        tag.rel = rel;
+        document.head.appendChild(tag);
+      }
+      tag.href = href;
+    };
+
+    upsertMeta('theme-color', '#0AADA2');
+    upsertMeta('mobile-web-app-capable', 'yes');
+    upsertMeta('apple-mobile-web-app-capable', 'yes');
+    upsertMeta('apple-mobile-web-app-status-bar-style', 'default');
+    upsertMeta('apple-mobile-web-app-title', 'LifeGate');
+    upsertLink('manifest', '/manifest.json');
+    upsertLink('icon', '/icon.png');
+    upsertLink('apple-touch-icon', '/icon.png');
+  }, []);
+
   // Restore auth session on every cold start / web page refresh so that
   // the user is not lost when landing on any deep-linked route directly.
   useEffect(() => {

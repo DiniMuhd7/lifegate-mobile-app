@@ -1,0 +1,24 @@
+{
+  "name": "LifeGate",
+  "short_name": "LifeGate",
+  "description": "AI-powered healthcare companion for patients and care teams.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F2F8F8",
+  "theme_color": "#0AADA2",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

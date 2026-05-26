@@ -12,13 +12,12 @@
     </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LifeGate Mobile App – Download for Android &amp; Web Access</title>
-    <meta name="description" content="Download the LifeGate mobile app for Android or access it on Web. AI-powered healthcare companion for patients and care teams." />
+    <title>LifeGate Mobile App – Install the PWA</title>
+    <meta name="description" content="Open and install the LifeGate progressive web app for fast, browser-based access without APK download warnings." />
     <meta name="lifegate-api-base" content="https://edis.dshub.com.ng/api" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Lexend+Deca:wght@400;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="icon" type="image/png" href="./favicon.png" />
     <link rel="stylesheet" href="./styles.css" />
     <script defer src="./script.js?v=3"></script>
@@ -30,10 +29,7 @@
     <header class="site-nav">
       <div class="nav-inner container">
         <a class="brand" href="#" aria-label="LifeGate Home">
-          <svg class="brand-logo" width="20" height="20" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
-            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
-          </svg>
+          <img class="brand-logo" src="./favicon.png" alt="" aria-hidden="true" />
           <div class="brand-text">
             <span class="brand-name">LifeGate</span>
             <span class="brand-sub">by DSHub</span>
@@ -78,28 +74,19 @@
             <a
               id="android-download"
               class="btn-primary"
-              href="https://appdistribution.firebase.google.com/testerapps/1:31456730935:android:e62d7fcf13982be2e204b2/releases/61h6v9bhkkdj0?utm_source=firebase-console"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Get LifeGate on Android"
-              data-platform="android"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/></svg>
-              Get it on Android
-            </a>
-            <a
-              id="ios-download"
-              class="btn-outline"
               href="https://mobile.dshub.com.ng"
               target="_blank"
               rel="noopener noreferrer"
-              aria-label="Access LifeGate on Web"
-              data-platform="ios"
+              aria-label="Open the LifeGate progressive web app"
+              data-platform="android"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-              Access it on Web
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 4h-4.18C14.4 2.84 13.3 2 12 2S9.6 2.84 9.18 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-7-1c.55 0 1 .45 1 1h-2c0-.55.45-1 1-1zm7 15H5V6h14v12zm-7-1l5-6h-3V7h-4v4H7l5 6z"/></svg>
+              Open the PWA
             </a>
           </div>
+          <p class="cta-note reveal delay-3">
+            Install from your browser menu or the in-app prompt to keep LifeGate on your home screen without APK security warnings.
+          </p>
         </div>
 
         <div class="hero-visual reveal delay-2" aria-hidden="true">
@@ -334,35 +321,21 @@
       <div class="cta-bg" aria-hidden="true"></div>
       <div class="container cta-inner">
         <div class="cta-logo" aria-hidden="true">
-          <svg width="48" height="60" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="rgba(255,255,255,0.7)"/>
-          </svg>
+          <img class="cta-logo-image" src="./favicon.png" alt="" />
         </div>
         <h2>Start your health journey today</h2>
         <p>Join thousands of users managing their health smarter with LifeGate.</p>
         <div class="cta-btn-row">
           <a
             class="btn-cta-primary"
-            href="https://appdistribution.firebase.google.com/testerapps/1:31456730935:android:e62d7fcf13982be2e204b2/releases/61h6v9bhkkdj0?utm_source=firebase-console"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Get LifeGate on Android"
-            data-platform="android"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/></svg>
-            Get it on Android
-          </a>
-          <a
-            class="btn-cta-outline"
             href="https://mobile.dshub.com.ng"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Access LifeGate on Web"
-            data-platform="ios"
+            aria-label="Open the LifeGate progressive web app"
+            data-platform="android"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-            Access it on Web
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 4h-4.18C14.4 2.84 13.3 2 12 2S9.6 2.84 9.18 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-7-1c.55 0 1 .45 1 1h-2c0-.55.45-1 1-1zm7 15H5V6h14v12zm-7-1l5-6h-3V7h-4v4H7l5 6z"/></svg>
+            Open the PWA
           </a>
         </div>
       </div>
@@ -375,10 +348,7 @@
         <div class="footer-grid">
           <div class="footer-col">
             <div class="footer-brand">
-              <svg width="20" height="25" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
-                <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
-              </svg>
+              <img class="footer-brand-logo" src="./favicon.png" alt="" aria-hidden="true" />
               <div>
                 <span class="footer-brand-name">LifeGate</span>
                 <span class="footer-brand-sub">by DSHub</span>
