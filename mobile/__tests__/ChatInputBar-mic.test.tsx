@@ -265,6 +265,60 @@ describe('Web: tap-to-toggle recording', () => {
     const { queryByText } = render(<ChatInputBar />);
     expect(queryByText(/Tap mic to record/i)).toBeTruthy();
   });
+
+  it('CAMERA: first press opens scanner after permission grant', async () => {
+    const permissionsQuery = jest.fn().mockResolvedValue({ state: 'prompt' });
+    Object.defineProperty(global, 'navigator', {
+      value: {
+        mediaDevices: { getUserMedia: mockGetUserMedia },
+        permissions: { query: permissionsQuery },
+      },
+      writable: true,
+    });
+
+    const { getByTestId, queryByText } = render(<ChatInputBar />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId('camera-button'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(permissionsQuery).toHaveBeenCalledWith({ name: 'camera' });
+    expect(mockGetUserMedia).toHaveBeenCalledWith({ video: true });
+    await waitFor(() => {
+      expect(queryByText(/Scan Medical Document/i)).toBeTruthy();
+    });
+  });
+
+  it('CAMERA: alert when camera permission is denied', async () => {
+    const permissionsQuery = jest.fn().mockResolvedValue({ state: 'prompt' });
+    mockGetUserMedia.mockRejectedValueOnce(new Error('NotAllowedError'));
+    Object.defineProperty(global, 'navigator', {
+      value: {
+        mediaDevices: { getUserMedia: mockGetUserMedia },
+        permissions: { query: permissionsQuery },
+      },
+      writable: true,
+    });
+
+    const { getByTestId } = render(<ChatInputBar />);
+
+    await act(async () => {
+      fireEvent.press(getByTestId('camera-button'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Camera Access Required',
+      expect.stringContaining('camera access'),
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Cancel' }),
+        expect.objectContaining({ text: 'How to Enable' }),
+      ]),
+    );
+  });
 });
 
 // ── Native ────────────────────────────────────────────────────────────────────

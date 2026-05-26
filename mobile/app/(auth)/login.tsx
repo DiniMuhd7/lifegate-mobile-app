@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Platform, Modal, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, Platform, Modal } from 'react-native';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import LogoImage from 'assets/lifegate-logo.png';
+import Logo from 'assets/logo.svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -159,7 +159,7 @@ export default function LoginScreen() {
         end={{ x: 0, y: 0.2 }}>
         {/* Gradient header */}
         <View className="items-center px-6 pb-6 pt-10">
-          <Image source={LogoImage} style={{ width: 64, height: 64 }} resizeMode="contain" />
+          <Logo width={64} height={64} />
           <Text className="mt-3 text-2xl font-bold text-white">Welcome Back</Text>
           <Text className="mt-1 text-sm text-white/70">Sign in to your LifeGate account</Text>
         </View>

@@ -1,12 +1,12 @@
 // File: app/index.tsx  (Splash Screen - shows for 3 seconds then navigates)
 import { useEffect } from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text } from 'react-native';
 import { router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useSessionStore } from 'stores/session-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import LogoImage from 'assets/lifegate-logo.png';
+import Logo from 'assets/logo.svg';
 import { INTRO_SEEN_KEY } from './intro';
 
 
@@ -91,7 +91,7 @@ export default function SplashScreen() {
       end={{ x: 0, y: 1 }}
       style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Image source={LogoImage} style={{ width: 96, height: 96 }} resizeMode="contain" />
+      <Logo width={96} height={96} />
       <Text style={{ color: '#fff', fontSize: 36, fontWeight: '800', marginTop: 20, letterSpacing: -0.5 }}>
         LifeGate
       </Text>

@@ -50,17 +50,69 @@ export function BannerAd() {
     loadAdScript();
 
     const el = adRef.current as (HTMLElement & { dataset: DOMStringMap }) | null;
-    // adsbygoogle sets data-adsbygoogle-status="done" once the slot is filled.
-    // Guard against double-push on hot-reload / StrictMode double-invocation.
-    if (!pushed.current && el && !el.dataset['adsbygoogleStatus']) {
+    if (!el) return;
+
+    let frameId: number | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let removeResizeListener: (() => void) | null = null;
+
+    const tryPushAd = () => {
+      if (pushed.current) return true;
+
+      // adsbygoogle sets data-adsbygoogle-status="done" once the slot is filled.
+      // Wait until layout has produced a measurable slot width; otherwise
+      // AdSense throws "No slot size for availableWidth=0".
+      const width = el.getBoundingClientRect().width;
+      if (!width || width <= 0 || el.dataset['adsbygoogleStatus']) {
+        return false;
+      }
+
       try {
         window.adsbygoogle = window.adsbygoogle || [];
         (window.adsbygoogle as unknown[]).push({});
         pushed.current = true;
+        return true;
       } catch {
         // Non-fatal — slot will remain empty rather than crashing the UI.
+        return false;
       }
-    }
+
+      return false;
+    };
+
+    frameId = window.requestAnimationFrame(() => {
+      if (tryPushAd()) return;
+
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          if (tryPushAd()) {
+            resizeObserver?.disconnect();
+            resizeObserver = null;
+          }
+        });
+        resizeObserver.observe(el);
+      } else {
+        const handleResize = () => {
+          if (tryPushAd()) {
+            window.removeEventListener('resize', handleResize);
+            removeResizeListener = null;
+          }
+        };
+
+        window.addEventListener('resize', handleResize);
+        removeResizeListener = () => {
+          window.removeEventListener('resize', handleResize);
+        };
+      }
+    });
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+      resizeObserver?.disconnect();
+      removeResizeListener?.();
+    };
   }, []);
 
   // SSR: render nothing on the server.

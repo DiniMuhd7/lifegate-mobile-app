@@ -9,7 +9,6 @@ import {
   StatusBar,
   TouchableOpacity,
   Animated,
-  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +23,7 @@ import { scheduleHealthInsightNotification } from 'utils/pushNotifications';
 import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { BannerAd } from 'components/BannerAd';
 import { GreetingSection } from 'components/GreetingSection';
-import LogoImage from 'assets/lifegate-logo.png';
+import Logo from 'assets/logo.svg';
 import type { HealthTimelineEntry } from 'types/health-types';
 import { usePaymentStore } from 'stores/payment-store';
 
@@ -906,7 +905,7 @@ export default function HealthDashboardScreen() {
           activeOpacity={0.7}
           style={{ padding: 4 }}
         >
-          <Image source={LogoImage} style={{ width: 32, height: 32 }} resizeMode="contain" />
+          <Logo width={32} height={32} />
         </TouchableOpacity>
 
         {/* Center: Brand */}

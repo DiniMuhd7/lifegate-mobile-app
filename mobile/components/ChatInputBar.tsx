@@ -29,6 +29,7 @@ import {
   Modal,
   Dimensions,
   Image,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -131,6 +132,52 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
 
   const cameraRef = useRef<CameraView | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  const showWebCameraPermissionHelp = useCallback(() => {
+    Alert.alert(
+      'Enable Camera Access',
+      'To turn on camera access in your browser, click the lock or camera icon in the address bar, open Site settings, then allow camera access for this page. After updating it, reload the page and try again.',
+    );
+  }, []);
+
+  const openCameraPermissionSettings = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      showWebCameraPermissionHelp();
+      return;
+    }
+
+    try {
+      await Linking.openSettings();
+    } catch {
+      Alert.alert(
+        'Settings Unavailable',
+        'Open your device settings manually and allow camera access for LifeGate.',
+      );
+    }
+  }, [showWebCameraPermissionHelp]);
+
+  const showCameraPermissionAlert = useCallback(() => {
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'Camera Access Required',
+        'Please allow camera access in your browser settings to scan medical documents.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'How to Enable', onPress: showWebCameraPermissionHelp },
+        ],
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Camera Access Required',
+      'Please allow camera access in your device settings to scan medical documents.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => { void openCameraPermissionSettings(); } },
+      ],
+    );
+  }, [openCameraPermissionSettings, showWebCameraPermissionHelp]);
 
   const autoSubmitExtractedText = useCallback(
     (extracted: string, separator: string) => {
@@ -451,11 +498,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     if (disabled || voiceState !== 'idle' || ocrState !== 'idle') return;
 
     if (Platform.OS === 'web') {
-      // On web, CameraView triggers the browser's getUserMedia dialog when it
-      // mounts. To avoid the camera modal opening at the same time as the
-      // permission dialog, we request camera access on the first press and
-      // return early. The user presses the icon again to open the camera once
-      // permission is granted.
+      // On web, preflight camera permission before opening the modal so the
+      // browser prompt resolves first, then show the scanner immediately.
       if (!webCameraPermissionGrantedRef.current) {
         let alreadyGranted = false;
         try {
@@ -465,11 +509,19 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
           // permissions API not supported — fall through to getUserMedia
         }
         if (!alreadyGranted) {
+          let granted = false;
           await navigator.mediaDevices
             ?.getUserMedia({ video: true })
-            .then((s) => { s.getTracks().forEach((t) => t.stop()); webCameraPermissionGrantedRef.current = true; })
+            .then((s) => {
+              s.getTracks().forEach((t) => t.stop());
+              webCameraPermissionGrantedRef.current = true;
+              granted = true;
+            })
             .catch(() => {});
-          return;
+          if (!granted) {
+            showCameraPermissionAlert();
+            return;
+          }
         }
         webCameraPermissionGrantedRef.current = true;
       }
@@ -477,17 +529,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       if (!cameraPermission?.granted) {
         const result = await requestCameraPermission();
         if (!result.granted) {
-          Alert.alert(
-            'Camera Access Required',
-            'Please allow camera access in your device settings to scan medical documents.',
-          );
+          showCameraPermissionAlert();
           return;
         }
       }
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setOcrState('camera');
-  }, [disabled, voiceState, ocrState, cameraPermission, requestCameraPermission]);
+  }, [disabled, voiceState, ocrState, cameraPermission, requestCameraPermission, showCameraPermissionAlert]);
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current) return;
@@ -792,6 +841,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         {/* ── Camera scan button (left edge, idle only) ── */}
         {voiceState === 'idle' && ocrState === 'idle' && (
           <TouchableOpacity
+            testID="camera-button"
             onPress={handleCameraPress}
             disabled={disabled}
             activeOpacity={0.7}
