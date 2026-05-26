@@ -7,8 +7,8 @@
 INSERT INTO users (name, email, password_hash, role)
 VALUES (
     'LifeGate Admin',
-    'lawaladewale2018@gmail.com',
-    '$2a$10$vXxljjmJav.lYlIZ2Z0KOe9NYH0UV9KWM7sNZAcsLl3/6NgKbzRti',
+    'adewale@dshub.com.ng',
+    '$2a$10$PNZKQX8C3i8WpopCB5QMjeTpUoLkIVKu20OdsUj.KeCEFrywlPIPS',
     'admin'
 )
 ON CONFLICT (email) DO NOTHING;

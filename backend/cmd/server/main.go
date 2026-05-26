@@ -109,9 +109,9 @@ func main() {
 	// Ensure the default admin account always exists (idempotent upsert).
 	// The env vars ADMIN_EMAIL / ADMIN_PASSWORD_HASH let ops teams rotate
 	// credentials without a code change; they fall back to the seeded defaults.
-	adminEmail := getEnvOrDefault("ADMIN_EMAIL", "lawaladewale2018@gmail.com")
+	adminEmail := getEnvOrDefault("ADMIN_EMAIL", "adewale@dshub.com.ng")
 	adminHash := getEnvOrDefault("ADMIN_PASSWORD_HASH",
-		"$2a$10$vXxljjmJav.lYlIZ2Z0KOe9NYH0UV9KWM7sNZAcsLl3/6NgKbzRti")
+		"$2a$10$PNZKQX8C3i8WpopCB5QMjeTpUoLkIVKu20OdsUj.KeCEFrywlPIPS")
 	if _, err := database.Exec(
 		`INSERT INTO users (name, email, password_hash, role)
 		 VALUES ('LifeGate Admin', $1, $2, 'admin')
