@@ -247,7 +247,7 @@ export default function LoginScreen() {
             © {new Date().getFullYear()} LifeGate by DSHub. All rights reserved.
           </Text>
 
-          {/* DEMO ICON BUTTON */}
+          {/* DEMO ICON BUTTON 
           <TouchableOpacity
             style={{ alignItems: 'center', marginTop: 28, marginBottom: 4 }}
             onPress={() => setShowDemo(true)}
@@ -256,6 +256,7 @@ export default function LoginScreen() {
             <Text style={{ marginTop: 6, color: '#0AADA2', fontWeight: 'bold' }}>Demo</Text>
             <Text style={{ fontSize: 11, color: '#6b7280' }}>Try chat as guest</Text>
           </TouchableOpacity>
+*/}
 
         </ScrollView>
       </LinearGradient>
