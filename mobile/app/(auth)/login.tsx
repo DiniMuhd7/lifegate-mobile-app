@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Platform, Modal } from 'react-native';
+import { View, Text, Pressable, ScrollView, Platform, Modal, TouchableOpacity, Image, TextInput } from 'react-native';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth/auth-store';
@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Logo from 'assets/logo.svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { InstantMessageModal } from 'components/InstantMessageModal';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,6 +19,7 @@ export default function LoginScreen() {
   const [showAuthAlternativeModal, setShowAuthAlternativeModal] = useState(false);
   const [authAlternativeMessage, setAuthAlternativeMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [showDemo, setShowDemo] = useState(false);
 
   const { loginDraft, setLoginField, clearLoginDraft, login, loginWithGoogle, error, clearError } = useAuthStore();
 
@@ -65,7 +67,6 @@ export default function LoginScreen() {
       if (success) {
         const { user, pending2FA } = useAuthStore.getState();
         if (pending2FA) {
-          // Physician: navigate to 2FA verification screen.
           router.push({
             pathname: '/(auth)/verify-otp',
             params: { email: pending2FA.email, mode: 'physician2fa' },
@@ -95,7 +96,6 @@ export default function LoginScreen() {
       setShowAuthAlternativeModal(true);
       return;
     }
-
     setShowGoogleRecoveryFab(true);
     setLoading(true);
     try {
@@ -153,22 +153,23 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="flex-1">
       <LinearGradient
-        colors={['#0AADA2', '#043B3C']}
+        colors={["#0AADA2", "#043B3C"]}
         className="flex-1"
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.2 }}>
-        {/* Gradient header */}
+        end={{ x: 0, y: 0.2 }}
+      >
+        {/* Header */}
         <View className="items-center px-6 pb-6 pt-10">
           <Logo width={64} height={64} />
           <Text className="mt-3 text-2xl font-bold text-white">Welcome Back</Text>
           <Text className="mt-1 text-sm text-white/70">Sign in to your LifeGate account</Text>
         </View>
 
-        {/* Card */}
         <ScrollView
           className="flex-1 rounded-t-[36px] bg-[#F7FEFD]"
           contentContainerStyle={{ paddingHorizontal: 28, paddingTop: 28, paddingBottom: 40 }}
-          keyboardShouldPersistTaps="handled">
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Backend error */}
           {error ? (
             <View className="mb-4 flex-row items-start rounded-xl bg-red-50 p-3">
@@ -216,9 +217,8 @@ export default function LoginScreen() {
           <View className="mb-6 mt-1 flex-row items-center justify-between">
             <Pressable className="flex-row items-center" onPress={() => setRemember((v) => !v)}>
               <View
-                className={`mr-2 h-5 w-5 items-center justify-center rounded-full border-2 ${
-                  remember ? 'border-[#0EA5A4] bg-[#0EA5A4]' : 'border-gray-400'
-                }`}>
+                className={`mr-2 h-5 w-5 items-center justify-center rounded-full border-2 ${remember ? 'border-[#0EA5A4] bg-[#0EA5A4]' : 'border-gray-400'}`}
+              >
                 {remember && <Ionicons name="checkmark" size={11} color="white" />}
               </View>
               <Text className="text-xs text-gray-700">Remember me</Text>
@@ -243,13 +243,24 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {/* Copyright */}
           <Text className="mt-8 text-center text-xs text-gray-400">
             © {new Date().getFullYear()} LifeGate by DSHub. All rights reserved.
           </Text>
+
+          {/* DEMO ICON BUTTON */}
+          <TouchableOpacity
+            style={{ alignItems: 'center', marginTop: 28, marginBottom: 4 }}
+            onPress={() => setShowDemo(true)}
+          >
+            <Image source={require('assets/demo-icon.png')} style={{ width: 44, height: 44 }} />
+            <Text style={{ marginTop: 6, color: '#0AADA2', fontWeight: 'bold' }}>Demo</Text>
+            <Text style={{ fontSize: 11, color: '#6b7280' }}>Try chat as guest</Text>
+          </TouchableOpacity>
+
         </ScrollView>
       </LinearGradient>
 
+      {/* Google login fallback */}
       {Platform.OS === 'web' && showGoogleRecoveryFab ? (
         <Pressable
           accessibilityRole="button"
@@ -275,7 +286,6 @@ export default function LoginScreen() {
               <Text className="ml-2 text-base font-bold text-slate-900">Use Another Sign-In Method</Text>
             </View>
             <Text className="text-sm leading-6 text-slate-700">{authAlternativeMessage}</Text>
-
             <View className="mt-5 gap-2">
               <Pressable
                 onPress={handleCloseAuthAlternativeModal}
@@ -283,7 +293,6 @@ export default function LoginScreen() {
               >
                 <Text className="text-sm font-semibold text-white">Login with Email</Text>
               </Pressable>
-
               <Pressable
                 onPress={handleGoToRegister}
                 className="h-11 items-center justify-center rounded-xl border border-[#0EA5A4] bg-white"
@@ -293,6 +302,17 @@ export default function LoginScreen() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* DEMO MODAL */}
+      <Modal visible={showDemo} animationType="fade" transparent>
+        <InstantMessageModal
+          demoMode
+          onClose={() => setShowDemo(false)}
+          diagnosisId="demo"
+          counterpartName="LifeGate AI Demo"
+          perspective="patient"
+        />
       </Modal>
     </SafeAreaView>
   );
