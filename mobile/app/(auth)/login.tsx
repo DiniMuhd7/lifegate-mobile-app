@@ -304,7 +304,7 @@ export default function LoginScreen() {
         </View>
       </Modal>
 
-      {/* DEMO MODAL */}
+/*
       <Modal visible={showDemo} animationType="fade" transparent>
         <InstantMessageModal
           demoMode
@@ -314,6 +314,8 @@ export default function LoginScreen() {
           perspective="patient"
         />
       </Modal>
+*/
+
     </SafeAreaView>
   );
 }
