@@ -450,27 +450,31 @@ const ReelCard = React.memo(function ReelCard({
   );
 });
 
-// ── ShortPlayerModal — full-screen inline player for Shorts (≤60 s) ──────────
-// YouTube Shorts are regular videos accessible via their video ID through the
-// same IFrame API. No native app redirect needed — the WebView handles it.
+// ── ShortItem — one short inside the swipeable FlatList ──────────────────────
+// Mirrors ReelCard's isActive pattern: WebView only mounts when this item
+// is the visible page, so only one YouTube player is active at a time.
 
-function ShortPlayerModal({
+const ShortItem = React.memo(function ShortItem({
   video,
-  onClose,
+  isActive,
+  itemHeight,
   onClaim,
+  onClose,
 }: {
   video: ExploreVideo;
-  onClose: () => void;
+  isActive: boolean;
+  itemHeight: number;
   onClaim: (videoId: string) => Promise<void>;
+  onClose: () => void;
 }) {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { bottom: bottomInset } = useSafeAreaInsets();
 
   const videoRef    = useRef<WebView>(null);
   const adRef       = useRef<InterstitialAdSlotHandle>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef(0);
-  const claimTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const claimTimeoutRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const adFailTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const requiredSeconds = Math.max(Math.ceil(video.durationSeconds * 0.8), video.durationSeconds);
 
@@ -483,20 +487,30 @@ function ShortPlayerModal({
   const [claiming,     setClaiming]     = useState(false);
   const [claimPending, setClaimPending] = useState(false);
   const [noAdVisible,  setNoAdVisible]  = useState(false);
-  const adFailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Reset all state when this item leaves the viewport; re-arm when it returns
   useEffect(() => {
-    remainingRef.current = requiredSeconds;
-    // 8-second ad-load failsafe
-    adFailTimeoutRef.current = setTimeout(() => {
-      setAdFailed(true);
-    }, 8000);
+    if (!isActive) {
+      if (intervalRef.current)  { clearInterval(intervalRef.current);  intervalRef.current  = null; }
+      if (claimTimeoutRef.current)  { clearTimeout(claimTimeoutRef.current);  claimTimeoutRef.current  = null; }
+      if (adFailTimeoutRef.current) { clearTimeout(adFailTimeoutRef.current); adFailTimeoutRef.current = null; }
+      try { videoRef.current?.stopLoading(); } catch (_) {}
+      setPlayerReady(false); setEmbedError(null); setCanClaim(false);
+      setSecondsLeft(requiredSeconds); setAdReady(false); setAdFailed(false);
+      setClaiming(false); setClaimPending(false); setNoAdVisible(false);
+      remainingRef.current = requiredSeconds;
+    } else {
+      remainingRef.current = requiredSeconds;
+      setSecondsLeft(requiredSeconds);
+      // 8-second ad-load failsafe
+      adFailTimeoutRef.current = setTimeout(() => setAdFailed(true), 8000);
+    }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (claimTimeoutRef.current) clearTimeout(claimTimeoutRef.current);
+      if (intervalRef.current)      clearInterval(intervalRef.current);
+      if (claimTimeoutRef.current)  clearTimeout(claimTimeoutRef.current);
       if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current);
     };
-  }, [requiredSeconds]);
+  }, [isActive, requiredSeconds]);
 
   useEffect(() => {
     if (adFailed && canClaim) setNoAdVisible(true);
@@ -545,13 +559,7 @@ function ShortPlayerModal({
     return () => window.removeEventListener('message', listener);
   }, [handleMessage]);
 
-  const handleClose = useCallback(() => {
-    pauseTimer();
-    try { videoRef.current?.stopLoading(); } catch (_) {}
-    onClose();
-  }, [onClose, pauseTimer]);
-
-  const handleClaim = useCallback(async () => {
+  const handleClaimPress = useCallback(async () => {
     if (!adReady) { setNoAdVisible(true); return; }
     setClaimPending(true);
     setClaiming(true);
@@ -567,8 +575,9 @@ function ShortPlayerModal({
     setClaimPending(false);
     await onClaim(video.id);
     setClaiming(false);
-    handleClose();
-  }, [claimPending, onClaim, video.id, handleClose]);
+    // Claimed — close the whole shorts player so the user returns to the feed
+    onClose();
+  }, [claimPending, onClaim, video.id, onClose]);
 
   const progress = canClaim ? 1 : (requiredSeconds - secondsLeft) / Math.max(requiredSeconds, 1);
 
@@ -603,37 +612,15 @@ function ShortPlayerModal({
 </body></html>`;
 
   return (
-    <Modal
-      visible
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={handleClose}
-      statusBarTranslucent
-    >
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ width: '100%', height: itemHeight, backgroundColor: '#000', overflow: 'hidden' }}>
 
-        {/* ── Full-screen video or embed error ── */}
-        {embedError !== null ? (
-          <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 }]}>
-            <LinearGradient colors={[video.thumbnailColor + '33', '#000']} style={StyleSheet.absoluteFill} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.7 }} />
-            <Ionicons name="logo-youtube" size={48} color="#ff0000" />
-            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800', textAlign: 'center' }}>Short can't play in-app</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 13, textAlign: 'center', lineHeight: 19 }}>
-              The owner has disabled in-app playback.
-            </Text>
-            <Pressable
-              onPress={handleClose}
-              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#374151', borderRadius: 24, paddingHorizontal: 24, paddingVertical: 12, marginTop: 4 })}
-            >
-              <Ionicons name="close" size={16} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Close</Text>
-            </Pressable>
-          </View>
-        ) : Platform.OS === 'web' ? (
+      {/* Video or thumbnail */}
+      {isActive && embedError === null ? (
+        Platform.OS === 'web' ? (
           // @ts-ignore
           React.createElement('iframe', {
             srcDoc: playerHtml,
-            style: { position: 'absolute', top: 0, left: 0, width: screenWidth, height: screenHeight, border: 'none' },
+            style: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' },
             allow: 'autoplay; fullscreen; picture-in-picture',
             allowFullScreen: true,
             sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups',
@@ -657,123 +644,250 @@ function ShortPlayerModal({
               return true;
             }}
           />
+        )
+      ) : (
+        <LinearGradient
+          colors={[video.thumbnailColor + 'ff', darken(darken(video.thumbnailColor))]}
+          start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+
+      {/* Embed error */}
+      {isActive && embedError !== null && (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 32 }]}>
+          <LinearGradient colors={[video.thumbnailColor + '33', '#000']} style={StyleSheet.absoluteFill} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.7 }} />
+          <Ionicons name="logo-youtube" size={44} color="#ff0000" />
+          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800', textAlign: 'center' }}>Short can't play in-app</Text>
+          <Pressable onPress={onClose} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#374151', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 })}>
+            <Ionicons name="close" size={14} color="#fff" />
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Close</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Loading spinner */}
+      {isActive && !playerReady && embedError === null && (
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.65)' }]} pointerEvents="none">
+          <ActivityIndicator size="large" color="#ff0000" />
+          <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 10, fontSize: 12 }}>Loading Short…</Text>
+        </View>
+      )}
+
+      {/* Bottom scrim */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.92)', '#000']}
+        locations={[0, 0.3, 0.65, 1]}
+        start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: itemHeight * 0.5 }}
+        pointerEvents="none"
+      />
+
+      {/* Video info */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingBottom: bottomInset + 14, gap: 5 }} pointerEvents={isActive ? 'box-none' : 'none'}>
+        {/* Category + duration */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} pointerEvents="none">
+          <View style={{ backgroundColor: '#ff0033', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Ionicons name="logo-youtube" size={9} color="#fff" />
+            <Text style={{ fontSize: 9, color: '#fff', fontWeight: '800' }}>Short</Text>
+          </View>
+          <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{video.durationSeconds}s · {video.category}</Text>
+        </View>
+        {/* Title */}
+        <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', lineHeight: 22 }} numberOfLines={2} pointerEvents="none">{video.title}</Text>
+        {/* Channel + coins */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }} pointerEvents="none">
+          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', flex: 1, marginRight: 10 }} numberOfLines={1}>{video.instructor}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(251,191,36,0.15)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' }}>
+            <Ionicons name="heart" size={12} color="#fbbf24" />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#fbbf24' }}>+{video.coins} LC</Text>
+          </View>
+        </View>
+
+        {/* Progress (active only) */}
+        {isActive && (
+          <View pointerEvents="none" style={{ gap: 4, marginTop: 2 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                {canClaim ? '✓ Ready to claim' : playerReady ? 'Watching…' : 'Loading…'}
+              </Text>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.4)' }}>
+                {canClaim ? 'Done!' : playerReady ? `${secondsLeft}s left` : ''}
+              </Text>
+            </View>
+            <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 2, overflow: 'hidden' }}>
+              <View style={{ height: '100%', width: `${Math.round(progress * 100)}%` as any, backgroundColor: canClaim ? '#4ade80' : '#ff0033', borderRadius: 2 }} />
+            </View>
+          </View>
         )}
 
-        {/* Loading spinner */}
-        {!playerReady && embedError === null && (
-          <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)' }]} pointerEvents="none">
-            <ActivityIndicator size="large" color="#ff0000" />
-            <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 10, fontSize: 12 }}>Loading Short…</Text>
-          </View>
-        )}
-
-        {/* ── TOP BAR: close + info ── */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.4)', 'transparent']}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: insets.top + 10, paddingBottom: 36, paddingHorizontal: 16 }}
-          pointerEvents="box-none"
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }} pointerEvents="box-none">
-            {/* Close */}
-            <Pressable onPress={handleClose} hitSlop={12} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
-                <Ionicons name="close" size={20} color="#fff" />
-              </View>
-            </Pressable>
-            {/* Title + channel */}
-            <View style={{ flex: 1 }} pointerEvents="none">
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                <View style={{ backgroundColor: '#ff0033', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <Ionicons name="logo-youtube" size={10} color="#fff" />
-                  <Text style={{ fontSize: 9, color: '#fff', fontWeight: '800' }}>Short</Text>
-                </View>
-                <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: '600' }}>{video.durationSeconds}s · {video.category}</Text>
-              </View>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', lineHeight: 18 }} numberOfLines={1}>{video.title}</Text>
-              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 1 }}>{video.instructor}</Text>
-            </View>
-            {/* Coins badge */}
-            <View style={{ alignItems: 'center', gap: 3 }} pointerEvents="none">
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.5)', borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.45)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="heart" size={20} color="#fbbf24" />
-              </View>
-              <Text style={{ fontSize: 10, fontWeight: '800', color: '#fbbf24' }}>+{video.coins}</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {/* ── BOTTOM: progress + claim ── */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.9)', '#000']}
-          locations={[0, 0.3, 0.65, 1]}
-          style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 50, paddingHorizontal: 18, paddingBottom: insets.bottom + 18 }}
-          pointerEvents="box-none"
-        >
-          {/* Progress row */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }} pointerEvents="none">
-            <Text style={{ fontSize: 10, fontWeight: '700', color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              {canClaim ? '✓ Ready to claim' : playerReady ? 'Watching…' : 'Loading…'}
-            </Text>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: canClaim ? '#4ade80' : 'rgba(255,255,255,0.4)' }}>
-              {canClaim ? 'Done!' : playerReady ? `${secondsLeft}s left` : ''}
-            </Text>
-          </View>
-          {/* Progress bar */}
-          <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 2, overflow: 'hidden', marginBottom: 12 }} pointerEvents="none">
-            <View style={{ height: '100%', width: `${Math.round(progress * 100)}%` as any, backgroundColor: canClaim ? '#4ade80' : '#ff0033', borderRadius: 2 }} />
-          </View>
-          {/* Claim button */}
+        {/* Claim button (active only) */}
+        {isActive && (
           <Pressable
-            onPress={canClaim && !claiming && adReady ? handleClaim : undefined}
-            style={({ pressed }) => ({ opacity: !canClaim || claiming || !adReady ? 0.42 : pressed ? 0.82 : 1 })}
+            onPress={canClaim && !claiming && adReady ? handleClaimPress : undefined}
+            style={({ pressed }) => ({ opacity: !canClaim || claiming || !adReady ? 0.42 : pressed ? 0.82 : 1, marginTop: 4 })}
           >
             <LinearGradient
               colors={canClaim && adReady ? ['#16a34a', '#15803d'] : ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.04)']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 14, borderRadius: 16, borderWidth: canClaim && adReady ? 0 : 1, borderColor: 'rgba(255,255,255,0.12)' }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, borderWidth: canClaim && adReady ? 0 : 1, borderColor: 'rgba(255,255,255,0.1)' }}
             >
               {claiming ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : canClaim && !adReady ? (
                 <>
                   <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>Loading ad…</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>Loading ad…</Text>
                 </>
               ) : (
                 <>
-                  <Ionicons name={canClaim ? 'play-circle' : 'lock-closed-outline'} size={18} color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />
-                  <Text style={{ fontSize: 15, fontWeight: '800', color: canClaim ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                  <Ionicons name={canClaim ? 'play-circle' : 'lock-closed-outline'} size={16} color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: canClaim ? '#fff' : 'rgba(255,255,255,0.3)' }}>
                     {canClaim ? `Watch ad · Claim +${video.coins} LC` : 'Watch to unlock'}
                   </Text>
                 </>
               )}
             </LinearGradient>
           </Pressable>
-        </LinearGradient>
-
-        {/* No-ad overlay */}
-        {noAdVisible && (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.82)', justifyContent: 'flex-end', padding: 24, zIndex: 20 }]}>
-            <View style={{ backgroundColor: '#111827', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="tv-outline" size={24} color="#fbbf24" />
-              </View>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#f1f5f9', textAlign: 'center' }}>Ads Inventory Empty</Text>
-              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 18 }}>No ads right now. Please try again later.</Text>
-              <Pressable onPress={() => setNoAdVisible(false)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: '100%', paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', marginTop: 2 })}>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>Try Again Later</Text>
-              </Pressable>
-            </View>
-          </View>
         )}
 
-        {/* Hidden ad slot */}
+        {/* Swipe hint on inactive cards */}
+        {!isActive && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 2 }} pointerEvents="none">
+            <Ionicons name="chevron-up" size={11} color="rgba(255,255,255,0.3)" />
+            <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: '600' }}>Swipe for next Short</Text>
+            <Ionicons name="chevron-up" size={11} color="rgba(255,255,255,0.3)" />
+          </View>
+        )}
+      </View>
+
+      {/* No-ad overlay */}
+      {noAdVisible && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.82)', justifyContent: 'flex-end', padding: 22, zIndex: 20 }]}>
+          <View style={{ backgroundColor: '#111827', borderRadius: 22, padding: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', gap: 10 }}>
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="tv-outline" size={22} color="#fbbf24" />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#f1f5f9', textAlign: 'center' }}>Ads Inventory Empty</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 17 }}>No ads right now. Try again later.</Text>
+            <Pressable onPress={() => setNoAdVisible(false)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: '100%', paddingVertical: 11, borderRadius: 11, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', marginTop: 2 })}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.5)' }}>Try Again Later</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* Ad slot — only when active */}
+      {isActive && (
         <InterstitialAdSlot
           ref={adRef}
           onLoaded={() => { setAdReady(true); if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current); }}
           onFailed={() => { setAdReady(false); setAdFailed(true); }}
           onDismissed={handleAdDismissed}
         />
+      )}
+    </View>
+  );
+});
+
+// ── ShortPlayerModal — swipeable full-screen shorts player ───────────────────
+
+function ShortPlayerModal({
+  videos,
+  initialIndex,
+  onClose,
+  onClaim,
+}: {
+  videos: ExploreVideo[];
+  initialIndex: number;
+  onClose: () => void;
+  onClaim: (videoId: string) => Promise<void>;
+}) {
+  const { height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (viewableItems.length > 0 && viewableItems[0].isViewable) {
+      setActiveIndex(viewableItems[0].index ?? 0);
+    }
+  });
+
+  const getItemLayout = useCallback(
+    (_: unknown, index: number) => ({ length: screenHeight, offset: screenHeight * index, index }),
+    [screenHeight],
+  );
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: ExploreVideo; index: number }) => (
+      <ShortItem
+        video={item}
+        isActive={index === activeIndex}
+        itemHeight={screenHeight}
+        onClaim={onClaim}
+        onClose={onClose}
+      />
+    ),
+    [activeIndex, screenHeight, onClaim, onClose],
+  );
+
+  return (
+    <Modal
+      visible
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <FlatList
+          data={videos}
+          keyExtractor={(v) => v.id}
+          renderItem={renderItem}
+          pagingEnabled
+          decelerationRate="fast"
+          showsVerticalScrollIndicator={false}
+          getItemLayout={getItemLayout}
+          initialScrollIndex={initialIndex}
+          onViewableItemsChanged={onViewableItemsChanged.current}
+          viewabilityConfig={viewabilityConfig}
+          windowSize={3}
+          maxToRenderPerBatch={2}
+          initialNumToRender={2}
+          removeClippedSubviews
+        />
+
+        {/* Floating top bar: close + counter */}
+        <View
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}
+          pointerEvents="box-none"
+        >
+          <LinearGradient
+            colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0.3)', 'transparent']}
+            style={{ paddingTop: insets.top + 10, paddingBottom: 32, paddingHorizontal: 16 }}
+            pointerEvents="box-none"
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }} pointerEvents="box-none">
+              <Pressable onPress={onClose} hitSlop={12} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+                  <Ionicons name="close" size={20} color="#fff" />
+                </View>
+              </Pressable>
+              <View style={{ flex: 1 }} pointerEvents="none">
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>Health Shorts</Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>
+                  {activeIndex + 1} / {videos.length} · Swipe up for next
+                </Text>
+              </View>
+              {/* Shorts badge */}
+              <View style={{ backgroundColor: '#ff0033', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }} pointerEvents="none">
+                <Ionicons name="logo-youtube" size={12} color="#fff" />
+                <Text style={{ fontSize: 11, color: '#fff', fontWeight: '800' }}>Shorts</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
       </View>
     </Modal>
   );
@@ -935,8 +1049,8 @@ export default function ExploreScreen() {
 
   // Which card index is currently snapped into view — drives auto-play
   const [activeIndex, setActiveIndex]   = useState<number | null>(0);
-  // Which short is currently open in the Short player modal
-  const [activeShort, setActiveShort]   = useState<ExploreVideo | null>(null);
+  // Index into shortsVideos for the short player modal (-1 = closed)
+  const [activeShortIndex, setActiveShortIndex] = useState<number>(-1);
   const [toast,       setToast]       = useState<{ message: string; coins: number } | null>(null);
   const [adRewarded,  setAdRewarded]  = useState(false);
   const [viewedIds,   setViewedIds]   = useState<Set<string>>(new Set());
@@ -986,8 +1100,9 @@ export default function ExploreScreen() {
   }, [showToast]);
 
   const handleWatchShort = useCallback((video: ExploreVideo) => {
-    setActiveShort(video);
-  }, []);
+    const idx = shortsVideos.findIndex((v) => v.id === video.id);
+    setActiveShortIndex(idx >= 0 ? idx : 0);
+  }, [shortsVideos]);
 
   const handleClaim = useCallback(async (videoId: string) => {
     const result = await claimReward(videoId);
@@ -1003,15 +1118,16 @@ export default function ExploreScreen() {
   }, [claimReward, showToast, dailyCap, refreshVideos]);
 
   const allFiltered = useMemo(() =>
-    shuffledVideos.sort((a, b) => {
-      const aR = isRewarded(a.id);
-      const bR = isRewarded(b.id);
-      if (aR !== bR) return aR ? 1 : -1;
-      const aV = viewedIds.has(a.id);
-      const bV = viewedIds.has(b.id);
-      if (aV !== bV) return aV ? 1 : -1;
-      return 0;
-    }),
+    shuffledVideos
+      // Hide videos the user has already claimed today — they're done
+      .filter((v) => !isRewarded(v.id))
+      // Within the remaining unwatched videos, sort session-viewed to bottom
+      .sort((a, b) => {
+        const aV = viewedIds.has(a.id);
+        const bV = viewedIds.has(b.id);
+        if (aV !== bV) return aV ? 1 : -1;
+        return 0;
+      }),
   [shuffledVideos, isRewarded, viewedIds]);
 
   // Split into Shorts lane and main reel feed
@@ -1237,11 +1353,12 @@ export default function ExploreScreen() {
       </View>
 
       {/* Active video modal */}
-      {/* Short player modal */}
-      {activeShort && (
+      {/* Swipeable shorts player modal */}
+      {activeShortIndex >= 0 && shortsVideos.length > 0 && (
         <ShortPlayerModal
-          video={activeShort}
-          onClose={() => setActiveShort(null)}
+          videos={shortsVideos}
+          initialIndex={activeShortIndex}
+          onClose={() => setActiveShortIndex(-1)}
           onClaim={handleClaim}
         />
       )}
