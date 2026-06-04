@@ -1099,11 +1099,6 @@ export default function ExploreScreen() {
     showToast(`+${AD_BONUS_COINS} bonus Lifecoins earned!`, AD_BONUS_COINS);
   }, [showToast]);
 
-  const handleWatchShort = useCallback((video: ExploreVideo) => {
-    const idx = shortsVideos.findIndex((v) => v.id === video.id);
-    setActiveShortIndex(idx >= 0 ? idx : 0);
-  }, [shortsVideos]);
-
   const handleClaim = useCallback(async (videoId: string) => {
     const result = await claimReward(videoId);
     if (result.capReached) {
@@ -1131,8 +1126,14 @@ export default function ExploreScreen() {
   [shuffledVideos, isRewarded, viewedIds]);
 
   // Split into Shorts lane and main reel feed
-  const shortsVideos  = useMemo(() => allFiltered.filter((v) => v.isShort),  [allFiltered]);
+  const shortsVideos   = useMemo(() => allFiltered.filter((v) =>  v.isShort), [allFiltered]);
   const filteredVideos = useMemo(() => allFiltered.filter((v) => !v.isShort), [allFiltered]);
+
+  // handleWatchShort must be declared AFTER shortsVideos (const TDZ rule)
+  const handleWatchShort = useCallback((video: ExploreVideo) => {
+    const idx = shortsVideos.findIndex((v) => v.id === video.id);
+    setActiveShortIndex(idx >= 0 ? idx : 0);
+  }, [shortsVideos]);
 
   const getItemLayout = useCallback(
     (_: unknown, index: number) => ({
