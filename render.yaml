@@ -1,0 +1,260 @@
+# render.yaml — Render Blueprint
+# Infrastructure-as-Code manifest for LifeGate on Render.
+# Deploy once with: https://dashboard.render.com/select-repo
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ─── Go Backend (Web Service) ──────────────────────────────────────────────
+  - type: web
+    name: lifegate-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    # Build context is the repo root so the Dockerfile can access both the
+    # backend source and lifegate-openclaw/agents persona files.
+    dockerContext: .
+    plan: standard          # standard plan required for zero-downtime deploys + scaling
+    region: oregon
+    branch: main
+    healthCheckPath: /health/ready
+    numInstances: 1         # disk attachment requires single instance
+
+    disk:
+      name: lifegate-uploads
+      mountPath: /app/uploads
+      sizeGB: 1            # persistent volume for uploaded files (requires paid plan)
+
+    envVars:
+      # Server
+      - key: PORT
+        value: "5000"
+      - key: GIN_MODE
+        value: release
+
+      # Database — auto-injected from the managed Postgres instance below
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lifegate-db
+          property: connectionString
+
+      # Redis — auto-injected from the managed Redis instance below
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: lifegate-redis
+          property: connectionString
+
+      # NATS — resolved via Render's internal private network DNS
+      - key: NATS_URL
+        value: nats://lifegate-nats:4222
+
+      # Auth
+      - key: JWT_SECRET
+        generateValue: true    # Render generates a cryptographically random value
+      - key: JWT_EXPIRY
+        value: "24h"
+      # Health data encryption key — set a strong random secret via the Render dashboard
+      - key: HEALTH_DATA_KEY
+        generateValue: true
+
+      # Swagger UI host — set to the public Render URL so "Try it out" works in production
+      - key: SWAGGER_HOST
+        value: edis.dshub.com.ng
+
+      # AI — set the provider and fill in the key(s) via Render dashboard
+      - key: AI_PROVIDER
+        value: openai          # openai | gemini | anthropic
+      - key: OPENAI_API_KEY
+        sync: false            # secret — enter value in Render dashboard
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-3-5-sonnet-20241022
+      - key: CODEX_MODEL
+        value: codex-mini-latest
+      - key: CLAUDE_CODE_MODEL
+        value: claude-opus-4-5
+
+      # OpenClaw AI physician worker — path to agent persona files inside the container.
+      # The Dockerfile copies lifegate-openclaw/agents/ to /app/agents/ at build time.
+      - key: OPENCLAW_AGENTS_DIR
+        value: /app/agents
+
+      # WebRTC TURN server — REQUIRED for voice calls on Render.
+      # Render containers cannot receive inbound UDP, so WebRTC ICE will always fail
+      # without a TURN relay.
+      #
+      # Recommended: set METERED_API_KEY — the backend fetches fresh credentials from
+      # the Metered REST API (https://lifegate.metered.live) and caches them for 23 h.
+      # Static TURN_URLS/USERNAME/CREDENTIAL are the fallback when the key is absent.
+      - key: METERED_API_KEY
+        sync: false            # secret — set in Render dashboard (value from metered.ca)
+      # Static TURN fallback — only needed if METERED_API_KEY is not set.
+      # TURN_URLS: comma-separated turn/turns URIs, e.g.:
+      #   turn:global.relay.metered.ca:80,turns:global.relay.metered.ca:443
+      - key: TURN_URLS
+        sync: false            # secret — set in Render dashboard
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
+
+      # Payments — Flutterwave
+      # Configure webhook URL in Flutterwave dashboard → Settings → Webhooks:
+      #   https://edis.dshub.com.ng/api/payments/webhook
+      - key: FLW_SECRET_KEY
+        sync: false            # secret — get from dashboard.flutterwave.com
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_REDIRECT_URL
+        value: lifegate://payment/callback
+      - key: FLW_WEBHOOK_HASH
+        sync: false            # secret hash set in Flutterwave dashboard → Settings → Webhooks
+
+      # FX pricing for USD bundles
+      # USD bundle prices are derived from the latest cached USD -> NGN rate.
+      - key: FX_RATE_URL
+        value: https://open.er-api.com/v6/latest/USD
+      - key: FX_FALLBACK_NGN_PER_USD
+        value: "1600"
+      - key: FX_CACHE_TTL
+        value: 30m
+
+      # Email — Resend (https://resend.com)
+      # Requires the sender domain to be verified in the Resend dashboard.
+      - key: RESEND_API_KEY
+        sync: false            # secret — enter value in Render dashboard
+      - key: EMAIL_FROM
+        value: contact@dshub.com.ng
+
+      # CORS — comma-separated list of allowed origins (Expo Go, web client, etc.)
+      # Example: https://mobile.dshub.com.ng,exp://...
+      - key: ALLOWED_ORIGINS
+        sync: false            # secret — enter production origin(s) in Render dashboard
+
+      # Admin account — override the seeded defaults with real credentials in Render dashboard
+      - key: ADMIN_EMAIL
+        sync: false            # secret — production admin email
+      - key: ADMIN_PASSWORD_HASH
+        sync: false            # secret — bcrypt hash of the production admin password
+
+      # Upload directory (must match the disk mountPath above)
+      - key: UPLOAD_DIR
+        value: /app/uploads
+
+  # ─── Expo Web App (Static Site) ───────────────────────────────────────────
+  - type: web
+    name: lifegate-mobile-web
+    runtime: static
+    rootDir: mobile
+    buildCommand: npm ci && npm run export:web
+    staticPublishPath: dist
+
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://edis.dshub.com.ng/api
+      # AdSense — Web display ads (ca-pub-... not ca-app-pub-...)
+      - key: EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID
+        value: ca-pub-8968729342650927
+      - key: EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT
+        value: "9217916017"
+      - key: EXPO_PUBLIC_ADMOB_WEB_REWARDED_UNIT_ID
+        value: ca-pub-8968729342650927/9217916017
+      # AdMob — Native App IDs (used by react-native-google-mobile-ads plugin)
+      - key: EXPO_PUBLIC_ADMOB_ANDROID_APP_ID
+        value: ca-app-pub-4516568539037938~3922174578
+      - key: EXPO_PUBLIC_ADMOB_IOS_APP_ID
+        value: ca-app-pub-4516568539037938~3952077665
+      # AdMob — Native Banner Unit IDs
+      - key: EXPO_PUBLIC_ADMOB_ANDROID_BANNER_UNIT_ID
+        value: ca-app-pub-4516568539037938/4524809808
+      - key: EXPO_PUBLIC_ADMOB_IOS_BANNER_UNIT_ID
+        value: ca-app-pub-4516568539037938/1507250875
+      # AdMob — Native Rewarded Unit IDs
+      - key: EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID
+        value: ca-app-pub-4516568539037938/1561718040
+      - key: EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID
+        value: ca-app-pub-4516568539037938/4827548784
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ─── Download Landing Page (Static Site) ───────────────────────────────────
+  - type: web
+    name: lifegate-download-web
+    runtime: static
+    rootDir: download
+    buildCommand: echo 'no build needed'
+    staticPublishPath: .
+    domains:
+      - download.dshub.com.ng
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ─── LifeGate Public Health Analytics Dashboard (Static Site) ────────────
+  - type: web
+    name: lifegate-public-health-web
+    runtime: static
+    rootDir: public
+    buildCommand: echo 'no build needed'
+    staticPublishPath: .
+    domains:
+      - public.dshub.com.ng
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ─── DSHub Corporate Landing Page (Static Site) ───────────────────────────
+  - type: web
+    name: dshub-main-web
+    runtime: static
+    rootDir: dshub
+    buildCommand: echo 'no build needed'
+    staticPublishPath: .
+    domains:
+      - dshub.com.ng
+      - www.dshub.com.ng
+
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ─── NATS JetStream (Private Service) ──────────────────────────────────────
+  # Reachable internally as nats://lifegate-nats:4222
+  - type: pserv
+    name: lifegate-nats
+    runtime: image
+    image:
+      url: docker.io/library/nats:2.10-alpine
+    plan: starter
+    region: oregon
+    startCommand: "--jetstream -m 8222"
+
+  # ─── Managed Redis ──────────────────────────────────────────────────────────
+  - type: redis
+    name: lifegate-redis
+    plan: free             # upgrade to starter for persistence
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []          # internal-only — no public IP access
+
+# ─── Managed PostgreSQL ────────────────────────────────────────────────────
+databases:
+  - name: lifegate-db
+    plan: basic-256mb
+    region: oregon
+    databaseName: lifegate
+    user: lifegate_user

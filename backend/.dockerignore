@@ -1,0 +1,21 @@
+# ── Pre-compiled binary ───────────────────────────────────────────────────────
+# Always rebuilt inside Docker — never copy the local binary into the context.
+server
+bin/
+
+# ── Environment files ─────────────────────────────────────────────────────────
+# NEVER include secrets in the build context.
+.env
+.env.*
+!.env.example
+
+# ── Persistent storage ────────────────────────────────────────────────────────
+# Mounted as a Render disk / Docker volume in production.
+uploads/
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+*.md
+
+# ── Git metadata ──────────────────────────────────────────────────────────────
+.git
+.gitignore

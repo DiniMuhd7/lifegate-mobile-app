@@ -1,0 +1,1360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Data Access — LifeGate Public Health Analytics</title>
+  <meta name="description" content="Apply for institutional access to LifeGate's NDPA-compliant public health analytics platform. Government, NGO, Research, and API tiers available." />
+  <meta name="robots" content="index, follow" />
+  <meta name="lifegate-api-base" content="https://edis.dshub.com.ng/api" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Lexend+Deca:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://checkout.flutterwave.com/v3.js"></script>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='16' cy='16' r='16' fill='%2309999B'/%3E%3C/svg%3E" />
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────────── */
+    :root {
+      --brand:       #09999B;
+      --brand-h:     #077577;
+      --brand-50:    rgba(9,153,155,.06);
+      --brand-100:   rgba(9,153,155,.13);
+      --dark-950:    #060D17;
+      --dark-900:    #0A1628;
+      --dark-800:    #0F2137;
+      --dark-700:    #162B47;
+      --n-50:  #F8FAFC; --n-100: #F1F5F9; --n-200: #E2E8F0;
+      --n-300: #CBD5E1; --n-400: #94A3B8; --n-500: #64748B;
+      --n-600: #475569; --n-700: #334155; --n-800: #1E293B; --n-900: #0F172A;
+      --text:     #0F172A;
+      --text-sub: #334155;
+      --text-muted: #64748B;
+      --r-sm: 8px; --r-md: 12px; --r-lg: 18px; --r-xl: 24px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Lexend', system-ui, sans-serif;
+      background: #fff;
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { font-weight: 600; }
+
+    .container { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── Nav ──────────────────────────────────────────────────────── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(6,13,23,.94);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; gap: 16px;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .nav-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .nav-brand-name { font-family: 'Lexend Deca', sans-serif; font-size: .95rem; font-weight: 700; color: #fff; }
+    .nav-brand-sub  { font-size: .68rem; font-weight: 400; color: rgba(255,255,255,.55); letter-spacing: .03em; }
+    .nav-back {
+      font-size: .82rem; color: rgba(255,255,255,.6);
+      display: flex; align-items: center; gap: 6px;
+      text-decoration: none; transition: color .15s;
+    }
+    .nav-back:hover { color: #fff; text-decoration: none; }
+
+    /* ── Hero ─────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(140deg, var(--dark-950) 0%, var(--dark-800) 55%, #0a2240 100%);
+      padding: clamp(56px, 8vw, 88px) 0 clamp(48px, 7vw, 72px);
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 70% at 80% 40%, rgba(9,153,155,.15) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: clamp(36px, 6vw, 72px); align-items: start;
+      position: relative; z-index: 1;
+    }
+    @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
+
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: .75rem; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--brand);
+      background: rgba(9,153,155,.1); border: 1px solid rgba(9,153,155,.25);
+      border-radius: 20px; padding: 5px 12px; margin-bottom: 22px;
+    }
+    .hero-h1 {
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+      line-height: 1.13; color: #fff; margin-bottom: 18px;
+    }
+    .hero-h1 em { font-style: normal; color: var(--brand); }
+    .hero-lead {
+      font-size: clamp(.9rem, 1.3vw, 1.05rem); color: rgba(255,255,255,.7);
+      line-height: 1.7; margin-bottom: 28px; max-width: 480px;
+    }
+
+    /* Trust badges row */
+    .trust-row {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px;
+    }
+    .trust-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: .76rem; font-weight: 500; color: rgba(255,255,255,.75);
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 20px; padding: 5px 11px;
+    }
+    .trust-badge svg { color: var(--brand); flex-shrink: 0; }
+
+    /* Hero right — value cards */
+    .hero-value-cards { display: flex; flex-direction: column; gap: 14px; }
+    .hvc {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09);
+      border-radius: var(--r-lg); padding: 18px 20px;
+      display: flex; align-items: flex-start; gap: 14px;
+      transition: border-color .2s;
+    }
+    .hvc:hover { border-color: rgba(9,153,155,.4); }
+    .hvc-icon {
+      width: 36px; height: 36px; border-radius: var(--r-sm);
+      background: var(--brand-100); color: var(--brand);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .hvc-title { font-size: .9rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .hvc-desc  { font-size: .8rem; color: rgba(255,255,255,.55); line-height: 1.55; }
+
+    /* ── Tier comparison strip ────────────────────────────────────── */
+    .tiers-section { background: var(--n-50); border-bottom: 1px solid var(--n-200); padding: clamp(48px, 7vw, 80px) 0; }
+    .sec-eyebrow {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: .73rem; font-weight: 600; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--brand);
+      margin-bottom: 12px;
+    }
+    .sec-h2 {
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: clamp(1.45rem, 2.5vw, 2rem); font-weight: 800;
+      color: var(--text); margin-bottom: 10px;
+    }
+    .sec-sub { font-size: .93rem; color: var(--text-muted); line-height: 1.65; max-width: 600px; margin-bottom: 36px; }
+
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) { .tier-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .tier-grid { grid-template-columns: 1fr; } }
+
+    .tier-card {
+      background: #fff; border: 1.5px solid var(--n-200);
+      border-radius: var(--r-xl); padding: 24px 20px;
+      display: flex; flex-direction: column;
+      transition: box-shadow .2s, border-color .2s;
+      position: relative;
+    }
+    .tier-card:hover { box-shadow: 0 4px 24px rgba(9,153,155,.1); border-color: var(--brand); }
+    .tier-card.featured {
+      border-color: var(--brand); background: #f0fdfd;
+    }
+    .tier-featured-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--brand); color: #fff;
+      font-size: .68rem; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; border-radius: 20px; padding: 3px 12px;
+      white-space: nowrap;
+    }
+    .tier-icon {
+      width: 38px; height: 38px; border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px;
+    }
+    .tier-icon.gov  { background: #eff6ff; color: #2563eb; }
+    .tier-icon.dash { background: #f0fdfd; color: var(--brand); }
+    .tier-icon.exp  { background: #fdf4ff; color: #9333ea; }
+    .tier-icon.api  { background: #fff7ed; color: #ea580c; }
+
+    .tier-name  { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 6px; }
+    .tier-who   { font-size: .82rem; color: var(--brand); font-weight: 600; margin-bottom: 10px; }
+    .tier-price {
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: 1.55rem; font-weight: 800; color: var(--text);
+      line-height: 1; margin-bottom: 4px;
+    }
+    .tier-price-sub { font-size: .75rem; color: var(--text-muted); margin-bottom: 16px; }
+    .tier-divider { border: none; border-top: 1px solid var(--n-200); margin-bottom: 16px; }
+    .tier-features { list-style: none; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .tier-features li {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: .81rem; color: var(--text-sub); line-height: 1.5;
+    }
+    .tier-features li::before {
+      content: ''; display: block; width: 16px; height: 16px;
+      min-width: 16px; margin-top: 1px;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='8' cy='8' r='8' fill='%2309999B' fill-opacity='.12'/%3E%3Cpath d='M4.5 8l2.5 2.5 4.5-5' stroke='%2309999B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/cover;
+    }
+    .tier-cta {
+      margin-top: 20px; display: block; text-align: center;
+      background: var(--brand); color: #fff;
+      font-size: .84rem; font-weight: 700; border-radius: var(--r-md);
+      padding: 10px 16px; text-decoration: none; transition: background .15s;
+    }
+    .tier-cta:hover { background: var(--brand-h); text-decoration: none; color: #fff; }
+    .tier-cta.secondary {
+      background: transparent; color: var(--brand);
+      border: 1.5px solid var(--brand);
+    }
+    .tier-cta.secondary:hover { background: var(--brand-50); }
+
+    /* ── Main portal section ─────────────────────────────────────── */
+    .portal-section {
+      padding: clamp(56px, 8vw, 96px) 0;
+      background: #fff;
+    }
+    .portal-grid {
+      display: grid; grid-template-columns: 1fr 480px;
+      gap: clamp(36px, 6vw, 72px); align-items: start;
+    }
+    @media (max-width: 920px) { .portal-grid { grid-template-columns: 1fr; } }
+
+    /* Left column — pitch */
+    .portal-pitch {}
+    .portal-pitch .sec-sub { max-width: 100%; }
+    .pitch-checklist { display: flex; flex-direction: column; gap: 14px; margin-bottom: 28px; }
+    .pitch-item {
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .pitch-icon {
+      width: 32px; height: 32px; min-width: 32px; border-radius: var(--r-sm);
+      background: var(--brand-50); color: var(--brand);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pitch-item-text strong { display: block; font-size: .88rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .pitch-item-text span  { font-size: .81rem; color: var(--text-muted); line-height: 1.55; }
+
+    .pitch-quotes { display: flex; flex-direction: column; gap: 12px; }
+    .pitch-quote {
+      background: var(--n-50); border-left: 3px solid var(--brand);
+      border-radius: 0 var(--r-sm) var(--r-sm) 0;
+      padding: 14px 16px;
+    }
+    .pitch-quote p { font-size: .82rem; color: var(--text-sub); line-height: 1.6; font-style: italic; margin-bottom: 6px; }
+    .pitch-quote cite { font-size: .75rem; font-weight: 600; color: var(--brand); font-style: normal; }
+
+    /* Right column — portal card */
+    .portal-card {
+      background: #fff; border: 1.5px solid var(--n-200);
+      border-radius: var(--r-xl);
+      box-shadow: 0 4px 40px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04);
+      overflow: hidden; position: sticky; top: 76px;
+    }
+    .portal-card-header {
+      background: linear-gradient(135deg, var(--dark-900) 0%, var(--dark-700) 100%);
+      padding: 20px 24px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .portal-card-header-icon {
+      width: 38px; height: 38px; background: var(--brand-100); border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center; color: var(--brand); flex-shrink: 0;
+    }
+    .portal-card-title { font-size: 1rem; font-weight: 700; color: #fff; }
+    .portal-card-sub   { font-size: .78rem; color: rgba(255,255,255,.55); margin-top: 1px; }
+
+    /* ── Portal widget (shared between pages) ──────────────────── */
+    .ap-mode-toggle {
+      display: flex; border-bottom: 1px solid var(--n-200);
+    }
+    .ap-mode-btn {
+      flex: 1; padding: 13px 12px; font-family: inherit; font-size: .84rem;
+      font-weight: 600; border: none; cursor: pointer; background: #fff;
+      color: var(--text-muted); transition: color .15s, background .15s;
+    }
+    .ap-mode-btn:hover { color: var(--brand); }
+    .ap-mode-btn.ap-mode-active {
+      color: var(--brand); border-bottom: 2.5px solid var(--brand);
+      background: var(--brand-50);
+    }
+
+    .ap-body { padding: 22px 22px 24px; }
+
+    .ap-steps {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 20px;
+    }
+    .ap-step {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid var(--n-300); color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .76rem; font-weight: 700; flex-shrink: 0;
+      transition: border-color .2s, background .2s, color .2s;
+    }
+    .ap-step.ap-step-active { border-color: var(--brand); background: var(--brand); color: #fff; }
+    .ap-step.ap-step-done   {
+      border-color: var(--brand); color: var(--brand);
+      background: var(--brand-50);
+    }
+    .ap-step.ap-step-done::before { content: '✓'; font-size: .72rem; }
+    .ap-step.ap-step-done span { display: none; }
+    .ap-step-connector { flex: 1; height: 2px; background: var(--n-200); max-width: 48px; border-radius: 2px; }
+
+    .ap-panel-label {
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* Currency toggle */
+    .ap-cur-toggle {
+      display: flex; gap: 6px; margin-bottom: 14px;
+    }
+    .ap-cur-btn {
+      padding: 6px 16px; border-radius: var(--r-md);
+      border: 1.5px solid var(--n-200); font-family: inherit;
+      font-size: .8rem; font-weight: 600; cursor: pointer;
+      background: #fff; color: var(--text-muted); transition: all .15s;
+    }
+    .ap-cur-btn.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .ap-cur-btn:not(.active):hover { border-color: var(--brand); color: var(--brand); }
+
+    /* Tier grid inside portal */
+    .ap-tier-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-bottom: 4px;
+    }
+    @media (max-width: 480px) { .ap-tier-grid { grid-template-columns: 1fr; } }
+
+    .ap-tier-card {
+      border: 1.5px solid var(--n-200); border-radius: var(--r-lg);
+      padding: 14px 14px 16px; cursor: pointer;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+      background: #fff; position: relative;
+    }
+    .ap-tier-card:hover { border-color: var(--brand); box-shadow: 0 2px 12px rgba(9,153,155,.12); }
+    .ap-tier-selected { border-color: var(--brand) !important; background: #f0fdfd; }
+    .ap-tier-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; }
+    .ap-tier-name { font-size: .82rem; font-weight: 700; color: var(--text); }
+    .ap-tier-price {
+      font-family: 'Lexend Deca', sans-serif;
+      font-size: 1.05rem; font-weight: 800; color: var(--brand);
+      display: block; margin-bottom: 4px;
+    }
+    .ap-tier-free-badge {
+      font-size: .67rem; font-weight: 700; text-transform: uppercase;
+      background: #dcfce7; color: #15803d; border-radius: 10px;
+      padding: 2px 7px; letter-spacing: .05em;
+    }
+    .ap-tier-desc { font-size: .77rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 8px; }
+    .ap-tier-features { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .ap-tier-features li {
+      font-size: .75rem; color: var(--text-sub); padding-left: 14px; position: relative;
+    }
+    .ap-tier-features li::before {
+      content: '✓'; position: absolute; left: 0; color: var(--brand); font-size: .68rem;
+    }
+    .ap-tier-choose {
+      margin-top: 10px; width: 100%; padding: 8px;
+      background: var(--brand); color: #fff; border: none;
+      border-radius: var(--r-sm); font-family: inherit;
+      font-size: .79rem; font-weight: 700; cursor: pointer;
+      transition: background .15s;
+    }
+    .ap-tier-choose:hover { background: var(--brand-h); }
+    .ap-tier-loading { font-size: .84rem; color: var(--text-muted); text-align: center; padding: 20px 0; grid-column: 1/-1; }
+
+    /* Tier badge (selected indicator in form step) */
+    .ap-tier-badge {
+      background: var(--brand-50); border: 1px solid var(--brand-100);
+      border-radius: var(--r-md); padding: 10px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; margin-bottom: 16px;
+    }
+    .ap-badge-name  { font-size: .84rem; font-weight: 700; color: var(--text); }
+    .ap-badge-price { font-size: .84rem; font-weight: 700; color: var(--brand); }
+    .ap-badge-change {
+      font-size: .75rem; color: var(--text-muted); border: none; background: none;
+      cursor: pointer; text-decoration: underline; padding: 0; font-family: inherit;
+    }
+    .ap-badge-change:hover { color: var(--brand); }
+
+    /* Form fields */
+    .ap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 480px) { .ap-row { grid-template-columns: 1fr; } }
+    .ap-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+    .ap-field label { font-size: .78rem; font-weight: 600; color: var(--text-sub); }
+    .ap-field input,
+    .ap-field select,
+    .ap-field textarea {
+      padding: 9px 12px; border: 1.5px solid var(--n-200);
+      border-radius: var(--r-sm); font-family: inherit;
+      font-size: .84rem; color: var(--text); background: #fff;
+      transition: border-color .15s; outline: none;
+      line-height: 1.5;
+    }
+    .ap-field input:focus,
+    .ap-field select:focus,
+    .ap-field textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(9,153,155,.08); }
+    .ap-field textarea { resize: vertical; min-height: 72px; }
+    .ap-field-hint { font-size: .73rem; color: var(--text-muted); line-height: 1.5; }
+
+    .ap-form-error {
+      font-size: .8rem; color: #dc2626; background: #fef2f2;
+      border: 1px solid #fecaca; border-radius: var(--r-sm);
+      padding: 8px 12px; margin-bottom: 8px;
+    }
+
+    .ap-form-btns {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 10px; margin-top: 4px;
+    }
+    .ap-btn-back {
+      font-size: .82rem; color: var(--text-muted); border: none; background: none;
+      cursor: pointer; font-family: inherit; padding: 0;
+    }
+    .ap-btn-back:hover { color: var(--text); }
+    .ap-btn-next {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 20px; background: var(--brand); color: #fff;
+      border: none; border-radius: var(--r-md); font-family: inherit;
+      font-size: .84rem; font-weight: 700; cursor: pointer; transition: background .15s;
+    }
+    .ap-btn-next:disabled { background: #94a3b8; cursor: not-allowed; }
+    .ap-btn-next:not(:disabled):hover { background: var(--brand-h); }
+
+    /* Confirm panel */
+    .ap-confirm { text-align: center; padding: 20px 8px 24px; }
+    .ap-confirm-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #dcfce7; color: #16a34a;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .ap-confirm-title { font-size: 1.1rem; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+    .ap-confirm-body  { font-size: .84rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 10px; }
+    .ap-confirm-ref   {
+      font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+      color: var(--brand); background: var(--brand-50);
+      border: 1px solid var(--brand-100); border-radius: var(--r-sm);
+      padding: 6px 14px; display: inline-block; margin-bottom: 10px;
+    }
+    .ap-confirm-hint { font-size: .78rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+    .ap-btn-check-status {
+      padding: 9px 20px; background: var(--brand); color: #fff; border: none;
+      border-radius: var(--r-md); font-family: inherit; font-size: .84rem;
+      font-weight: 700; cursor: pointer; transition: background .15s;
+    }
+    .ap-btn-check-status:hover { background: var(--brand-h); }
+
+    /* Status check panel */
+    .ap-st-card {
+      background: var(--n-50); border: 1.5px solid var(--n-200);
+      border-radius: var(--r-lg); padding: 18px 18px 20px;
+    }
+    .ap-st-status {
+      font-size: 1.1rem; font-weight: 800; margin-bottom: 12px;
+    }
+    .ap-st-table { width: 100%; border-collapse: collapse; font-size: .81rem; margin-bottom: 14px; }
+    .ap-st-table td { padding: 6px 0; vertical-align: top; }
+    .ap-st-table td:first-child { color: var(--text-muted); font-weight: 600; width: 110px; }
+    .ap-st-apikey {
+      background: #f0fdfd; border: 1.5px solid rgba(9,153,155,.25);
+      border-radius: var(--r-md); padding: 14px 16px; margin-top: 4px;
+    }
+    .ap-st-key-label { font-size: .75rem; font-weight: 700; color: var(--brand); margin-bottom: 6px; letter-spacing: .05em; text-transform: uppercase; }
+    .ap-st-key-value {
+      display: block; font-family: 'Courier New', monospace;
+      font-size: .8rem; color: var(--dark-900);
+      background: #fff; border: 1px solid var(--n-200);
+      border-radius: var(--r-sm); padding: 9px 12px;
+      word-break: break-all; margin-bottom: 8px;
+      user-select: all;
+    }
+    .ap-st-key-note { font-size: .74rem; color: var(--text-muted); line-height: 1.55; }
+    .ap-st-key-note code { background: var(--n-100); border-radius: 4px; padding: 1px 5px; font-size: .72rem; }
+
+    /* ── How it works ─────────────────────────────────────────────── */
+    .how-section {
+      background: var(--n-50); border-top: 1px solid var(--n-200);
+      border-bottom: 1px solid var(--n-200);
+      padding: clamp(48px, 7vw, 80px) 0;
+    }
+    .steps-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+    @media (max-width: 800px) { .steps-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 460px) { .steps-row { grid-template-columns: 1fr; } }
+    .step-item { text-align: center; }
+    .step-num {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand) 0%, #077e80 100%);
+      color: #fff; font-size: .95rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .step-title { font-size: .9rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .step-desc  { font-size: .8rem; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── FAQ ──────────────────────────────────────────────────────── */
+    .faq-section { padding: clamp(48px, 7vw, 80px) 0; background: #fff; }
+    .faq-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 680px) { .faq-grid { grid-template-columns: 1fr; } }
+    .faq-item {
+      background: var(--n-50); border: 1px solid var(--n-200);
+      border-radius: var(--r-lg); padding: 18px 20px;
+    }
+    .faq-q { font-size: .88rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .faq-a { font-size: .82rem; color: var(--text-muted); line-height: 1.65; }
+    .faq-a a { color: var(--brand); }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    .footer {
+      background: var(--dark-950);
+      border-top: 1px solid rgba(255,255,255,.06);
+      padding: 28px 0;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 14px;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 10px; }
+    .footer-brand-name { font-size: .88rem; font-weight: 700; color: rgba(255,255,255,.9); }
+    .footer-brand-sub  { font-size: .74rem; color: rgba(255,255,255,.4); }
+    .footer-copy { font-size: .78rem; color: rgba(255,255,255,.38); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { font-size: .78rem; color: rgba(255,255,255,.45); text-decoration: none; }
+    .footer-links a:hover { color: rgba(255,255,255,.8); }
+    .footer-ndpa {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: .73rem; color: var(--brand); font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────────────────── -->
+  <nav class="nav">
+    <div class="nav-inner container">
+      <a class="nav-brand" href="./index.html">
+        <svg width="28" height="36" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" fill-opacity=".9" stroke="#09999B" stroke-width="1.5"/>
+          <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+        </svg>
+        <div class="nav-brand-text">
+          <span class="nav-brand-name">LifeGate Analytics</span>
+          <span class="nav-brand-sub">Institutional Access</span>
+        </div>
+      </a>
+      <a class="nav-back" href="./index.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        Back to Dashboard
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+
+        <!-- Left: pitch -->
+        <div>
+          <p class="hero-eyebrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            Institutional Access Portal
+          </p>
+          <h1 class="hero-h1">
+            Nigeria's most complete<br />
+            <em>physician-validated</em><br />
+            health data feed
+          </h1>
+          <p class="hero-lead">
+            Real-time, anonymised population health signals across all 36 Nigerian states — derived from AI triage and licensed physician review. NDPA 2023 compliant. Built for policy-makers, researchers, and public health institutions.
+          </p>
+          <div class="trust-row">
+            <span class="trust-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              NDPA 2023 Compliant
+            </span>
+            <span class="trust-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              Physician Adjudicated
+            </span>
+            <span class="trust-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              36 States · Real-Time
+            </span>
+            <span class="trust-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              k-Anonymised (≥3 cases)
+            </span>
+          </div>
+        </div>
+
+        <!-- Right: what you get -->
+        <div class="hero-value-cards">
+          <div class="hvc">
+            <div class="hvc-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            </div>
+            <div>
+              <p class="hvc-title">Live Analytics Dashboard</p>
+              <p class="hvc-desc">Disease surveillance, demographic burden, resource gaps, and care pathway outcomes — updated continuously from the live platform.</p>
+            </div>
+          </div>
+          <div class="hvc">
+            <div class="hvc-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            </div>
+            <div>
+              <p class="hvc-title">CSV / JSON Data Export</p>
+              <p class="hvc-desc">Download full aggregate datasets — surveillance trends, demographics, outcomes, and disparities — for offline analysis and reporting.</p>
+            </div>
+          </div>
+          <div class="hvc">
+            <div class="hvc-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>
+            </div>
+            <div>
+              <p class="hvc-title">REST API Access</p>
+              <p class="hvc-desc">Programmatic access to all deep analytics endpoints. 200 req/min. Integrate directly into your DHIS2, dashboards, or research pipelines.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Tier comparison ─────────────────────────────────────────────────── -->
+  <section class="tiers-section" id="tiers">
+    <div class="container">
+      <p class="sec-eyebrow">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Access Tiers
+      </p>
+      <h2 class="sec-h2">Choose the right tier for your institution</h2>
+      <p class="sec-sub">Government bodies and NGOs access the full dashboard free with institutional verification. Paid tiers unlock bulk exports and API integration.</p>
+
+      <div class="tier-grid">
+
+        <!-- Free: Gov / NGO -->
+        <div class="tier-card">
+          <div class="tier-icon gov">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z"/></svg>
+          </div>
+          <p class="tier-name">Government &amp; NGO</p>
+          <p class="tier-who">FMOH · NCDC · WHO · CHAI</p>
+          <p class="tier-price">Free</p>
+          <p class="tier-price-sub">with institutional verification</p>
+          <hr class="tier-divider" />
+          <ul class="tier-features">
+            <li>Full live analytics dashboard</li>
+            <li>Disease surveillance (all modules)</li>
+            <li>Disparities &amp; research sections</li>
+            <li>36-state coverage</li>
+            <li>NDPA data-sharing agreement</li>
+          </ul>
+          <a href="#apply" class="tier-cta secondary">Apply Free →</a>
+        </div>
+
+        <!-- Dashboard View -->
+        <div class="tier-card">
+          <div class="tier-icon dash">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+          </div>
+          <p class="tier-name">Dashboard View</p>
+          <p class="tier-who">Universities · Think Tanks · HMOs</p>
+          <p class="tier-price">₦30,000<span style="font-size:.95rem;font-weight:500;">/yr</span></p>
+          <p class="tier-price-sub">~$18 USD · annual billing</p>
+          <hr class="tier-divider" />
+          <ul class="tier-features">
+            <li>Everything in Free tier</li>
+            <li>Priority support &amp; updates</li>
+            <li>Compliance &amp; NDPA audit view</li>
+            <li>Institutional dashboard branding</li>
+            <li>2–3 day approval SLA</li>
+          </ul>
+          <a href="#apply" class="tier-cta secondary">Get Started →</a>
+        </div>
+
+        <!-- Data Export — featured -->
+        <div class="tier-card featured">
+          <div class="tier-featured-badge">Most Popular</div>
+          <div class="tier-icon exp">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          </div>
+          <p class="tier-name">Data Export</p>
+          <p class="tier-who">Researchers · Grant teams · Analysts</p>
+          <p class="tier-price">₦75,000<span style="font-size:.95rem;font-weight:500;">/yr</span></p>
+          <p class="tier-price-sub">~$45 USD · annual billing</p>
+          <hr class="tier-divider" />
+          <ul class="tier-features">
+            <li>Everything in Dashboard tier</li>
+            <li>Bulk CSV &amp; JSON downloads</li>
+            <li>Surveillance, demographics, outcomes</li>
+            <li>Up to 104-week lookback</li>
+            <li>API key included for export endpoints</li>
+          </ul>
+          <a href="#apply" class="tier-cta">Get Started →</a>
+        </div>
+
+        <!-- API Access -->
+        <div class="tier-card">
+          <div class="tier-icon api">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>
+          </div>
+          <p class="tier-name">API Access</p>
+          <p class="tier-who">DHIS2 Teams · Data Platforms · AI Labs</p>
+          <p class="tier-price">₦150,000<span style="font-size:.95rem;font-weight:500;">/yr</span></p>
+          <p class="tier-price-sub">~$90 USD · annual billing</p>
+          <hr class="tier-divider" />
+          <ul class="tier-features">
+            <li>Everything in Export tier</li>
+            <li>Full REST API (200 req/min)</li>
+            <li>All 5 deep analytics endpoints</li>
+            <li>Webhook + DHIS2-compatible output</li>
+            <li>Dedicated API key + SLA</li>
+          </ul>
+          <a href="#apply" class="tier-cta secondary">Get API Access →</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Portal (apply + status) ────────────────────────────────────────── -->
+  <section class="portal-section" id="apply">
+    <div class="container">
+      <div class="portal-grid">
+
+        <!-- Left: pitch -->
+        <div class="portal-pitch">
+          <p class="sec-eyebrow">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            Apply for Access
+          </p>
+          <h2 class="sec-h2">Apply in 3 minutes.<br />Access granted in 2–3 days.</h2>
+          <p class="sec-sub">All institutional stakeholders are welcome to apply. Our review team verifies institutional affiliation before granting access.</p>
+
+          <div class="pitch-checklist">
+            <div class="pitch-item">
+              <div class="pitch-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              </div>
+              <div class="pitch-item-text">
+                <strong>Aggregate only — zero PII</strong>
+                <span>Every metric is k-anonymised with a minimum 3-case threshold. No patient records, no individual data.</span>
+              </div>
+            </div>
+            <div class="pitch-item">
+              <div class="pitch-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              </div>
+              <div class="pitch-item-text">
+                <strong>NDPA 2023 data-sharing agreement</strong>
+                <span>All access is governed by a formal data-sharing agreement under Nigeria's Data Protection Act.</span>
+              </div>
+            </div>
+            <div class="pitch-item">
+              <div class="pitch-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+              </div>
+              <div class="pitch-item-text">
+                <strong>Immediate access on approval</strong>
+                <span>API keys and dashboard credentials are delivered automatically the moment your application is approved.</span>
+              </div>
+            </div>
+            <div class="pitch-item">
+              <div class="pitch-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              </div>
+              <div class="pitch-item-text">
+                <strong>Dedicated support</strong>
+                <span>Technical questions, IRB data requests, and DHIS2 integration support via <a href="mailto:contact@dshub.com.ng">contact@dshub.com.ng</a>.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pitch-quotes">
+            <div class="pitch-quote">
+              <p>"LifeGate gives us a real-time, geo-tagged disease signal that we previously had to wait weeks to see in DHIS2 aggregate reports."</p>
+              <cite>— Public Health Analyst, State Ministry of Health</cite>
+            </div>
+            <div class="pitch-quote">
+              <p>"The AI-physician agreement corpus is exactly what we needed for our diagnostic AI benchmark study."</p>
+              <cite>— Researcher, University of Lagos School of Public Health</cite>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: portal widget -->
+        <div>
+          <div class="portal-card" id="access-portal">
+
+            <div class="portal-card-header">
+              <div class="portal-card-header-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+              </div>
+              <div>
+                <p class="portal-card-title">Institutional Access Request</p>
+                <p class="portal-card-sub">Verified institutional applicants only</p>
+              </div>
+            </div>
+
+            <!-- Mode toggle -->
+            <div class="ap-mode-toggle">
+              <button class="ap-mode-btn ap-mode-active" id="ap-mode-apply" type="button">Apply for Access</button>
+              <button class="ap-mode-btn" id="ap-mode-status" type="button">Check Status</button>
+            </div>
+
+            <!-- Apply panel -->
+            <div id="ap-apply-panel" class="ap-body">
+
+              <!-- Step indicator -->
+              <div class="ap-steps">
+                <div class="ap-step ap-step-active" data-n="1"><span>1</span></div>
+                <div class="ap-step-connector"></div>
+                <div class="ap-step" data-n="2"><span>2</span></div>
+                <div class="ap-step-connector"></div>
+                <div class="ap-step" data-n="3"><span>3</span></div>
+              </div>
+
+              <!-- Step 1: Tier selection -->
+              <div id="ap-s1">
+                <p class="ap-panel-label">Select access tier</p>
+                <div class="ap-cur-toggle">
+                  <button class="ap-cur-btn active" id="ap-ngn" type="button">₦ NGN</button>
+                  <button class="ap-cur-btn" id="ap-usd" type="button">$ USD</button>
+                </div>
+                <div id="ap-tier-grid" class="ap-tier-grid">
+                  <p class="ap-tier-loading">Loading tiers…</p>
+                </div>
+              </div>
+
+              <!-- Step 2: Contact form -->
+              <div id="ap-s2" hidden>
+                <div id="ap-tier-badge" class="ap-tier-badge"></div>
+                <p class="ap-panel-label">Your details</p>
+                <form id="ap-form" novalidate autocomplete="on">
+                  <div class="ap-row">
+                    <div class="ap-field">
+                      <label for="ap-fullName">Full Name</label>
+                      <input id="ap-fullName" name="fullName" type="text" autocomplete="name" placeholder="Dr. Amina Yusuf" required />
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-email">Work Email</label>
+                      <input id="ap-email" name="email" type="email" autocomplete="email" placeholder="you@institution.gov.ng" required />
+                    </div>
+                  </div>
+                  <div class="ap-row">
+                    <div class="ap-field">
+                      <label for="ap-institution">Institution / Organisation</label>
+                      <input id="ap-institution" name="institution" type="text" placeholder="Federal Ministry of Health" required />
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-jobTitle">Job Title</label>
+                      <input id="ap-jobTitle" name="jobTitle" type="text" placeholder="Public Health Analyst" required />
+                    </div>
+                  </div>
+                  <div class="ap-field">
+                    <label for="ap-role">Organisation Type</label>
+                    <select id="ap-role" name="role" required>
+                      <option value="">— Select one —</option>
+                      <option value="government">Government Body</option>
+                      <option value="ngo">NGO / Non-Profit</option>
+                      <option value="research">Research / Academic</option>
+                      <option value="hospital">Hospital / Clinic</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div class="ap-field">
+                    <label for="ap-useCase">Intended Use</label>
+                    <textarea id="ap-useCase" name="useCase" rows="3" placeholder="Briefly describe how you plan to use this data…" required></textarea>
+                  </div>
+                  <p id="ap-form-error" class="ap-form-error" hidden></p>
+                  <div class="ap-form-btns">
+                    <button type="button" class="ap-btn-back" id="ap-back">&#8592; Back</button>
+                    <button type="submit" class="ap-btn-next" id="ap-next">
+                      <span id="ap-next-label">Continue</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Step 3: Confirmation -->
+              <div id="ap-s3" hidden>
+                <div class="ap-confirm">
+                  <div class="ap-confirm-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  </div>
+                  <h3 class="ap-confirm-title">Request Submitted</h3>
+                  <p class="ap-confirm-body">Your application has been received. Our team will verify your institutional affiliation and respond within 2–3 business days.</p>
+                  <p class="ap-confirm-ref" id="ap-confirm-ref"></p>
+                  <p class="ap-confirm-hint">Save your reference — use <strong>Check Status</strong> above to track your application and retrieve your API key once approved.</p>
+                  <button type="button" class="ap-btn-check-status" id="ap-go-status">Check my status →</button>
+                </div>
+              </div>
+
+            </div><!-- /#ap-apply-panel -->
+
+            <!-- Status panel -->
+            <div id="ap-status-panel" class="ap-body" hidden>
+              <p class="ap-panel-label">Check your application</p>
+              <form id="ap-status-form" novalidate autocomplete="on">
+                <div class="ap-field">
+                  <label for="ap-st-email">Work Email</label>
+                  <input id="ap-st-email" type="email" autocomplete="email" placeholder="you@institution.gov.ng" required />
+                </div>
+                <div class="ap-field">
+                  <label for="ap-st-ref">Submission Reference</label>
+                  <input id="ap-st-ref" type="text" placeholder="e.g. A3F2B1C4" required />
+                  <small class="ap-field-hint">The 8-character reference shown after your submission</small>
+                </div>
+                <p id="ap-st-error" class="ap-form-error" hidden></p>
+                <div class="ap-form-btns" style="justify-content:flex-end;">
+                  <button type="submit" class="ap-btn-next" id="ap-st-submit">
+                    <span id="ap-st-label">Check Status</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                  </button>
+                </div>
+              </form>
+              <div id="ap-st-result" hidden style="margin-top:14px;"></div>
+            </div>
+
+          </div><!-- /.portal-card -->
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── How it works ────────────────────────────────────────────────────── -->
+  <section class="how-section">
+    <div class="container">
+      <p class="sec-eyebrow" style="margin-bottom:8px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        How it works
+      </p>
+      <h2 class="sec-h2" style="margin-bottom:32px;">From application to access in 4 steps</h2>
+      <div class="steps-row">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <p class="step-title">Choose your tier</p>
+          <p class="step-desc">Select the access level that matches your institution's needs — from free dashboard access to full API integration.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <p class="step-title">Complete the form</p>
+          <p class="step-desc">Submit your institutional details and intended use case. Paid tiers are processed immediately via Flutterwave.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <p class="step-title">Review (2–3 days)</p>
+          <p class="step-desc">Our team verifies institutional affiliation. You'll receive an email confirmation with your reference number.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <p class="step-title">Receive access</p>
+          <p class="step-desc">Your API key and access credentials are delivered automatically on approval. Use Check Status anytime to track progress.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FAQ ─────────────────────────────────────────────────────────────── -->
+  <section class="faq-section">
+    <div class="container">
+      <p class="sec-eyebrow" style="margin-bottom:8px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
+        FAQ
+      </p>
+      <h2 class="sec-h2" style="margin-bottom:28px;">Frequently asked questions</h2>
+      <div class="faq-grid">
+        <div class="faq-item">
+          <p class="faq-q">Is individual patient data ever exposed?</p>
+          <p class="faq-a">No. Every metric is an aggregate with a minimum k-anonymity threshold of 3 cases per cell. No personally identifiable information — name, address, phone, or patient ID — is accessible through any tier.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">What does NDPA compliance mean in practice?</p>
+          <p class="faq-a">All data sharing is governed by a formal data-sharing agreement under Nigeria's Data Protection Act 2023. Access is subject to institutional verification and the agreement must be signed before credentials are issued.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">How long does approval take?</p>
+          <p class="faq-a">Typically 2–3 business days. Free government and NGO applications may take slightly longer due to manual verification. Paid tier applications with Flutterwave payment are prioritised.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">Can I upgrade my tier later?</p>
+          <p class="faq-a">Yes. Email <a href="mailto:contact@dshub.com.ng">contact@dshub.com.ng</a> with your reference number and we'll update your access tier. Prorated credit is applied for early upgrades within the billing year.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">What format are API responses in?</p>
+          <p class="faq-a">All API endpoints return JSON. The export endpoint additionally supports CSV output via <code style="background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:.78rem;">?format=csv</code>. Lookback windows are configurable up to 104 weeks.</p>
+        </div>
+        <div class="faq-item">
+          <p class="faq-q">I represent a government body — is there a different process?</p>
+          <p class="faq-a">Government bodies (FMOH, NCDC, State MoH) receive free access. Select "Government &amp; NGO" in the tier selector. We may request official letter of authorisation for Tier 1 ministries.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ───────────────────────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <svg width="22" height="28" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" fill-opacity=".8" stroke="#09999B" stroke-width="1.5"/>
+            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+          </svg>
+          <div>
+            <div class="footer-brand-name">LifeGate Analytics</div>
+            <div class="footer-brand-sub">public.dshub.com.ng</div>
+          </div>
+        </div>
+        <div class="footer-links">
+          <a href="./index.html">Dashboard</a>
+          <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
+          <a href="mailto:contact@dshub.com.ng">Contact</a>
+        </div>
+        <div>
+          <p class="footer-copy">&copy; 2026 DSHub · NDPA 2023 Compliant</p>
+          <p style="margin-top:4px;"><span class="footer-ndpa"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg> All data is anonymised. No PII ever exposed.</span></p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ── Portal script ────────────────────────────────────────────────────── -->
+  <script>
+    (function () {
+      'use strict';
+      var API = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content || 'https://edis.dshub.com.ng/api';
+
+      var state = { currency: 'NGN', tiers: [], selected: null, flwKey: '' };
+
+      var s1           = document.getElementById('ap-s1');
+      var s2           = document.getElementById('ap-s2');
+      var s3           = document.getElementById('ap-s3');
+      var tierGrid     = document.getElementById('ap-tier-grid');
+      var tierBadge    = document.getElementById('ap-tier-badge');
+      var apForm       = document.getElementById('ap-form');
+      var apFormError  = document.getElementById('ap-form-error');
+      var apNextLabel  = document.getElementById('ap-next-label');
+      var apConfirmRef = document.getElementById('ap-confirm-ref');
+      var apNextBtn    = document.getElementById('ap-next');
+
+      function esc(s) {
+        return String(s || '')
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      // ── Step management ────────────────────────────────────────────────────
+      function setStep(n) {
+        document.querySelectorAll('.ap-step').forEach(function (el) {
+          var sn = +el.getAttribute('data-n');
+          el.classList.toggle('ap-step-active', sn === n);
+          el.classList.toggle('ap-step-done',   sn < n);
+        });
+        s1.hidden = n !== 1;
+        s2.hidden = n !== 2;
+        s3.hidden = n !== 3;
+      }
+
+      // ── Load tiers from API ────────────────────────────────────────────────
+      fetch(API + '/public/access/config')
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res.success) throw new Error('config failed');
+          state.tiers  = res.data.tiers || [];
+          state.flwKey = res.data.flwPublicKey || '';
+          renderTiers();
+        })
+        .catch(function () {
+          tierGrid.innerHTML = '<p class="ap-tier-loading" style="color:#dc2626;">Failed to load tiers — please refresh.</p>';
+        });
+
+      // ── Currency toggle ────────────────────────────────────────────────────
+      document.getElementById('ap-ngn').addEventListener('click', function () {
+        state.currency = 'NGN';
+        this.classList.add('active');
+        document.getElementById('ap-usd').classList.remove('active');
+        if (state.tiers.length) renderTiers();
+      });
+      document.getElementById('ap-usd').addEventListener('click', function () {
+        state.currency = 'USD';
+        this.classList.add('active');
+        document.getElementById('ap-ngn').classList.remove('active');
+        if (state.tiers.length) renderTiers();
+      });
+
+      // ── Render tier cards ──────────────────────────────────────────────────
+      function renderTiers() {
+        var cur  = state.currency;
+        var html = '';
+        state.tiers.forEach(function (t) {
+          var price    = cur === 'NGN' ? esc(t.labelNGN) : esc(t.labelUSD);
+          var freeBadge= t.free ? '<span class="ap-tier-free-badge">Free</span>' : '';
+          var feats    = (t.features || []).map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('');
+          var sel      = state.selected && state.selected.id === t.id ? ' ap-tier-selected' : '';
+          html +=
+            '<div class="ap-tier-card' + sel + '" data-id="' + esc(t.id) + '">' +
+            '<div class="ap-tier-head"><span class="ap-tier-name">' + esc(t.name) + '</span>' + freeBadge + '</div>' +
+            '<span class="ap-tier-price">' + price + '</span>' +
+            '<p class="ap-tier-desc">' + esc(t.description) + '</p>' +
+            '<ul class="ap-tier-features">' + feats + '</ul>' +
+            '<button class="ap-tier-choose" type="button">Select this tier</button>' +
+            '</div>';
+        });
+        tierGrid.innerHTML = html;
+        tierGrid.querySelectorAll('.ap-tier-choose').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var card = btn.closest('.ap-tier-card');
+            var tid  = card.getAttribute('data-id');
+            state.selected = state.tiers.find(function (t) { return t.id === tid; });
+            updateNextLabel();
+            renderBadge();
+            setStep(2);
+          });
+        });
+      }
+
+      function updateNextLabel() {
+        if (!state.selected) return;
+        apNextLabel.textContent = state.selected.free ? 'Submit Request' : 'Proceed to Payment';
+      }
+
+      function renderBadge() {
+        if (!state.selected) return;
+        var t = state.selected;
+        var p = state.currency === 'NGN' ? t.labelNGN : t.labelUSD;
+        tierBadge.innerHTML =
+          '<span class="ap-badge-name">' + esc(t.name) + '</span>' +
+          '<span class="ap-badge-price">' + esc(p) + '</span>' +
+          '<button type="button" class="ap-badge-change" id="ap-change">Change tier</button>';
+        document.getElementById('ap-change').addEventListener('click', function () { setStep(1); });
+      }
+
+      // ── Form ───────────────────────────────────────────────────────────────
+      document.getElementById('ap-back').addEventListener('click', function () { setStep(1); });
+
+      apForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        apFormError.hidden = true;
+
+        var fields = ['fullName', 'email', 'institution', 'jobTitle', 'role', 'useCase'];
+        for (var i = 0; i < fields.length; i++) {
+          var el = apForm.elements[fields[i]];
+          if (!el || !el.value.trim()) { showError('Please complete all required fields.'); return; }
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(apForm.elements['email'].value)) {
+          showError('Please enter a valid work email address.'); return;
+        }
+
+        apNextBtn.disabled = true;
+        apNextLabel.textContent = 'Processing…';
+
+        var body = {
+          email:       apForm.elements['email'].value.trim(),
+          fullName:    apForm.elements['fullName'].value.trim(),
+          institution: apForm.elements['institution'].value.trim(),
+          jobTitle:    apForm.elements['jobTitle'].value.trim(),
+          role:        apForm.elements['role'].value,
+          useCase:     apForm.elements['useCase'].value.trim(),
+          tierId:      state.selected.id,
+          currency:    state.currency,
+          flwTxRef:    '',
+          flwTxId:     ''
+        };
+
+        state.selected.free ? doSubmit(body) : doPayment(body);
+      });
+
+      function showError(msg) {
+        apFormError.textContent = msg;
+        apFormError.hidden = false;
+        apNextBtn.disabled = false;
+        updateNextLabel();
+      }
+
+      // ── Flutterwave payment ────────────────────────────────────────────────
+      function doPayment(body) {
+        if (!state.flwKey) { showError('Payment system unavailable. Email contact@dshub.com.ng.'); return; }
+        if (typeof FlutterwaveCheckout === 'undefined') { showError('Payment script failed to load — please refresh.'); return; }
+        var t      = state.selected;
+        var amount = state.currency === 'NGN' ? t.priceNGN : t.priceUSD;
+        var txRef  = 'LG-AP-' + Math.random().toString(36).slice(2, 10).toUpperCase() + '-' + Date.now();
+        FlutterwaveCheckout({
+          public_key:      state.flwKey,
+          tx_ref:          txRef,
+          amount:          amount,
+          currency:        state.currency,
+          payment_options: 'card,banktransfer,ussd',
+          customer:        { email: body.email, name: body.fullName },
+          customizations:  { title: 'LifeGate Analytics Access', description: t.name + ' — Annual Subscription' },
+          callback: function (data) {
+            if (data.status === 'successful' || data.status === 'completed') {
+              body.flwTxRef = txRef;
+              body.flwTxId  = String(data.transaction_id || '');
+              doSubmit(body);
+            } else {
+              showError('Payment was not completed. Please try again.');
+            }
+          },
+          onclose: function () { apNextBtn.disabled = false; updateNextLabel(); }
+        });
+      }
+
+      // ── API submit ─────────────────────────────────────────────────────────
+      function doSubmit(body) {
+        fetch(API + '/public/access/submit', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(body)
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (res) {
+            if (!res.ok || !res.d.success) { showError(res.d.message || 'Submission failed. Please try again.'); return; }
+            var ref = (res.d.data.id || '').slice(0, 8).toUpperCase();
+            apConfirmRef.textContent = ref ? 'Reference: ' + ref : '';
+            setStep(3);
+          })
+          .catch(function () { showError('Network error. Please check your connection.'); })
+          .finally(function () { apNextBtn.disabled = false; updateNextLabel(); });
+      }
+
+      // ── Mode toggle ────────────────────────────────────────────────────────
+      var applyPanel  = document.getElementById('ap-apply-panel');
+      var statusPanel = document.getElementById('ap-status-panel');
+      var modeApply   = document.getElementById('ap-mode-apply');
+      var modeStatus  = document.getElementById('ap-mode-status');
+
+      function showMode(mode) {
+        var isApply    = mode === 'apply';
+        applyPanel.hidden  = !isApply;
+        statusPanel.hidden =  isApply;
+        modeApply.classList.toggle('ap-mode-active',  isApply);
+        modeStatus.classList.toggle('ap-mode-active', !isApply);
+      }
+      modeApply.addEventListener('click',  function () { showMode('apply');  });
+      modeStatus.addEventListener('click', function () { showMode('status'); });
+
+      var goStatus = document.getElementById('ap-go-status');
+      if (goStatus) {
+        goStatus.addEventListener('click', function () {
+          var e2 = apForm.elements['email'] ? apForm.elements['email'].value.trim() : '';
+          var se = document.getElementById('ap-st-email');
+          if (e2 && se) se.value = e2;
+          var ri = document.getElementById('ap-confirm-ref');
+          var sr = document.getElementById('ap-st-ref');
+          if (ri && sr) sr.value = (ri.textContent || '').replace('Reference: ', '').trim();
+          showMode('status');
+        });
+      }
+
+      // ── Status check ───────────────────────────────────────────────────────
+      var stForm   = document.getElementById('ap-status-form');
+      var stError  = document.getElementById('ap-st-error');
+      var stResult = document.getElementById('ap-st-result');
+      var stLabel  = document.getElementById('ap-st-label');
+      var stBtn    = document.getElementById('ap-st-submit');
+
+      stForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        stError.hidden = true; stResult.hidden = true;
+        var em = document.getElementById('ap-st-email').value.trim();
+        var rf = document.getElementById('ap-st-ref').value.trim();
+        if (!em || !rf) { stError.textContent = 'Please enter your email and reference.'; stError.hidden = false; return; }
+        stBtn.disabled = true; stLabel.textContent = 'Checking…';
+        fetch(API + '/public/access/status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: em, ref: rf })
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (res) {
+            if (!res.ok || !res.d.success) { stError.textContent = res.d.message || 'No matching request found.'; stError.hidden = false; return; }
+            renderStatusResult(res.d.data);
+          })
+          .catch(function () { stError.textContent = 'Network error. Please try again.'; stError.hidden = false; })
+          .finally(function () { stBtn.disabled = false; stLabel.textContent = 'Check Status'; });
+      });
+
+      function renderStatusResult(d) {
+        var sm = { approved: 'Approved', rejected: 'Not Approved', pending_review: 'Pending Review' };
+        var cm = { approved: '#16a34a',  rejected: '#dc2626',       pending_review: '#d97706' };
+        var lb = sm[d.accessStatus] || d.accessStatus;
+        var cl = cm[d.accessStatus] || '#6b7280';
+        var ak = '';
+        if (d.apiKey) {
+          ak = '<div class="ap-st-apikey">'
+             + '<p class="ap-st-key-label">Your API Key</p>'
+             + '<code class="ap-st-key-value">' + esc(d.apiKey) + '</code>'
+             + '<p class="ap-st-key-note">Send as <code>X-API-Key</code> header on all institutional API calls. Keep confidential.</p>'
+             + '</div>';
+        }
+        var ar = d.approvedAt ? '<tr><td>Approved</td><td>' + esc(d.approvedAt.split('T')[0]) + '</td></tr>' : '';
+        stResult.innerHTML =
+          '<div class="ap-st-card">'
+          + '<div class="ap-st-status" style="color:' + cl + '">' + esc(lb) + '</div>'
+          + '<table class="ap-st-table">'
+          + '<tr><td>Reference</td><td>' + esc(d.ref.toUpperCase()) + '</td></tr>'
+          + '<tr><td>Tier</td><td>'      + esc(d.tierName)          + '</td></tr>'
+          + '<tr><td>Payment</td><td>'   + esc(d.paymentStatus)     + '</td></tr>'
+          + '<tr><td>Submitted</td><td>' + esc(d.submittedAt.split('T')[0]) + '</td></tr>'
+          + ar + '</table>' + ak + '</div>';
+        stResult.hidden = false;
+      }
+
+      // ── Init ───────────────────────────────────────────────────────────────
+      // Pre-fill tier from URL hash, e.g. access.html?tier=api
+      var urlTier = new URLSearchParams(window.location.search).get('tier');
+      if (urlTier) {
+        // wait for tiers to load, then auto-select matching tier
+        var _origRender = renderTiers;
+        renderTiers = function () {
+          _origRender();
+          var match = state.tiers.find(function (t) { return t.id === urlTier; });
+          if (match) {
+            var btn = tierGrid.querySelector('[data-id="' + urlTier + '"] .ap-tier-choose');
+            if (btn) btn.click();
+          }
+        };
+      }
+
+      setStep(1);
+      showMode('apply');
+
+      // Tier CTAs on this page all scroll to #apply and could pre-select
+      document.querySelectorAll('a[href="#apply"]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          document.getElementById('apply').scrollIntoView({ behavior: 'smooth' });
+          // small delay so scroll settles before portal is visible
+          setTimeout(function () {
+            var el = document.getElementById('access-portal');
+            if (el) el.style.outline = '2px solid rgba(9,153,155,.4)';
+            setTimeout(function () { if (el) el.style.outline = ''; }, 1800);
+          }, 600);
+        });
+      });
+
+    })();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-880745124"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'AW-880745124');
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LifeGate Mobile App – Install the PWA</title>
+    <meta name="description" content="Open and install the LifeGate progressive web app for fast, browser-based access without APK download warnings." />
+    <meta name="lifegate-api-base" content="https://edis.dshub.com.ng/api" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Lexend+Deca:wght@400;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="./favicon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./script.js?v=3"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8968729342650927" crossorigin="anonymous"></script>
+  </head>
+  <body>
+
+    <!-- ── Navigation ──────────────────────────────────────────────────────── -->
+    <header class="site-nav">
+      <div class="nav-inner container">
+        <a class="brand" href="#" aria-label="LifeGate Home">
+          <svg class="brand-logo" width="20" height="20" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
+            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+          </svg>
+          <div class="brand-text">
+            <span class="brand-name">LifeGate</span>
+            <span class="brand-sub">by DSHub</span>
+          </div>
+        </a>
+        <a class="nav-cta" href="#stats">Live Stats</a>
+      </div>
+    </header>
+
+    <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+    <section class="hero" id="home">
+      <div class="hero-deco hero-deco-1" aria-hidden="true"></div>
+      <div class="hero-deco hero-deco-2" aria-hidden="true"></div>
+      <div class="hero-inner container">
+        <div class="hero-text">
+          <p class="eyebrow reveal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.7C17.3 17.6 22 13.5 22 8.5C22 5.4 19.6 3 16.5 3C14.7 3 13.1 3.8 12 5.1C10.9 3.8 9.3 3 7.5 3C4.4 3 2 5.4 2 8.5C2 13.5 6.7 17.6 12 21.7Z"/></svg>
+            Your Digital Health Companion
+          </p>
+          <h1 class="reveal delay-1">
+            Healthcare, <br class="hidden-sm" />
+            <span class="text-teal">Simplified</span>
+          </h1>
+          <p class="lead reveal delay-2">
+            Book care, track health metrics, and stay connected with your care team — all from one secure, beautifully simple app designed for everyday use.
+          </p>
+          <div class="trust-badges reveal delay-2">
+            <span class="badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              Secure &amp; Private
+            </span>
+            <span class="badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Verified Physicians
+            </span>
+            <span class="badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+              24/7 Available
+            </span>
+          </div>
+          <div class="cta-row reveal delay-3">
+            <a
+              id="android-download"
+              class="btn-primary"
+              href="https://mobile.dshub.com.ng"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Download to get started with the LifeGate progressive web app"
+              data-platform="android"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 4h-4.18C14.4 2.84 13.3 2 12 2S9.6 2.84 9.18 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-7-1c.55 0 1 .45 1 1h-2c0-.55.45-1 1-1zm7 15H5V6h14v12zm-7-1l5-6h-3V7h-4v4H7l5 6z"/></svg>
+              Download to Get Started
+            </a>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal delay-2" aria-hidden="true">
+          <div class="phone-wrap">
+            <div class="phone-mockup">
+              <div class="phone-notch"></div>
+              <div class="phone-screen">
+                <div class="phone-header">
+                  <div class="phone-status-dot"></div>
+                  <span>LifeGate</span>
+                  <div class="phone-status-dot active"></div>
+                </div>
+                <div class="health-card">
+                  <div class="health-card-label">Heart Rate</div>
+                  <div class="health-card-value">72 <span>bpm</span></div>
+                  <svg class="ecg-line" viewBox="0 0 120 36" fill="none">
+                    <path d="M5 18 L25 18 L32 6 L38 30 L44 13 L50 18 L70 18 L77 4 L83 32 L89 18 L115 18" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <div class="mini-cards">
+                  <div class="mini-card">
+                    <span class="mini-label">SpO&#8322;</span>
+                    <span class="mini-val">98%</span>
+                  </div>
+                  <div class="mini-card">
+                    <span class="mini-label">Temp</span>
+                    <span class="mini-val">36.6&#176;</span>
+                  </div>
+                  <div class="mini-card">
+                    <span class="mini-label">Steps</span>
+                    <span class="mini-val">4,219</span>
+                  </div>
+                </div>
+                <div class="phone-action-row">
+                  <div class="phone-action-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                    Chat Doctor
+                  </div>
+                  <div class="phone-action-btn secondary">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+                    Follow Up
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="float-badge float-top">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#00A6A3"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              <span>Encrypted &amp; Secure</span>
+            </div>
+            <div class="float-badge float-bottom">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#00A6A3"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <span>Doctor online now</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Why LifeGate ─────────────────────────────────────────────────────── -->
+    <section class="why-section">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2>Why Choose <span class="text-teal">LifeGate</span></h2>
+        </div>
+        <div class="why-grid">
+          <article class="why-card reveal">
+            <div class="why-icon-wrap">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+            </div>
+            <h3>Doctor Consultations</h3>
+            <p>Connect with verified physicians instantly via chat or voice for any health concern — anytime, anywhere.</p>
+          </article>
+          <article class="why-card reveal delay-1">
+            <div class="why-icon-wrap">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            </div>
+            <h3>Smart Follow-ups</h3>
+            <p>Receive timely care plan reminders and follow-up notifications from your doctor. Never miss a step.</p>
+          </article>
+          <article class="why-card reveal delay-2">
+            <div class="why-icon-wrap">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            </div>
+            <h3>Secure &amp; Confidential</h3>
+            <p>Your health records are encrypted and protected. Only you and your authorized care team have access.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Features Strip ───────────────────────────────────────────────────── -->
+    <section class="features-strip">
+      <div class="features-strip-bg" aria-hidden="true"></div>
+      <div class="container features-strip-inner">
+        <div class="features-strip-visual reveal">
+          <div class="strip-phone">
+            <div class="strip-screen">
+              <div class="strip-row">
+                <div class="strip-metric">
+                  <span class="strip-metric-label">Blood Pressure</span>
+                  <span class="strip-metric-val">120/80</span>
+                </div>
+                <div class="strip-metric">
+                  <span class="strip-metric-label">Glucose</span>
+                  <span class="strip-metric-val">98 mg/dL</span>
+                </div>
+              </div>
+              <div class="strip-divider"></div>
+              <div class="strip-row">
+                <div class="strip-metric">
+                  <span class="strip-metric-label">Weight</span>
+                  <span class="strip-metric-val">72 kg</span>
+                </div>
+                <div class="strip-metric">
+                  <span class="strip-metric-label">BMI</span>
+                  <span class="strip-metric-val">22.3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="features-strip-text reveal delay-1">
+          <h2>Everything you need for your health</h2>
+          <p class="strip-lead">Harness the power of a connected health platform to reduce friction, save time, and deliver better outcomes.</p>
+          <ul class="features-list">
+            <li>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00A6A3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Reduced wait times with instant digital consultations</span>
+            </li>
+            <li>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00A6A3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Real-time health metrics and care progress tracking</span>
+            </li>
+            <li>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00A6A3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>AI-assisted care recommendations and follow-ups</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── App Screens Showcase ───────────────────────────────────────────── -->
+    <section class="showcase-section" id="showcase">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">App Preview</p>
+          <h2>See LifeGate In Action</h2>
+          <p class="section-sub">A quick look at key screens from the mobile app experience.</p>
+        </div>
+        <div class="showcase-slider reveal" aria-label="LifeGate app screenshots preview">
+          <button class="showcase-nav showcase-nav-prev" type="button" aria-label="Previous screenshot">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+
+          <div class="showcase-track" id="showcase-track" role="list"></div>
+
+          <button class="showcase-nav showcase-nav-next" type="button" aria-label="Next screenshot">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+        <div class="showcase-dots" id="showcase-dots" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- ── Stats ────────────────────────────────────────────────────────────── -->
+    <section id="stats" class="stats-section">
+      <div class="container">
+        <div class="section-head reveal">
+          <p class="eyebrow">Live Analytics</p>
+          <h2>Statistics</h2>
+          <p class="section-sub">Updated in real time from this page's activity.</p>
+        </div>
+        <div class="stats-grid reveal delay-1" role="list" aria-label="Download statistics">
+          <article class="stat-card" role="listitem">
+            <div class="stat-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </div>
+            <h3>Views</h3>
+            <p id="stat-views" class="stat-value">527</p>
+          </article>
+          <article class="stat-card" role="listitem">
+            <div class="stat-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/></svg>
+            </div>
+            <h3>App Download</h3>
+            <p id="stat-android" class="stat-value">225</p>
+          </article>
+          <article class="stat-card" role="listitem">
+            <div class="stat-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            </div>
+            <h3>Web Access</h3>
+            <p id="stat-ios" class="stat-value">250</p>
+          </article>
+          <article class="stat-card" role="listitem">
+            <div class="stat-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/></svg>
+            </div>
+            <h3>Rate</h3>
+            <p id="stat-ctr" class="stat-value">90.1%</p>
+          </article>
+        </div>
+
+        <div class="chart-panel reveal delay-2" aria-label="Download comparison chart">
+          <div class="bar-row">
+            <span class="bar-label-text">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#00A6A3" aria-hidden="true"><path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.3-1.3c.2-.2.2-.51 0-.71-.2-.2-.51-.2-.71 0l-1.48 1.48C13.85 1.23 12.95 1 12 1c-.96 0-1.86.23-2.66.63L7.85.15c-.2-.2-.51-.2-.71 0-.2.2-.2.51 0 .71l1.31 1.31C6.97 3.26 6 5.01 6 7h12c0-1.99-.97-3.75-2.47-4.84zM10 5H9V4h1v1zm5 0h-1V4h1v1z"/></svg>
+              Android
+            </span>
+            <div class="bar-track"><div id="bar-android" class="bar-fill bar-android"></div></div>
+            <strong id="bar-label-android" class="bar-count">225</strong>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label-text">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#087676" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+              Web Access
+            </span>
+            <div class="bar-track"><div id="bar-ios" class="bar-fill bar-web"></div></div>
+            <strong id="bar-label-ios" class="bar-count">250</strong>
+          </div>
+          <div class="chart-footer">
+            <p id="last-updated" class="updated">Last updated: --</p>
+            <p id="stats-source" class="source-pill">Source: connecting...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Bottom CTA ───────────────────────────────────────────────────────── -->
+    <section class="cta-section">
+      <div class="cta-bg" aria-hidden="true"></div>
+      <div class="container cta-inner">
+        <div class="cta-logo" aria-hidden="true">
+          <svg width="48" height="60" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="rgba(255,255,255,0.7)"/>
+          </svg>
+        </div>
+        <h2>Start your health journey today</h2>
+        <p>Join thousands of users managing their health smarter with LifeGate.</p>
+        <div class="cta-btn-row">
+          <a
+            class="btn-cta-primary"
+            href="https://mobile.dshub.com.ng"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Download to get started with the LifeGate progressive web app"
+            data-platform="android"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 4h-4.18C14.4 2.84 13.3 2 12 2S9.6 2.84 9.18 4H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-7-1c.55 0 1 .45 1 1h-2c0-.55.45-1 1-1zm7 15H5V6h14v12zm-7-1l5-6h-3V7h-4v4H7l5 6z"/></svg>
+            Download to Get Started
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer ───────────────────────────────────────────────────────────── -->
+    <footer class="site-footer">
+      <div class="footer-bg" aria-hidden="true"></div>
+      <div class="container footer-inner">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <div class="footer-brand">
+              <svg width="20" height="25" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
+                <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+              </svg>
+              <div>
+                <span class="footer-brand-name">LifeGate</span>
+                <span class="footer-brand-sub">by DSHub</span>
+              </div>
+            </div>
+            <div class="footer-contact">
+              <div class="footer-contact-row">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <a href="mailto:dinsoft.dev@gmail.com">dinsoft.dev@gmail.com</a>
+              </div>
+              <div class="footer-contact-row">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                <a href="https://lifegate.dshub.com.ng">lifegate.dshub.com.ng</a>
+              </div>
+            </div>
+          </div>
+          <div class="footer-col">
+            <h4>Quick Links</h4>
+            <ul class="footer-links">
+              <li><a href="https://lifegate.dshub.com.ng/#home">Home</a></li>
+              <li><a href="https://lifegate.dshub.com.ng/#features">Features</a></li>
+              <li><a href="https://lifegate.dshub.com.ng/#how-it-works">How it works</a></li>
+              <li><a href="https://lifegate.dshub.com.ng/#contact">Contact Us</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Compliance &amp; Security</h4>
+            <ul class="footer-compliance">
+              <li><span>🔒</span> NDPR Compliant</li>
+              <li><span>🔒</span> HIPAA Inspired Data Security</li>
+              <li><span>🔒</span> Encrypted &amp; Confidential Records</li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>&copy; 2026 LifeGate by DSHub. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+
+  </body>
+</html>

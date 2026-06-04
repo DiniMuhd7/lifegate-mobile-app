@@ -1,0 +1,4 @@
+-- 022_explore_categories_videos.sql
+-- Seed data removed. The explore catalogue is populated exclusively by the
+-- YouTube Data API refresher (internal/explore/refresher.go).
+-- Migration 023 cleans any rows inserted by earlier versions of this file.

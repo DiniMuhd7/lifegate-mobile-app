@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "LifeGate",
+    "slug": "lifegate",
+    "version": "1.0.0",
+    "updates": {
+      "enabled": false
+    },
+    "web": {
+      "favicon": "./assets/lifegate-logo.png",
+      "bundler": "metro",
+      "output": "static"
+    },
+    "scheme": "lifegate",
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      "expo-secure-store",
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This identifier helps us show you relevant health content and ads that support free access to LifeGate."
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#0AADA2",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "LifeGate"
+        }
+      ]
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dshub.lifegate"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.dshub.lifegate",
+      "softwareKeyboardLayoutMode": "pan"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "lifegate-dshub"
+      }
+    }
+  }
+}

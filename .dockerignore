@@ -1,0 +1,49 @@
+# Root-level .dockerignore — used when Docker build context is the repo root (.)
+# This applies to the backend image build.  Keep it lean: include backend source
+# and OpenClaw agent persona files; exclude everything else.
+
+# ── Mobile app ────────────────────────────────────────────────────────────────
+mobile/
+
+# ── Static / web pages ────────────────────────────────────────────────────────
+public/
+download/
+dshub/
+nginx/
+
+# ── Docs ─────────────────────────────────────────────────────────────────────
+docs/
+
+# ── Backend build artifacts & secrets ────────────────────────────────────────
+backend/server
+backend/bin/
+backend/.env
+backend/.env.*
+!backend/.env.example
+backend/uploads/
+
+# ── OpenClaw: exclude non-agent files ────────────────────────────────────────
+# Keep lifegate-openclaw/agents/ — persona markdown files are needed at runtime.
+lifegate-openclaw/generate.py
+lifegate-openclaw/README.md
+lifegate-openclaw/analytics/
+lifegate-openclaw/compliance/
+lifegate-openclaw/diagnostics/
+lifegate-openclaw/escalation/
+lifegate-openclaw/orchestration/
+lifegate-openclaw/policies/
+lifegate-openclaw/routing/
+lifegate-openclaw/shared/
+lifegate-openclaw/templates/
+lifegate-openclaw/workflows/
+
+# ── Git / CI ──────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.github/
+
+# ── Misc project files ───────────────────────────────────────────────────────
+render.yaml
+docker-compose.yml
+PatientBottomTabBar.tsx
+README.md

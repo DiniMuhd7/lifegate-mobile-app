@@ -1,0 +1,2536 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LifeGate Public Health Analytics — public.dshub.com.ng</title>
+    <meta name="description" content="LifeGate Public Health Analytics Dashboard — anonymised, physician-validated population health data for Government, NGOs, Researchers, and Hospitals." />
+    <meta name="robots" content="index, follow" />
+    <meta name="lifegate-api-base" content="https://edis.dshub.com.ng/api" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Lexend+Deca:wght@400;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://checkout.flutterwave.com/v3.js"></script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8968729342650927" crossorigin="anonymous"></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='16' cy='16' r='16' fill='%2309999B'/%3E%3C/svg%3E">
+  </head>
+  <body>
+
+    <!-- ── Navigation ──────────────────────────────────────────────────────── -->
+    <header class="site-nav">
+      <div class="nav-inner container">
+        <a class="brand" href="#" aria-label="LifeGate Public Health Analytics Home">
+          <svg class="brand-logo" width="20" height="20" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
+            <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+          </svg>
+          <div class="brand-text">
+            <span class="brand-name">LifeGate</span>
+            <span class="brand-sub">Public Health Analytics</span>
+          </div>
+        </a>
+        <nav class="nav-links" aria-label="Primary navigation">
+          <a href="#about">About</a>
+          <a href="#dashboard">Dashboard</a>
+          <div class="nav-dropdown">
+            <button class="nav-dropdown-toggle" aria-haspopup="true">
+              Data
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a href="#disparities" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+                Disparities
+              </a>
+              <a href="#research" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+                Research Dataset
+              </a>
+              <a href="#compliance" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                Compliance
+              </a>
+            </div>
+          </div>
+          <a href="#audience">Who It's For</a>
+          <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
+        </nav>
+        <a class="nav-cta" href="./access.html">Request Access</a>
+        <button class="nav-burger" aria-label="Toggle menu" aria-expanded="false" aria-controls="mobile-menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+      <div class="mobile-menu" id="mobile-menu" hidden>
+        <a href="#about">About</a>
+        <a href="#dashboard">Dashboard</a>
+        <span class="mobile-section-label">Data</span>
+        <a href="#disparities">Health Disparities</a>
+        <a href="#research">Research Dataset</a>
+        <a href="#compliance">Compliance &amp; NDPA</a>
+        <a href="#audience">Who It's For</a>
+        <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
+        <a href="./access.html" class="mobile-cta">Request Access</a>
+      </div>
+    </header>
+
+    <!-- ── Hero ────────────────────────────────────────────────────────────── -->
+    <section class="hero" id="home">
+      <div class="hero-grid" aria-hidden="true"></div>
+      <div class="hero-orb hero-orb-1" aria-hidden="true"></div>
+      <div class="hero-orb hero-orb-2" aria-hidden="true"></div>
+      <div class="hero-orb hero-orb-3" aria-hidden="true"></div>
+      <div class="container hero-inner">
+        <div class="hero-text">
+          <p class="eyebrow reveal">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/></svg>
+            Population Health · Evidence · Impact
+          </p>
+          <h1 class="reveal delay-1">
+            Nigeria's First<br class="hidden-sm" />
+            <span class="text-gradient">Physician-Validated</span><br />
+            Public Health Feed
+          </h1>
+          <p class="lead reveal delay-2">
+            Anonymised, NDPA-compliant population health signals derived from LifeGate's AI triage and licensed physician review network — built for Government, NGOs, Researchers, and Hospitals.
+          </p>
+          <div class="trust-badges reveal delay-2">
+            <span class="badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              NDPA 2023 Compliant
+            </span>
+            <span class="badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+              Physician-Validated Data
+            </span>
+            <span class="badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              36 States Coverage
+            </span>
+          </div>
+          <div class="cta-row reveal delay-3">
+            <a class="btn-primary" href="#dashboard">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+              View Dashboard
+            </a>
+            <a class="btn-ghost" href="./access.html">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              Request Data Access
+            </a>
+          </div>
+        </div>
+        <div class="hero-visual reveal delay-2" aria-hidden="true">
+          <div class="hero-card">
+            <div class="hero-card-header">
+              <span class="live-dot"></span>
+              <span>Live Health Signals</span>
+            </div>
+            <div class="hero-chart-bars">
+              <div class="bar" style="height: 55%;" data-label="Jan"></div>
+              <div class="bar" style="height: 72%;" data-label="Feb"></div>
+              <div class="bar" style="height: 48%;" data-label="Mar"></div>
+              <div class="bar" style="height: 88%;" data-label="Apr"></div>
+              <div class="bar bar-active" style="height: 65%;" data-label="May"></div>
+            </div>
+            <div class="hero-card-metrics">
+              <div class="mini-metric">
+                <span class="mini-value" id="hero-cases">—</span>
+                <span class="mini-label">Cases</span>
+              </div>
+              <div class="mini-metric">
+                <span class="mini-value" id="hero-conditions">—</span>
+                <span class="mini-label">Conditions</span>
+              </div>
+              <div class="mini-metric">
+                <span class="mini-value" id="hero-states">—</span>
+                <span class="mini-label">States</span>
+              </div>
+            </div>
+            <div class="hero-card-status">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              Dashboard launching — access by request
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ── About ───────────────────────────────────────────────────────────── -->
+    <section class="about" id="about">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="eyebrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/></svg>
+            What This Is
+          </p>
+          <h2>Clinically grounded.<br />Anonymised by design.</h2>
+          <p class="section-lead">
+            LifeGate's EDIS engine and physician review network generate a continuous stream of validated health signals across Nigeria. This dashboard surfaces those signals — aggregated, de-identified, and structured — as a public good.
+          </p>
+        </div>
+        <div class="about-grid">
+          <div class="about-card reveal">
+            <div class="about-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </div>
+            <h3>Physician-Validated</h3>
+            <p>Every data point is backed by a licensed, MDCN-verified physician. Not raw AI output. Not self-reports.</p>
+          </div>
+          <div class="about-card reveal delay-1">
+            <div class="about-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            </div>
+            <h3>Privacy-First</h3>
+            <p>All data is anonymised and aggregated under NDPA 2023. No personal or patient-identifiable information is ever exposed.</p>
+          </div>
+          <div class="about-card reveal delay-2">
+            <div class="about-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+            </div>
+            <h3>Real-Time</h3>
+            <p>Signals update continuously from the live LifeGate platform — not periodic batch reports collected weeks after the fact.</p>
+          </div>
+          <div class="about-card reveal delay-3">
+            <div class="about-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            </div>
+            <h3>Geography-Aware</h3>
+            <p>Condition signals are mapped to state and LGA level — enabling regional health planning and outbreak geo-fencing.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Dashboard Preview ───────────────────────────────────────────────── -->
+    <section class="dashboard" id="dashboard">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="eyebrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/></svg>
+            Dashboard Modules
+          </p>
+          <h2>What will be live<br />when you get access</h2>
+          <p class="section-lead">Six analytics modules — each designed around a specific public health decision-making need.</p>
+        </div>
+
+        <div class="dashboard-grid">
+
+          <!-- Disease Surveillance -->
+          <div class="dash-module dash-module-live reveal" id="module-surveillance">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 2c-1.05 0-1.96.54-2.5 1.32L4.36 6H2v2h1.09l1 9H20l1-9H22V6h-2.36l-2.14-2.68C17.06 2.54 16.05 2 15 2H9zm0 2h6c.35 0 .65.18.85.43L17.28 6H6.72l1.43-1.57C8.35 4.18 8.65 4 9 4zm-4.9 4h15.8l-.9 7H5z"/></svg>
+              </div>
+              <span class="dash-module-title">Disease Surveillance</span>
+              <span class="module-status live" id="surv-live-badge">Live</span>
+            </div>
+
+            <!-- Summary stat row -->
+            <div class="surv-stat-row" id="surv-stats">
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="surv-total-week">—</span>
+                <span class="surv-stat-label">Cases this week</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="surv-conditions">—</span>
+                <span class="surv-stat-label">Conditions tracked</span>
+              </div>
+              <div class="surv-stat surv-stat-alert" id="surv-anomaly-stat">
+                <span class="surv-stat-value" id="surv-anomalies">—</span>
+                <span class="surv-stat-label">Active signals</span>
+              </div>
+            </div>
+
+            <!-- Trend chart -->
+            <div class="surv-chart-wrap">
+              <div class="surv-chart-label">Top conditions — last 12 weeks</div>
+              <div class="surv-chart" id="surv-chart" role="img" aria-label="Disease trend chart">
+                <div class="surv-loading" id="surv-chart-loading">
+                  <div class="skeleton-chart"></div>
+                </div>
+                <div class="surv-chart-inner" id="surv-chart-inner" hidden></div>
+              </div>
+              <div class="surv-legend" id="surv-legend"></div>
+            </div>
+
+            <!-- Anomaly alert list -->
+            <div id="surv-anomaly-section" hidden>
+              <div class="surv-anomaly-header">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+                Active Outbreak Signals
+              </div>
+              <div id="surv-anomaly-list" class="surv-anomaly-list"></div>
+            </div>
+
+            <div class="surv-footer">
+              <span id="surv-updated"></span>
+              <a href="https://ncdc.gov.ng" target="_blank" rel="noopener noreferrer" class="surv-ncdc-link">NCDC &rarr;</a>
+            </div>
+          </div>
+
+          <!-- Symptom Trend Analytics - LIVE -->
+          <div class="dash-module dash-module-live reveal delay-1" id="module-seasonal">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+              </div>
+              <span class="dash-module-title">Symptom Trends</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <div class="surv-stat-row">
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="seas-conditions">—</span>
+                <span class="surv-stat-label">Conditions</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="seas-months">—</span>
+                <span class="surv-stat-label">Months tracked</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="seas-total">—</span>
+                <span class="surv-stat-label">Cases / year</span>
+              </div>
+            </div>
+
+            <div class="surv-chart-wrap">
+              <div class="surv-chart-label">Monthly condition volume — last 12 months</div>
+              <div class="surv-chart" id="seas-chart" role="img" aria-label="Seasonal condition trends chart">
+                <div id="seas-loading" class="surv-loading"><div class="skeleton-chart"></div></div>
+                <div id="seas-inner" hidden></div>
+              </div>
+              <div class="surv-legend" id="seas-legend"></div>
+            </div>
+            <p class="dash-module-desc">Month-on-month condition volume — identify seasonal spikes such as malaria peaks and respiratory illness patterns to support pre-emptive procurement of drugs and diagnostic kits.</p>
+          </div>
+
+          <!-- Regional Health Map - LIVE -->
+          <div class="dash-module dash-module-live reveal delay-2" id="module-regional">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+              </div>
+              <span class="dash-module-title">Regional Health Map</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <div class="surv-chart-wrap">
+              <div class="surv-chart-label">Top conditions by state — last 12 weeks</div>
+              <div id="regional-loading"><div class="skeleton-map"></div></div>
+              <div id="regional-list" hidden></div>
+            </div>
+            <p class="dash-module-desc">State-level condition prevalence — informs where to deploy mobile health units, vaccines, and specialist outreach to highest-need regions.</p>
+          </div>
+
+          <!-- Telemedicine Utilization - LIVE -->
+          <div class="dash-module dash-module-live reveal" id="module-tele">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+              </div>
+              <span class="dash-module-title">Telemedicine Utilization</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <div class="surv-stat-row">
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="tele-total">—</span>
+                <span class="surv-stat-label">Total Consults</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="tele-reviewed">—</span>
+                <span class="surv-stat-label">Physician Reviewed</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="tele-completion">—</span>
+                <span class="surv-stat-label">Completion Rate</span>
+              </div>
+            </div>
+
+            <!-- Weekly trend sparkline -->
+            <div class="tele-chart-wrap">
+              <canvas id="tele-trend-chart" height="80" aria-label="Weekly telemedicine consultation trend"></canvas>
+            </div>
+
+            <!-- Top 5 states -->
+            <div class="tele-state-list" id="tele-state-list" role="list" aria-label="Telemedicine utilization by state"></div>
+
+            <p class="dash-module-desc">Weekly telemedicine consultation volumes, physician review rates, and digital health adoption by state — justifying universal digital health infrastructure investment across Nigeria.</p>
+          </div>
+
+          <!-- Resource Gap Analysis - LIVE -->
+          <div class="dash-module dash-module-live reveal delay-1" id="module-gaps">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              </div>
+              <span class="dash-module-title">Resource Gap Analysis</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <div class="surv-stat-row">
+              <div class="surv-stat surv-stat-alert" id="gaps-critical-stat">
+                <span class="surv-stat-value" id="gaps-critical">—</span>
+                <span class="surv-stat-label">Critical Gaps</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="gaps-total">—</span>
+                <span class="surv-stat-label">Under-served Pairs</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="gaps-states">—</span>
+                <span class="surv-stat-label">States Affected</span>
+              </div>
+            </div>
+
+            <!-- Top gaps list -->
+            <div class="gap-list" id="gap-list" role="list" aria-label="Top resource gaps by state and condition"></div>
+
+            <p class="dash-module-desc">States with high disease burden but insufficient specialist coverage — identifying conditions chronically under-resourced in specific geographies to guide health infrastructure deployment.</p>
+          </div>
+
+          <!-- Physician Coverage & Access Deserts - LIVE -->
+          <div class="dash-module dash-module-live reveal delay-2" id="module-access">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+              </div>
+              <span class="dash-module-title">Physician Coverage</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <div class="surv-stat-row">
+              <div class="surv-stat surv-stat-alert" id="access-breach-stat">
+                <span class="surv-stat-value" id="access-breach-rate">—</span>
+                <span class="surv-stat-label">SLA Breach Rate</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="access-avg-resp">—</span>
+                <span class="surv-stat-label">Avg Response</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="access-deserts">—</span>
+                <span class="surv-stat-label">Access Deserts</span>
+              </div>
+            </div>
+
+            <div class="surv-chart-label" style="margin-top:4px;">States by healthcare access gap</div>
+            <div id="access-loading" style="margin-top:8px;">
+              <div class="skeleton-row"></div>
+              <div class="skeleton-row" style="margin-top:6px;"></div>
+              <div class="skeleton-row short" style="margin-top:6px;"></div>
+            </div>
+            <div id="access-state-list" hidden style="margin-top:8px;"></div>
+            <p class="dash-module-desc" style="margin-top:10px;">SLA breach rates and physician-to-case ratios by state — reveals healthcare access deserts for targeted workforce and resource deployment.</p>
+          </div>
+
+          <!-- Demographic Disease Burden - LIVE -->
+          <div class="dash-module dash-module-live reveal" id="module-demo">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+              </div>
+              <span class="dash-module-title">Demographic Burden</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <!-- Age group breakdown -->
+            <div class="demo-section-label">Disease load by age group</div>
+            <div class="demo-age-list" id="demo-age-list" role="list" aria-label="Condition burden by age group"></div>
+
+            <!-- Sex breakdown -->
+            <div class="demo-section-label" style="margin-top:14px;">By sex</div>
+            <div class="demo-sex-list" id="demo-sex-list" role="list" aria-label="Condition burden by sex"></div>
+
+            <p class="dash-module-desc">Anonymised condition burden by age group and sex — identifying which populations carry the highest disease load for precision targeting of community health programs.</p>
+          </div>
+
+          <!-- Care Pathway & Follow-up Re-engagement - LIVE -->
+          <div class="dash-module dash-module-live reveal delay-1" id="module-followup">
+            <div class="dash-module-header">
+              <div class="dash-module-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+              </div>
+              <span class="dash-module-title">Care Pathway Follow-up</span>
+              <span class="module-status live">Live</span>
+            </div>
+
+            <div class="surv-stat-row">
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="fu-scheduled">—</span>
+                <span class="surv-stat-label">Scheduled</span>
+              </div>
+              <div class="surv-stat surv-stat-alert" id="fu-dropout-stat">
+                <span class="surv-stat-value" id="fu-dropout-pct">—</span>
+                <span class="surv-stat-label">Dropout Rate</span>
+              </div>
+              <div class="surv-stat">
+                <span class="surv-stat-value" id="fu-completed">—</span>
+                <span class="surv-stat-label">Completed</span>
+              </div>
+            </div>
+
+            <!-- Age group dropout bars -->
+            <div class="demo-section-label" style="margin-top:10px;">Dropout rate by age group</div>
+            <div class="fu-age-list" id="fu-age-list" role="list" aria-label="Follow-up dropout by age group"></div>
+
+            <!-- State dropout list -->
+            <div class="demo-section-label" style="margin-top:12px;">Highest dropout states</div>
+            <div class="fu-state-list" id="fu-state-list" role="list" aria-label="Follow-up dropout by state"></div>
+
+            <p class="dash-module-desc">Follow-up completion and dropout rates by age, sex, and state — flagging populations with low health-seeking persistence for targeted re-engagement and outreach programs.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Audience ─────────────────────────────────────────────────────────── -->
+    <section class="audience" id="audience">
+      <div class="container">
+        <div class="section-header reveal">
+          <p class="eyebrow eyebrow-light">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            Built for institutions
+          </p>
+          <h2>Who this dashboard<br />is designed for</h2>
+        </div>
+        <div class="audience-grid">
+          <div class="audience-card reveal">
+            <div class="audience-icon gov">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L2 12h3v9h6v-6h2v6h6v-9h3L12 3z"/></svg>
+            </div>
+            <h3>Government</h3>
+            <p class="audience-org">FMOH · NCDC · State Ministries of Health</p>
+            <ul class="audience-benefits">
+              <li>Passive disease sentinel surveillance by LGA</li>
+              <li>Real-time outbreak early-warning signals</li>
+              <li>Evidence base for healthcare resource allocation</li>
+              <li>DHIS2-compatible aggregate reporting</li>
+            </ul>
+          </div>
+          <div class="audience-card reveal delay-1">
+            <div class="audience-icon ngo">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <h3>NGOs &amp; International Health</h3>
+            <p class="audience-org">WHO · MSF · CHAI · Gates Foundation</p>
+            <ul class="audience-benefits">
+              <li>Population-level disease burden evidence</li>
+              <li>Pre/post intervention outcome proxies</li>
+              <li>Health equity and access gap analysis</li>
+              <li>Grant-ready, citable data exports</li>
+            </ul>
+          </div>
+          <div class="audience-card reveal delay-2">
+            <div class="audience-icon research">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+            </div>
+            <h3>Researchers</h3>
+            <p class="audience-org">Universities · Public Health Schools · Think Tanks</p>
+            <ul class="audience-benefits">
+              <li>Longitudinal physician-adjudicated datasets</li>
+              <li>AI vs. clinical diagnosis agreement corpus</li>
+              <li>Symptom co-occurrence and comorbidity graphs</li>
+              <li>IRB-ready de-identified data access tiers</li>
+            </ul>
+          </div>
+          <div class="audience-card reveal delay-3">
+            <div class="audience-icon hospital">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+            </div>
+            <h3>Hospitals &amp; Health Systems</h3>
+            <p class="audience-org">Tertiary Hospitals · HMOs · Private Networks</p>
+            <ul class="audience-benefits">
+              <li>Catchment-area condition forecasts</li>
+              <li>Referral gap identification by LGA</li>
+              <li>AI-physician agreement benchmarking</li>
+              <li>Warm patient handoffs from validated cases</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Access Request ───────────────────────────────────────────────────── -->
+    <section class="access" id="access">
+      <div class="container">
+        <div class="access-card reveal">
+          <div class="access-inner">
+            <div class="access-text">
+              <p class="eyebrow eyebrow-light">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                Access-controlled · Institutional only
+              </p>
+              <h2>Request dashboard access</h2>
+              <p>This dashboard is available to verified institutional stakeholders. Government bodies, accredited research institutions, registered NGOs, and licensed healthcare facilities may apply.</p>
+              <ul class="access-list">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  Aggregate anonymised data — no individual patient records
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  NDPA 2023 compliant data sharing agreement required
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  Government &amp; NGO: <strong>Free</strong> with institutional verification
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                  Paid tiers from <strong>₦30,000/yr</strong> — Dashboard View, Data Export, or API Access
+                </li>
+              </ul>
+            </div>
+            <div class="access-form-area">
+              <!-- ── Access Portal (rendered by access-portal.js) ── -->
+              <div id="access-portal" class="ap-portal">
+
+                <div class="ap-mode-toggle">
+                  <button class="ap-mode-btn ap-mode-active" id="ap-mode-apply" type="button">Apply for Access</button>
+                  <button class="ap-mode-btn" id="ap-mode-status" type="button">Check Status</button>
+                </div>
+
+                <div id="ap-apply-panel">
+
+                <!-- Step indicator -->
+                <div class="ap-steps">
+                  <div class="ap-step ap-step-active" data-n="1"><span>1</span></div>
+                  <div class="ap-step-connector"></div>
+                  <div class="ap-step" data-n="2"><span>2</span></div>
+                  <div class="ap-step-connector"></div>
+                  <div class="ap-step" data-n="3"><span>3</span></div>
+                </div>
+
+                <!-- Step 1: Choose tier -->
+                <div class="ap-panel" id="ap-s1">
+                  <p class="ap-panel-label">Select access tier</p>
+                  <div class="ap-cur-toggle">
+                    <button class="ap-cur-btn active" id="ap-ngn" type="button">₦ NGN</button>
+                    <button class="ap-cur-btn" id="ap-usd" type="button">$ USD</button>
+                  </div>
+                  <div id="ap-tier-grid" class="ap-tier-grid">
+                    <p class="ap-tier-loading">Loading tiers…</p>
+                  </div>
+                </div>
+
+                <!-- Step 2: Contact form -->
+                <div class="ap-panel" id="ap-s2" hidden>
+                  <div id="ap-tier-badge" class="ap-tier-badge"></div>
+                  <p class="ap-panel-label">Your details</p>
+                  <form id="ap-form" novalidate autocomplete="on">
+                    <div class="ap-row">
+                      <div class="ap-field">
+                        <label for="ap-fullName">Full Name</label>
+                        <input id="ap-fullName" name="fullName" type="text" autocomplete="name" placeholder="Dr. Amina Yusuf" required />
+                      </div>
+                      <div class="ap-field">
+                        <label for="ap-email">Work Email</label>
+                        <input id="ap-email" name="email" type="email" autocomplete="email" placeholder="you@institution.gov.ng" required />
+                      </div>
+                    </div>
+                    <div class="ap-row">
+                      <div class="ap-field">
+                        <label for="ap-institution">Institution / Organisation</label>
+                        <input id="ap-institution" name="institution" type="text" placeholder="Federal Ministry of Health" required />
+                      </div>
+                      <div class="ap-field">
+                        <label for="ap-jobTitle">Job Title</label>
+                        <input id="ap-jobTitle" name="jobTitle" type="text" placeholder="Public Health Analyst" required />
+                      </div>
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-role">Organisation Type</label>
+                      <select id="ap-role" name="role" required>
+                        <option value="">— Select one —</option>
+                        <option value="government">Government Body</option>
+                        <option value="ngo">NGO / Non-Profit</option>
+                        <option value="research">Research / Academic</option>
+                        <option value="hospital">Hospital / Clinic</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-useCase">Intended Use</label>
+                      <textarea id="ap-useCase" name="useCase" rows="3" placeholder="Briefly describe how you plan to use this data…" required></textarea>
+                    </div>
+                    <p id="ap-form-error" class="ap-form-error" hidden></p>
+                    <div class="ap-form-btns">
+                      <button type="button" class="ap-btn-back" id="ap-back">&#8592; Back</button>
+                      <button type="submit" class="ap-btn-next" id="ap-next">
+                        <span id="ap-next-label">Continue</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <!-- Step 3: Confirmation -->
+                <div class="ap-panel" id="ap-s3" hidden>
+                  <div class="ap-confirm">
+                    <div class="ap-confirm-icon">
+                      <svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    </div>
+                    <h3 class="ap-confirm-title">Request Submitted</h3>
+                    <p class="ap-confirm-body">Your access request has been received. We'll review and respond within 2–3 business days. A receipt has been sent to your email.</p>
+                    <p class="ap-confirm-ref" id="ap-confirm-ref"></p>
+                    <p class="ap-confirm-hint">Save your reference — use the <strong>Check Status</strong> tab to track approval and retrieve your API key once approved.</p>
+                    <button type="button" class="ap-btn-check-status" id="ap-go-status">Check my status →</button>
+                  </div>
+                </div>
+
+                </div><!-- /#ap-apply-panel -->
+
+                <div id="ap-status-panel" hidden>
+                  <p class="ap-panel-label">Check your application status</p>
+                  <form id="ap-status-form" novalidate autocomplete="on">
+                    <div class="ap-field">
+                      <label for="ap-st-email">Work Email</label>
+                      <input id="ap-st-email" type="email" autocomplete="email" placeholder="you@institution.gov.ng" required />
+                    </div>
+                    <div class="ap-field">
+                      <label for="ap-st-ref">Submission Reference</label>
+                      <input id="ap-st-ref" type="text" placeholder="e.g. A3F2B1C4" required />
+                      <small class="ap-field-hint">The 8-character reference shown after your submission</small>
+                    </div>
+                    <p id="ap-st-error" class="ap-form-error" hidden></p>
+                    <div class="ap-form-btns">
+                      <button type="submit" class="ap-btn-next" id="ap-st-submit">
+                        <span id="ap-st-label">Check Status</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                      </button>
+                    </div>
+                  </form>
+                  <div id="ap-st-result" hidden></div>
+                </div><!-- /#ap-status-panel -->
+
+              </div><!-- /#access-portal -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Health Equity & Disparities ───────────────────────────────────── -->
+    <section class="disparities-section reveal" id="disparities" aria-labelledby="disparities-heading">
+      <div class="container">
+
+        <div class="section-banner">
+          <div class="section-banner-icon violet" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+          </div>
+          <div class="section-banner-text">
+            <h2 class="section-banner-title" id="disparities-heading">Health Equity &amp; Disparities</h2>
+            <p class="section-banner-sub">Cross-correlating symptom burden with geographic and socioeconomic proxies at state level — quantifying inequalities in disease severity, healthcare access, and physician response time across Nigeria. These metrics directly inform resource allocation and equity policy.</p>
+          </div>
+        </div>
+
+        <div class="disp-grid">
+
+          <!-- Panel 1: Symptom Burden by State (SES proxy table) -->
+          <div class="disp-card disp-card-wide" id="disp-burden">
+            <h3 class="disp-card-title">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+              Symptom Burden &amp; Socioeconomic Health Proxies by State
+            </h3>
+            <p class="disp-card-desc">Per-state composite of urgency severity, escalation rate, prescription coverage, and repeat-patient burden — each a validated proxy for underlying socioeconomic health inequality (k-anonymised, min. 3 cases per state).</p>
+
+            <div class="disp-national-row" id="disp-national-row">
+              <span>National HIGH/CRITICAL rate: <strong id="disp-nat-hc">—</strong></span>
+              <span>National escalation rate: <strong id="disp-nat-esc">—</strong></span>
+              <span id="disp-burden-states"></span>
+            </div>
+
+            <div class="disp-table-wrap">
+              <table class="disp-table" id="disp-burden-table" aria-label="Symptom burden by state">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>State</th>
+                    <th>Cases</th>
+                    <th>Severity Index <span class="disp-th-note">↑ worse</span></th>
+                    <th>HIGH/CRIT %</th>
+                    <th>Escalation %</th>
+                    <th>Rx Coverage</th>
+                    <th>AI Confidence</th>
+                    <th>Repeat Pts %</th>
+                    <th>Top Condition</th>
+                  </tr>
+                </thead>
+                <tbody id="disp-burden-tbody">
+                  <tr><td colspan="10" class="disp-loading">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Panel 2: Physician Response-Time Inequality -->
+          <div class="disp-card" id="disp-response">
+            <h3 class="disp-card-title">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+              Physician Response-Time Inequality by State
+            </h3>
+            <p class="disp-card-desc">Median and p90 physician assignment latency by state — a direct measure of healthcare access inequality. The <em>inequality ratio</em> shows how much slower each state is relative to the national median.</p>
+
+            <div class="disp-rt-summary" id="disp-rt-summary">
+              <div class="disp-rt-stat">
+                <span class="disp-rt-val" id="rt-nat-median">—</span>
+                <span class="disp-rt-lbl">National Median Response</span>
+              </div>
+              <div class="disp-rt-stat disp-rt-gap">
+                <span class="disp-rt-val" id="rt-gap">—</span>
+                <span class="disp-rt-lbl">Worst–Best Gap</span>
+              </div>
+              <div class="disp-rt-stat">
+                <span class="disp-rt-val" id="rt-nat-p90">—</span>
+                <span class="disp-rt-lbl">National p90</span>
+              </div>
+            </div>
+
+            <div class="disp-rt-list" id="disp-rt-list" role="list" aria-label="Response time by state"></div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Research Dataset ───────────────────────────────────────────────── -->
+    <section class="research-section reveal" id="research" aria-labelledby="research-heading">
+      <div class="container">
+
+        <div class="section-banner">
+          <div class="section-banner-icon teal" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+          </div>
+          <div class="section-banner-text">
+            <h2 class="section-banner-title" id="research-heading">Research Dataset Access</h2>
+            <p class="section-banner-sub">Anonymised, physician-adjudicated health records from a real-world telemedicine platform — bridging patient-reported outcomes and clinically confirmed diagnoses. Rare in Nigeria and across sub-Saharan Africa. Suitable for AI benchmarking, comorbidity research, and health equity studies.</p>
+          </div>
+          <a class="section-banner-cta" href="./access.html" aria-label="Request dataset access">Request Access</a>
+        </div>
+
+        <div class="research-grid">
+
+          <!-- Card 1: Longitudinal Record Quality -->
+          <div class="res-card" id="res-longitudinal">
+            <h3 class="res-card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
+              Longitudinal Record Quality
+            </h3>
+            <p class="res-card-desc">Physician-adjudicated cases and repeat-patient longitudinal records available in the dataset.</p>
+            <div class="res-stat-grid" id="res-long-stats">
+              <div class="res-stat-item">
+                <span class="res-stat-val" id="res-total-cases">—</span>
+                <span class="res-stat-lbl">Total Cases</span>
+              </div>
+              <div class="res-stat-item">
+                <span class="res-stat-val" id="res-adjudicated">—</span>
+                <span class="res-stat-lbl">Physician Adjudicated</span>
+              </div>
+              <div class="res-stat-item">
+                <span class="res-stat-val" id="res-adj-pct">—</span>
+                <span class="res-stat-lbl">Adjudication Rate</span>
+              </div>
+              <div class="res-stat-item">
+                <span class="res-stat-val" id="res-approval-pct">—</span>
+                <span class="res-stat-lbl">AI Approval Rate</span>
+              </div>
+              <div class="res-stat-item">
+                <span class="res-stat-val" id="res-repeat-patients">—</span>
+                <span class="res-stat-lbl">Repeat Patients</span>
+              </div>
+              <div class="res-stat-item">
+                <span class="res-stat-val" id="res-outcome-verified">—</span>
+                <span class="res-stat-lbl">Outcome Verified</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: AI Benchmark -->
+          <div class="res-card res-card-wide" id="res-benchmark">
+            <h3 class="res-card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 17.93V18h-2v1.93A8.001 8.001 0 0 1 4.07 13H6v-2H4.07A8.001 8.001 0 0 1 11 4.07V6h2V4.07A8.001 8.001 0 0 1 19.93 11H18v2h1.93A8.001 8.001 0 0 1 13 19.93zM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>
+              EDIS AI Confidence vs Physician Override Rate
+            </h3>
+            <p class="res-card-desc">Benchmark for evaluating AI diagnostic accuracy in real-world, low-resource clinical settings. Override rate = physician rejected AI output; Approval rate = physician confirmed.</p>
+            <div class="res-benchmark-wrap">
+              <div class="res-benchmark-summary">
+                <span class="res-bm-stat"><strong id="res-bm-reviewed">—</strong> physician-reviewed cases</span>
+                <span class="res-bm-stat">Overall approval <strong id="res-bm-approval">—</strong> · override <strong id="res-bm-override">—</strong></span>
+              </div>
+              <table class="res-bm-table" id="res-bm-table" aria-label="AI confidence benchmark table">
+                <thead>
+                  <tr>
+                    <th>Confidence Band</th>
+                    <th>Cases</th>
+                    <th>Reviewed</th>
+                    <th>Approved</th>
+                    <th>Override Rate</th>
+                    <th>Approval Rate</th>
+                  </tr>
+                </thead>
+                <tbody id="res-bm-tbody">
+                  <tr><td colspan="6" class="res-loading">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Card 3: Comorbidity Co-occurrence -->
+          <div class="res-card" id="res-comorbidity">
+            <h3 class="res-card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+              Comorbidity &amp; Co-occurrence
+            </h3>
+            <p class="res-card-desc">Condition pairs co-occurring in the same patient — population-scale comorbidity signal for research (min. 3 patients per pair, k-anonymised).</p>
+            <div class="res-comorbid-meta" id="res-comorbid-meta">
+              <span><strong id="res-multi-patients">—</strong> patients with ≥ 2 conditions</span>
+            </div>
+            <div class="res-comorbid-list" id="res-comorbid-list" role="list" aria-label="Top comorbidity pairs"></div>
+          </div>
+
+          <!-- Card 4: AI-Physician Agreement & Disagreement Corpus -->
+          <div class="res-card res-card-full" id="res-agreement">
+            <h3 class="res-card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              AI-Physician Agreement &amp; Disagreement Corpus
+            </h3>
+            <p class="res-card-desc">Labelled corpus for training and evaluating diagnostic AI: each case carries physician adjudication — full approval (AI accepted as-is), edited approval (physician revised output), or rejection (full AI override). Rare ground-truth signal for AI benchmarking in Nigerian clinical contexts.</p>
+
+            <div class="res-agree-summary">
+              <div class="res-agree-stat res-agree-green">
+                <span class="res-agree-val" id="ag-full-pct">—</span>
+                <span class="res-agree-lbl">Full Agreement</span>
+                <span class="res-agree-sub" id="ag-full-n"></span>
+              </div>
+              <div class="res-agree-stat res-agree-amber">
+                <span class="res-agree-val" id="ag-edit-pct">—</span>
+                <span class="res-agree-lbl">Edited &amp; Approved</span>
+                <span class="res-agree-sub" id="ag-edit-n"></span>
+              </div>
+              <div class="res-agree-stat res-agree-red">
+                <span class="res-agree-val" id="ag-reject-pct">—</span>
+                <span class="res-agree-lbl">Disagreement (Rejected)</span>
+                <span class="res-agree-sub" id="ag-reject-n"></span>
+              </div>
+              <div class="res-agree-stat res-agree-neutral">
+                <span class="res-agree-val" id="ag-total">—</span>
+                <span class="res-agree-lbl">Physician-Reviewed Cases</span>
+              </div>
+            </div>
+
+            <div class="res-agree-cols">
+              <div class="res-agree-col">
+                <h4 class="res-sub-heading">Disagreement Rate by Urgency Level</h4>
+                <table class="res-agree-table" id="ag-urgency-table" aria-label="Agreement by urgency">
+                  <thead>
+                    <tr><th>Urgency</th><th>Reviewed</th><th>Approved</th><th>Rejected</th><th>Rejection Rate</th></tr>
+                  </thead>
+                  <tbody id="ag-urgency-tbody">
+                    <tr><td colspan="5" class="res-loading">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="res-agree-col">
+                <h4 class="res-sub-heading">Top Contested Conditions</h4>
+                <div class="res-condition-list" id="ag-condition-list" role="list" aria-label="Top conditions by disagreement rate"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: Escalation Rate Analysis (General → Clinical Handoff) -->
+          <div class="res-card res-card-full" id="res-escalation">
+            <h3 class="res-card-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              Escalation Rate Analysis — AI-to-Human Handoff Threshold
+            </h3>
+            <p class="res-card-desc">Empirical data on when EDIS triggers physician handoff: escalation rates by urgency tier, AI confidence at the moment of escalation vs non-escalation, and top conditions requiring clinical review. Key open variable for health AI deployment research.</p>
+
+            <div class="res-esc-summary">
+              <div class="res-esc-stat">
+                <span class="res-esc-val" id="esc-rate">—</span>
+                <span class="res-esc-lbl">Overall Escalation Rate</span>
+              </div>
+              <div class="res-esc-stat">
+                <span class="res-esc-val" id="esc-total">—</span>
+                <span class="res-esc-lbl">Total Cases</span>
+              </div>
+              <div class="res-esc-stat">
+                <span class="res-esc-val" id="esc-clinical-pct">—</span>
+                <span class="res-esc-lbl">Clinical-Mode Escalated</span>
+              </div>
+              <div class="res-esc-stat res-esc-conf">
+                <span class="res-esc-conf-row">
+                  <span class="res-esc-conf-label">EDIS confidence at escalation</span>
+                  <strong id="esc-conf-esc">—</strong>
+                </span>
+                <span class="res-esc-conf-row">
+                  <span class="res-esc-conf-label">EDIS confidence without escalation</span>
+                  <strong id="esc-conf-non">—</strong>
+                </span>
+              </div>
+            </div>
+
+            <div class="res-agree-cols">
+              <div class="res-agree-col">
+                <h4 class="res-sub-heading">Escalation by Urgency Level</h4>
+                <div class="res-esc-urgency-list" id="esc-urgency-list" role="list" aria-label="Escalation rate by urgency"></div>
+              </div>
+              <div class="res-agree-col">
+                <h4 class="res-sub-heading">Top Escalating Conditions</h4>
+                <div class="res-condition-list" id="esc-condition-list" role="list" aria-label="Top conditions by escalation rate"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Compliance & NDPA Data Governance ─────────────────────────────── -->
+    <section class="compliance-section reveal" id="compliance" aria-labelledby="compliance-heading">
+      <div class="container">
+        <div class="section-banner">
+          <div class="section-banner-icon green" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+          </div>
+          <div class="section-banner-text">
+            <h2 class="section-banner-title" id="compliance-heading">Data Governance &amp; NDPA Compliance</h2>
+            <p class="section-banner-sub">Aggregate audit trail metrics and Nigeria Data Protection Act (NDPA) compliance indicators — supporting regulatory reporting to NDPC, WHO, and Africa CDC. All figures are anonymised platform-level statistics.</p>
+          </div>
+        </div>
+
+        <div class="compliance-grid">
+          <!-- Audit activity panel -->
+          <div class="comp-card" id="comp-audit-card">
+            <h3 class="comp-card-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+              Audit Activity (30 days)
+            </h3>
+            <div class="comp-total-events">
+              <span id="comp-total-events">—</span>
+              <span class="comp-total-label">total audit events</span>
+            </div>
+            <ul class="comp-cat-list" id="comp-cat-list" aria-label="Audit events by category"></ul>
+          </div>
+
+          <!-- NDPA compliance indicators -->
+          <div class="comp-card" id="comp-ndpa-card">
+            <h3 class="comp-card-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10h7c-.53 4.12-3.28 7.79-7 8.94V11H5V6.3l7-3.11V11z"/></svg>
+              NDPA Compliance Status
+            </h3>
+            <div class="comp-status-badge" id="comp-ndpa-badge" aria-live="polite">
+              <span id="comp-ndpa-indicator" class="comp-indicator"></span>
+              <span id="comp-ndpa-label">Checking…</span>
+            </div>
+            <div class="comp-ndpa-grid" id="comp-ndpa-grid">
+              <div class="comp-ndpa-item">
+                <span class="comp-ndpa-check" id="comp-consent-icon">—</span>
+                <span>Consent captured</span>
+                <strong id="comp-consent-pct">—</strong>
+              </div>
+              <div class="comp-ndpa-item">
+                <span class="comp-ndpa-check" id="comp-minimise-icon">—</span>
+                <span>Data minimisation</span>
+                <strong id="comp-minimise-val">—</strong>
+              </div>
+              <div class="comp-ndpa-item">
+                <span class="comp-ndpa-check" id="comp-retention-icon">—</span>
+                <span>Retention policy</span>
+                <strong id="comp-retention-val">—</strong>
+              </div>
+              <div class="comp-ndpa-item">
+                <span class="comp-ndpa-check" id="comp-breach-icon">—</span>
+                <span>Breach incidents (30d)</span>
+                <strong id="comp-breach-val">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Data subjects & DSAR -->
+          <div class="comp-card" id="comp-subjects-card">
+            <h3 class="comp-card-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+              Data Subjects &amp; Rights
+            </h3>
+            <div class="comp-subject-stat">
+              <span id="comp-data-subjects">—</span>
+              <span class="comp-total-label">registered data subjects</span>
+            </div>
+            <div class="comp-dsar-row">
+              <div class="comp-dsar-item">
+                <span class="comp-dsar-val" id="comp-dsar-pending">—</span>
+                <span class="comp-dsar-label">Pending DSARs</span>
+              </div>
+              <div class="comp-dsar-item">
+                <span class="comp-dsar-val" id="comp-snapshot-date">—</span>
+                <span class="comp-dsar-label">Last Snapshot</span>
+              </div>
+            </div>
+            <p class="comp-disclaimer">Data subject counts are platform-level aggregates. No personally identifiable information is exposed through this dashboard.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Footer ──────────────────────────────────────────────────────────── -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div>
+            <div class="footer-brand-logo">
+              <svg width="20" height="20" viewBox="0 0 53 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M52.998 24.3C52.998 19.49 51.457 14.8 48.569 10.8C45.682 6.8 41.577 3.69 36.775 1.85C31.974 0.01 26.69-0.47 21.592 0.47C16.494 1.4 11.812 3.72 8.137 7.12C4.461 10.52 1.959 14.85 0.945 19.56C-0.069 24.27 0.451 29.16 2.44 33.6C4.429 38.04 7.797 41.83 12.119 44.5C16.44 47.17 21.521 48.6 26.719 48.6L26.719 24.3H52.998Z" fill="white" stroke="#09999B" stroke-width="1.5"/>
+                <path d="M0.231 40.94C0.185 45.75 1.679 50.46 4.522 54.48C7.366 58.5 11.433 61.65 16.207 63.52C20.982 65.4 26.251 65.93 31.347 65.03C36.443 64.13 41.138 61.86 44.838 58.49C48.538 55.12 51.077 50.81 52.134 46.11C53.191 41.4 52.718 36.51 50.775 32.05C48.832 27.6 45.507 23.78 41.219 21.07C36.932 18.36 31.875 16.9 26.688 16.86L26.457 41.16L0.231 40.94Z" fill="#09999B"/>
+              </svg>
+              <div>
+                <span class="footer-brand-name">LifeGate Analytics</span>
+                <span class="footer-brand-sub">public.dshub.com.ng</span>
+              </div>
+            </div>
+            <p class="footer-brand-desc">Nigeria's first physician-validated, NDPA-compliant public health analytics platform — built for those who shape health policy.</p>
+          </div>
+          <div>
+            <p class="footer-col-title">Platform</p>
+            <div class="footer-col-links">
+              <a href="#about">About</a>
+              <a href="#dashboard">Dashboard</a>
+              <a href="./access.html">Request Access</a>
+              <a href="https://dshub.com.ng" target="_blank" rel="noopener noreferrer">DSHub</a>
+            </div>
+          </div>
+          <div>
+            <p class="footer-col-title">Data</p>
+            <div class="footer-col-links">
+              <a href="#disparities">Disparities</a>
+              <a href="#research">Research Dataset</a>
+              <a href="#compliance">Compliance &amp; NDPA</a>
+              <a href="#audience">Who It's For</a>
+            </div>
+          </div>
+          <div>
+            <p class="footer-col-title">Contact &amp; Legal</p>
+            <div class="footer-col-links">
+              <a href="mailto:contact@dshub.com.ng">contact@dshub.com.ng</a>
+              <a href="https://download.dshub.com.ng" target="_blank" rel="noopener noreferrer">Get LifeGate App</a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p class="footer-copy">&copy; 2026 DSHub. All rights reserved. Data anonymised under NDPA 2023.</p>
+          <div class="footer-ndpa">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+            NDPA 2023 Compliant
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      'use strict';
+
+      // ── Reveal on scroll ──────────────────────────────────────────────────
+      (function () {
+        const els = document.querySelectorAll('.reveal');
+        if (!els.length) return;
+        const io = new IntersectionObserver(
+          (entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } }),
+          { threshold: 0.12 }
+        );
+        els.forEach((el) => io.observe(el));
+      })();
+
+      // ── Mobile nav burger ─────────────────────────────────────────────────
+      (function () {
+        const burger = document.querySelector('.nav-burger');
+        const menu = document.getElementById('mobile-menu');
+        if (!burger || !menu) return;
+        burger.addEventListener('click', function () {
+          const open = burger.getAttribute('aria-expanded') === 'true';
+          burger.setAttribute('aria-expanded', String(!open));
+          menu.hidden = open;
+        });
+        menu.querySelectorAll('a').forEach((a) => {
+          a.addEventListener('click', () => { menu.hidden = true; burger.setAttribute('aria-expanded', 'false'); });
+        });
+      })();
+
+      // ── Nav scroll glass darkening ─────────────────────────────────────────
+      (function () {
+        const nav = document.querySelector('.site-nav');
+        if (!nav) return;
+        const onScroll = () => nav.classList.toggle('nav-scrolled', window.scrollY > 40);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+      })();
+
+      // ── Disease Surveillance live data ────────────────────────────────────
+      (function () {
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+        const SURV = API_BASE + '/public/surveillance';
+
+        // Palette — teal spectrum for condition lines
+        const PALETTE = ['#09999B','#0EA5E9','#38BDF8','#0284C7','#06B6D4',
+                         '#0891B2','#67E8F9','#22D3EE','#0e7490','#155e75'];
+
+        function fmt(n) {
+          if (n === undefined || n === null) return '—';
+          return Number(n).toLocaleString();
+        }
+        function fmtDate(iso) {
+          if (!iso) return '';
+          const d = new Date(iso);
+          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        // ── Fetch helpers ─────────────────────────────────────────────────
+        async function fetchJSON(url) {
+          const r = await fetch(url, { headers: { Accept: 'application/json' } });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const j = await r.json();
+          if (!j.success) throw new Error('API error');
+          return j.data;
+        }
+
+        // ── Summary ───────────────────────────────────────────────────────
+        async function loadSummary() {
+          try {
+            const d = await fetchJSON(SURV + '/summary');
+            set('surv-total-week',   fmt(d.totalCasesThisWeek));
+            set('surv-conditions',   fmt(d.totalConditionsTracked));
+            set('surv-anomalies',    fmt(d.activeAnomalies));
+            set('hero-cases',        fmt(d.totalCasesLast30Days));
+            set('hero-conditions',   fmt(d.totalConditionsTracked));
+            set('hero-states',       fmt(d.statesWithSignal));
+            if (d.lastUpdated) {
+              const el = document.getElementById('surv-updated');
+              if (el) el.textContent = 'Updated ' + fmtDate(d.lastUpdated);
+            }
+            if (d.activeAnomalies > 0) {
+              const stat = document.getElementById('surv-anomaly-stat');
+              if (stat) stat.classList.add('has-alerts');
+            }
+            // Flip hero card status
+            const heroStatus = document.querySelector('.hero-card-status');
+            if (heroStatus) {
+              heroStatus.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Live · NDPA-compliant · anonymised';
+              heroStatus.classList.add('hero-status-live');
+            }
+          } catch (e) {
+            console.warn('[surveillance] summary:', e.message);
+          }
+        }
+
+        function set(id, val) {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        }
+
+        // ── Trend mini-chart (pure CSS bar chart) ─────────────────────────
+        async function loadTrends() {
+          const loading = document.getElementById('surv-chart-loading');
+          const inner   = document.getElementById('surv-chart-inner');
+          const legend  = document.getElementById('surv-legend');
+          if (!inner) return;
+
+          try {
+            const trends = await fetchJSON(SURV + '/trends?weeks=12&limit=6');
+            if (!trends || !trends.length) { showNoData(inner, loading); return; }
+
+            // Collect all unique period labels.
+            const allWeeks = [];
+            trends.forEach(t => (t.points || []).forEach(p => {
+              if (!allWeeks.includes(p.periodStart)) allWeeks.push(p.periodStart);
+            }));
+            allWeeks.sort();
+
+            // Build a normalised value matrix.
+            const maxCount = Math.max(...trends.flatMap(t => (t.points || []).map(p => p.caseCount)), 1);
+
+            // Chart HTML — stacked groups of bars per condition.
+            let chartHTML = '<div class="surv-bars-wrap">';
+            allWeeks.forEach((week, wi) => {
+              chartHTML += '<div class="surv-week-group" title="Week of ' + week + '">';
+              trends.forEach((t, ti) => {
+                const pt  = (t.points || []).find(p => p.periodStart === week);
+                const cnt = pt ? pt.caseCount : 0;
+                const h   = Math.max(Math.round((cnt / maxCount) * 100), cnt > 0 ? 4 : 0);
+                chartHTML += '<div class="surv-bar" style="height:' + h + '%;background:' + PALETTE[ti % PALETTE.length] + '" title="' + t.conditionName + ': ' + cnt + ' cases"></div>';
+              });
+              // Week label — only show every 4th to avoid clutter
+              const label = wi % 4 === 0 ? week.slice(5) : '';
+              chartHTML += '<span class="surv-week-label">' + label + '</span>';
+              chartHTML += '</div>';
+            });
+            chartHTML += '</div>';
+            inner.innerHTML = chartHTML;
+            loading.hidden = true;
+            inner.hidden = false;
+
+            // Legend
+            legend.innerHTML = trends.map((t, i) =>
+              '<span class="surv-legend-item"><span class="surv-legend-dot" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+              '<span class="surv-legend-name">' + escapeHTML(t.conditionName) + '</span></span>'
+            ).join('');
+          } catch (e) {
+            console.warn('[surveillance] trends:', e.message);
+            showNoData(inner, loading);
+          }
+        }
+
+        function showNoData(inner, loading) {
+          if (loading) loading.hidden = true;
+          if (inner) { inner.innerHTML = '<p class="surv-no-data">No surveillance data available yet.</p>'; inner.hidden = false; }
+        }
+
+        // ── Anomaly alerts ────────────────────────────────────────────────
+        async function loadAnomalies() {
+          try {
+            const anomalies = await fetchJSON(SURV + '/anomalies');
+            if (!anomalies || !anomalies.length) return;
+
+            const section = document.getElementById('surv-anomaly-section');
+            const list    = document.getElementById('surv-anomaly-list');
+            if (!section || !list) return;
+
+            list.innerHTML = anomalies.slice(0, 5).map(a => {
+              const sev = (a.severity || 'mild').toLowerCase();
+              return '<div class="surv-anomaly-item surv-anomaly-' + sev + '">' +
+                '<div class="surv-anomaly-top">' +
+                '<span class="surv-anomaly-condition">' + escapeHTML(a.conditionName) + '</span>' +
+                '<span class="surv-anomaly-badge surv-badge-' + sev + '">' + capFirst(sev) + '</span>' +
+                '</div>' +
+                '<div class="surv-anomaly-detail">' +
+                escapeHTML(a.state) + ' &nbsp;·&nbsp; ' +
+                fmt(a.currentCount) + ' cases &nbsp;·&nbsp; ' +
+                'z&nbsp;=&nbsp;' + Number(a.zScore).toFixed(1) + 'σ &nbsp;·&nbsp; ' +
+                'avg&nbsp;' + Number(a.rollingAvg).toFixed(1) +
+                '</div>' +
+                '</div>';
+            }).join('');
+
+            section.hidden = false;
+
+            // Update live badge to pulse
+            const badge = document.getElementById('surv-live-badge');
+            if (badge) badge.classList.add('badge-pulse');
+          } catch (e) {
+            console.warn('[surveillance] anomalies:', e.message);
+          }
+        }
+
+        function escapeHTML(str) {
+          return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+        function capFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+        // ── Bootstrap ─────────────────────────────────────────────────────
+        Promise.all([loadSummary(), loadTrends(), loadAnomalies()]);
+      })();
+
+      // ── Seasonal Illness Trends ───────────────────────────────────────────
+      (function () {
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+        const SURV    = API_BASE + '/public/surveillance';
+        const PALETTE = ['#09999B','#0EA5E9','#38BDF8','#0284C7','#06B6D4','#0891B2','#22D3EE','#67E8F9'];
+
+        function fmt(n) { return (n == null) ? '—' : Number(n).toLocaleString(); }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function setEl(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+
+        async function load() {
+          const loading = document.getElementById('seas-loading');
+          const inner   = document.getElementById('seas-inner');
+          const legend  = document.getElementById('seas-legend');
+          try {
+            const r = await fetch(SURV + '/seasonal?weeksBack=52&topN=8', { headers: { Accept: 'application/json' } });
+            const j = await r.json();
+            if (!j.success || !j.data.conditions.length) { noData(inner, loading); return; }
+            const d = j.data;
+            const totalCases = d.conditions.reduce(function(s, c) { return s + c.totalCases; }, 0);
+            setEl('seas-conditions', String(d.conditions.length));
+            setEl('seas-months',     String(d.months.length));
+            setEl('seas-total',      fmt(totalCases));
+
+            const maxCases = Math.max.apply(null,
+              d.conditions.flatMap(function(c) { return c.points.map(function(p) { return p.cases; }); }).concat([1])
+            );
+            var html = '<div class="surv-bars-wrap">';
+            d.months.forEach(function(month, mi) {
+              html += '<div class="surv-week-group" title="' + esc(month) + '">';
+              d.conditions.forEach(function(cond, ci) {
+                var cnt = cond.points[mi] ? cond.points[mi].cases : 0;
+                var h   = Math.max(Math.round((cnt / maxCases) * 100), cnt > 0 ? 4 : 0);
+                html += '<div class="surv-bar" style="height:' + h + '%;background:' + PALETTE[ci % PALETTE.length] + '" title="' + esc(cond.conditionName) + ': ' + cnt + '"></div>';
+              });
+              var showLabel = d.months.length <= 8 || mi % 2 === 0;
+              html += '<span class="surv-week-label">' + (showLabel ? esc(month.slice(0, 3)) : '') + '</span>';
+              html += '</div>';
+            });
+            html += '</div>';
+            inner.innerHTML = html;
+            loading.hidden = true;
+            inner.hidden   = false;
+
+            if (legend) {
+              legend.innerHTML = d.conditions.slice(0, 6).map(function(c, i) {
+                return '<span class="surv-legend-item"><span class="surv-legend-dot" style="background:' + PALETTE[i % PALETTE.length] + '"></span>' +
+                       '<span class="surv-legend-name">' + esc(c.conditionName) + '</span></span>';
+              }).join('');
+            }
+          } catch (e) {
+            console.warn('[seasonal]', e.message);
+            noData(inner, loading);
+          }
+        }
+
+        function noData(inner, loading) {
+          if (loading) loading.hidden = true;
+          if (inner) { inner.innerHTML = '<p class="surv-no-data">No seasonal data available yet.</p>'; inner.hidden = false; }
+        }
+
+        load();
+      })();
+
+      // ── Regional Health Map ───────────────────────────────────────────────
+      (function () {
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+        const SURV = API_BASE + '/public/surveillance';
+        const COLORS = ['#09999B','#0EA5E9','#38BDF8'];
+
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function fmt(n) { return Number(n).toLocaleString(); }
+
+        async function load() {
+          const loading = document.getElementById('regional-loading');
+          const list    = document.getElementById('regional-list');
+          try {
+            const r = await fetch(SURV + '/by-state?weeks=12', { headers: { Accept: 'application/json' } });
+            const j = await r.json();
+            const data = j.success ? j.data : [];
+            if (!data || !data.length) { if (loading) loading.hidden = true; return; }
+
+            var html = '';
+            data.slice(0, 3).forEach(function(cond, ci) {
+              var states  = (cond.states || []).slice(0, 5);
+              var maxS    = Math.max.apply(null, states.map(function(s) { return s.caseCount; }).concat([1]));
+              var color   = COLORS[ci % COLORS.length];
+              html += '<div style="margin-bottom:12px;">';
+              html += '<div style="font-family:\"Lexend\",sans-serif;font-size:.78rem;font-weight:700;color:var(--text);'
+                    + 'display:flex;justify-content:space-between;margin-bottom:5px;">';
+              html += '<span>' + esc(cond.conditionName) + '</span>';
+              html += '<span style="font-weight:400;font-size:.7rem;color:var(--text-muted);">' + fmt(cond.totalCases) + ' cases</span>';
+              html += '</div>';
+              states.forEach(function(s) {
+                var pct = Math.max(Math.round((s.caseCount / maxS) * 100), 4);
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';
+                html += '<span style="font-size:.7rem;color:var(--text-muted);width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(s.state) + '</span>';
+                html += '<div style="flex:1;background:var(--slate-200);border-radius:4px;height:7px;overflow:hidden;">';
+                html += '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:4px;"></div>';
+                html += '</div>';
+                html += '<span style="font-size:.68rem;color:var(--text-muted);width:28px;text-align:right;">' + s.caseCount + '</span>';
+                html += '</div>';
+              });
+              html += '</div>';
+            });
+            list.innerHTML = html;
+            loading.hidden = true;
+            list.hidden    = false;
+          } catch (e) {
+            console.warn('[regional]', e.message);
+            if (loading) loading.hidden = true;
+          }
+        }
+
+        load();
+      })();
+
+      // ── Physician Coverage & Healthcare Access Deserts ────────────────────
+      (function () {
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+        const ACCESS = API_BASE + '/public/health-access';
+
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function fmtPct(v) { return (Number(v||0)*100).toFixed(1)+'%'; }
+        function fmtHours(h) {
+          var v = Number(h||0);
+          if (v < 1) return Math.round(v*60)+'m';
+          return v.toFixed(1)+'h';
+        }
+        function setEl(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+
+        async function load() {
+          const loading   = document.getElementById('access-loading');
+          const stateList = document.getElementById('access-state-list');
+          try {
+            const [sj, dj] = await Promise.all([
+              fetch(ACCESS + '/summary?weeks=12', { headers: { Accept: 'application/json' } }).then(function(r){ return r.json(); }),
+              fetch(ACCESS + '/by-state?weeks=12', { headers: { Accept: 'application/json' } }).then(function(r){ return r.json(); }),
+            ]);
+            const summary = sj.success ? sj.data : {};
+            const states  = dj.success ? dj.data : [];
+
+            setEl('access-breach-rate', fmtPct(summary.nationalBreachRate));
+            setEl('access-avg-resp',    fmtHours(summary.avgResponseHours));
+            setEl('access-deserts',     String(summary.desertStates || 0));
+            if ((summary.nationalBreachRate || 0) > 0.1) {
+              var bs = document.getElementById('access-breach-stat');
+              if (bs) bs.classList.add('has-alerts');
+            }
+
+            if (!states || !states.length) { if (loading) loading.hidden = true; return; }
+
+            var maxScore = Math.max.apply(null, states.map(function(s){ return s.accessGapScore; }).concat([0.001]));
+            var html = '';
+            states.slice(0, 10).forEach(function(s) {
+              var pct   = Math.max(Math.round((s.accessGapScore / maxScore) * 100), 4);
+              var color = s.isDesert ? '#EF4444' : (s.accessGapScore > maxScore * 0.5 ? '#F97316' : '#09999B');
+              html += '<div class="access-state-row">';
+              html += '<div class="access-state-top">';
+              html += '<span class="access-state-name">' + esc(s.state) + '</span>';
+              if (s.isDesert) html += ' <span class="access-desert-badge">DESERT</span>';
+              html += '<span class="access-state-meta">' + s.totalCases + ' cases · ' + fmtHours(s.avgResponseHours) + ' · ' + fmtPct(s.slaBreachRate) + ' breach</span>';
+              html += '</div>';
+              html += '<div class="access-bar-track"><div class="access-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+              html += '</div>';
+            });
+            stateList.innerHTML = html;
+            loading.hidden      = true;
+            stateList.hidden    = false;
+          } catch (e) {
+            console.warn('[access]', e.message);
+            if (loading) loading.hidden = true;
+          }
+        }
+
+        load();
+      })();
+    </script>
+
+    <!-- ── Telemedicine Utilization module ──────────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+
+        function fmt(n) {
+          if (n == null) return '—';
+          return Number(n).toLocaleString();
+        }
+        function pct(v) {
+          if (v == null) return '—';
+          return v.toFixed(1) + '%';
+        }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        async function load() {
+          let data;
+          try {
+            const r = await fetch(`${API_BASE}/public/insights/telemedicine?weeks=12`);
+            if (!r.ok) throw new Error(r.status);
+            data = await r.json();
+          } catch (e) {
+            console.warn('Telemedicine API:', e);
+            return;
+          }
+
+          document.getElementById('tele-total').textContent = fmt(data.totalConsults);
+          document.getElementById('tele-reviewed').textContent = fmt(data.physicianReviewed);
+          document.getElementById('tele-completion').textContent = pct(data.nationalCompletionRate);
+
+          // Weekly trend chart (Chart.js loaded globally on the page)
+          const canvas = document.getElementById('tele-trend-chart');
+          if (canvas && window.Chart && Array.isArray(data.weeklyTrend) && data.weeklyTrend.length) {
+            const labels = data.weeklyTrend.map(p => p.weekStart.slice(5)); // MM-DD
+            const totals = data.weeklyTrend.map(p => p.totalConsults);
+            const reviewed = data.weeklyTrend.map(p => p.physicianReviewed);
+            new Chart(canvas.getContext('2d'), {
+              type: 'bar',
+              data: {
+                labels,
+                datasets: [
+                  {
+                    label: 'Total',
+                    data: totals,
+                    backgroundColor: 'rgba(56,189,248,0.25)',
+                    borderColor: '#38BDF8',
+                    borderWidth: 1.5,
+                    borderRadius: 3,
+                  },
+                  {
+                    label: 'Physician Reviewed',
+                    data: reviewed,
+                    backgroundColor: 'rgba(9,153,155,0.5)',
+                    borderColor: '#09999B',
+                    borderWidth: 1.5,
+                    borderRadius: 3,
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: { ticks: { font: { size: 9 }, color: '#9CA3AF' }, grid: { display: false } },
+                  y: { ticks: { font: { size: 9 }, color: '#9CA3AF' }, beginAtZero: true }
+                }
+              }
+            });
+          }
+
+          // Top 5 states by consultation volume
+          const listEl = document.getElementById('tele-state-list');
+          if (listEl && Array.isArray(data.byState)) {
+            const top = data.byState.slice(0, 5);
+            const maxVal = top.length ? top[0].totalConsults : 1;
+            listEl.innerHTML = top.map(s => {
+              const barPct = Math.max(4, Math.round((s.totalConsults / maxVal) * 100));
+              return `
+                <div class="tele-state-row" role="listitem">
+                  <span class="tele-state-name">${esc(s.state)}</span>
+                  <div class="tele-bar-track">
+                    <div class="tele-bar-fill" style="width:${barPct}%" title="${fmt(s.totalConsults)} consults"></div>
+                  </div>
+                  <span class="tele-state-pct">${pct(s.completionRate)}</span>
+                </div>`;
+            }).join('');
+          }
+        }
+
+        load();
+      })();
+    </script>
+
+    <!-- ── Resource Gap Analysis module ─────────────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+
+        const SEVERITY_LABEL = { critical: 'Critical', high: 'High', moderate: 'Moderate' };
+        const SEVERITY_CLASS = { critical: 'gap-critical', high: 'gap-high', moderate: 'gap-moderate' };
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        async function load() {
+          let data;
+          try {
+            const r = await fetch(`${API_BASE}/public/resource-gaps?weeks=12&limit=30`);
+            if (!r.ok) throw new Error(r.status);
+            data = await r.json();
+          } catch (e) {
+            console.warn('Resource Gaps API:', e);
+            return;
+          }
+
+          document.getElementById('gaps-critical').textContent = data.criticalGaps ?? '—';
+          document.getElementById('gaps-total').textContent = data.totalGaps ?? '—';
+          document.getElementById('gaps-states').textContent = data.statesAffected ?? '—';
+
+          // Flag the critical stat cell if there are critical gaps
+          if (data.criticalGaps > 0) {
+            document.getElementById('gaps-critical-stat').classList.add('surv-stat-alert');
+          }
+
+          const listEl = document.getElementById('gap-list');
+          if (!listEl || !Array.isArray(data.gaps)) return;
+
+          listEl.innerHTML = data.gaps.slice(0, 8).map(g => {
+            const sevClass = SEVERITY_CLASS[g.gapSeverity] || 'gap-moderate';
+            const specTxt = g.specialistCount === 0 ? 'No specialists' : `${g.specialistCount} specialist${g.specialistCount > 1 ? 's' : ''}`;
+            return `
+              <div class="gap-row" role="listitem">
+                <span class="gap-severity-badge ${sevClass}">${esc(SEVERITY_LABEL[g.gapSeverity] || g.gapSeverity)}</span>
+                <div class="gap-info">
+                  <span class="gap-condition">${esc(g.conditionName)}</span>
+                  <span class="gap-state">${esc(g.state)}</span>
+                </div>
+                <div class="gap-meta">
+                  <span class="gap-cases">${(g.totalCases || 0).toLocaleString()} cases</span>
+                  <span class="gap-spec">${esc(g.relatedSpecialty)} · ${specTxt}</span>
+                </div>
+              </div>`;
+          }).join('');
+        }
+
+        load();
+      })();
+    </script>
+
+    <!-- ── Compliance & NDPA Governance section ──────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+
+        const TICK  = '<span class="comp-tick" aria-label="Pass">✓</span>';
+        const CROSS = '<span class="comp-cross" aria-label="Fail">✗</span>';
+
+        function okIcon(ok) { return ok ? TICK : CROSS; }
+        function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        async function load() {
+          let data;
+          try {
+            const r = await fetch(`${API_BASE}/public/insights/compliance`);
+            if (!r.ok) throw new Error(r.status);
+            data = await r.json();
+          } catch (e) {
+            console.warn('Compliance API:', e);
+            return;
+          }
+
+          // Audit totals
+          document.getElementById('comp-total-events').textContent = fmt(data.auditEvents30d);
+
+          // Category list
+          const catEl = document.getElementById('comp-cat-list');
+          if (catEl && Array.isArray(data.byCategory)) {
+            catEl.innerHTML = data.byCategory.map(c => `
+              <li class="comp-cat-item">
+                <span class="comp-cat-name">${esc(c.category)}</span>
+                <span class="comp-cat-count">${fmt(c.count)}</span>
+              </li>`).join('');
+          }
+
+          // NDPA snapshot
+          const snap = data.ndpaSnapshot;
+          if (snap) {
+            document.getElementById('comp-ndpa-badge').classList.add(
+              data.ndpaCompliant ? 'comp-badge-pass' : 'comp-badge-warn'
+            );
+            document.getElementById('comp-ndpa-label').textContent =
+              data.ndpaCompliant ? 'Compliant' : 'Review Required';
+            document.getElementById('comp-ndpa-indicator').classList.add(
+              data.ndpaCompliant ? 'comp-ind-pass' : 'comp-ind-warn'
+            );
+
+            document.getElementById('comp-consent-icon').outerHTML =
+              `<span class="comp-ndpa-check">${okIcon(snap.consentCapturedPct >= 95)}</span>`;
+            document.getElementById('comp-consent-pct').textContent =
+              snap.consentCapturedPct != null ? snap.consentCapturedPct.toFixed(1) + '%' : '—';
+
+            document.getElementById('comp-minimise-icon').outerHTML =
+              `<span class="comp-ndpa-check">${okIcon(snap.dataMinimisationOk)}</span>`;
+            document.getElementById('comp-minimise-val').textContent =
+              snap.dataMinimisationOk ? 'Yes' : 'No';
+
+            document.getElementById('comp-retention-icon').outerHTML =
+              `<span class="comp-ndpa-check">${okIcon(snap.retentionPolicyOk)}</span>`;
+            document.getElementById('comp-retention-val').textContent =
+              snap.retentionPolicyOk ? 'Yes' : 'No';
+
+            document.getElementById('comp-breach-icon').outerHTML =
+              `<span class="comp-ndpa-check">${okIcon(snap.breachIncidents30d === 0)}</span>`;
+            document.getElementById('comp-breach-val').textContent = fmt(snap.breachIncidents30d);
+
+            document.getElementById('comp-dsar-pending').textContent = fmt(snap.pendingDsar);
+            document.getElementById('comp-snapshot-date').textContent = snap.snapshotDate || '—';
+          }
+
+          // Data subjects
+          document.getElementById('comp-data-subjects').textContent = fmt(data.dataSubjects);
+        }
+
+        load();
+      })();
+    </script>
+
+    <!-- ── Demographic Disease Burden module ─────────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+
+        // Age-group ordering for consistent display
+        const AGE_ORDER = ['0-17', '18-29', '30-44', '45-59', '60+'];
+        const AGE_COLOR = {
+          '0-17':  '#38BDF8',
+          '18-29': '#09999B',
+          '30-44': '#0EA5E9',
+          '45-59': '#6366F1',
+          '60+':   '#8B5CF6',
+        };
+
+        function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function renderHBar(container, items, valueKey, labelKey, colorFn) {
+          if (!container || !items || !items.length) return;
+          const maxVal = Math.max(...items.map(i => i[valueKey]), 1);
+          container.innerHTML = items.map(item => {
+            const pct = Math.max(4, Math.round(item[valueKey] / maxVal * 100));
+            return `
+              <div class="demo-bar-row" role="listitem">
+                <span class="demo-bar-label">${esc(item[labelKey])}</span>
+                <div class="demo-bar-track">
+                  <div class="demo-bar-fill" style="width:${pct}%;background:${colorFn(item)}" title="${fmt(item[valueKey])} cases"></div>
+                </div>
+                <span class="demo-bar-value">${fmt(item[valueKey])}</span>
+              </div>`;
+          }).join('');
+        }
+
+        async function load() {
+          let data;
+          try {
+            const r = await fetch(`${API_BASE}/public/demographics/burden?weeks=12`);
+            if (!r.ok) throw new Error(r.status);
+            data = await r.json();
+          } catch (e) {
+            console.warn('Demographic burden API:', e);
+            return;
+          }
+
+          // Age group bars
+          const ageEl = document.getElementById('demo-age-list');
+          if (ageEl && Array.isArray(data.byAgeGroup) && data.byAgeGroup.length) {
+            renderHBar(ageEl, data.byAgeGroup, 'totalCases', 'ageGroup',
+              item => AGE_COLOR[item.ageGroup] || '#38BDF8');
+          }
+
+          // Sex bars — show conditions as breakdown text
+          const sexEl = document.getElementById('demo-sex-list');
+          if (sexEl && Array.isArray(data.bySex) && data.bySex.length) {
+            const maxSex = Math.max(...data.bySex.map(s => s.totalCases), 1);
+            sexEl.innerHTML = data.bySex.map(s => {
+              const pct = Math.max(4, Math.round(s.totalCases / maxSex * 100));
+              const topCond = (s.topConditions || []).slice(0, 3).map(c => esc(c.conditionName)).join(', ');
+              return `
+                <div class="demo-sex-row" role="listitem">
+                  <div class="demo-sex-header">
+                    <span class="demo-sex-label">${esc(s.sex)}</span>
+                    <span class="demo-sex-count">${fmt(s.totalCases)} cases</span>
+                  </div>
+                  <div class="demo-bar-track">
+                    <div class="demo-bar-fill" style="width:${pct}%;background:${s.sex==='Male'?'#0EA5E9':'#8B5CF6'}" title="${fmt(s.totalCases)} cases"></div>
+                  </div>
+                  ${topCond ? `<div class="demo-sex-conditions">Top: ${topCond}</div>` : ''}
+                </div>`;
+            }).join('');
+          }
+        }
+
+        load();
+      })();
+    </script>
+
+    <!-- ── Care Pathway Follow-up module ─────────────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        const API_BASE = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content
+          || 'https://edis.dshub.com.ng/api';
+
+        function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+        function pct(v)  { return v != null ? v.toFixed(1) + '%' : '—'; }
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        // Colour scale: low dropout = teal, high dropout = red
+        function dropoutColor(rate) {
+          if (rate >= 40) return '#EF4444';
+          if (rate >= 20) return '#F59E0B';
+          return '#09999B';
+        }
+
+        async function load() {
+          let data;
+          try {
+            const r = await fetch(`${API_BASE}/public/demographics/followup?weeks=12`);
+            if (!r.ok) throw new Error(r.status);
+            data = await r.json();
+          } catch (e) {
+            console.warn('Follow-up API:', e);
+            return;
+          }
+
+          // National stats
+          document.getElementById('fu-scheduled').textContent = fmt(data.totalScheduled);
+          document.getElementById('fu-completed').textContent = fmt(data.completedCount);
+          document.getElementById('fu-dropout-pct').textContent = pct(data.nationalDropoutPct);
+          if (data.nationalDropoutPct >= 20) {
+            document.getElementById('fu-dropout-stat').classList.add('surv-stat-alert');
+          }
+
+          // Age group dropout bars
+          const ageEl = document.getElementById('fu-age-list');
+          if (ageEl && Array.isArray(data.byAgeGroup) && data.byAgeGroup.length) {
+            const maxPct = Math.max(...data.byAgeGroup.map(a => a.dropoutPct), 1);
+            ageEl.innerHTML = data.byAgeGroup.map(a => {
+              const barW = Math.max(4, Math.round(a.dropoutPct / Math.max(maxPct, 100) * 100));
+              const col = dropoutColor(a.dropoutPct);
+              return `
+                <div class="fu-row" role="listitem">
+                  <span class="fu-label">${esc(a.ageGroup)}</span>
+                  <div class="demo-bar-track">
+                    <div class="demo-bar-fill" style="width:${barW}%;background:${col}"></div>
+                  </div>
+                  <span class="fu-pct" style="color:${col}">${pct(a.dropoutPct)}</span>
+                </div>`;
+            }).join('');
+          }
+
+          // State dropout — top 5
+          const stateEl = document.getElementById('fu-state-list');
+          if (stateEl && Array.isArray(data.byState) && data.byState.length) {
+            const top5 = data.byState.slice(0, 5);
+            const maxStatePct = Math.max(...top5.map(s => s.dropoutPct), 1);
+            stateEl.innerHTML = top5.map(s => {
+              const barW = Math.max(4, Math.round(s.dropoutPct / Math.max(maxStatePct, 100) * 100));
+              const col = dropoutColor(s.dropoutPct);
+              return `
+                <div class="fu-row" role="listitem">
+                  <span class="fu-label">${esc(s.state)}</span>
+                  <div class="demo-bar-track">
+                    <div class="demo-bar-fill" style="width:${barW}%;background:${col}"></div>
+                  </div>
+                  <span class="fu-pct" style="color:${col}">${pct(s.dropoutPct)}</span>
+                </div>`;
+            }).join('');
+          }
+        }
+
+        load();
+      })();
+    </script>
+
+    <!-- ── Research: Longitudinal Record Quality ──────────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/research/longitudinal?weeks=52');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+            document.getElementById('res-total-cases').textContent   = (d.total_cases    || 0).toLocaleString();
+            document.getElementById('res-adjudicated').textContent   = (d.physician_adjudicated || 0).toLocaleString();
+            document.getElementById('res-adj-pct').textContent       = (d.adjudication_pct  || 0).toFixed(1) + '%';
+            document.getElementById('res-approval-pct').textContent  = (d.approval_pct      || 0).toFixed(1) + '%';
+            document.getElementById('res-repeat-patients').textContent = (d.repeat_patients  || 0).toLocaleString();
+            document.getElementById('res-outcome-verified').textContent = (d.outcome_verified_pct || 0).toFixed(1) + '%';
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+    <!-- ── Research: AI Benchmark ─────────────────────────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/research/ai-benchmark?weeks=52');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+            document.getElementById('res-bm-reviewed').textContent = (d.total_reviewed || 0).toLocaleString();
+            document.getElementById('res-bm-approval').textContent = (d.overall_approval_pct || 0).toFixed(1) + '%';
+            document.getElementById('res-bm-override').textContent = (d.overall_override_pct || 0).toFixed(1) + '%';
+            const tbody = document.getElementById('res-bm-tbody');
+            const bands = d.bands || [];
+            if (!bands.length) { tbody.innerHTML = '<tr><td colspan="6" class="res-loading">No data available</td></tr>'; return; }
+            tbody.innerHTML = bands.map(b => {
+              const overridePct = typeof b.override_rate_pct === 'number' ? b.override_rate_pct.toFixed(1) + '%' : '—';
+              const approvalPct = typeof b.approval_rate_pct === 'number' ? b.approval_rate_pct.toFixed(1) + '%' : '—';
+              const overrideClass = b.override_rate_pct > 40 ? 'res-pct-high' : b.override_rate_pct > 20 ? 'res-pct-mid' : 'res-pct-low';
+              return `<tr>
+                <td class="res-bm-band">${esc(b.band || '—')}</td>
+                <td>${(b.total_cases || 0).toLocaleString()}</td>
+                <td>${(b.reviewed || 0).toLocaleString()}</td>
+                <td>${(b.approved || 0).toLocaleString()}</td>
+                <td class="${overrideClass}">${overridePct}</td>
+                <td>${approvalPct}</td>
+              </tr>`;
+            }).join('');
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+    <!-- ── Research: Comorbidity Co-occurrence ────────────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/research/comorbidity?weeks=52&topN=12');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+            document.getElementById('res-multi-patients').textContent = (d.patients_with_multiple || 0).toLocaleString();
+            const list = document.getElementById('res-comorbid-list');
+            const pairs = d.top_pairs || [];
+            if (!pairs.length) { list.innerHTML = '<p class="res-loading">No comorbidity data available</p>'; return; }
+            const maxCount = pairs[0].patient_count || 1;
+            list.innerHTML = pairs.map((p, i) => {
+              const pct = Math.round((p.patient_count / maxCount) * 100);
+              return `<div class="res-pair-row" role="listitem">
+                <span class="res-pair-rank">${i + 1}</span>
+                <div class="res-pair-info">
+                  <span class="res-pair-label">${esc(p.condition_a)} &amp; ${esc(p.condition_b)}</span>
+                  <div class="res-pair-bar-track"><div class="res-pair-bar-fill" style="width:${pct}%"></div></div>
+                </div>
+                <span class="res-pair-count">${p.patient_count}</span>
+              </div>`;
+            }).join('');
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+    <!-- ── Research: AI-Physician Agreement Corpus ───────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        const URGENCY_COLOR = { CRITICAL: '#dc2626', HIGH: '#d97706', MEDIUM: '#0ea5e9', LOW: '#16a34a' };
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/research/agreement?weeks=52');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+
+            // Summary tiles
+            document.getElementById('ag-total').textContent      = (d.totalReviewed || 0).toLocaleString();
+            document.getElementById('ag-full-pct').textContent   = (d.fullAgreementPct  || 0).toFixed(1) + '%';
+            document.getElementById('ag-edit-pct').textContent   = (d.partialEditPct    || 0).toFixed(1) + '%';
+            document.getElementById('ag-reject-pct').textContent = (d.disagreementPct   || 0).toFixed(1) + '%';
+            document.getElementById('ag-full-n').textContent     = (d.fullyApproved     || 0).toLocaleString() + ' cases';
+            document.getElementById('ag-edit-n').textContent     = (d.modifiedApproved  || 0).toLocaleString() + ' cases';
+
+            // By urgency table
+            const tbody = document.getElementById('ag-urgency-tbody');
+            const urg = d.byUrgency || [];
+            if (urg.length) {
+              tbody.innerHTML = urg.map(u => {
+                const c = URGENCY_COLOR[u.urgency] || '#64748b';
+                const cls = u.rejectedPct > 30 ? 'res-pct-high' : u.rejectedPct > 15 ? 'res-pct-mid' : 'res-pct-low';
+                return `<tr>
+                  <td><span class="res-urgency-badge" style="color:${c};border-color:${c}">${esc(u.urgency)}</span></td>
+                  <td>${(u.reviewed || 0).toLocaleString()}</td>
+                  <td>${(u.approved || 0).toLocaleString()}</td>
+                  <td>${(u.rejected || 0).toLocaleString()}</td>
+                  <td class="${cls}">${(u.rejectedPct || 0).toFixed(1)}%</td>
+                </tr>`;
+              }).join('');
+            } else {
+              tbody.innerHTML = '<tr><td colspan="5" class="res-loading">No data</td></tr>';
+            }
+
+            // Top contested conditions
+            const condList = document.getElementById('ag-condition-list');
+            const conds = d.topDisagreedConditions || [];
+            const maxRej = conds.length ? Math.max(...conds.map(c => c.rejected || 0), 1) : 1;
+            condList.innerHTML = conds.length ? conds.map((c, i) => {
+              const pct = Math.round((c.rejected / maxRej) * 100);
+              return `<div class="res-cond-row" role="listitem">
+                <span class="res-cond-rank">${i + 1}</span>
+                <div class="res-cond-info">
+                  <span class="res-cond-label">${esc(c.condition)}</span>
+                  <div class="res-pair-bar-track"><div class="res-pair-bar-fill res-bar-red" style="width:${pct}%"></div></div>
+                </div>
+                <span class="res-cond-badge">${(c.disagreementPct || 0).toFixed(0)}% override</span>
+              </div>`;
+            }).join('') : '<p class="res-loading">No data available</p>';
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+    <!-- ── Research: Escalation Rate Analysis ────────────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        const URGENCY_COLOR = { CRITICAL: '#dc2626', HIGH: '#d97706', MEDIUM: '#0ea5e9', LOW: '#16a34a' };
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/research/escalation?weeks=52');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+
+            // Summary tiles
+            document.getElementById('esc-rate').textContent          = (d.escalationRatePct    || 0).toFixed(1) + '%';
+            document.getElementById('esc-total').textContent         = (d.totalCases            || 0).toLocaleString();
+            document.getElementById('esc-clinical-pct').textContent  = (d.clinicalEscalatedPct  || 0).toFixed(1) + '%';
+            document.getElementById('esc-conf-esc').textContent      = d.avgConfidenceAtEscalation    ? d.avgConfidenceAtEscalation.toFixed(1) + '%'   : '—';
+            document.getElementById('esc-conf-non').textContent      = d.avgConfidenceNonEscalated    ? d.avgConfidenceNonEscalated.toFixed(1) + '%'    : '—';
+
+            // By urgency — bar + rate rows
+            const urgList = document.getElementById('esc-urgency-list');
+            const urgs = d.byUrgency || [];
+            urgList.innerHTML = urgs.length ? urgs.map(u => {
+              const pct = u.escalationRatePct || 0;
+              const c = URGENCY_COLOR[u.urgency] || '#64748b';
+              return `<div class="res-esc-row" role="listitem">
+                <span class="res-urgency-badge" style="color:${c};border-color:${c}">${esc(u.urgency)}</span>
+                <div class="res-esc-bar-wrap">
+                  <div class="res-pair-bar-track"><div class="res-pair-bar-fill" style="width:${pct}%;background:${c}"></div></div>
+                  <span class="res-esc-bar-label">${pct.toFixed(1)}% of ${(u.totalCases||0).toLocaleString()}</span>
+                </div>
+                <span class="res-esc-conf-chip">${u.avgConfidence ? 'AI conf. ' + u.avgConfidence.toFixed(0) + '%' : ''}</span>
+              </div>`;
+            }).join('') : '<p class="res-loading">No data</p>';
+
+            // Top escalating conditions
+            const condList = document.getElementById('esc-condition-list');
+            const conds = d.topEscalatingConditions || [];
+            const maxEsc = conds.length ? Math.max(...conds.map(c => c.escalatedCount || 0), 1) : 1;
+            condList.innerHTML = conds.length ? conds.map((c, i) => {
+              const pct = Math.round((c.escalatedCount / maxEsc) * 100);
+              return `<div class="res-cond-row" role="listitem">
+                <span class="res-cond-rank">${i + 1}</span>
+                <div class="res-cond-info">
+                  <span class="res-cond-label">${esc(c.condition)}</span>
+                  <div class="res-pair-bar-track"><div class="res-pair-bar-fill" style="width:${pct}%"></div></div>
+                </div>
+                <span class="res-cond-badge">${(c.escalationRatePct || 0).toFixed(0)}% esc.</span>
+              </div>`;
+            }).join('') : '<p class="res-loading">No data available</p>';
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+    <!-- ── Disparities: Symptom Burden by State ─────────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function heatClass(val, low, mid, high) {
+          if (val >= high) return 'disp-heat-3';
+          if (val >= mid)  return 'disp-heat-2';
+          if (val >= low)  return 'disp-heat-1';
+          return 'disp-heat-0';
+        }
+
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/disparities/symptom-burden?weeks=26');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+
+            document.getElementById('disp-nat-hc').textContent  = (d.nationalHighCriticalPct  || 0).toFixed(1) + '%';
+            document.getElementById('disp-nat-esc').textContent = (d.nationalEscalationPct    || 0).toFixed(1) + '%';
+            const statesEl = document.getElementById('disp-burden-states');
+            if (statesEl) statesEl.textContent = (d.highBurdenStates || 0) + ' high-burden states (top quartile)';
+
+            const tbody = document.getElementById('disp-burden-tbody');
+            const states = d.byState || [];
+            if (!states.length) {
+              tbody.innerHTML = '<tr><td colspan="10" class="disp-loading">No data available</td></tr>';
+              return;
+            }
+            tbody.innerHTML = states.map(s => {
+              const sevClass  = heatClass(s.urgencySeverityIndex, 0.3, 0.5, 0.7);
+              const hcClass   = heatClass(s.highCriticalPct, 15, 30, 50);
+              const escClass  = heatClass(s.escalationRate, 10, 25, 40);
+              const rxClass   = s.prescriptionCoverage < 40 ? 'disp-heat-2' : s.prescriptionCoverage < 60 ? 'disp-heat-1' : 'disp-heat-0';
+              const confClass = s.avgAIConfidence < 50 ? 'disp-heat-2' : s.avgAIConfidence < 65 ? 'disp-heat-1' : 'disp-heat-0';
+              return `<tr>
+                <td class="disp-rank">${s.disparityRank}</td>
+                <td class="disp-state-name">${esc(s.state)}</td>
+                <td>${(s.totalCases || 0).toLocaleString()}</td>
+                <td class="${sevClass}">${(s.urgencySeverityIndex || 0).toFixed(3)}</td>
+                <td class="${hcClass}">${(s.highCriticalPct || 0).toFixed(1)}%</td>
+                <td class="${escClass}">${(s.escalationRate || 0).toFixed(1)}%</td>
+                <td class="${rxClass}">${(s.prescriptionCoverage || 0).toFixed(1)}%</td>
+                <td class="${confClass}">${s.avgAIConfidence ? s.avgAIConfidence.toFixed(1) + '%' : '—'}</td>
+                <td>${(s.repeatPatientRate || 0).toFixed(1)}%</td>
+                <td class="disp-top-cond">${esc(s.topCondition || '—')}</td>
+              </tr>`;
+            }).join('');
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+    <!-- ── Disparities: Response-Time Inequality ─────────────────────────── -->
+    <script>
+      (() => {
+        const base = (document.querySelector('meta[name="lifegate-api-base"]') || {content:'https://edis.dshub.com.ng/api'}).content;
+        function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+        function fmtH(h) {
+          if (!h && h !== 0) return '—';
+          if (h < 1) return Math.round(h * 60) + ' min';
+          return h.toFixed(1) + ' h';
+        }
+
+        async function load() {
+          try {
+            const res = await fetch(base + '/public/disparities/response-times?weeks=26');
+            if (!res.ok) throw new Error(res.statusText);
+            const d = await res.json();
+
+            document.getElementById('rt-nat-median').textContent = fmtH(d.nationalMedianHours);
+            document.getElementById('rt-nat-p90').textContent    = fmtH(d.nationalP90Hours);
+            document.getElementById('rt-gap').textContent        = fmtH(d.inequalityGapHours);
+
+            const list = document.getElementById('disp-rt-list');
+            const states = d.byState || [];
+            if (!states.length) { list.innerHTML = '<p class="disp-loading">No data available</p>'; return; }
+
+            const maxMedian = states[0].medianResponseHours || 1;
+            const natMedian = d.nationalMedianHours || 1;
+
+            list.innerHTML = states.map(s => {
+              const barPct = Math.min(100, Math.round((s.medianResponseHours / maxMedian) * 100));
+              const ratio  = s.inequalityRatio || 0;
+              const ratioClass = ratio > 3 ? 'disp-ratio-high' : ratio > 1.5 ? 'disp-ratio-mid' : 'disp-ratio-ok';
+              const breachClass = s.slaBreachPct > 40 ? 'disp-heat-3' : s.slaBreachPct > 20 ? 'disp-heat-2' : s.slaBreachPct > 5 ? 'disp-heat-1' : '';
+              return `<div class="disp-rt-row" role="listitem">
+                <span class="disp-rt-state">${esc(s.state)}</span>
+                <div class="disp-rt-bar-col">
+                  <div class="disp-rt-bar-track">
+                    <div class="disp-rt-bar-fill" style="width:${barPct}%"></div>
+                    <div class="disp-rt-nat-line" style="left:${Math.min(100,Math.round((natMedian/maxMedian)*100))}%" title="National median"></div>
+                  </div>
+                  <span class="disp-rt-median-label">p50 ${fmtH(s.medianResponseHours)} · p90 ${fmtH(s.p90ResponseHours)}</span>
+                </div>
+                <span class="disp-rt-ratio ${ratioClass}" title="Inequality ratio vs national median">${ratio.toFixed(1)}×</span>
+                <span class="disp-rt-breach ${breachClass}" title="SLA breach rate">${(s.slaBreachPct || 0).toFixed(0)}% &gt;4h</span>
+              </div>`;
+            }).join('');
+          } catch (_) {}
+        }
+        load();
+      })();
+    </script>
+
+
+    <!-- ── Access Portal ─────────────────────────────────────────────────── -->
+    <script>
+      (function () {
+        'use strict';
+        var API = (document.querySelector('meta[name="lifegate-api-base"]') || {}).content || '';
+        var portal = document.getElementById('access-portal');
+        if (!portal) return;
+
+        var state = { currency: 'NGN', tiers: [], selected: null, flwKey: '' };
+
+        var s1 = document.getElementById('ap-s1');
+        var s2 = document.getElementById('ap-s2');
+        var s3 = document.getElementById('ap-s3');
+        var tierGrid = document.getElementById('ap-tier-grid');
+        var tierBadge = document.getElementById('ap-tier-badge');
+        var apForm = document.getElementById('ap-form');
+        var apFormError = document.getElementById('ap-form-error');
+        var apNextLabel = document.getElementById('ap-next-label');
+        var apConfirmRef = document.getElementById('ap-confirm-ref');
+        var apNextBtn = document.getElementById('ap-next');
+
+        function esc(s) {
+          return String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function setStep(n) {
+          document.querySelectorAll('.ap-step').forEach(function (el) {
+            var sn = +el.getAttribute('data-n');
+            el.classList.toggle('ap-step-active', sn === n);
+            el.classList.toggle('ap-step-done', sn < n);
+          });
+          s1.hidden = n !== 1;
+          s2.hidden = n !== 2;
+          s3.hidden = n !== 3;
+        }
+
+        // ── Fetch config ────────────────────────────────────────────────────
+        fetch(API + '/public/access/config')
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            if (!res.success) throw new Error('config failed');
+            state.tiers = res.data.tiers || [];
+            state.flwKey = res.data.flwPublicKey || '';
+            renderTiers();
+          })
+          .catch(function () {
+            tierGrid.innerHTML = '<p class="ap-tier-loading">Failed to load — please refresh.</p>';
+          });
+
+        // ── Currency toggle ─────────────────────────────────────────────────
+        document.getElementById('ap-ngn').addEventListener('click', function () {
+          state.currency = 'NGN';
+          this.classList.add('active');
+          document.getElementById('ap-usd').classList.remove('active');
+          if (state.tiers.length) renderTiers();
+        });
+        document.getElementById('ap-usd').addEventListener('click', function () {
+          state.currency = 'USD';
+          this.classList.add('active');
+          document.getElementById('ap-ngn').classList.remove('active');
+          if (state.tiers.length) renderTiers();
+        });
+
+        // ── Tier cards ──────────────────────────────────────────────────────
+        function renderTiers() {
+          var cur = state.currency;
+          var html = '';
+          state.tiers.forEach(function (t) {
+            var priceLabel = cur === 'NGN' ? esc(t.labelNGN) : esc(t.labelUSD);
+            var freeBadge = t.free ? '<span class="ap-tier-free-badge">Free</span>' : '';
+            var feats = (t.features || []).map(function (f) {
+              return '<li>' + esc(f) + '</li>';
+            }).join('');
+            var sel = state.selected && state.selected.id === t.id ? ' ap-tier-selected' : '';
+            html +=
+              '<div class="ap-tier-card' + sel + '" data-id="' + esc(t.id) + '">' +
+              '<div class="ap-tier-head">' +
+              '<span class="ap-tier-name">' + esc(t.name) + '</span>' + freeBadge +
+              '</div>' +
+              '<span class="ap-tier-price">' + priceLabel + '</span>' +
+              '<p class="ap-tier-desc">' + esc(t.description) + '</p>' +
+              '<ul class="ap-tier-features">' + feats + '</ul>' +
+              '<button class="ap-tier-choose" type="button">Choose this tier</button>' +
+              '</div>';
+          });
+          tierGrid.innerHTML = html;
+          tierGrid.querySelectorAll('.ap-tier-choose').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var card = btn.closest('.ap-tier-card');
+              var tid = card.getAttribute('data-id');
+              state.selected = state.tiers.find(function (t) { return t.id === tid; });
+              updateNextLabel();
+              renderBadge();
+              setStep(2);
+            });
+          });
+        }
+
+        function updateNextLabel() {
+          if (!state.selected) return;
+          apNextLabel.textContent = state.selected.free ? 'Submit Request' : 'Proceed to Payment';
+        }
+
+        function renderBadge() {
+          if (!state.selected) return;
+          var t = state.selected;
+          var p = state.currency === 'NGN' ? t.labelNGN : t.labelUSD;
+          tierBadge.innerHTML =
+            '<span class="ap-badge-name">' + esc(t.name) + '</span>' +
+            '<span class="ap-badge-price">' + esc(p) + '</span>' +
+            '<button type="button" class="ap-badge-change" id="ap-change">Change tier</button>';
+          document.getElementById('ap-change').addEventListener('click', function () { setStep(1); });
+        }
+
+        // ── Form ────────────────────────────────────────────────────────────
+        document.getElementById('ap-back').addEventListener('click', function () { setStep(1); });
+
+        apForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          apFormError.hidden = true;
+
+          var fields = ['fullName', 'email', 'institution', 'jobTitle', 'role', 'useCase'];
+          for (var i = 0; i < fields.length; i++) {
+            var el = apForm.elements[fields[i]];
+            if (!el || !el.value.trim()) { showError('Please complete all required fields.'); return; }
+          }
+          var emailVal = apForm.elements['email'].value;
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+            showError('Please enter a valid work email address.'); return;
+          }
+
+          apNextBtn.disabled = true;
+          apNextLabel.textContent = 'Processing…';
+
+          var body = {
+            email:       apForm.elements['email'].value.trim(),
+            fullName:    apForm.elements['fullName'].value.trim(),
+            institution: apForm.elements['institution'].value.trim(),
+            jobTitle:    apForm.elements['jobTitle'].value.trim(),
+            role:        apForm.elements['role'].value,
+            useCase:     apForm.elements['useCase'].value.trim(),
+            tierId:      state.selected.id,
+            currency:    state.currency,
+            flwTxRef:    '',
+            flwTxId:     ''
+          };
+
+          if (state.selected.free) {
+            doSubmit(body);
+          } else {
+            doPayment(body);
+          }
+        });
+
+        function showError(msg) {
+          apFormError.textContent = msg;
+          apFormError.hidden = false;
+          apNextBtn.disabled = false;
+          updateNextLabel();
+        }
+
+        // ── Flutterwave Inline checkout ─────────────────────────────────────
+        function doPayment(body) {
+          if (!state.flwKey) {
+            showError('Payment system unavailable. Please email contact@dshub.com.ng.');
+            return;
+          }
+          if (typeof FlutterwaveCheckout === 'undefined') {
+            showError('Payment script failed to load. Please refresh the page.');
+            return;
+          }
+          var t = state.selected;
+          var amount = state.currency === 'NGN' ? t.priceNGN : t.priceUSD;
+          var txRef = 'LG-AP-' + Math.random().toString(36).slice(2, 10).toUpperCase() + '-' + Date.now();
+          FlutterwaveCheckout({
+            public_key: state.flwKey,
+            tx_ref:     txRef,
+            amount:     amount,
+            currency:   state.currency,
+            payment_options: 'card,banktransfer,ussd',
+            customer:   { email: body.email, name: body.fullName },
+            customizations: {
+              title:       'LifeGate Analytics Access',
+              description: t.name + ' — Annual Subscription'
+            },
+            callback: function (data) {
+              if (data.status === 'successful' || data.status === 'completed') {
+                body.flwTxRef = txRef;
+                body.flwTxId  = String(data.transaction_id || '');
+                doSubmit(body);
+              } else {
+                showError('Payment was not completed. Please try again.');
+              }
+            },
+            onclose: function () {
+              apNextBtn.disabled = false;
+              updateNextLabel();
+            }
+          });
+        }
+
+        // ── API submit ──────────────────────────────────────────────────────
+        function doSubmit(body) {
+          fetch(API + '/public/access/submit', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body)
+          })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              if (!res.ok || !res.d.success) {
+                showError(res.d.message || 'Submission failed. Please try again.');
+                return;
+              }
+              var ref = (res.d.data.id || '').slice(0, 8).toUpperCase();
+              apConfirmRef.textContent = ref ? 'Reference: ' + ref : '';
+              setStep(3);
+            })
+            .catch(function () { showError('Network error. Please check your connection and try again.'); })
+            .finally(function () {
+              apNextBtn.disabled = false;
+              updateNextLabel();
+            });
+        }
+
+        // ── Init ────────────────────────────────────────────────────────────
+        // ── Mode toggle
+        var applyPanel  = document.getElementById('ap-apply-panel');
+        var statusPanel = document.getElementById('ap-status-panel');
+        var modeApply   = document.getElementById('ap-mode-apply');
+        var modeStatus  = document.getElementById('ap-mode-status');
+        function showMode(mode) {
+          var isApply = mode === 'apply';
+          applyPanel.hidden  = !isApply;
+          statusPanel.hidden =  isApply;
+          modeApply.classList.toggle('ap-mode-active',  isApply);
+          modeStatus.classList.toggle('ap-mode-active', !isApply);
+        }
+        modeApply.addEventListener('click',  function () { showMode('apply'); });
+        modeStatus.addEventListener('click', function () { showMode('status'); });
+        var goStatus = document.getElementById('ap-go-status');
+        if (goStatus) {
+          goStatus.addEventListener('click', function () {
+            var e2 = (apForm && apForm.elements['email']) ? apForm.elements['email'].value.trim() : '';
+            var se = document.getElementById('ap-st-email'); if (e2 && se) se.value = e2;
+            var ri = document.getElementById('ap-confirm-ref');
+            var sr = document.getElementById('ap-st-ref');
+            if (ri && sr) sr.value = (ri.textContent || '').replace('Reference: ', '').trim();
+            showMode('status');
+          });
+        }
+
+        // ── Status check
+        var stForm   = document.getElementById('ap-status-form');
+        var stError  = document.getElementById('ap-st-error');
+        var stResult = document.getElementById('ap-st-result');
+        var stLabel  = document.getElementById('ap-st-label');
+        var stBtn    = document.getElementById('ap-st-submit');
+        stForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          stError.hidden = true; stResult.hidden = true;
+          var em = document.getElementById('ap-st-email').value.trim();
+          var rf = document.getElementById('ap-st-ref').value.trim();
+          if (!em || !rf) { stError.textContent = 'Please enter your email and reference.'; stError.hidden = false; return; }
+          stBtn.disabled = true; stLabel.textContent = 'Checking…';
+          fetch(API + '/public/access/status', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({email: em, ref: rf})
+          })
+            .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
+            .then(function (res) {
+              if (!res.ok || !res.d.success) { stError.textContent = res.d.message || 'No matching request found.'; stError.hidden = false; return; }
+              renderStatusResult(res.d.data);
+            })
+            .catch(function () { stError.textContent = 'Network error. Please try again.'; stError.hidden = false; })
+            .finally(function () { stBtn.disabled = false; stLabel.textContent = 'Check Status'; });
+        });
+        function renderStatusResult(d) {
+          var sm = {approved:'Approved', rejected:'Not Approved', pending_review:'Pending Review'};
+          var cm = {approved:'#16a34a',  rejected:'#dc2626', pending_review:'#d97706'};
+          var lb = sm[d.accessStatus] || d.accessStatus;
+          var cl = cm[d.accessStatus] || '#6b7280';
+          var ak = '';
+          if (d.apiKey) {
+            ak = '<div class="ap-st-apikey">'
+               + '<p class="ap-st-key-label">Your API Key</p>'
+               + '<code class="ap-st-key-value">' + esc(d.apiKey) + '</code>'
+               + '<p class="ap-st-key-note">Send as <code>X-DSHub-API-Key</code> header. Keep confidential.</p>'
+               + '</div>';
+          }
+          var ar = d.approvedAt ? '<tr><td>Approved</td><td>'+esc(d.approvedAt.split('T')[0])+'</td></tr>' : '';
+          stResult.innerHTML = '<div class="ap-st-card">'
+            + '<div class="ap-st-status" style="color:'+cl+'">'+esc(lb)+'</div>'
+            + '<table class="ap-st-table">'
+            + '<tr><td>Reference</td><td>'+esc(d.ref.toUpperCase())+'</td></tr>'
+            + '<tr><td>Tier</td><td>'+esc(d.tierName)+'</td></tr>'
+            + '<tr><td>Payment</td><td>'+esc(d.paymentStatus)+'</td></tr>'
+            + '<tr><td>Submitted</td><td>'+esc(d.submittedAt.split('T')[0])+'</td></tr>'
+            + ar + '</table>' + ak + '</div>';
+          stResult.hidden = false;
+        }
+
+        // ── Init
+        setStep(1);
+        showMode('apply');
+      })();
+    </script>
+
+  </body>
+</html>

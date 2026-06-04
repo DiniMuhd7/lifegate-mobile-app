@@ -1,0 +1,290 @@
+/**
+ * Contrast Sensitivity Test
+ *
+ * Shows a vertical sine-wave grating at a given spatial frequency and
+ * contrast level. User reports whether they can see the pattern.
+ * Staircase per frequency → outputs a CS curve.
+ */
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, StatusBar, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { useVisionStore } from 'stores/vision-store';
+import { CS_SPATIAL_FREQS } from 'services/adaptive-engine';
+
+
+const TEAL = '#0AADA2';
+const TEAL_DARK = '#0f766e';
+const SF_COLORS = ['#0AADA2','#3b82f6','#8b5cf6','#f59e0b','#ef4444','#16a34a'];
+const MAX_TRIALS_PER_SF = 16;
+
+function nextScreen(testStatus: Record<string, string>) {
+  if (testStatus.near === 'active') return '/(tab)/eyetest/near';
+  return '/(tab)/eyetest/battery-results';
+}
+
+// ─── Sine grating renderer (pure View columns) ───────────────────────────────
+
+function SineGrating({ spatialFreq, contrastPercent, gratingSize }: { spatialFreq: number; contrastPercent: number; gratingSize: number }) {
+  const numCols = Math.max(4, Math.min(Math.round(spatialFreq * 12), 80));
+  const cols = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < numCols; i++) {
+      const phase = (i / numCols) * 2 * Math.PI;
+      const sine = Math.sin(phase); // -1..1
+      // Map to grey: 128 ± amplitude
+      const amplitude = (contrastPercent / 100) * 128;
+      const grey = Math.round(128 + sine * amplitude);
+      const hex = grey.toString(16).padStart(2, '0');
+      result.push(`#${hex}${hex}${hex}`);
+    }
+    return result;
+  }, [numCols, contrastPercent]);
+
+  return (
+    <View style={{ width: gratingSize, height: gratingSize, flexDirection: 'row', alignSelf: 'center', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' }}>
+      {cols.map((color, i) => (
+        <View key={i} style={{ flex: 1, backgroundColor: color }} />
+      ))}
+    </View>
+  );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
+export default function ContrastTest() {
+  const {
+    contrastSfIndex,
+    contrastStaircases,
+    testStatus,
+    startContrastTest,
+    recordContrastTrial,
+    advanceContrastSf,
+    markTestSkipped,
+  } = useVisionStore();
+
+  const { width } = useWindowDimensions();
+  const gratingSize = Math.min(width - 48, 280);
+
+  const [answered, setAnswered] = useState(false);
+  // Minimum stimulus viewing time before response buttons become active.
+  const MIN_VIEW_MS = 350;
+  const [buttonsReady, setButtonsReady] = useState(false);
+  const [sfCompleteFlash, setSfCompleteFlash] = useState(false);
+  const [trialsThisSf, setTrialsThisSf] = useState(0);
+  const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!testStatus || testStatus.contrast !== 'active') {
+      router.replace('/(tab)/eyetest/battery' as never);
+      return;
+    }
+    startContrastTest();
+  }, []);
+
+  // Auto-navigate when all spatial frequencies are done
+  useEffect(() => {
+    if (testStatus?.contrast === 'done') {
+      router.replace(nextScreen(testStatus) as never);
+    }
+  }, [testStatus?.contrast]);
+
+  // Reset answered state and start the minimum-view timer on each new stimulus.
+  useEffect(() => {
+    setAnswered(false);
+    setButtonsReady(false);
+    if (viewTimerRef.current) clearTimeout(viewTimerRef.current);
+    viewTimerRef.current = setTimeout(() => setButtonsReady(true), MIN_VIEW_MS);
+    return () => { if (viewTimerRef.current) clearTimeout(viewTimerRef.current); };
+  }, [contrastSfIndex, contrastStaircases[contrastSfIndex]?.contrastPercent]);
+
+  // Reset per-SF trial counter when advancing to a new pattern
+  useEffect(() => {
+    setTrialsThisSf(0);
+  }, [contrastSfIndex]);
+
+  const sf = CS_SPATIAL_FREQS[contrastSfIndex];
+  const staircase = contrastStaircases[contrastSfIndex];
+  const contrastPct = staircase?.contrastPercent ?? 50;
+  const sfDone = staircase?.done ?? false;
+
+  const trialStart = useRef(Date.now());
+
+  const handleResponse = useCallback((seen: boolean) => {
+    if (answered || !sf || !buttonsReady) return;
+    setAnswered(true);
+    const reactionMs = Date.now() - trialStart.current;
+    recordContrastTrial({ spatialFrequency: sf, contrastPercent: contrastPct, response: seen ? 'seen' : 'not_seen', reactionMs });
+    trialStart.current = Date.now();
+    const nextTrialCount = trialsThisSf + 1;
+    setTrialsThisSf(nextTrialCount);
+
+    setTimeout(() => {
+      setAnswered(false);
+      // Read fresh store state — sfDone from closure is stale after recordContrastTrial updates it
+      const { contrastStaircases, contrastSfIndex: freshIdx } = useVisionStore.getState();
+      const freshDone = contrastStaircases[freshIdx]?.done ?? false;
+      const hitMax = nextTrialCount >= MAX_TRIALS_PER_SF;
+      if (freshDone || hitMax) {
+        setSfCompleteFlash(true);
+        setTimeout(() => {
+          setSfCompleteFlash(false);
+          advanceContrastSf();
+        }, 900);
+      }
+    }, 300);
+  }, [answered, buttonsReady, sf, contrastPct, trialsThisSf]);
+
+  const totalSf = CS_SPATIAL_FREQS.length;
+  const REVERSALS_NEEDED = 3;
+  // Overall completion: each SF contributes (reversals / 6) of its 1/totalSf share
+  const overallProgress = contrastStaircases.reduce((sum, s, i) => {
+    const sfWeight = 1 / totalSf;
+    const sfProgress = Math.min(s.reversals.length / REVERSALS_NEEDED, 1);
+    return sum + sfWeight * sfProgress;
+  }, 0);
+  // Within-current-SF convergence progress
+  const sfReversalProgress = Math.min((staircase?.reversals.length ?? 0) / REVERSALS_NEEDED, 1);
+  const sfColor = SF_COLORS[contrastSfIndex % SF_COLORS.length];
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 12 }}>
+          <Pressable onPress={() => { markTestSkipped('contrast'); router.replace(nextScreen(useVisionStore.getState().testStatus) as never); }} hitSlop={10}
+            style={({ pressed }) => ({ width: 38, height: 38, borderRadius: 19, backgroundColor: pressed ? '#e5e7eb' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' })}>
+            <Ionicons name="close" size={20} color="#374151" />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>Contrast Sensitivity</Text>
+            <Text style={{ fontSize: 11, color: '#9ca3af' }}>
+              Pattern {contrastSfIndex + 1} of {totalSf} · finding threshold
+            </Text>
+          </View>
+          {/* Overall % badge */}
+          <View style={{ backgroundColor: '#f3f4f6', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#374151' }}>
+              {Math.round(overallProgress * 100)}%
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Overall progress bar ── */}
+        <View style={{ height: 4, backgroundColor: '#e5e7eb' }}>
+          <View style={{ height: 4, width: `${overallProgress * 100}%`, backgroundColor: sfColor, borderRadius: 2 }} />
+        </View>
+
+        {/* ── Pattern sub-progress (unlabelled thin bar) ── */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 4, paddingBottom: 0 }}>
+          <View style={{ height: 3, backgroundColor: '#f3f4f6', borderRadius: 2 }}>
+            <View style={{ height: 3, width: `${sfReversalProgress * 100}%`, backgroundColor: sfDone ? '#a7f3d0' : sfColor, borderRadius: 2 }} />
+          </View>
+        </View>
+
+        {/* ── SF complete flash ── */}
+        {sfCompleteFlash && (
+          <View style={{
+            marginHorizontal: 18, marginTop: 6,
+            backgroundColor: '#dcfce7', borderRadius: 10,
+            paddingVertical: 10, paddingHorizontal: 14,
+            flexDirection: 'row', alignItems: 'center', gap: 8,
+            borderWidth: 1, borderColor: '#86efac',
+          }}>
+            <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803d', flex: 1 }}>
+              Pattern {contrastSfIndex + 1} complete
+              {contrastSfIndex + 1 < totalSf
+                ? ` — moving to pattern ${contrastSfIndex + 2} of ${totalSf}`
+                : ' — finishing…'}
+            </Text>
+          </View>
+        )}
+
+        <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 20, paddingHorizontal: 24 }}>
+          <View style={{ backgroundColor: '#f8fafc', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#e2e8f0' }}>
+            <Text style={{ textAlign: 'center', fontSize: 15, fontWeight: '800', color: '#111827', marginBottom: 6 }}>
+              Can you see stripes in the box?
+            </Text>
+            <Text style={{ textAlign: 'center', fontSize: 13, color: '#6b7280', lineHeight: 20 }}>
+              Tap <Text style={{ fontWeight: '700', color: '#16a34a' }}>Yes</Text> if you see any stripes — even very faint ones.{'\n'}
+              Tap <Text style={{ fontWeight: '700', color: '#dc2626' }}>No</Text> if the box looks like a plain, uniform grey square.
+            </Text>
+            {sf >= 8 && (
+              <Text style={{ textAlign: 'center', fontSize: 12, color: '#d97706', fontWeight: '600', marginTop: 8 }}>
+                Fine stripes — look carefully at the centre of the box.
+              </Text>
+            )}
+            {sf <= 1 && (
+              <Text style={{ textAlign: 'center', fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+                Look for wide, gently blending bands across the box.
+              </Text>
+            )}
+          </View>
+
+          <View style={{ alignItems: 'center', gap: 12 }}>
+            {/* Frequency indicator */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: `${SF_COLORS[contrastSfIndex % SF_COLORS.length]}18`, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: SF_COLORS[contrastSfIndex % SF_COLORS.length] }}>{sf} cpd</Text>
+              </View>
+              <Text style={{ fontSize: 11, color: '#9ca3af' }}>{contrastPct}% contrast</Text>
+            </View>
+
+            <SineGrating spatialFreq={sf} contrastPercent={contrastPct} gratingSize={gratingSize} />
+
+            {/* SF dot progress row */}
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+              {CS_SPATIAL_FREQS.map((f, i) => (
+                <View
+                  key={f}
+                  style={{
+                    width: i === contrastSfIndex ? 24 : 8,
+                    height: 8, borderRadius: 4,
+                    backgroundColor: i === contrastSfIndex
+                      ? SF_COLORS[i % SF_COLORS.length]
+                      : contrastStaircases[i]?.done ? '#a7f3d0' : '#e5e7eb',
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Response buttons — locked for MIN_VIEW_MS so user has time to assess */}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Pressable
+              onPress={() => handleResponse(false)}
+              disabled={answered || !buttonsReady}
+              style={({ pressed }) => ({
+                flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
+                backgroundColor: pressed ? '#fef2f2' : '#fff',
+                borderWidth: 2, borderColor: '#fca5a5',
+                opacity: answered || !buttonsReady ? 0.45 : 1,
+              })}
+            >
+              <Ionicons name="eye-off-outline" size={28} color="#dc2626" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#dc2626' }}>No — plain grey</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => handleResponse(true)}
+              disabled={answered || !buttonsReady}
+              style={({ pressed }) => ({
+                flex: 1, paddingVertical: 22, borderRadius: 16, alignItems: 'center', gap: 6,
+                backgroundColor: pressed ? '#f0fdf4' : '#fff',
+                borderWidth: 2, borderColor: '#86efac',
+                opacity: answered || !buttonsReady ? 0.45 : 1,
+              })}
+            >
+              <Ionicons name="eye-outline" size={28} color="#16a34a" />
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#16a34a' }}>Yes — I see stripes</Text>
+            </Pressable>
+          </View>
+        </View>
+
+      </SafeAreaView>
+    </View>
+  );
+}

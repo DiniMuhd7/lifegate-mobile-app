@@ -1,0 +1,11 @@
+{
+  "name": "LifeGate Mobile App",
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": {
+      "label": "Expo Web",
+      "visibility": "public",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}

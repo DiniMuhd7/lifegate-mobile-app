@@ -1,0 +1,970 @@
+package auth
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"math/big"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
+	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
+)
+
+// ReferralProcessor is satisfied by referral.Service.
+type ReferralProcessor interface {
+	EnsureReferralCode(userID string) (string, error)
+	FindReferrerByCode(code string) (string, error)
+	RecordReferral(referrerID, referredID string) error
+}
+
+type Service struct {
+	repo          *Repository
+	redis         *redisclient.Client
+	cfg           *config.Config
+	resendURL     string
+	trialGranter  TrialCreditGranter
+	natsPublisher NATSPublisher
+	referralProc  ReferralProcessor
+}
+
+// NATSPublisher is a publish-only interface satisfied by *natsclient.Client.
+// Using an interface avoids an import cycle between the auth and nats packages.
+type NATSPublisher interface {
+	Publish(subject string, data []byte) error
+}
+
+// SetNATSPublisher wires a NATS client into the service so it can emit
+// domain events (e.g. physician.verification.confirmed).
+func (s *Service) SetNATSPublisher(p NATSPublisher) {
+	s.natsPublisher = p
+}
+
+// TrialCreditGranter is satisfied by payments.Service and grants free credits to new accounts.
+type TrialCreditGranter interface {
+	GrantTrialCredits(userID string) error
+}
+
+func NewService(repo *Repository, redis *redisclient.Client, cfg *config.Config) *Service {
+	return &Service{repo: repo, redis: redis, cfg: cfg, resendURL: "https://api.resend.com/emails"}
+}
+
+// SetTrialCreditGranter wires up the payments service so that new patient
+// accounts automatically receive trial credits on registration.
+func (s *Service) SetTrialCreditGranter(g TrialCreditGranter) {
+	s.trialGranter = g
+}
+
+// SetReferralProcessor wires the referral service into auth so referral codes
+// are generated on registration and referral bonuses are assigned.
+func (s *Service) SetReferralProcessor(r ReferralProcessor) {
+	s.referralProc = r
+}
+
+type TokenPair struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+	User         *User  `json:"user"`
+}
+
+// IssueRefreshToken generates a cryptographically random refresh token,
+// stores it in Redis keyed as "refresh:<token>" → userID with the configured TTL,
+// and returns the raw token value.
+func (s *Service) IssueRefreshToken(ctx context.Context, userID string) (string, error) {
+	token := randomHex(32)
+	ttl := 7 * 24 * time.Hour
+	if s.cfg.RefreshTokenExpiry != "" {
+		if d, err := time.ParseDuration(s.cfg.RefreshTokenExpiry); err == nil {
+			ttl = d
+		}
+	}
+	if err := s.redis.SetEx(ctx, "refresh:"+token, userID, int(ttl.Seconds())); err != nil {
+		return "", fmt.Errorf("failed to issue refresh token: %w", err)
+	}
+	return token, nil
+}
+
+// RefreshAccessToken validates a refresh token, rotates it, and returns a new TokenPair.
+func (s *Service) RefreshAccessToken(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	userID, err := s.redis.Get(ctx, "refresh:"+refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("invalid or expired refresh token")
+	}
+	user, err := s.repo.FindUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+	// Rotate refresh token — delete old, issue new (prevents replay).
+	_ = s.redis.Del(ctx, "refresh:"+refreshToken)
+	newRefreshToken, err := s.IssueRefreshToken(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	accessToken, err := s.generateJWT(user)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: accessToken, RefreshToken: newRefreshToken, User: user}, nil
+}
+
+// RevokeRefreshToken removes a refresh token from Redis, invalidating it immediately.
+func (s *Service) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
+	return s.redis.Del(ctx, "refresh:"+refreshToken)
+}
+
+func (s *Service) Login(ctx context.Context, email, password, clientIP string) (*TokenPair, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	const maxAttempts = 5
+	const windowSecs = 15 * 60
+
+	// Per-account rate limit (prevents brute force against a known email).
+	accountKey := "login:attempts:" + email
+	actCount, _ := s.redis.GetInt64(ctx, accountKey)
+	if actCount >= maxAttempts {
+		return nil, fmt.Errorf("too many login attempts, please try again later")
+	}
+
+	// Per-IP rate limit (prevents distributed lockout attacks).
+	if clientIP != "" {
+		ipKey := "login:ip:" + clientIP
+		ipCount, _ := s.redis.GetInt64(ctx, ipKey)
+		if ipCount >= maxAttempts*3 {
+			return nil, fmt.Errorf("too many login attempts from your network, please try again later")
+		}
+	}
+
+	hash, err := s.repo.GetPasswordHash(email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Increment failure counters so unknown-email probing is also rate-limited.
+			_, _ = s.redis.IncrWithTTL(ctx, accountKey, windowSecs)
+			if clientIP != "" {
+				_, _ = s.redis.IncrWithTTL(ctx, "login:ip:"+clientIP, windowSecs)
+			}
+			return nil, fmt.Errorf("invalid credentials")
+		}
+		return nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+		// Only increment on wrong password, not on every request.
+		_, _ = s.redis.IncrWithTTL(ctx, accountKey, windowSecs)
+		if clientIP != "" {
+			_, _ = s.redis.IncrWithTTL(ctx, "login:ip:"+clientIP, windowSecs)
+		}
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	// Successful auth: reset both rate-limit counters.
+	_ = s.redis.Del(ctx, accountKey)
+	if clientIP != "" {
+		_ = s.redis.Del(ctx, "login:ip:"+clientIP)
+	}
+
+	user, err := s.repo.FindUserByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	// Physicians require a second factor before a JWT is issued.
+	if user.Role == "professional" {
+		const max2FASends = 3
+		const rate2FAWindowSecs = 60 * 60
+		rateKey := "2fa:rate:" + email
+		sends, _ := s.redis.GetInt64(ctx, rateKey)
+		if sends >= max2FASends {
+			return nil, ErrPhysician2FARateLimited
+		}
+		otp, err := generateOTP(6)
+		if err != nil {
+			return nil, err
+		}
+		// Invalidate any prior 2FA session for this email.
+		_ = s.redis.Del(ctx, "2fa:"+email)
+		_ = s.redis.Del(ctx, "2fa:attempts:"+email)
+		if err := s.redis.SetEx(ctx, "2fa:"+email, otp, otpTTL); err != nil {
+			return nil, fmt.Errorf("failed to initiate 2FA")
+		}
+		_, _ = s.redis.IncrWithTTL(ctx, rateKey, rate2FAWindowSecs)
+		if err := s.send2FAEmail(email, user.Name, otp); err != nil {
+			log.Printf("[auth] send 2FA email to %s: %v", email, err)
+		}
+		return nil, ErrRequires2FA
+	}
+
+	token, err := s.generateJWT(user)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.IssueRefreshToken(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: token, RefreshToken: refreshToken, User: user}, nil
+}
+
+func (s *Service) Register(ctx context.Context, u *User, password string, referredByCode string) (*TokenPair, error) {
+	u.Phone = normalizePhoneDigits(u.Phone)
+	if u.Role != "professional" && u.Phone != "" {
+		exists, err := s.repo.ExistsNonProfessionalByPhoneDigits(u.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate phone uniqueness: %w", err)
+		}
+		if exists {
+			return nil, ErrPhoneAlreadyRegistered
+		}
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.CreateUser(u, string(hash)); err != nil {
+		return nil, err
+	}
+	if u.Role != "professional" && s.trialGranter != nil {
+		if err := s.trialGranter.GrantTrialCredits(u.ID); err != nil {
+			log.Printf("[auth] failed to grant trial credits for user %s: %v", u.ID, err)
+		}
+	}
+	// Generate a referral code for every new patient and handle incoming referral.
+	if u.Role != "professional" && s.referralProc != nil {
+		if _, err := s.referralProc.EnsureReferralCode(u.ID); err != nil {
+			log.Printf("[auth] failed to generate referral code for user %s: %v", u.ID, err)
+		}
+		if referredByCode != "" {
+			referrerID, err := s.referralProc.FindReferrerByCode(referredByCode)
+			if err == nil && referrerID != u.ID {
+				if recErr := s.referralProc.RecordReferral(referrerID, u.ID); recErr != nil {
+					log.Printf("[auth] failed to record referral for user %s: %v", u.ID, recErr)
+				}
+			}
+		}
+	}
+	token, err := s.generateJWT(u)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.IssueRefreshToken(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: token, RefreshToken: refreshToken, User: u}, nil
+}
+
+type RegisterStartPayload struct {
+	Name                 string `json:"name"`
+	Email                string `json:"email"`
+	Password             string `json:"password"`
+	Role                 string `json:"role"`
+	Phone                string `json:"phone"`
+	DOB                  string `json:"dob"`
+	Gender               string `json:"gender"`
+	Language             string `json:"language"`
+	HealthHistory        string `json:"health_history"`
+	Specialization       string `json:"specialization"`
+	CertificateName      string `json:"certificateName"`
+	CertificateID        string `json:"certificateId"`
+	CertificateIssueDate string `json:"certificateIssueDate"`
+	YearsOfExperience    string `json:"yearsOfExperience"`
+	CertificateURL       string `json:"certificateUrl"`
+	ReferredByCode       string `json:"referred_by_code"`
+}
+
+const otpTTL = 600
+
+// ErrEmailAlreadyRegistered is returned when registration is attempted with an already-existing email.
+var ErrEmailAlreadyRegistered = errors.New("email is already registered")
+
+// ErrPhoneAlreadyRegistered is returned when registration is attempted with a
+// phone number already used by a non-professional account.
+var ErrPhoneAlreadyRegistered = errors.New("phone number is already registered")
+
+// ErrOTPRateLimited is returned when too many OTP requests are sent for a single email.
+var ErrOTPRateLimited = errors.New("too many OTP requests, please try again later")
+
+// ErrOTPTooManyAttempts is returned when the OTP has been guessed too many times.
+var ErrOTPTooManyAttempts = errors.New("too many verification attempts, please request a new code")
+
+// ErrResetRateLimited is returned when too many password reset requests are made.
+var ErrResetRateLimited = errors.New("too many reset requests, please try again later")
+
+// ErrResetTooManyAttempts is returned when the reset code has been guessed too many times.
+var ErrResetTooManyAttempts = errors.New("too many attempts, please request a new reset code")
+
+var ErrRequires2FA = errors.New("2FA required")
+
+// ErrPhysician2FARateLimited is returned when too many 2FA codes have been issued.
+var ErrPhysician2FARateLimited = errors.New("too many login attempts, please try again later")
+
+func (s *Service) StartRegistration(ctx context.Context, payload RegisterStartPayload) (string, int, error) {
+	// Normalize email
+	payload.Email = strings.ToLower(strings.TrimSpace(payload.Email))
+	payload.Phone = normalizePhoneDigits(payload.Phone)
+
+	// Reject if email already has a confirmed account
+	if _, err := s.repo.FindUserByEmail(payload.Email); err == nil {
+		return "", 0, ErrEmailAlreadyRegistered
+	}
+
+	// Anti-abuse: allow only one non-professional account per phone number.
+	if payload.Role != "professional" && payload.Phone != "" {
+		exists, err := s.repo.ExistsNonProfessionalByPhoneDigits(payload.Phone)
+		if err != nil {
+			return "", 0, fmt.Errorf("failed to validate phone uniqueness: %w", err)
+		}
+		if exists {
+			return "", 0, ErrPhoneAlreadyRegistered
+		}
+	}
+
+	// OTP send rate limiting: max 3 per hour per email (check before increment).
+	const maxOTPSends = 3
+	const otpRateWindowSecs = 60 * 60
+	otpRateKey := "otp:rate:" + payload.Email
+	sends, _ := s.redis.GetInt64(ctx, otpRateKey)
+	if sends >= maxOTPSends {
+		return "", 0, ErrOTPRateLimited
+	}
+	_, _ = s.redis.IncrWithTTL(ctx, otpRateKey, otpRateWindowSecs)
+
+	// Hash password before persisting so plaintext never reaches the database
+	hash, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", 0, fmt.Errorf("failed to process credentials: %w", err)
+	}
+	payload.Password = string(hash)
+
+	otp, err := generateOTP(6)
+	if err != nil {
+		return "", 0, err
+	}
+
+	// Store OTP in Redis
+	redisKey := "otp:" + payload.Email
+	if err := s.redis.SetEx(ctx, redisKey, otp, otpTTL); err != nil {
+		return "", 0, fmt.Errorf("failed to store OTP: %w", err)
+	}
+
+	// Also persist in DB
+	raw, _ := json.Marshal(payload)
+	expiresAt := time.Now().Add(otpTTL * time.Second)
+	if err := s.repo.UpsertPendingRegistration(payload.Email, otp, expiresAt, raw); err != nil {
+		return "", 0, fmt.Errorf("failed to store registration data: %w", err)
+	}
+	// Send email
+	if err := s.sendOTPEmail(payload.Email, payload.Name, otp); err != nil {
+		log.Printf("[auth] sendOTPEmail to %s: %v", payload.Email, err)
+	}
+
+	return payload.Email, otpTTL, nil
+}
+
+func (s *Service) VerifyOTP(ctx context.Context, email, otp string) (*TokenPair, error) {
+	const maxOTPAttempts = 5
+	attemptKey := "otp:attempts:" + email
+
+	// Brute-force protection: lock out after too many wrong guesses.
+	attempts, _ := s.redis.GetInt64(ctx, attemptKey)
+	if attempts >= maxOTPAttempts {
+		return nil, ErrOTPTooManyAttempts
+	}
+
+	redisKey := "otp:" + email
+	storedOTP, err := s.redis.Get(ctx, redisKey)
+	if err != nil {
+		// Fallback to DB when Redis is unavailable.
+		pr, dbErr := s.repo.GetPendingRegistration(email)
+		if dbErr != nil {
+			return nil, fmt.Errorf("OTP not found or expired")
+		}
+		if time.Now().After(pr.OTPExpiresAt) {
+			return nil, fmt.Errorf("OTP expired")
+		}
+		if subtle.ConstantTimeCompare([]byte(pr.OTP), []byte(otp)) != 1 {
+			_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
+			return nil, fmt.Errorf("invalid OTP")
+		}
+		tp, tpErr := s.completeRegistrationFromDB(ctx, pr)
+		if tpErr != nil {
+			return nil, tpErr
+		}
+		_ = s.redis.Del(ctx, attemptKey)
+		_ = s.repo.DeletePendingRegistration(email)
+		return tp, nil
+	}
+
+	if subtle.ConstantTimeCompare([]byte(storedOTP), []byte(otp)) != 1 {
+		_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
+		return nil, fmt.Errorf("invalid OTP")
+	}
+
+	pr, err := s.repo.GetPendingRegistration(email)
+	if err != nil {
+		return nil, fmt.Errorf("registration data not found")
+	}
+
+	tp, err := s.completeRegistrationFromDB(ctx, pr)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.redis.Del(ctx, redisKey)
+	_ = s.redis.Del(ctx, attemptKey)
+	_ = s.repo.DeletePendingRegistration(email)
+	return tp, nil
+}
+
+func normalizePhoneDigits(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	for _, ch := range phone {
+		if ch >= '0' && ch <= '9' {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
+}
+
+func (s *Service) completeRegistrationFromDB(ctx context.Context, pr *PendingRegistration) (*TokenPair, error) {
+	var payload RegisterStartPayload
+	if err := json.Unmarshal(pr.Payload, &payload); err != nil {
+		return nil, fmt.Errorf("invalid registration payload")
+	}
+
+	// Password was bcrypt-hashed in StartRegistration before being persisted.
+	passwordHash := payload.Password
+
+	u := &User{
+		UserID:               generateID("USR"),
+		PatientID:            generateID("PAT"),
+		Name:                 payload.Name,
+		Email:                payload.Email,
+		Role:                 payload.Role,
+		Phone:                payload.Phone,
+		DOB:                  payload.DOB,
+		Gender:               payload.Gender,
+		Language:             payload.Language,
+		HealthHistory:        payload.HealthHistory,
+		Specialization:       payload.Specialization,
+		CertificateName:      payload.CertificateName,
+		CertificateID:        payload.CertificateID,
+		CertificateIssueDate: payload.CertificateIssueDate,
+		YearsOfExperience:    payload.YearsOfExperience,
+	}
+
+	if payload.CertificateURL != "" {
+		if err := s.repo.CreateUserWithCertURL(u, passwordHash, payload.CertificateURL); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.repo.CreateUser(u, passwordHash); err != nil {
+			return nil, err
+		}
+	}
+
+	// Grant trial credits to new patient accounts (non-physician roles).
+	if u.Role != "professional" && s.trialGranter != nil {
+		if err := s.trialGranter.GrantTrialCredits(u.ID); err != nil {
+			log.Printf("[auth] failed to grant trial credits for user %s: %v", u.ID, err)
+		}
+	}
+
+	// Generate a referral code for every new patient and process referred_by_code.
+	if u.Role != "professional" && s.referralProc != nil {
+		if _, err := s.referralProc.EnsureReferralCode(u.ID); err != nil {
+			log.Printf("[auth] failed to generate referral code for user %s: %v", u.ID, err)
+		}
+		if payload.ReferredByCode != "" {
+			referrerID, err := s.referralProc.FindReferrerByCode(payload.ReferredByCode)
+			if err == nil && referrerID != u.ID {
+				if recErr := s.referralProc.RecordReferral(referrerID, u.ID); recErr != nil {
+					log.Printf("[auth] failed to record referral for user %s: %v", u.ID, recErr)
+				}
+			}
+		}
+	}
+
+	token, err := s.generateJWT(u)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.IssueRefreshToken(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: token, RefreshToken: refreshToken, User: u}, nil
+}
+
+func (s *Service) ResendOTP(ctx context.Context, email string) (string, int, error) {
+	// Enforce the same OTP send rate limit as StartRegistration.
+	const maxOTPSends = 3
+	const otpRateWindowSecs = 60 * 60
+	otpRateKey := "otp:rate:" + email
+	sends, _ := s.redis.GetInt64(ctx, otpRateKey)
+	if sends >= maxOTPSends {
+		return "", 0, ErrOTPRateLimited
+	}
+
+	pr, err := s.repo.GetPendingRegistration(email)
+	if err != nil {
+		return "", 0, fmt.Errorf("no pending registration found for this email")
+	}
+
+	otp, err := generateOTP(6)
+	if err != nil {
+		return "", 0, err
+	}
+	_, _ = s.redis.IncrWithTTL(ctx, otpRateKey, otpRateWindowSecs)
+
+	redisKey := "otp:" + email
+	_ = s.redis.SetEx(ctx, redisKey, otp, otpTTL)
+
+	// Reset attempt counter so the user gets a fresh set of guesses.
+	_ = s.redis.Del(ctx, "otp:attempts:"+email)
+
+	expiresAt := time.Now().Add(otpTTL * time.Second)
+	_ = s.repo.UpsertPendingRegistration(email, otp, expiresAt, pr.Payload)
+
+	// Use the stored name for a personalized email.
+	var p RegisterStartPayload
+	_ = json.Unmarshal(pr.Payload, &p)
+	if err := s.sendOTPEmail(email, p.Name, otp); err != nil {
+		log.Printf("[auth] resend OTP email to %s: %v", email, err)
+	}
+
+	return email, otpTTL, nil
+}
+
+func (s *Service) VerifyPhysician2FA(ctx context.Context, email, otp string) (*TokenPair, error) {
+	const maxAttempts = 5
+	attemptKey := "2fa:attempts:" + email
+
+	attempts, _ := s.redis.GetInt64(ctx, attemptKey)
+	if attempts >= maxAttempts {
+		return nil, ErrOTPTooManyAttempts
+	}
+
+	storedOTP, err := s.redis.Get(ctx, "2fa:"+email)
+	if err != nil {
+		return nil, fmt.Errorf("2FA code not found or expired")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(storedOTP), []byte(otp)) != 1 {
+		_, _ = s.redis.IncrWithTTL(ctx, attemptKey, otpTTL)
+		return nil, fmt.Errorf("invalid 2FA code")
+	}
+
+	_ = s.redis.Del(ctx, "2fa:"+email)
+	_ = s.redis.Del(ctx, attemptKey)
+
+	user, err := s.repo.FindUserByEmail(email)
+	if err != nil {
+		return nil, err
+	}
+	if user.Role != "professional" {
+		return nil, fmt.Errorf("invalid 2FA request")
+	}
+	token, err := s.generateJWT(user)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.IssueRefreshToken(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: token, RefreshToken: refreshToken, User: user}, nil
+}
+
+func (s *Service) ResendPhysician2FA(ctx context.Context, email string) error {
+	// Only resend if there is an active 2FA session (i.e. login + password already verified).
+	if _, err := s.redis.Get(ctx, "2fa:"+email); err != nil {
+		// Also check if it simply expired vs never existed — either way refuse.
+		return fmt.Errorf("no active 2FA session for this email")
+	}
+
+	const max2FASends = 3
+	const rate2FAWindowSecs = 60 * 60
+	rateKey := "2fa:rate:" + email
+	sends, _ := s.redis.GetInt64(ctx, rateKey)
+	if sends >= max2FASends {
+		return ErrPhysician2FARateLimited
+	}
+
+	otp, err := generateOTP(6)
+	if err != nil {
+		return err
+	}
+	_ = s.redis.Del(ctx, "2fa:attempts:"+email)
+	if err := s.redis.SetEx(ctx, "2fa:"+email, otp, otpTTL); err != nil {
+		return fmt.Errorf("failed to resend 2FA code")
+	}
+	_, _ = s.redis.IncrWithTTL(ctx, rateKey, rate2FAWindowSecs)
+
+	user, err := s.repo.FindUserByEmail(email)
+	if err != nil {
+		return err
+	}
+	_ = s.send2FAEmail(email, user.Name, otp)
+	return nil
+}
+
+func (s *Service) send2FAEmail(to, name, code string) error {
+	subject := "LifeGate — Physician Login Verification"
+	body := fmt.Sprintf(
+		"Hi %s,\r\n\r\nYour physician login verification code is: %s\r\n\r\n"+
+			"This code expires in 10 minutes. Do not share it with anyone.\r\n\r\n"+
+			"If you did not attempt to log in, please change your password immediately.",
+		name, code)
+	return s.sendEmail(to, subject, body)
+}
+
+func (s *Service) SendPasswordResetCode(ctx context.Context, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	if _, err := s.repo.FindUserByEmail(email); err != nil {
+		// Don't reveal whether email exists; still consume rate limit slot to prevent
+		// timing-based enumeration.
+		const maxResetSends = 3
+		const resetRateWindowSecs = 60 * 60
+		resetRateKey := "reset:rate:" + email
+		sends, _ := s.redis.GetInt64(ctx, resetRateKey)
+		if sends >= maxResetSends {
+			return ErrResetRateLimited
+		}
+		_, _ = s.redis.IncrWithTTL(ctx, resetRateKey, resetRateWindowSecs)
+		return nil
+	}
+
+	// Rate limit: max 3 reset codes per hour per email.
+	const maxResetSends = 3
+	const resetRateWindowSecs = 60 * 60
+	resetRateKey := "reset:rate:" + email
+	sends, _ := s.redis.GetInt64(ctx, resetRateKey)
+	if sends >= maxResetSends {
+		return ErrResetRateLimited
+	}
+
+	// Invalidate all previous reset records so old codes cannot be replayed.
+	_ = s.repo.DeletePasswordResetsByEmail(email)
+
+	code, err := generateOTP(6)
+	if err != nil {
+		return err
+	}
+	resetToken, err := generateToken(32)
+	if err != nil {
+		return err
+	}
+
+	_, _ = s.redis.IncrWithTTL(ctx, resetRateKey, resetRateWindowSecs)
+
+	expiresAt := time.Now().Add(15 * time.Minute)
+	if err := s.repo.CreatePasswordReset(email, code, resetToken, expiresAt); err != nil {
+		return err
+	}
+	// Also reset attempt counter so any previous lockout is cleared for the new code.
+	_ = s.redis.Del(ctx, "reset:attempts:"+email)
+	_ = s.sendPasswordResetEmail(email, code)
+	return nil
+}
+
+func (s *Service) VerifyResetCode(ctx context.Context, email, code string) (string, error) {
+	const maxAttempts = 5
+	const resetWindowSecs = 15 * 60
+	attemptKey := "reset:attempts:" + email
+
+	attempts, _ := s.redis.GetInt64(ctx, attemptKey)
+	if attempts >= maxAttempts {
+		return "", ErrResetTooManyAttempts
+	}
+
+	// Fetch by email only so code comparison can use constant-time equality.
+	pr, err := s.repo.GetLatestValidPasswordReset(email)
+	if err != nil {
+		return "", fmt.Errorf("invalid or expired reset code")
+	}
+
+	if subtle.ConstantTimeCompare([]byte(pr.Code), []byte(code)) != 1 {
+		_, _ = s.redis.IncrWithTTL(ctx, attemptKey, resetWindowSecs)
+		return "", fmt.Errorf("invalid or expired reset code")
+	}
+
+	_ = s.redis.Del(ctx, attemptKey)
+	return pr.ResetToken, nil
+}
+
+func (s *Service) ResetPassword(token, newPassword string) error {
+	if len(newPassword) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+
+	pr, err := s.repo.GetPasswordResetByToken(token)
+	if err != nil {
+		return fmt.Errorf("invalid or expired reset token")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.UpdatePassword(pr.Email, string(hash)); err != nil {
+		return err
+	}
+	// Purge all reset records for this email — prevents replay of any other
+	// non-expired codes that were issued in the same session.
+	_ = s.repo.DeletePasswordResetsByEmail(pr.Email)
+	return nil
+}
+
+func (s *Service) ChangePassword(userID, currentPassword, newPassword string) error {
+	hash, err := s.repo.GetPasswordHashByID(userID)
+	if err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(currentPassword)); err != nil {
+		return fmt.Errorf("current password is incorrect")
+	}
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdatePasswordByID(userID, string(newHash))
+}
+
+// MarkMDCNVerified marks the professional's MDCN license status as verified
+// and returns the updated user record.
+func (s *Service) MarkMDCNVerified(ctx context.Context, userID string) (*User, error) {
+	user, err := s.repo.SetMDCNVerified(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update MDCN verification status: %w", err)
+	}
+	if s.natsPublisher != nil {
+		payload, _ := json.Marshal(map[string]string{
+			"user_id": userID,
+			"email":   user.Email,
+			"name":    user.Name,
+		})
+		if pubErr := s.natsPublisher.Publish("physician.verification.confirmed", payload); pubErr != nil {
+			log.Printf("[auth] publish physician.verification.confirmed: %v", pubErr)
+		}
+	}
+	return user, nil
+}
+
+// ScheduleAccountDeletion marks the user's account for deletion in 90 days.
+func (s *Service) ScheduleAccountDeletion(userID string) (*User, error) {
+	user, err := s.repo.ScheduleAccountDeletion(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to schedule account deletion: %w", err)
+	}
+	return user, nil
+}
+
+// CancelAccountDeletion removes the scheduled deletion for the user's account.
+func (s *Service) CancelAccountDeletion(userID string) (*User, error) {
+	user, err := s.repo.CancelAccountDeletion(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cancel account deletion: %w", err)
+	}
+	return user, nil
+}
+
+// DeleteExpiredAccounts permanently removes all user accounts past their scheduled deletion date.
+func (s *Service) DeleteExpiredAccounts() (int64, error) {
+	return s.repo.DeleteExpiredAccounts()
+}
+
+func (s *Service) generateJWT(u *User) (string, error) {
+	expiry, err := time.ParseDuration(s.cfg.JWTExpiry)
+	if err != nil {
+		expiry = 24 * time.Hour
+	}
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"jti":     randomHex(16), // unique token ID — enables future revocation
+		"iss":     "lifegate",
+		"user_id": u.ID,
+		"email":   u.Email,
+		"role":    u.Role,
+		"iat":     now.Unix(),
+		"nbf":     now.Unix(),
+		"exp":     now.Add(expiry).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.cfg.JWTSecret))
+}
+
+func (s *Service) sendOTPEmail(to, name, otp string) error {
+	subject := "LifeGate — Verify your email"
+	body := fmt.Sprintf("Hi %s,\r\n\r\nYour OTP code is: %s\r\n\r\nThis code expires in 10 minutes.\r\n\r\nDo not share this code with anyone.", name, otp)
+	return s.sendEmail(to, subject, body)
+}
+
+func (s *Service) sendPasswordResetEmail(to, code string) error {
+	subject := "LifeGate — Password Reset Code"
+	body := fmt.Sprintf("Your password reset code is: %s\r\n\r\nThis code expires in 15 minutes.", code)
+	return s.sendEmail(to, subject, body)
+}
+
+func (s *Service) sendEmail(to, subject, body string) error {
+	type payload struct {
+		From    string   `json:"from"`
+		To      []string `json:"to"`
+		Subject string   `json:"subject"`
+		Text    string   `json:"text"`
+	}
+	data, err := json.Marshal(payload{
+		From:    s.cfg.EmailFrom,
+		To:      []string{to},
+		Subject: subject,
+		Text:    body,
+	})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, s.resendURL, bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+s.cfg.ResendAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resend: status %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+func generateOTP(n int) (string, error) {
+	digits := "0123456789"
+	otp := make([]byte, n)
+	for i := range otp {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
+		if err != nil {
+			return "", err
+		}
+		otp[i] = digits[idx.Int64()]
+	}
+	return string(otp), nil
+}
+
+func generateToken(n int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, n)
+	for i := range b {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", err
+		}
+		b[i] = charset[idx.Int64()]
+	}
+	return string(b), nil
+}
+
+func generateID(prefix string) string {
+	token, err := generateToken(6)
+	if err != nil {
+		// Fallback to a timestamp-based ID if crypto/rand is unavailable
+		return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+	}
+	return prefix + "-" + strings.ToUpper(token)
+}
+
+// GoogleLogin verifies a Firebase ID token (obtained after Google Sign-In on the
+// client) via the Firebase REST API, then finds or creates the matching LifeGate
+// user and returns a signed TokenPair.
+func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, error) {
+	if s.cfg.FirebaseAPIKey == "" {
+		return nil, fmt.Errorf("Firebase API key not configured on the server")
+	}
+
+	// Verify the ID token with Firebase's accounts:lookup endpoint.
+	type firebaseRequest struct {
+		IDToken string `json:"idToken"`
+	}
+	type firebaseUser struct {
+		LocalID      string `json:"localId"`
+		Email        string `json:"email"`
+		DisplayName  string `json:"displayName"`
+		EmailVerified bool   `json:"emailVerified"`
+	}
+	type firebaseResponse struct {
+		Users []firebaseUser `json:"users"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+
+	reqBody, _ := json.Marshal(firebaseRequest{IDToken: idToken})
+	url := "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + s.cfg.FirebaseAPIKey
+	resp, err := http.Post(url, "application/json", bytes.NewReader(reqBody)) //nolint:noctx
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify Google token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var fbResp firebaseResponse
+	if err := json.NewDecoder(resp.Body).Decode(&fbResp); err != nil {
+		return nil, fmt.Errorf("failed to parse Firebase response: %w", err)
+	}
+	if fbResp.Error != nil {
+		return nil, fmt.Errorf("Google token verification failed: %s", fbResp.Error.Message)
+	}
+	if len(fbResp.Users) == 0 {
+		return nil, fmt.Errorf("invalid Google token: no user found")
+	}
+
+	fbUser := fbResp.Users[0]
+	email := strings.ToLower(strings.TrimSpace(fbUser.Email))
+	name := fbUser.DisplayName
+	if name == "" {
+		name = email
+	}
+
+	user, isNew, err := s.repo.FindOrCreateGoogleUser(email, name, generateID("USR"), generateID("PAT"))
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve user: %w", err)
+	}
+
+	// Grant trial credits and referral code only on first sign-in.
+	if isNew {
+		if s.trialGranter != nil {
+			_ = s.trialGranter.GrantTrialCredits(user.ID)
+		}
+		if s.referralProc != nil {
+			_, _ = s.referralProc.EnsureReferralCode(user.ID)
+		}
+	}
+
+	accessToken, err := s.generateJWT(user)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.IssueRefreshToken(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenPair{Token: accessToken, RefreshToken: refreshToken, User: user}, nil
+}
+

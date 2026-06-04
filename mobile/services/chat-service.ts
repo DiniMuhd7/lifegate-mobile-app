@@ -1,0 +1,164 @@
+/**
+ * Chat Service
+ * Handles communication with Backend AI API
+ * Step C of the chat flow: AI Orchestration
+ *
+ * - Sends messages and conversation history to backend
+ * - Backend handles prompt engineering and AI orchestration
+ * - Parses and validates responses
+ * - Returns structured AIResponse with diagnosis/prescription
+ */
+
+import api from './api';
+import { Message, AIResponse, FinalizeResult, VerifiedPhysician } from 'types/chat-types';
+
+/**
+ * Service responsible for communicating with the Backend AI API.
+ * Delegates prompt engineering and AI orchestration to the backend.
+ */
+export class ChatService {
+  /**
+   * Fetches an AI response based on the user's health-related query from the backend.
+   * @param previousMessages - Conversation history for context
+   * @param userMessage - The user's input message describing symptoms or asking health questions.
+   * @returns A promise resolving to an AIResponse object.
+   */
+  static async sendMessage(
+    previousMessages: Message[],
+    userMessage: string,
+    category?: string,
+    mode?: string,
+    signal?: AbortSignal,
+    existingDiagnosisId?: string,
+  ): Promise<AIResponse> {
+    const clientStart = Date.now();
+    const LATENCY_TARGET_MS = 500;
+
+    try {
+      // Build request payload with message, category, and conversation history.
+      // When in clinical_diagnosis mode, override category to 'clinical_diagnosis'
+      // so the server applies the full EDIS Clinical Diagnosis prompt snippet
+      // instead of the generic 'doctor_consultation' snippet.
+      const effectiveCategory =
+        mode === 'clinical_diagnosis' ? 'clinical_diagnosis' : category || '';
+
+      const requestPayload = {
+        message: userMessage,
+        category: effectiveCategory,
+        previousMessages: previousMessages.map((msg) => ({
+          role: msg.role,
+          text: msg.text,
+        })),
+      };
+
+      // Send ?category=clinical_diagnosis as query param so the credit gate
+      // middleware can read it without consuming the request body.
+      // Also send ?diagnosisId when continuing an existing active case so the
+      // backend skips the credit deduction for that conversation.
+      const queryParams = mode === 'clinical_diagnosis'
+        ? {
+            params: {
+              category: 'clinical_diagnosis',
+              ...(existingDiagnosisId ? { diagnosisId: existingDiagnosisId } : {}),
+            },
+          }
+        : {};
+
+      // Call backend endpoint
+      const response = await api.post<{ data: AIResponse; escalated?: boolean; latency_ms?: number }>(
+        '/genai/chat',
+        requestPayload,
+        {
+          ...queryParams,
+          signal,
+        }
+      );
+
+      const clientLatencyMs = Date.now() - clientStart;
+      const serverLatencyMs = response.data.latency_ms ?? Number(response.headers?.['x-ai-latency-ms'] ?? 0);
+
+      // Log latency warning when round-trip exceeds 500ms target
+      if (clientLatencyMs > LATENCY_TARGET_MS) {
+        console.warn(
+          `[LATENCY] AI response exceeded ${LATENCY_TARGET_MS}ms target — ` +
+          `client: ${clientLatencyMs}ms, server: ${serverLatencyMs}ms, category: ${effectiveCategory}`
+        );
+      }
+
+      // Extract AIResponse from backend response.
+      // The backend wraps as: { success, data: ChatResponse, latency_ms }.
+      // All fields (diagnosisId, escalated, isExistingCase, conditions, etc.) are
+      // already present directly on `result` — no need to hoist from the outer wrapper.
+      const result = (response.data as unknown as { data: AIResponse }).data;
+
+      if (!result || !result.text) {
+        throw new Error('No content returned from AI');
+      }
+
+      // Validate urgency if diagnosis exists
+      if (result.diagnosis) {
+        const validUrgencies = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+        if (!validUrgencies.includes(result.diagnosis.urgency)) {
+          result.diagnosis.urgency = 'MEDIUM'; // Default to MEDIUM if invalid
+        }
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('Backend AI API Error:', error);
+      // Detect credit-gate rejection so the UI can show a top-up prompt.
+      const status = error?.response?.status;
+      const code = String(error?.response?.data?.code || '').toUpperCase();
+      const message = String(error?.response?.data?.message || '').toLowerCase();
+      const isCreditGate =
+        status === 402 ||
+        code === 'INSUFFICIENT_CREDITS' ||
+        message.includes('insufficient') && message.includes('credit');
+
+      if (isCreditGate) {
+        // Carry the LifeCoins balance & cost-per-credit from the response so
+        // the chat store can offer a LifeCoins fallback payment to the patient.
+        const creditsError = new Error('INSUFFICIENT_CREDITS') as Error & {
+          lifecoinsBalance?: number;
+          coinsPerCredit?: number;
+        };
+        creditsError.lifecoinsBalance = (error?.response?.data?.lifecoinsBalance as number) ?? 0;
+        creditsError.coinsPerCredit = (error?.response?.data?.coinsPerCredit as number) ?? 50;
+        throw creditsError;
+      }
+
+      // Detect axios timeout (ECONNABORTED) or network-level failure so the
+      // caller (fetchAIResponse) can do one automatic retry.
+      const axiosCode = String(error?.code ?? '');
+      const isTimeout = axiosCode === 'ECONNABORTED' || axiosCode === 'ERR_NETWORK';
+      const err = new Error(
+        'I encountered an error analyzing your symptoms. Please try again or consult a professional.'
+      ) as Error & { retryable?: boolean };
+      err.retryable = isTimeout;
+      throw err;
+    }
+  }
+
+  /**
+   * Finalizes a session-scoped chat, running a comprehensive EDIS analysis
+   * on the full conversation history and queueing the case for physician review.
+   * Called after a clinical_diagnosis session receives its first diagnosis.
+   */
+  static async finalize(sessionId: string): Promise<FinalizeResult> {
+    const res = await api.post<{ success: boolean; data: FinalizeResult }>(
+      `/chat/sessions/${sessionId}/finalize`
+    );
+    return res.data.data;
+  }
+
+  /**
+   * Returns the list of MDCN-verified, active physicians available for
+   * patient preview in clinical diagnosis mode.
+   */
+  static async getAvailablePhysicians(): Promise<VerifiedPhysician[]> {
+    const res = await api.get<{ success: boolean; data: VerifiedPhysician[] }>(
+      '/physicians/available'
+    );
+    return res.data.data ?? [];
+  }
+}
