@@ -44,7 +44,17 @@ func NewScheduler(db *sql.DB, push *Service) *Scheduler {
 
 // StartScheduler blocks forever, running all retention notification jobs.
 // Call it in a dedicated goroutine.
+//
+// Each job fires once immediately at startup (so the first batch goes out
+// on deploy rather than waiting up to a day/week for the next clock
+// occurrence), then continues on its normal schedule.
 func (sc *Scheduler) StartScheduler(ctx context.Context) {
+	// Immediate first-run — mirrors what the OpenClaw worker does on startup.
+	go sc.sendStreakReminders(ctx)
+	go sc.sendWeeklyDigests(ctx)
+	go sc.sendReEngagement(ctx)
+
+	// Then hand off to the timed loops.
 	go sc.runStreakReminder(ctx)
 	go sc.runWeeklyDigest(ctx)
 	go sc.runReEngagement(ctx)
