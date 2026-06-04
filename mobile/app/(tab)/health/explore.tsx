@@ -9,6 +9,7 @@ import {
   View,
   Text,
   FlatList,
+  Modal,
   Pressable,
   ActivityIndicator,
   Platform,
