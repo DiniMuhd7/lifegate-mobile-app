@@ -626,6 +626,7 @@ func main() {
 	{
 		exploreGroup.GET("/videos", exploreHandler.ListVideos)
 		exploreGroup.POST("/claim", exploreHandler.ClaimReward)
+		exploreGroup.POST("/watch", exploreHandler.RecordWatch)
 	}
 
 	// Patient push-token registration (Expo push token stored per-user for

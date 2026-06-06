@@ -64,6 +64,36 @@ func (h *Handler) ListVideos(c *gin.Context) {
 	})
 }
 
+// RecordWatch records a user's video watch event for the personalization engine.
+//
+// @Summary      Record video watch event
+// @Tags         explore
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body  object{videoId=string,category=string,watchSeconds=integer,completed=bool,isShort=bool}  true  "Watch event"
+// @Success      200  {object}  object{success=bool}
+// @Router       /explore/watch [post]
+func (h *Handler) RecordWatch(c *gin.Context) {
+	var req struct {
+		VideoID      string `json:"videoId"      binding:"required"`
+		Category     string `json:"category"`
+		WatchSeconds int    `json:"watchSeconds"`
+		Completed    bool   `json:"completed"`
+		IsShort      bool   `json:"isShort"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "videoId is required"})
+		return
+	}
+	userID, _ := c.Get("userID")
+	uid, _ := userID.(string)
+
+	// Best-effort — never fail the client over a telemetry write
+	_ = h.svc.RecordWatch(uid, req.VideoID, req.Category, req.WatchSeconds, req.Completed, req.IsShort)
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
 // TriggerRefresh forces an immediate YouTube catalogue refresh.
 // Admin only — protected at the route level.
 //

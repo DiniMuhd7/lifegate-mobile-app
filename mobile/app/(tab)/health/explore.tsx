@@ -68,12 +68,14 @@ const ReelCard = React.memo(function ReelCard({
   rewarded,
   cardHeight,
   onClaim,
+  onWatchEvent,
 }: {
   video: ExploreVideo;
   isActive: boolean;
   rewarded: boolean;
   cardHeight: number;
   onClaim: (videoId: string) => Promise<void>;
+  onWatchEvent: (videoId: string, category: string, watchSeconds: number, completed: boolean, isShort: boolean) => void;
 }) {
   const { bottom: bottomInset } = useSafeAreaInsets();
 
@@ -103,6 +105,11 @@ const ReelCard = React.memo(function ReelCard({
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
       try { videoRef.current?.stopLoading(); } catch (_) {}
+      // Report how much the user watched before swiping away
+      const watched = requiredSeconds - Math.max(remainingRef.current, 0);
+      if (watched > 0) {
+        onWatchEvent(video.id, video.category, watched, canClaim, false);
+      }
       // Reset state so it starts fresh next time the card comes back into view
       setPlayerReady(false);
       setEmbedError(null);
@@ -122,7 +129,7 @@ const ReelCard = React.memo(function ReelCard({
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
     };
-  }, [isActive, requiredSeconds]);
+  }, [isActive, requiredSeconds, onWatchEvent, video.id, video.category, canClaim]);
 
   // Show no-ad overlay when ad has failed and the user just earned the right to claim
   useEffect(() => {
@@ -466,6 +473,7 @@ const ShortItem = React.memo(function ShortItem({
   itemHeight: number;
   onClaim: (videoId: string) => Promise<void>;
   onClose: () => void;
+  onWatchEvent: (videoId: string, category: string, watchSeconds: number, completed: boolean, isShort: boolean) => void;
 }) {
   const { bottom: bottomInset } = useSafeAreaInsets();
 
@@ -495,6 +503,11 @@ const ShortItem = React.memo(function ShortItem({
       if (claimTimeoutRef.current)  { clearTimeout(claimTimeoutRef.current);  claimTimeoutRef.current  = null; }
       if (adFailTimeoutRef.current) { clearTimeout(adFailTimeoutRef.current); adFailTimeoutRef.current = null; }
       try { videoRef.current?.stopLoading(); } catch (_) {}
+      // Report watch event before resetting
+      const watched = requiredSeconds - Math.max(remainingRef.current, 0);
+      if (watched > 0) {
+        onWatchEvent(video.id, video.category, watched, canClaim, true);
+      }
       setPlayerReady(false); setEmbedError(null); setCanClaim(false);
       setSecondsLeft(requiredSeconds); setAdReady(false); setAdFailed(false);
       setClaiming(false); setClaimPending(false); setNoAdVisible(false);
@@ -510,7 +523,7 @@ const ShortItem = React.memo(function ShortItem({
       if (claimTimeoutRef.current)  clearTimeout(claimTimeoutRef.current);
       if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current);
     };
-  }, [isActive, requiredSeconds]);
+  }, [isActive, requiredSeconds, onWatchEvent, video.id, video.category, canClaim]);
 
   useEffect(() => {
     if (adFailed && canClaim) setNoAdVisible(true);
@@ -797,11 +810,13 @@ function ShortPlayerModal({
   initialIndex,
   onClose,
   onClaim,
+  onWatchEvent,
 }: {
   videos: ExploreVideo[];
   initialIndex: number;
   onClose: () => void;
   onClaim: (videoId: string) => Promise<void>;
+  onWatchEvent: (videoId: string, category: string, watchSeconds: number, completed: boolean, isShort: boolean) => void;
 }) {
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -827,9 +842,10 @@ function ShortPlayerModal({
         itemHeight={screenHeight}
         onClaim={onClaim}
         onClose={onClose}
+        onWatchEvent={onWatchEvent}
       />
     ),
-    [activeIndex, screenHeight, onClaim, onClose],
+    [activeIndex, screenHeight, onClaim, onClose, onWatchEvent],
   );
 
   return (
@@ -1042,6 +1058,7 @@ export default function ExploreScreen() {
     videos,
     dailyCap,
     lastVideoFetchDate,
+    reportWatch,
   } = useExploreStore();
 
   const user = useAuthStore((s) => s.user);
@@ -1152,9 +1169,10 @@ export default function ExploreScreen() {
         rewarded={isRewarded(video.id)}
         cardHeight={CARD_HEIGHT}
         onClaim={handleClaim}
+        onWatchEvent={reportWatch}
       />
     ),
-    [isRewarded, handleClaim, CARD_HEIGHT, activeIndex],
+    [isRewarded, handleClaim, CARD_HEIGHT, activeIndex, reportWatch],
   );
 
   const dailyRemaining = getDailyRemaining();
@@ -1361,6 +1379,7 @@ export default function ExploreScreen() {
           initialIndex={activeShortIndex}
           onClose={() => setActiveShortIndex(-1)}
           onClaim={handleClaim}
+          onWatchEvent={reportWatch}
         />
       )}
 

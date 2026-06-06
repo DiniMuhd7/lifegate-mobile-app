@@ -2,6 +2,7 @@ package explore
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -247,6 +248,135 @@ func (r *Repository) DeactivateOldVideos(category, language, today string) error
 		  AND  DATE(updated_at) < $3::date
 	`, category, language, today)
 	return err
+}
+
+// UserPersonalizationData contains everything the scoring algorithm needs to
+// rank the video catalogue for a specific user.
+type UserPersonalizationData struct {
+	Gender             string
+	MedicalHistory     string
+	CurrentMedications string
+	Allergies          string
+	// DiagnosedConditions lists condition strings from the user's case history.
+	DiagnosedConditions []string
+	// CategoryInterest maps category name → claim count in the last 30 days.
+	// Higher count = stronger demonstrated interest.
+	CategoryInterest map[string]int
+	// WatchedVideoIDs is the set of video IDs the user has interacted with in
+	// the last 14 days so they can be de-prioritised in the ranking.
+	WatchedVideoIDs map[string]struct{}
+}
+
+// GetUserPersonalizationData fetches the user's health profile and engagement
+// history in two queries and returns it for the scoring algorithm.
+func (r *Repository) GetUserPersonalizationData(userID string) (UserPersonalizationData, error) {
+	var d UserPersonalizationData
+	d.CategoryInterest = make(map[string]int)
+	d.WatchedVideoIDs  = make(map[string]struct{})
+
+	// 1. Health profile + recent diagnosed conditions (last 6 months, ≤10 rows)
+	profileRow := r.db.QueryRow(`
+		SELECT
+		    COALESCE(u.gender,''),
+		    COALESCE(u.medical_history,''),
+		    COALESCE(u.current_medications,''),
+		    COALESCE(u.allergies,''),
+		    COALESCE(
+		        (SELECT string_agg(DISTINCT d.condition, '|')
+		         FROM   diagnoses d
+		         WHERE  d.user_id = u.id
+		           AND  d.condition IS NOT NULL
+		           AND  d.condition <> ''
+		           AND  d.created_at >= NOW() - INTERVAL '6 months'
+		        ), '')
+		FROM users u
+		WHERE u.id = $1::uuid`, userID)
+	var conditionsStr string
+	if err := profileRow.Scan(&d.Gender, &d.MedicalHistory, &d.CurrentMedications,
+		&d.Allergies, &conditionsStr); err != nil && err.Error() != "sql: no rows in result set" {
+		return d, err
+	}
+	if conditionsStr != "" {
+		for _, c := range splitPipe(conditionsStr) {
+			if c != "" {
+				d.DiagnosedConditions = append(d.DiagnosedConditions, c)
+			}
+		}
+	}
+
+	// 2. Category engagement from claimed rewards (last 30 days)
+	catRows, err := r.db.Query(`
+		SELECT ev.category, COUNT(*) AS claim_count
+		FROM   explore_video_rewards evr
+		JOIN   explore_videos ev ON ev.id = evr.video_id
+		WHERE  evr.user_id    = $1
+		  AND  evr.rewarded_on >= CURRENT_DATE - INTERVAL '30 days'
+		GROUP  BY ev.category`, userID)
+	if err == nil {
+		defer catRows.Close()
+		for catRows.Next() {
+			var cat string
+			var cnt int
+			if catRows.Scan(&cat, &cnt) == nil && cat != "" {
+				d.CategoryInterest[cat] = cnt
+			}
+		}
+	}
+
+	// 3. Recently watched video IDs (last 14 days) for novelty scoring
+	watchRows, err := r.db.Query(`
+		SELECT video_id
+		FROM   explore_video_interactions
+		WHERE  user_id       = $1
+		  AND  interacted_on >= CURRENT_DATE - INTERVAL '14 days'`, userID)
+	if err == nil {
+		defer watchRows.Close()
+		for watchRows.Next() {
+			var vid string
+			if watchRows.Scan(&vid) == nil {
+				d.WatchedVideoIDs[vid] = struct{}{}
+			}
+		}
+	}
+
+	return d, nil
+}
+
+// RecordInteraction upserts a watch event for a user. If a row for today
+// already exists, it updates watch_seconds and completed only if the new
+// values are greater (idempotent, safe to call multiple times).
+func (r *Repository) RecordInteraction(userID, videoID, category string, watchSeconds int, completed, isShort bool) error {
+	_, err := r.db.Exec(`
+		INSERT INTO explore_video_interactions
+		    (user_id, video_id, category, watch_seconds, completed, is_short, interacted_on)
+		VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)
+		ON CONFLICT (user_id, video_id, interacted_on) DO UPDATE
+		    SET watch_seconds = GREATEST(explore_video_interactions.watch_seconds, EXCLUDED.watch_seconds),
+		        completed     = explore_video_interactions.completed OR EXCLUDED.completed`,
+		userID, videoID, category, watchSeconds, completed, isShort)
+	return err
+}
+
+// splitPipe splits a pipe-delimited string.
+func splitPipe(s string) []string {
+	var out []string
+	for _, part := range splitBy(s, '|') {
+		out = append(out, strings.TrimSpace(part))
+	}
+	return out
+}
+
+func splitBy(s string, sep byte) []string {
+	var out []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == sep {
+			out = append(out, s[start:i])
+			start = i + 1
+		}
+	}
+	out = append(out, s[start:])
+	return out
 }
 
 // ListTrendingCategories returns all active rows from explore_trending_categories.
