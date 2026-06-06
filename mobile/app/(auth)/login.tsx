@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Platform, Modal, TouchableOpacity, Image, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, Platform, Modal, TouchableOpacity, Image, TextInput, ActivityIndicator } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { LabeledInput } from 'components/LabeledInput';
 import { PrimaryButton } from 'components/Button';
 import { useAuthStore } from 'stores/auth/auth-store';
@@ -11,6 +12,30 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { InstantMessageModal } from 'components/InstantMessageModal';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Authentic multi-colour Google "G" logo. */
+function GoogleGLogo({ size = 20 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"
+      />
+      <Path
+        fill="#34A853"
+        d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09c1.97 3.92 6.02 6.62 10.71 6.62z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29v-3.09h-3.98c-.8 1.61-1.27 3.43-1.27 5.38s.46 3.77 1.27 5.38l3.98-3.09z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42c-2.07-1.94-4.78-3.13-8.02-3.13-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"
+      />
+    </Svg>
+  );
+}
 
 export default function LoginScreen() {
   const [remember, setRemember] = useState(false);
@@ -248,15 +273,59 @@ export default function LoginScreen() {
             onPress={onGoogleLogin}
             disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Sign in with Google"
-            style={({ pressed }) => ({ opacity: pressed || loading ? 0.7 : 1 })}
-            className="h-13 flex-row items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm"
+            accessibilityLabel="Continue with Google"
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 54,
+              borderRadius: 27,
+              backgroundColor: '#ffffff',
+              borderWidth: 1,
+              borderColor: '#E5E7EB',
+              paddingHorizontal: 18,
+              // Soft, branded elevation
+              shadowColor: '#1f2937',
+              shadowOpacity: pressed ? 0.06 : 0.12,
+              shadowRadius: pressed ? 6 : 12,
+              shadowOffset: { width: 0, height: pressed ? 2 : 5 },
+              elevation: pressed ? 2 : 5,
+              transform: [{ scale: pressed ? 0.985 : 1 }],
+              opacity: loading ? 0.85 : 1,
+            })}
           >
-            {/* Google "G" logo rendered with SVG paths */}
-            <View className="mr-3 h-5 w-5 items-center justify-center">
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#4285F4', lineHeight: 20 }}>G</Text>
+            {/* Logo chip on the left */}
+            <View
+              style={{
+                position: 'absolute',
+                left: 8,
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: '#fff',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: '#F1F5F9',
+              }}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#4285F4" />
+              ) : (
+                <GoogleGLogo size={22} />
+              )}
             </View>
-            <Text className="text-sm font-semibold text-gray-700">Sign in with Google</Text>
+
+            <Text
+              style={{
+                fontSize: 15.5,
+                fontWeight: '700',
+                color: '#1f2937',
+                letterSpacing: 0.2,
+              }}
+            >
+              {loading ? 'Signing in…' : 'Continue with Google'}
+            </Text>
           </Pressable>
 
           <View className="mt-6 flex-row justify-center">
