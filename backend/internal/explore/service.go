@@ -328,6 +328,13 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 	// threshold, fetch new ones from YouTube using queries built from THIS
 	// user's profile (their conditions/interests — not the full category set).
 	// Throttled per user so the API quota is preserved.
+	//
+	// Blocking vs background:
+	//   • Catalogue EMPTY for this user  → fetch SYNCHRONOUSLY (we have nothing
+	//     to show, so we must wait for results before responding).
+	//   • Catalogue LOW but non-empty    → fetch in the BACKGROUND and serve the
+	//     existing videos immediately, so the request is never slowed down. The
+	//     freshly fetched videos surface on the user's next open.
 	if len(videos) < minFreshVideos && s.refresher != nil {
 		s.userFetchMu.Lock()
 		last := s.lastUserFetch[userID]
@@ -344,12 +351,21 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 
 		if canFetch {
 			queries := buildUserQueries(profile)
-			s.refreshMu.Lock()
-			s.refresher.FetchForQueries(context.Background(), queries, language)
-			s.refreshMu.Unlock()
-			// Re-query now that fresh videos are stored.
-			if v2, e := freshFor(); e == nil {
-				videos = v2
+			if len(videos) == 0 {
+				// Nothing to serve — fetch synchronously, then re-query.
+				s.refreshMu.Lock()
+				s.refresher.FetchForQueries(context.Background(), queries, language)
+				s.refreshMu.Unlock()
+				if v2, e := freshFor(); e == nil {
+					videos = v2
+				}
+			} else {
+				// We have content — top up in the background; don't block the response.
+				go func() {
+					s.refreshMu.Lock()
+					defer s.refreshMu.Unlock()
+					s.refresher.FetchForQueries(context.Background(), queries, language)
+				}()
 			}
 		}
 	}
