@@ -154,9 +154,17 @@ func scoreVideo(v Video, profile UserPersonalizationData, catScores map[string]f
 	return score
 }
 
-// rankVideos scores every video against the user's profile and returns them
-// sorted highest-first.  Equal scores preserve the deterministic DB order so
-// the daily rotation still works as a tiebreaker.
+// rankVideos orders videos by the user's profile while INTERLEAVING categories
+// so the feed is a varied mix — not a single solid block of the top-scoring
+// category. A pure score sort would cluster every video of the highest category
+// (e.g. all Dermatology) at the front, so in a one-at-a-time swipe feed the user
+// only ever sees that one category. Instead we:
+//
+//  1. Score every video and group by category.
+//  2. Order categories by their relevance score (highest first).
+//  3. Round-robin pick one video from each category in that order, repeating,
+//     so the output alternates categories (top, 2nd, 3rd, top, 2nd, …) — the
+//     user's preferred categories appear most often but variety is guaranteed.
 func rankVideos(videos []Video, profile UserPersonalizationData) []Video {
 	catScores := buildCategoryScores(profile)
 
@@ -164,19 +172,48 @@ func rankVideos(videos []Video, profile UserPersonalizationData) []Video {
 		v     Video
 		score float64
 	}
-	sv := make([]scored, len(videos))
-	for i, v := range videos {
-		sv[i] = scored{v: v, score: scoreVideo(v, profile, catScores)}
+
+	// Group videos by category; track each category's best score for ordering.
+	groups := make(map[string][]scored)
+	catBest := make(map[string]float64)
+	for _, v := range videos {
+		sc := scoreVideo(v, profile, catScores)
+		groups[v.Category] = append(groups[v.Category], scored{v, sc})
+		if sc > catBest[v.Category] {
+			catBest[v.Category] = sc
+		}
 	}
 
-	// Stable sort (preserves original order for equal scores)
-	sort.SliceStable(sv, func(i, j int) bool {
-		return sv[i].score > sv[j].score
-	})
+	// Sort each category's videos by score (highest first).
+	for cat := range groups {
+		g := groups[cat]
+		sort.SliceStable(g, func(i, j int) bool { return g[i].score > g[j].score })
+		groups[cat] = g
+	}
 
-	out := make([]Video, len(sv))
-	for i, s := range sv {
-		out[i] = s.v
+	// Order the categories themselves by their best score.
+	cats := make([]string, 0, len(groups))
+	for cat := range groups {
+		cats = append(cats, cat)
+	}
+	sort.SliceStable(cats, func(i, j int) bool { return catBest[cats[i]] > catBest[cats[j]] })
+
+	// Round-robin across categories (in score order) to interleave the feed.
+	out := make([]Video, 0, len(videos))
+	idx := make(map[string]int, len(cats))
+	for len(out) < len(videos) {
+		progressed := false
+		for _, cat := range cats {
+			i := idx[cat]
+			if i < len(groups[cat]) {
+				out = append(out, groups[cat][i].v)
+				idx[cat] = i + 1
+				progressed = true
+			}
+		}
+		if !progressed {
+			break
+		}
 	}
 	return out
 }
@@ -324,24 +361,34 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 	}
 
 	// ── On-demand personalised fetch ──────────────────────────────────────────
-	// No daily cron: when the user has fewer fresh (unwatched) videos than the
-	// threshold, fetch new ones from YouTube using queries built from THIS
-	// user's profile (their conditions/interests — not the full category set).
-	// Throttled per user so the API quota is preserved.
-	//
-	// Blocking vs background:
-	//   • Catalogue EMPTY for this user  → fetch SYNCHRONOUSLY (we have nothing
-	//     to show, so we must wait for results before responding).
-	//   • Catalogue LOW but non-empty    → fetch in the BACKGROUND and serve the
-	//     existing videos immediately, so the request is never slowed down. The
-	//     freshly fetched videos surface on the user's next open.
-	if len(videos) < minFreshVideos && s.refresher != nil {
+	// No daily cron: fetch from YouTube using queries built from THIS user's
+	// profile when their feed lacks content matched to them. Crucially we look
+	// at coverage of the user's OWN preferred categories — not just the total
+	// count — so a user never just inherits a catalogue full of some other
+	// user's category (e.g. all Dermatology). Throttled per user for quota.
+	queries := buildUserQueries(profile)
+	preferred := make(map[string]bool, len(queries))
+	for _, q := range queries {
+		preferred[q.Category] = true
+	}
+	freshInPreferred := 0
+	for _, v := range videos {
+		if preferred[v.Category] {
+			freshInPreferred++
+		}
+	}
+
+	// We need a fetch when the overall pool is thin OR the user's own preferred
+	// categories are under-represented in what we can show them.
+	needFetch := len(videos) < minFreshVideos || freshInPreferred < minFreshVideos
+
+	if needFetch && s.refresher != nil {
 		s.userFetchMu.Lock()
 		last := s.lastUserFetch[userID]
 		canFetch := userID != "" && time.Since(last) > userFetchCooldown
-		// Always allow a fetch when the catalogue is completely empty for this
-		// language (e.g. first ever request after deploy), regardless of cooldown.
-		if len(videos) == 0 {
+		// First-time / empty-pool cases bypass the cooldown so the user is not
+		// left looking at irrelevant content.
+		if len(videos) == 0 || freshInPreferred == 0 {
 			canFetch = canFetch || time.Since(last) > 2*time.Minute
 		}
 		if canFetch {
@@ -350,9 +397,11 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 		s.userFetchMu.Unlock()
 
 		if canFetch {
-			queries := buildUserQueries(profile)
-			if len(videos) == 0 {
-				// Nothing to serve — fetch synchronously, then re-query.
+			// Fetch SYNCHRONOUSLY when we have nothing relevant to show this
+			// user (empty pool, or none of their preferred categories present) —
+			// worth a one-time wait so they immediately get their own content.
+			// Otherwise top up in the BACKGROUND and serve existing videos now.
+			if len(videos) == 0 || freshInPreferred == 0 {
 				s.refreshMu.Lock()
 				s.refresher.FetchForQueries(context.Background(), queries, language)
 				s.refreshMu.Unlock()
@@ -360,7 +409,6 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 					videos = v2
 				}
 			} else {
-				// We have content — top up in the background; don't block the response.
 				go func() {
 					s.refreshMu.Lock()
 					defer s.refreshMu.Unlock()
