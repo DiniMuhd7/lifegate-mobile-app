@@ -1087,6 +1087,11 @@ export default function ExploreScreen() {
 
   // Which card index is currently snapped into view — drives auto-play
   const [activeIndex, setActiveIndex]   = useState<number | null>(0);
+  // True only while this screen is focused. Playback (and the WebView) is
+  // gated on this so the active video is torn down BEFORE we navigate away —
+  // abruptly unmounting a live react-native-webview during navigation crashes
+  // on Android.
+  const [screenFocused, setScreenFocused] = useState(true);
   // Index into shortsVideos for the short player modal (-1 = closed)
   const [activeShortIndex, setActiveShortIndex] = useState<number>(-1);
   const [toast,       setToast]       = useState<{ message: string; coins: number } | null>(null);
@@ -1115,14 +1120,39 @@ export default function ExploreScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (!initialized) return;
-      const today = new Date().toISOString().slice(0, 10);
-      if (lastVideoFetchDate !== today) {
-        setIsFetching(true);
-        refreshVideos().finally(() => setIsFetching(false));
+      // Mark focused so the visible card resumes playback.
+      setScreenFocused(true);
+      if (initialized) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (lastVideoFetchDate !== today) {
+          setIsFetching(true);
+          refreshVideos().finally(() => setIsFetching(false));
+        }
       }
+      // On blur (navigating away by any means), drop focus so every card's
+      // WebView unmounts cleanly before this screen is destroyed.
+      return () => setScreenFocused(false);
     }, [initialized, lastVideoFetchDate, refreshVideos]),
   );
+
+  // Safe back: stop/unmount the active video first, then navigate on the next
+  // tick so the WebView is gone before the screen unmounts (prevents Android
+  // WebView teardown crash).
+  const handleBack = useCallback(() => {
+    setScreenFocused(false);
+    setActiveIndex(null);
+    setTimeout(() => router.replace('/(tab)/health'), 60);
+  }, []);
+
+  // Route the Android hardware back button through the same safe path so it
+  // also tears the WebView down before navigating.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleBack();
+      return true; // consume — we handle navigation ourselves
+    });
+    return () => sub.remove();
+  }, [handleBack]);
 
   // Preserve the backend's per-user personalised ranking. The server already
   // ranks videos against this user's health profile, engagement and novelty
@@ -1190,14 +1220,14 @@ export default function ExploreScreen() {
     ({ item: video, index }: { item: ExploreVideo; index: number }) => (
       <ReelCard
         video={video}
-        isActive={index === activeIndex}
+        isActive={screenFocused && index === activeIndex}
         rewarded={isRewarded(video.id)}
         cardHeight={CARD_HEIGHT}
         onClaim={handleClaim}
         onWatchEvent={reportWatch}
       />
     ),
-    [isRewarded, handleClaim, CARD_HEIGHT, activeIndex, reportWatch],
+    [isRewarded, handleClaim, CARD_HEIGHT, activeIndex, reportWatch, screenFocused],
   );
 
   const dailyRemaining = getDailyRemaining();
@@ -1304,7 +1334,7 @@ export default function ExploreScreen() {
           pointerEvents="box-none"
         >
           <Pressable
-            onPress={() => router.replace('/(tab)/health')}
+            onPress={handleBack}
             style={({ pressed }) => ({
               opacity: pressed ? 0.7 : 1,
               width: 36,
