@@ -286,14 +286,14 @@ func main() {
 	exploreSvc := explore.NewService(exploreRepo)
 	exploreHandler := explore.NewHandler(exploreSvc)
 
-	// Daily YouTube catalogue refresh — searches each health category every
-	// 24 hours and upserts fresh videos into the explore_videos table.
-	// videosPerCat=10 fetches 10 candidates per duration band (medium + long)
-	// per category so we always land ≥10 videos in the 5–30 min range.
+	// YouTube catalogue is now fetched ON DEMAND per user — no daily cron.
+	// When a user opens Explore and has too few fresh (unwatched) videos, the
+	// service pulls new ones from YouTube using queries built from that user's
+	// health profile (see Service.ListVideos → FetchForQueries). The refresher
+	// is still wired for the admin manual-refresh endpoint.
 	exploreRefresher := explore.NewRefresher(exploreRepo, cfg.YouTubeAPIKey, 10)
 	exploreSvc.SetRefresher(exploreRefresher)
 	exploreSvc.SetLifecoinsAdder(paymentsSvc)
-	go exploreRefresher.Start(context.Background())
 
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)

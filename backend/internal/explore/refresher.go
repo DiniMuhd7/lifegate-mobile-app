@@ -202,30 +202,60 @@ func NewRefresher(repo *Repository, apiKey string, videosPerCat int) *Refresher 
 	return &Refresher{repo: repo, apiKey: apiKey, videosPerCat: videosPerCat, lastRunDateByLanguage: map[string]string{}}
 }
 
-// Start runs the daily refresh loop. It fires once immediately at startup (to
-// populate fresh content on first deploy) and then again at every subsequent
-// midnight UTC so that fresh videos are available at the start of each new
-// calendar day regardless of when the server was started.
-func (r *Refresher) Start(ctx context.Context) {
-	if r.apiKey == "" {
-		log.Println("[explore/refresher] YOUTUBE_DATA_API_KEY not set — skipping daily refresh")
-		return
+// FetchForQueries fetches videos (medium + shorts) from YouTube for a set of
+// per-user search queries and upserts them into the shared catalogue. This is
+// the on-demand replacement for the old daily cron: videos are pulled only when
+// a user needs them, using queries built from that user's profile rather than
+// the fixed category taxonomy.
+//
+// It is safe to call concurrently — the service serialises calls behind its
+// refresh mutex. Returns the number of videos upserted.
+func (r *Refresher) FetchForQueries(ctx context.Context, queries []userQuery, language string) int {
+	if r.apiKey == "" || len(queries) == 0 {
+		return 0
 	}
+	language = normalizeExploreLanguage(language)
+	sortBase := int(time.Now().Unix())
+	total := 0
 
-	// Run immediately on startup.
-	r.run(ctx, defaultExploreLanguage)
-
-	for {
-		// Sleep until the next midnight UTC.
-		now := time.Now().UTC()
-		nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
+	for i, uq := range queries {
 		select {
-		case <-time.After(time.Until(nextMidnight)):
-			r.run(ctx, defaultExploreLanguage)
 		case <-ctx.Done():
-			return
+			return total
+		default:
 		}
+
+		// Medium-length videos for this query.
+		videos, err := r.searchCategory(ctx, uq.Category, uq.Query, language)
+		if err != nil {
+			log.Printf("[explore/refresher] on-demand search failed for %q: %v", uq.Query, err)
+		} else {
+			for j, v := range videos {
+				if err := r.repo.UpsertVideo(v, sortBase+i*200+j); err != nil {
+					log.Printf("[explore/refresher] upsert failed (%s): %v", v.ID, err)
+				}
+			}
+			total += len(videos)
+		}
+
+		// Shorts for the same query.
+		shorts, err := r.searchCategoryShorts(ctx, uq.Category, uq.Query, language)
+		if err == nil {
+			for j, v := range shorts {
+				if err := r.repo.UpsertVideo(v, sortBase+100000+i*200+j); err != nil {
+					log.Printf("[explore/refresher] upsert (short) failed (%s): %v", v.ID, err)
+				}
+			}
+			total += len(shorts)
+		}
+
+		// Be polite to the YouTube quota between queries.
+		time.Sleep(200 * time.Millisecond)
 	}
+
+	log.Printf("[explore/refresher] on-demand fetch: %d video(s) for %d query(ies), lang=%s",
+		total, len(queries), language)
+	return total
 }
 
 // RunOnce executes a single refresh cycle synchronously. It is safe to call
@@ -418,6 +448,10 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 
 	// ── 3. Build Video list — keep only real (non-AI) videos in 3–20 min ──
 	meta := categoryMeta[category]
+	if meta.color == "" {
+		// Unknown category label (per-user condition query) — use brand defaults.
+		meta = struct{ color, icon string }{"#0AADA2", "play-circle-outline"}
+	}
 	var out []Video
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)
@@ -553,6 +587,9 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 	}
 
 	meta := categoryMeta[category]
+	if meta.color == "" {
+		meta = struct{ color, icon string }{"#0AADA2", "play-circle-outline"}
+	}
 	var out []Video
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)

@@ -21,16 +21,29 @@ type LifecoinsAdder interface {
 	EarnLifecoins(userID, source, description string, baseCoins int) error
 }
 
+// minFreshVideos is the threshold below which an on-demand personalised fetch
+// is triggered for a user. When a user has fewer unwatched videos than this in
+// the catalogue, we pull fresh ones from YouTube matched to their profile.
+const minFreshVideos = 6
+
+// userFetchCooldown throttles per-user on-demand YouTube fetches so the API
+// quota is not exhausted by repeated opens.
+const userFetchCooldown = 90 * time.Minute
+
 // Service holds business logic for the explore feature.
 type Service struct {
 	repo      *Repository
 	refresher *Refresher
 	lifecoins LifecoinsAdder
 	refreshMu sync.Mutex
+
+	// Per-user on-demand fetch throttle (in-memory; resets on restart).
+	userFetchMu   sync.Mutex
+	lastUserFetch map[string]time.Time
 }
 
 func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{repo: repo, lastUserFetch: make(map[string]time.Time)}
 }
 
 func (s *Service) SetLifecoinsAdder(a LifecoinsAdder) { s.lifecoins = a }
@@ -168,6 +181,92 @@ func rankVideos(videos []Video, profile UserPersonalizationData) []Video {
 	return out
 }
 
+// ── Per-user on-demand fetch query building ────────────────────────────────────
+
+// userQuery pairs a category label with a YouTube search query used when
+// fetching videos on demand for a specific user.
+type userQuery struct {
+	Category string
+	Query    string
+}
+
+// matchCategory returns the explore category whose keyword pattern matches the
+// given free text (a diagnosed condition), or "Primary Care" when none match.
+func matchCategory(text string) string {
+	for _, m := range conditionCategoryMap {
+		if m.pattern.MatchString(text) {
+			return m.category
+		}
+	}
+	return "Primary Care"
+}
+
+// buildUserQueries derives a small set of YouTube search queries tailored to a
+// single user from their health profile and engagement — NOT the fixed 16-
+// category taxonomy. Each user therefore pulls content matched to their own
+// conditions and interests. Returns 1–6 queries ordered by relevance.
+func buildUserQueries(profile UserPersonalizationData) []userQuery {
+	scores := buildCategoryScores(profile)
+
+	type kv struct {
+		cat   string
+		score float64
+	}
+	ranked := make([]kv, 0, len(scores))
+	for cat, s := range scores {
+		ranked = append(ranked, kv{cat, s})
+	}
+	sort.Slice(ranked, func(i, j int) bool { return ranked[i].score > ranked[j].score })
+
+	var qs []userQuery
+	seen := map[string]bool{}
+
+	// 1. Top relevant categories for this user (max 4) — driven by their profile
+	//    score, not a blanket sweep of every category.
+	for _, k := range ranked {
+		if len(qs) >= 4 {
+			break
+		}
+		key := strings.ToLower(k.cat)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		q := categoryQuery[k.cat]
+		if q == "" {
+			q = k.cat + " health education doctor"
+		}
+		qs = append(qs, userQuery{Category: k.cat, Query: q})
+	}
+
+	// 2. Specific diagnosed conditions for precision (max 2 more) — raw condition
+	//    text searched directly, mapped to a category only for display metadata.
+	for _, cond := range profile.DiagnosedConditions {
+		if len(qs) >= 6 {
+			break
+		}
+		c := strings.TrimSpace(cond)
+		if c == "" || seen[strings.ToLower(c)] {
+			continue
+		}
+		seen[strings.ToLower(c)] = true
+		qs = append(qs, userQuery{
+			Category: matchCategory(c),
+			Query:    c + " causes symptoms treatment doctor explained",
+		})
+	}
+
+	// 3. Fallback for brand-new users with no profile signal yet.
+	if len(qs) == 0 {
+		qs = append(qs, userQuery{
+			Category: "Primary Care",
+			Query:    "general health wellness checkup prevention doctor education",
+		})
+	}
+
+	return qs
+}
+
 // ListVideos returns a personalised, ranked video catalogue for the user.
 // The ranking factors in:
 //   - Health profile (conditions, medications, gender)
@@ -189,28 +288,73 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 
 	dateSeed := time.Now().UTC().Format("2006-01-02")
 
-	videos, err := s.repo.ListActiveVideos(category, language, dateSeed)
+	// Load the user's personalisation profile once — drives both ranking and
+	// the per-user on-demand fetch query.
+	var profile UserPersonalizationData
+	haveProfile := false
+	if userID != "" {
+		if p, perr := s.repo.GetUserPersonalizationData(userID); perr == nil {
+			profile = p
+			haveProfile = true
+		}
+	}
+
+	// freshFor returns the active videos for this language with the user's
+	// already-watched videos removed.
+	freshFor := func() ([]Video, error) {
+		vids, e := s.repo.ListActiveVideos(category, language, dateSeed)
+		if e != nil {
+			return nil, e
+		}
+		if haveProfile && len(profile.WatchedVideoIDs) > 0 {
+			out := vids[:0:0]
+			for _, v := range vids {
+				if _, seen := profile.WatchedVideoIDs[v.ID]; !seen {
+					out = append(out, v)
+				}
+			}
+			return out, nil
+		}
+		return vids, nil
+	}
+
+	videos, err := freshFor()
 	if err != nil {
 		return nil, err
 	}
 
-	// On-demand refresh if catalogue is empty
-	if len(videos) == 0 && s.refresher != nil {
-		s.refreshMu.Lock()
-		videos2, _ := s.repo.ListActiveVideos(category, language, dateSeed)
-		if len(videos2) == 0 {
-			s.refresher.RunOnceForLanguage(context.Background(), language)
-			videos, err = s.repo.ListActiveVideos(category, language, dateSeed)
-		} else {
-			videos = videos2
+	// ── On-demand personalised fetch ──────────────────────────────────────────
+	// No daily cron: when the user has fewer fresh (unwatched) videos than the
+	// threshold, fetch new ones from YouTube using queries built from THIS
+	// user's profile (their conditions/interests — not the full category set).
+	// Throttled per user so the API quota is preserved.
+	if len(videos) < minFreshVideos && s.refresher != nil {
+		s.userFetchMu.Lock()
+		last := s.lastUserFetch[userID]
+		canFetch := userID != "" && time.Since(last) > userFetchCooldown
+		// Always allow a fetch when the catalogue is completely empty for this
+		// language (e.g. first ever request after deploy), regardless of cooldown.
+		if len(videos) == 0 {
+			canFetch = canFetch || time.Since(last) > 2*time.Minute
 		}
-		s.refreshMu.Unlock()
-		if err != nil {
-			return nil, err
+		if canFetch {
+			s.lastUserFetch[userID] = time.Now()
+		}
+		s.userFetchMu.Unlock()
+
+		if canFetch {
+			queries := buildUserQueries(profile)
+			s.refreshMu.Lock()
+			s.refresher.FetchForQueries(context.Background(), queries, language)
+			s.refreshMu.Unlock()
+			// Re-query now that fresh videos are stored.
+			if v2, e := freshFor(); e == nil {
+				videos = v2
+			}
 		}
 	}
 
-	// English fallback
+	// English fallback when the user's language still has nothing.
 	if len(videos) == 0 && language != defaultExploreLanguage {
 		videos, err = s.repo.ListActiveVideos(category, defaultExploreLanguage, dateSeed)
 		if err != nil {
@@ -218,28 +362,9 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 		}
 	}
 
-	// Personalize — best-effort: if profile fetch fails, serve unranked catalogue.
-	if len(videos) > 0 && userID != "" {
-		profile, profileErr := s.repo.GetUserPersonalizationData(userID)
-		if profileErr == nil {
-			// 1. Exclude videos the user has already watched (claimed or not) so
-			//    every video in the feed is new to them. Keep a fallback: if the
-			//    user has watched everything in today's set, still show the pool
-			//    (ranked) rather than a blank screen.
-			if len(profile.WatchedVideoIDs) > 0 {
-				fresh := make([]Video, 0, len(videos))
-				for _, v := range videos {
-					if _, seen := profile.WatchedVideoIDs[v.ID]; !seen {
-						fresh = append(fresh, v)
-					}
-				}
-				if len(fresh) > 0 {
-					videos = fresh
-				}
-			}
-			// 2. Rank the remaining fresh videos against the user's profile.
-			videos = rankVideos(videos, profile)
-		}
+	// Rank the fresh videos against the user's profile.
+	if len(videos) > 0 && haveProfile {
+		videos = rankVideos(videos, profile)
 	}
 
 	return videos, nil
