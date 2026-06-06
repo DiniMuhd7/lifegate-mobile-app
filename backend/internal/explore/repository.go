@@ -250,6 +250,20 @@ func (r *Repository) DeactivateOldVideos(category, language, today string) error
 	return err
 }
 
+// CountActiveVideos returns how many active videos exist for a language.
+// Used by the one-time startup pre-warm to decide whether the catalogue needs
+// an initial broad fetch.
+func (r *Repository) CountActiveVideos(language string) (int, error) {
+	if language == "" {
+		language = defaultExploreLanguage
+	}
+	var n int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*) FROM explore_videos
+		WHERE is_active = TRUE AND COALESCE(language, 'en') = $1`, language).Scan(&n)
+	return n, err
+}
+
 // UserPersonalizationData contains everything the scoring algorithm needs to
 // rank the video catalogue for a specific user.
 type UserPersonalizationData struct {

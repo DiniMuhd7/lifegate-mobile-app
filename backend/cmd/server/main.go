@@ -294,6 +294,10 @@ func main() {
 	exploreRefresher := explore.NewRefresher(exploreRepo, cfg.YouTubeAPIKey, 10)
 	exploreSvc.SetRefresher(exploreRefresher)
 	exploreSvc.SetLifecoinsAdder(paymentsSvc)
+	// One-time pre-warm: if the catalogue is thin, do a single broad category
+	// sweep in the background so the feed is varied immediately. Not a cron —
+	// runs once and is a no-op once the catalogue is populated.
+	go exploreSvc.Prewarm(context.Background())
 
 	// Grant trial credits to every new patient that registers.
 	authSvc.SetTrialCreditGranter(paymentsSvc)

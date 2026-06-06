@@ -2,6 +2,7 @@ package explore
 
 import (
 	"context"
+	"log"
 	"math"
 	"regexp"
 	"sort"
@@ -500,4 +501,32 @@ func (s *Service) TriggerRefresh() {
 	s.refresher.lastRunDateByLanguage = map[string]string{}
 	s.refresher.runMu.Unlock()
 	s.refresher.RunOnce(context.Background())
+}
+
+// prewarmThreshold is the minimum active-video count below which the one-time
+// startup pre-warm runs a broad category sweep so the catalogue is varied
+// immediately rather than filling in per-user.
+const prewarmThreshold = 40
+
+// Prewarm runs ONCE at startup. If the catalogue has fewer than
+// prewarmThreshold active videos in the default language, it performs a single
+// broad category sweep so the feed is diverse on first use. This is NOT a
+// recurring cron — after the catalogue is populated it never runs the sweep
+// again; ongoing freshness comes from the per-user on-demand fetch.
+func (s *Service) Prewarm(ctx context.Context) {
+	if s.refresher == nil {
+		return
+	}
+	n, err := s.repo.CountActiveVideos(defaultExploreLanguage)
+	if err != nil {
+		return
+	}
+	if n >= prewarmThreshold {
+		log.Printf("[explore] pre-warm skipped — catalogue already has %d active videos", n)
+		return
+	}
+	log.Printf("[explore] pre-warming catalogue (only %d active videos) — broad category sweep…", n)
+	s.refreshMu.Lock()
+	defer s.refreshMu.Unlock()
+	s.refresher.RunOnce(ctx)
 }
