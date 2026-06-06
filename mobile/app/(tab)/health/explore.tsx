@@ -594,15 +594,25 @@ const ShortItem = React.memo(function ShortItem({
 
   const progress = canClaim ? 1 : (requiredSeconds - secondsLeft) / Math.max(requiredSeconds, 1);
 
-  // IFrame HTML — same approach as ReelCard but using the short's video ID.
-  // YouTube Shorts video IDs work identically with the IFrame API.
+  // IFrame HTML — uses the "cover" technique so the video fills the portrait
+  // screen edge-to-edge (cropping the sides) instead of being letterboxed with
+  // black bars top and bottom. That black letterbox is the "dark bar" — it is
+  // the YouTube player background, not an app overlay.
   const playerHtml = `<!DOCTYPE html>
 <html><head>
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <style>
-    *{margin:0;padding:0;box-sizing:border-box;background:#000}
-    html,body{width:100%;height:100%;overflow:hidden}
-    #player{width:100%;height:100%}
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow:hidden;background:#000}
+    /* Scale the player so a 16:9 video covers the full portrait viewport:
+       fill by height (100vh) and overflow the width (177.78vh = 100vh*16/9),
+       centered — eliminating the top/bottom black letterbox bars. */
+    #player{
+      position:absolute;top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:100vw;height:56.25vw;
+      min-height:100vh;min-width:177.78vh;
+    }
     iframe{width:100%!important;height:100%!important;border:none!important}
   </style>
 </head><body>
@@ -891,8 +901,8 @@ function ShortPlayerModal({
           pointerEvents="box-none"
         >
           <LinearGradient
-            colors={['rgba(0,0,0,0.28)', 'rgba(0,0,0,0.08)', 'transparent']}
-            style={{ paddingTop: insets.top + 10, paddingBottom: 32, paddingHorizontal: 16 }}
+            colors={['rgba(0,0,0,0.22)', 'transparent']}
+            style={{ paddingTop: insets.top + 10, paddingBottom: 24, paddingHorizontal: 16 }}
             pointerEvents="box-none"
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }} pointerEvents="box-none">
