@@ -323,12 +323,14 @@ func (r *Repository) GetUserPersonalizationData(userID string) (UserPersonalizat
 		}
 	}
 
-	// 3. Recently watched video IDs (last 14 days) for novelty scoring
+	// 3. Watched video IDs (last 30 days = the active catalogue pool lifetime).
+	//    Used to EXCLUDE already-watched videos from the feed entirely, so a
+	//    user never sees the same video twice — claimed or not.
 	watchRows, err := r.db.Query(`
 		SELECT video_id
 		FROM   explore_video_interactions
 		WHERE  user_id       = $1
-		  AND  interacted_on >= CURRENT_DATE - INTERVAL '14 days'`, userID)
+		  AND  interacted_on >= CURRENT_DATE - INTERVAL '30 days'`, userID)
 	if err == nil {
 		defer watchRows.Close()
 		for watchRows.Next() {

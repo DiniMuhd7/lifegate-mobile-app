@@ -31,7 +31,6 @@ import {
   useExploreStore,
   ExploreVideo,
   DAILY_VIDEO_CAP,
-  getDailyShuffledVideos,
 } from 'stores/explore-store';
 import { useAuthStore } from 'stores/auth-store';
 import { usePatientHealthStore } from 'stores/health-store';
@@ -1115,7 +1114,11 @@ export default function ExploreScreen() {
     }, [initialized, lastVideoFetchDate, refreshVideos]),
   );
 
-  const shuffledVideos = useMemo(() => getDailyShuffledVideos(videos), [videos]);
+  // Preserve the backend's per-user personalised ranking. The server already
+  // ranks videos against this user's health profile, engagement and novelty
+  // and excludes ones they've watched — re-shuffling here would flatten that
+  // into the same date-seeded order for everyone, so we use `videos` as-is.
+  const shuffledVideos = videos;
 
   const showToast = useCallback((message: string, coins: number) => {
     setToast({ message, coins });

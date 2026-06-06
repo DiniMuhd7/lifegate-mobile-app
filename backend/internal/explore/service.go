@@ -218,10 +218,26 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 		}
 	}
 
-	// Personalize — best-effort: if profile fetch fails, serve unranked catalogue
+	// Personalize — best-effort: if profile fetch fails, serve unranked catalogue.
 	if len(videos) > 0 && userID != "" {
 		profile, profileErr := s.repo.GetUserPersonalizationData(userID)
 		if profileErr == nil {
+			// 1. Exclude videos the user has already watched (claimed or not) so
+			//    every video in the feed is new to them. Keep a fallback: if the
+			//    user has watched everything in today's set, still show the pool
+			//    (ranked) rather than a blank screen.
+			if len(profile.WatchedVideoIDs) > 0 {
+				fresh := make([]Video, 0, len(videos))
+				for _, v := range videos {
+					if _, seen := profile.WatchedVideoIDs[v.ID]; !seen {
+						fresh = append(fresh, v)
+					}
+				}
+				if len(fresh) > 0 {
+					videos = fresh
+				}
+			}
+			// 2. Rank the remaining fresh videos against the user's profile.
 			videos = rankVideos(videos, profile)
 		}
 	}

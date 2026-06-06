@@ -604,6 +604,10 @@ function todayStr(): string {
 // ── Persisted shape ───────────────────────────────────────────────────────
 
 interface PersistedExploreData {
+  /** Owner of this cached data. Cached videos/progress are ignored when this
+   *  does not match the currently logged-in user, so switching accounts on the
+   *  same device never shows the previous user's personalised videos. */
+  userId?: string;
   lifecoins: number;
   totalEarned: number;
   progress: VideoProgress[];   // sparse — only videos that have been rewarded
@@ -643,12 +647,17 @@ interface ExploreState extends PersistedExploreData {
   reset: () => void;
 }
 
+// currentUserId returns the logged-in user's ID for stamping cached data.
+function currentUserId(): string {
+  return useAuthStore.getState().user?.id ?? '';
+}
+
 async function persist(data: PersistedExploreData) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, userId: currentUserId() }));
 }
 
 async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing: PersistedExploreData) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, cachedVideos: videos, lastVideoFetchDate: fetchDate }));
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, userId: currentUserId(), cachedVideos: videos, lastVideoFetchDate: fetchDate }));
 }
 
 /**
@@ -721,15 +730,23 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
 
     // 1. Restore all persisted data from AsyncStorage and mark initialized
     //    immediately so the screen can render cached content right away.
+    const currentUserId = useAuthStore.getState().user?.id ?? '';
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
-        persisted = JSON.parse(raw) as PersistedExploreData;
-        const dailyWatchedCount = persisted.lastWatchDate === today ? (persisted.dailyWatchedCount ?? 0) : 0;
-        const cachedVideos = persisted.cachedVideos ?? [];
-        // Set lastVideoRefreshDate: today immediately so useFocusEffect does
-        // not trigger a parallel refreshVideos() while step 2 fetch is in-flight.
-        set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true, lastVideoRefreshDate: today });
+        const stored = JSON.parse(raw) as PersistedExploreData;
+        // Ignore cache that belongs to a different user (account switch on the
+        // same device) so we never show the previous user's personalised feed.
+        if (stored.userId && stored.userId !== currentUserId) {
+          set({ initialized: true, lastVideoRefreshDate: null, videos: [], cachedVideos: [], lastVideoFetchDate: null });
+        } else {
+          persisted = stored;
+          const dailyWatchedCount = persisted.lastWatchDate === today ? (persisted.dailyWatchedCount ?? 0) : 0;
+          const cachedVideos = persisted.cachedVideos ?? [];
+          // Set lastVideoRefreshDate: today immediately so useFocusEffect does
+          // not trigger a parallel refreshVideos() while step 2 fetch is in-flight.
+          set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true, lastVideoRefreshDate: today });
+        }
       } else {
         set({ initialized: true, lastVideoRefreshDate: today });
       }
@@ -759,6 +776,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
         });
         const current = get();
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+          userId: currentUserId(),
           lifecoins: current.lifecoins,
           totalEarned: current.totalEarned,
           progress: mergedProgress,
@@ -809,6 +827,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
     // Persist updated video cache
     const current = get();
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
+      userId: currentUserId(),
       lifecoins: current.lifecoins,
       totalEarned: current.totalEarned,
       progress: mergedProgress,

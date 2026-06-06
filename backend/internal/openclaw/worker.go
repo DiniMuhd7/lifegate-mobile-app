@@ -586,6 +586,11 @@ func (w *Worker) buildSystemPrompt(c caseNeedingReply) (string, error) {
 	sb.WriteString("You are communicating directly with this patient. Review the EDIS analysis above and respond as their assigned physician.\n\n")
 	sb.WriteString("**STRICT RESPONSE RULES:**\n")
 	sb.WriteString("- Write 2–3 sentences maximum in plain, compassionate language.\n")
+	// Explicit language directive — without this the model defaults to English
+	// even when a non-English preferred language is supplied above.
+	if c.Language != "" && strings.ToLower(c.Language) != "english" && strings.ToLower(c.Language) != "en" {
+		fmt.Fprintf(&sb, "- IMPORTANT: Write your ENTIRE reply in the patient's preferred language: %s. Use natural, patient-friendly wording in that language; keep any medical terms accurate but explained simply.\n", c.Language)
+	}
 	if firstName != "" {
 		fmt.Fprintf(&sb, "- Address the patient as \"%s\" (first name only).\n", firstName)
 	}
