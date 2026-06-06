@@ -877,19 +877,22 @@ function ShortPlayerModal({
           ref={listRef}
           onViewableItemsChanged={onViewableItemsChanged.current}
           viewabilityConfig={viewabilityConfig}
-          windowSize={3}
-          maxToRenderPerBatch={2}
-          initialNumToRender={2}
-          removeClippedSubviews
+          windowSize={5}
+          maxToRenderPerBatch={3}
+          initialNumToRender={3}
+          removeClippedSubviews={false}
+          extraData={activeIndex}
         />
 
-        {/* Floating top bar: close + counter */}
+        {/* Floating top bar: close + counter — transparent so the video shows
+            through. A very faint top fade keeps the status bar / chips legible;
+            the buttons carry their own translucent backgrounds for contrast. */}
         <View
           style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}
           pointerEvents="box-none"
         >
           <LinearGradient
-            colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0.3)', 'transparent']}
+            colors={['rgba(0,0,0,0.28)', 'rgba(0,0,0,0.08)', 'transparent']}
             style={{ paddingTop: insets.top + 10, paddingBottom: 32, paddingHorizontal: 16 }}
             pointerEvents="box-none"
           >
@@ -1211,10 +1214,15 @@ export default function ExploreScreen() {
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         getItemLayout={getItemLayout}
-        removeClippedSubviews
-        windowSize={3}
-        maxToRenderPerBatch={2}
-        initialNumToRender={2}
+        // removeClippedSubviews defaults to true on Android and causes items to
+        // not render when data arrives after mount (first-open shows only one
+        // card until the screen is reopened). Disable it — only the active card
+        // mounts a WebView anyway, so memory cost is minimal.
+        removeClippedSubviews={false}
+        windowSize={5}
+        maxToRenderPerBatch={3}
+        initialNumToRender={3}
+        extraData={`${filteredVideos.length}:${activeIndex}`}
         onViewableItemsChanged={onViewableItemsChangedRef.current}
         viewabilityConfig={viewabilityConfig}
         ListEmptyComponent={

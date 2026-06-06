@@ -32,7 +32,11 @@ module.exports = ({ config }) => ({
     [
       'expo-notifications',
       {
-        icon: './assets/icon.png',
+        // Android status-bar notification icons must be a transparent
+        // silhouette — a fully-opaque image (icon.png) renders as a blank
+        // white square. adaptive-icon.png has alpha transparency so the
+        // LifeGate mark shows as the small icon, tinted with the color below.
+        icon: './assets/adaptive-icon.png',
         color: '#0AADA2',
         sounds: [],
         androidMode: 'default',
@@ -40,4 +44,13 @@ module.exports = ({ config }) => ({
       },
     ],
   ],
+  // Ensure the Android adaptive (launcher) icon is also wired here since
+  // app.config.js overrides app.json — keeps the app icon consistent.
+  android: {
+    ...config.android,
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#ffffff',
+    },
+  },
 });

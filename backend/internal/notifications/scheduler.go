@@ -53,11 +53,13 @@ func (sc *Scheduler) StartScheduler(ctx context.Context) {
 	go sc.sendStreakReminders(ctx)
 	go sc.sendWeeklyDigests(ctx)
 	go sc.sendReEngagement(ctx)
+	go sc.sendExploreReminders(ctx)
 
 	// Then hand off to the timed loops.
 	go sc.runStreakReminder(ctx)
 	go sc.runWeeklyDigest(ctx)
 	go sc.runReEngagement(ctx)
+	go sc.runExploreReminder(ctx)
 	<-ctx.Done()
 }
 
@@ -311,7 +313,64 @@ func (sc *Scheduler) sendReEngagement(ctx context.Context) {
 	log.Printf("[scheduler] re-engagement pushes sent to %d users", sent)
 }
 
-// ─── 4. Follow-up reminder ────────────────────────────────────────────────────
+// ─── 4. Explore health-videos reminder ────────────────────────────────────────
+
+// runExploreReminder fires every day at 13:00 WAT (early afternoon).
+// It nudges users to watch today's personalised health videos and earn
+// Lifecoins, but only those who haven't already claimed a video reward today
+// (so users who are already engaged aren't pinged unnecessarily).
+func (sc *Scheduler) runExploreReminder(ctx context.Context) {
+	for {
+		next := nextOccurrence(13, 0, watLocation)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Until(next)):
+		}
+		sc.sendExploreReminders(ctx)
+	}
+}
+
+func (sc *Scheduler) sendExploreReminders(ctx context.Context) {
+	today := time.Now().In(watLocation).Format("2006-01-02")
+
+	// All patients who have NOT claimed any explore video reward today.
+	rows, err := sc.db.QueryContext(ctx, `
+		SELECT u.id::text, COALESCE(u.name, 'there')
+		FROM   users u
+		WHERE  u.role = 'user'
+		  AND  NOT EXISTS (
+		         SELECT 1 FROM explore_video_rewards evr
+		         WHERE  evr.user_id    = u.id
+		           AND  evr.rewarded_on = $1::date
+		       )
+		LIMIT  10000`, today)
+	if err != nil {
+		log.Printf("[scheduler] explore reminder query error: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	sent := 0
+	for rows.Next() {
+		var userID, name string
+		if err := rows.Scan(&userID, &name); err != nil {
+			continue
+		}
+		title := "New health videos for you 🎬"
+		body := fmt.Sprintf(
+			"Hi %s, fresh health videos picked for you are ready in Explore. Watch a few and earn Lifecoins today!",
+			name)
+		sc.push.SendToUser(ctx, userID, title, body, map[string]string{
+			"type":   "explore_reminder",
+			"screen": "/(tab)/health/explore",
+		})
+		sent++
+	}
+	log.Printf("[scheduler] explore reminders sent to %d users", sent)
+}
+
+// ─── 5. Follow-up reminder ────────────────────────────────────────────────────
 
 // ScheduleFollowUp sends three follow-up push notifications after a clinical
 // case completes: at 24 hours, 3 days, and 7 days. Each fires only if the
