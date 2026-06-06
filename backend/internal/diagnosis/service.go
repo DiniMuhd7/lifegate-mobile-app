@@ -34,6 +34,12 @@ type DiagnosisDetail struct {
 	PhysicianDecision    string               `json:"physicianDecision,omitempty"`
 	PhysicianNotes       string               `json:"physicianNotes,omitempty"`
 	PhysicianName        string               `json:"physicianName,omitempty"`
+	// PhysicianID is the user ID of the assigned physician (empty when unassigned).
+	PhysicianID          string               `json:"physicianId,omitempty"`
+	// PhysicianIsHuman is true only when a real human physician is assigned
+	// (i.e. the account has no openclaw_agent_slug). AI/OpenClaw physicians and
+	// unassigned cases are false. Drives whether voice/video call options show.
+	PhysicianIsHuman     bool                 `json:"physicianIsHuman"`
 	PhysicianHealthTips  string               `json:"physicianHealthTips,omitempty"`
 	FollowUpDate         string               `json:"followUpDate,omitempty"`
 	FollowUpInstructions string               `json:"followUpInstructions,omitempty"`
@@ -110,7 +116,9 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 		       COALESCE(d.physician_health_tips,''),
 		       COALESCE(d.hpi::text,''),
 		       d.medication_release_requested,
-		       d.medication_release_approved
+		       d.medication_release_approved,
+		       COALESCE(d.physician_id::text,''),
+		       (d.physician_id IS NOT NULL AND pu.openclaw_agent_slug IS NULL) AS physician_is_human
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.user_id = $1::uuid
@@ -131,7 +139,8 @@ func (s *Service) GetDiagnoses(userID string, page, pageSize int) ([]DiagnosisDe
 			&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
 			&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
 			&d.PhysicianHealthTips, &hpiJSON,
-			&d.MedicationReleaseRequested, &d.MedicationReleaseApproved); err != nil {
+			&d.MedicationReleaseRequested, &d.MedicationReleaseApproved,
+			&d.PhysicianID, &d.PhysicianIsHuman); err != nil {
 			log.Printf("diagnosis: scan row: %v", err)
 			continue
 		}
@@ -164,7 +173,9 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		       COALESCE(d.physician_health_tips,''),
 		       COALESCE(d.hpi::text,''),
 		       d.medication_release_requested,
-		       d.medication_release_approved
+		       d.medication_release_approved,
+		       COALESCE(d.physician_id::text,''),
+		       (d.physician_id IS NOT NULL AND pu.openclaw_agent_slug IS NULL) AS physician_is_human
 		FROM diagnoses d
 		LEFT JOIN users pu ON pu.id = d.physician_id
 		WHERE d.id = $1 AND d.user_id = $2::uuid`,
@@ -175,7 +186,8 @@ func (s *Service) GetDiagnosisDetail(userID, diagnosisID string) (*DiagnosisDeta
 		&d.FollowUpDate, &d.FollowUpInstructions, &d.OutcomeChecked,
 		&aiJSON, &physicianAIJSON, &d.CreatedAt, &d.UpdatedAt, &d.PhysicianName,
 		&d.PhysicianHealthTips, &hpiJSON,
-		&d.MedicationReleaseRequested, &d.MedicationReleaseApproved)
+		&d.MedicationReleaseRequested, &d.MedicationReleaseApproved,
+		&d.PhysicianID, &d.PhysicianIsHuman)
 
 	if err == sql.ErrNoRows {
 		return nil, nil

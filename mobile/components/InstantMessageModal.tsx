@@ -48,6 +48,10 @@ interface InstantMessageModalProps {
   callDisplayName?: string;
   caseStatus?: string;
   caseCompletedAt?: string;
+  /** True only when a real human physician is assigned. Shows call icons. */
+  physicianIsHuman?: boolean;
+  /** Invoked when the patient taps a voice/video call icon in the header. */
+  onStartCall?: (callType: 'voice' | 'video') => void;
 }
 
 const POST_COMPLETION_WINDOW_MS = 30 * 60 * 1000;
@@ -273,7 +277,10 @@ const ChatHeader: React.FC<{
   subtitle: string;
   paddingTop: number;
   onClose: () => void;
-}> = ({ name, subtitle, paddingTop, onClose }) => (
+  /** When provided, voice + video call icons render on the right of the header. */
+  onVoiceCall?: () => void;
+  onVideoCall?: () => void;
+}> = ({ name, subtitle, paddingTop, onClose, onVoiceCall, onVideoCall }) => (
   <View style={[styles.header, { paddingTop: paddingTop + 10 }]}>
     <TouchableOpacity onPress={onClose} hitSlop={10} style={styles.closeBtn}>
       <Ionicons name="chevron-down" size={24} color="#0f172a" />
@@ -282,11 +289,26 @@ const ChatHeader: React.FC<{
       <View style={styles.avatar}>
         <Ionicons name="medkit-outline" size={18} color="#0AADA2" />
       </View>
-      <View>
-        <Text style={styles.headerName}>{name}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
         <Text style={styles.headerSub}>{subtitle}</Text>
       </View>
     </View>
+    {/* Call action icons — only rendered for human physicians (callbacks set) */}
+    {(onVoiceCall || onVideoCall) && (
+      <View style={styles.headerActions}>
+        {onVoiceCall && (
+          <TouchableOpacity onPress={onVoiceCall} hitSlop={8} style={styles.headerCallBtn}>
+            <Ionicons name="call" size={19} color="#0AADA2" />
+          </TouchableOpacity>
+        )}
+        {onVideoCall && (
+          <TouchableOpacity onPress={onVideoCall} hitSlop={8} style={styles.headerCallBtn}>
+            <Ionicons name="videocam" size={20} color="#0AADA2" />
+          </TouchableOpacity>
+        )}
+      </View>
+    )}
   </View>
 );
 
@@ -434,7 +456,9 @@ const RealIM: React.FC<{
   onClose: () => void;
   caseStatus?: string;
   caseCompletedAt?: string;
-}> = ({ diagnosisId, counterpartName, perspective, onClose, caseStatus, caseCompletedAt }) => {
+  physicianIsHuman?: boolean;
+  onStartCall?: (callType: 'voice' | 'video') => void;
+}> = ({ diagnosisId, counterpartName, perspective, onClose, caseStatus, caseCompletedAt, physicianIsHuman, onStartCall }) => {
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList<any>>(null);
 
@@ -528,6 +552,17 @@ const RealIM: React.FC<{
           subtitle={counterpartTyping ? 'Typing…' : 'Instant Message'}
           paddingTop={insets.top}
           onClose={onClose}
+          // Call icons only for patients messaging a real human physician
+          onVoiceCall={
+            perspective === 'patient' && physicianIsHuman && onStartCall
+              ? () => onStartCall('voice')
+              : undefined
+          }
+          onVideoCall={
+            perspective === 'patient' && physicianIsHuman && onStartCall
+              ? () => onStartCall('video')
+              : undefined
+          }
         />
 
         {/* Error banner */}
@@ -635,6 +670,8 @@ export function InstantMessageModal({
   demoMode = false,
   caseStatus,
   caseCompletedAt,
+  physicianIsHuman,
+  onStartCall,
 }: InstantMessageModalProps) {
   if (demoMode) {
     return <DemoModal counterpartName={counterpartName} onClose={onClose} />;
@@ -647,6 +684,8 @@ export function InstantMessageModal({
       onClose={onClose}
       caseStatus={caseStatus}
       caseCompletedAt={caseCompletedAt}
+      physicianIsHuman={physicianIsHuman}
+      onStartCall={onStartCall}
     />
   );
 }
@@ -678,6 +717,17 @@ const styles = StyleSheet.create({
   },
   headerName: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
   headerSub: { fontSize: 11, color: '#64748b', marginTop: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerCallBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#f0fdfa',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#99f6e4',
+  },
 
   // Demo banner
   demoBanner: {

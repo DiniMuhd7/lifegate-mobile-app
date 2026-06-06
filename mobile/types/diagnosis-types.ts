@@ -54,6 +54,11 @@ export interface DiagnosisDetail {
   physicianHealthTips?: string;
   /** Full name of the physician who reviewed / edited this case */
   physicianName?: string;
+  /** User ID of the assigned physician (used as the call peer ID). */
+  physicianId?: string;
+  /** True only when a real human physician is assigned (not an AI/OpenClaw agent).
+   *  Drives whether voice/video call options are shown to the patient. */
+  physicianIsHuman?: boolean;
   /** ISO-8601 follow-up date set by EDIS */
   followUpDate?: string;
   /** Instructions listing trigger symptoms to watch for before the follow-up date */

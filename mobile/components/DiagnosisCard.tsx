@@ -211,9 +211,10 @@ export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCa
         ) : null}
 
         {/* ── Call-to-action: connect with physician ─────────────────────── */}
-        {/* Show voice + video call buttons whenever a case has been saved    */}
-        {/* (diagnosisId is present) and the urgency warrants a doctor visit. */}
-        {diagnosisId && onCallPress && diagnosis.urgency !== 'LOW' && (
+        {/* Show voice + video call buttons only when a HUMAN physician is      */}
+        {/* assigned (AI/OpenClaw physicians cannot take calls), a case has     */}
+        {/* been saved (diagnosisId present), and urgency warrants a visit.     */}
+        {diagnosisId && onCallPress && diagnosis.physicianIsHuman && diagnosis.urgency !== 'LOW' && (
           <View
             style={{
               marginTop: 12,

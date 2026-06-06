@@ -467,6 +467,7 @@ const ShortItem = React.memo(function ShortItem({
   itemHeight,
   onClaim,
   onClose,
+  onWatchEvent,
 }: {
   video: ExploreVideo;
   isActive: boolean;
@@ -821,6 +822,7 @@ function ShortPlayerModal({
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const listRef = useRef<FlatList<ExploreVideo>>(null);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -866,6 +868,13 @@ function ShortPlayerModal({
           showsVerticalScrollIndicator={false}
           getItemLayout={getItemLayout}
           initialScrollIndex={initialIndex}
+          onScrollToIndexFailed={(info) => {
+            // Safety net: if the target row isn't laid out yet, retry after a tick.
+            setTimeout(() => {
+              listRef.current?.scrollToIndex({ index: info.index, animated: false });
+            }, 100);
+          }}
+          ref={listRef}
           onViewableItemsChanged={onViewableItemsChanged.current}
           viewabilityConfig={viewabilityConfig}
           windowSize={3}

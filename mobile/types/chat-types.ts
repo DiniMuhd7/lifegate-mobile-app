@@ -44,6 +44,10 @@ export type Diagnosis = {
   urgency: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   description: string;
   confidence?: number; // 0–100 confidence score from AI
+  /** True only when a real human physician is assigned to this case.
+   *  When false/undefined the "talk to your doctor now" call buttons are hidden,
+   *  since AI/OpenClaw physicians cannot take voice/video calls. */
+  physicianIsHuman?: boolean;
 };
 
 // Structured prescription data from AI

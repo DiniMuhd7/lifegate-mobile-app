@@ -1,9 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, Vibration } from 'react-native';
 import { ProfessionalService } from '../services/professional-service';
 import api from '../services/api';
+
+// Standard double-buzz vibration pattern (ms) used for all notifications.
+export const NOTIFICATION_VIBRATION_PATTERN = [0, 250, 250, 250];
 
 export type InAppPushNotificationPayload = {
   type: 'new_case' | 'case_status' | 'im_message';
@@ -52,6 +55,9 @@ if (Platform.OS !== 'web') {
       // OS banner for those. All other notifications (e.g. daily health insight)
       // should show the OS banner normally.
       const isCaseNotif = notification.request.content.data?.type === 'case';
+      // Vibrate on every foreground notification — the OS does not buzz for
+      // notifications received while the app is in the foreground.
+      try { Vibration.vibrate(NOTIFICATION_VIBRATION_PATTERN); } catch {}
       return {
         shouldPlaySound: true,
         shouldSetBadge: true,
@@ -148,6 +154,7 @@ export async function scheduleHealthInsightNotification(insightText: string): Pr
       title: '🌿 Your Daily Health Insight',
       body: insightText,
       sound: true,
+      vibrate: NOTIFICATION_VIBRATION_PATTERN,
       data: { type: 'health_insight' },
       ...(Platform.OS === 'android' && { channelId: 'health-insights' }),
     };
@@ -293,6 +300,7 @@ export async function scheduleCheckinReminderNotifications(
         title: `⏰ ${slot.label} check-in closing soon`,
         body: `Your ${slot.label} health check-in window closes in 15 minutes. Complete it now to earn your Lifecoin!`,
         sound: true,
+        vibrate: NOTIFICATION_VIBRATION_PATTERN,
         data: { type: 'checkin_reminder', slotId: slot.id },
         ...(Platform.OS === 'android' && { channelId: 'checkin-reminders' }),
       };

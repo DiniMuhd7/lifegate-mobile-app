@@ -138,18 +138,31 @@ type pushMessage struct {
 	Body      string            `json:"body"`
 	Sound     string            `json:"sound,omitempty"`
 	ChannelId string            `json:"channelId,omitempty"`
+	Priority  string            `json:"priority,omitempty"`
+	// Vibrate is the Android vibration pattern (ms) Expo forwards to the device.
+	Vibrate   []int             `json:"vibrate,omitempty"`
 	Data      map[string]string `json:"data,omitempty"`
 }
 
+// defaultVibratePattern is a short double-buzz used for every push notification.
+var defaultVibratePattern = []int{0, 250, 250, 250}
+
 func (s *Service) send(ctx context.Context, msgs []pushMessage) {
-	// Apply default sound and Android notification channel to every outgoing
-	// message so the device plays a sound and shows the registered app icon.
+	// Apply default sound, channel, high priority and a vibration pattern to
+	// every outgoing message so the device plays a sound, vibrates, and shows
+	// the registered app icon as a heads-up notification.
 	for i := range msgs {
 		if msgs[i].Sound == "" {
 			msgs[i].Sound = "default"
 		}
 		if msgs[i].ChannelId == "" {
 			msgs[i].ChannelId = "default"
+		}
+		if msgs[i].Priority == "" {
+			msgs[i].Priority = "high"
+		}
+		if msgs[i].Vibrate == nil {
+			msgs[i].Vibrate = defaultVibratePattern
 		}
 	}
 

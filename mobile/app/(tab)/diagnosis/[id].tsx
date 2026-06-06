@@ -17,6 +17,7 @@ import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { InstantMessageModal } from 'components/InstantMessageModal';
 import { useChatStore } from 'stores/chat-store';
 import { useIMStore } from 'stores/im-store';
+import { useCallStore } from 'stores/call-store';
 
 // ─── Urgency config ──────────────────────────────────────────────────────────
 const URGENCY_CONFIG: Record<
@@ -148,6 +149,20 @@ export default function DiagnosisReportScreen() {
   );
 
   const d = selectedDiagnosis?.id === id ? selectedDiagnosis : null;
+
+  const initiateCall = useCallStore((s) => s.initiateCall);
+
+  // Start a voice/video call to the assigned human physician from the IM screen.
+  const handleStartCall = (callType: 'voice' | 'video') => {
+    if (!d?.physicianId || !id) return;
+    setImVisible(false);
+    initiateCall(
+      d.physicianId,
+      d.physicianName ? `Dr. ${d.physicianName}` : 'Your Physician',
+      callType,
+      id,
+    );
+  };
 
   const urgency = URGENCY_CONFIG[d?.urgency ?? ''] ?? URGENCY_CONFIG.MEDIUM;
   const statusCfg = STATUS_CONFIG[d?.status ?? 'Pending'] ?? STATUS_CONFIG.Pending;
@@ -732,6 +747,8 @@ export default function DiagnosisReportScreen() {
             onClose={() => setImVisible(false)}
             caseStatus={d?.status}
             caseCompletedAt={d?.updatedAt}
+            physicianIsHuman={d?.physicianIsHuman}
+            onStartCall={handleStartCall}
           />
         </Modal>
       )}
