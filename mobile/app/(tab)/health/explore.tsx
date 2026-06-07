@@ -838,17 +838,28 @@ function ShortPlayerModal({
   onClose,
   onClaim,
   onWatchEvent,
+  onRefresh,
 }: {
   videos: ExploreVideo[];
   initialIndex: number;
   onClose: () => void;
   onClaim: (videoId: string) => Promise<void>;
   onWatchEvent: (videoId: string, category: string, watchSeconds: number, completed: boolean, isShort: boolean) => void;
+  onRefresh?: () => Promise<void>;
 }) {
   const { height: screenHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [refreshing, setRefreshing] = useState(false);
+  const [shuffleSeed, setShuffleSeed] = useState(0);
   const listRef = useRef<FlatList<ExploreVideo>>(null);
+
+  // First view preserves order (so the tapped short opens); after a pull, the
+  // shorts are reshuffled.
+  const displayVideos = useMemo(
+    () => (shuffleSeed > 0 ? shuffleWithSeed(videos, shuffleSeed) : videos),
+    [videos, shuffleSeed],
+  );
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -876,6 +887,26 @@ function ShortPlayerModal({
     [activeIndex, screenHeight, onClaim, onClose, onWatchEvent],
   );
 
+  // Pull-to-refresh: refetch fresh shorts, reshuffle, jump back to the top.
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (onRefresh) await onRefresh();
+    } catch {
+      /* keep existing shorts on failure */
+    }
+    setShuffleSeed((seed) => seed + 1);
+    setActiveIndex(0);
+    requestAnimationFrame(() => {
+      try {
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      } catch {
+        /* list may be empty */
+      }
+    });
+    setRefreshing(false);
+  }, [onRefresh]);
+
   return (
     <Modal
       visible
@@ -886,14 +917,16 @@ function ShortPlayerModal({
     >
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <FlatList
-          data={videos}
+          data={displayVideos}
           keyExtractor={(v) => v.id}
           renderItem={renderItem}
           pagingEnabled
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
           getItemLayout={getItemLayout}
-          initialScrollIndex={initialIndex}
+          // initialScrollIndex only applies to the original order; once
+          // reshuffled we always start at the top.
+          initialScrollIndex={shuffleSeed > 0 ? 0 : initialIndex}
           onScrollToIndexFailed={(info) => {
             // Safety net: if the target row isn't laid out yet, retry after a tick.
             setTimeout(() => {
@@ -907,7 +940,18 @@ function ShortPlayerModal({
           maxToRenderPerBatch={3}
           initialNumToRender={3}
           removeClippedSubviews={false}
-          extraData={activeIndex}
+          extraData={`${activeIndex}:${shuffleSeed}`}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#ff0033"
+              colors={['#ff0033']}
+              progressBackgroundColor="#0f172a"
+              title="Refreshing Shorts…"
+              titleColor="rgba(255,255,255,0.6)"
+            />
+          }
         />
 
         {/* Floating top bar: close + counter — transparent so the video shows
@@ -931,7 +975,7 @@ function ShortPlayerModal({
               <View style={{ flex: 1 }} pointerEvents="none">
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>Health Shorts</Text>
                 <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 1 }}>
-                  {activeIndex + 1} / {videos.length} · Swipe up for next
+                  {activeIndex + 1} / {displayVideos.length} · Pull to refresh
                 </Text>
               </View>
               {/* Shorts badge */}
@@ -1497,6 +1541,7 @@ export default function ExploreScreen() {
           onClose={() => setActiveShortIndex(-1)}
           onClaim={handleClaim}
           onWatchEvent={reportWatch}
+          onRefresh={refreshVideos}
         />
       )}
 
