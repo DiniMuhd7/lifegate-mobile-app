@@ -235,7 +235,7 @@ const ReelCard = React.memo(function ReelCard({
     function onYouTubeIframeAPIReady(){
       new YT.Player('player',{
         videoId:'${video.youtubeId}',
-        playerVars:{autoplay:1,playsinline:1,rel:0,modestbranding:1,controls:1,origin:'https://www.youtube.com'},
+        playerVars:{autoplay:1,playsinline:1,rel:0,modestbranding:1,controls:0,origin:'https://www.youtube.com'},
         events:{
           onReady:function(e){e.target.playVideo();send({type:'ready'})},
           onError:function(e){send({type:'error',code:e.data})},
@@ -262,23 +262,28 @@ const ReelCard = React.memo(function ReelCard({
             onLoad: () => setPlayerReady(true),
           })
         ) : (
-          <WebView
-            ref={videoRef}
-            source={{ html: playerHtml, baseUrl: 'https://www.youtube.com' }}
-            style={StyleSheet.absoluteFill}
-            javaScriptEnabled
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            allowsFullscreenVideo
-            onLoad={() => setPlayerReady(true)}
-            onMessage={(e) => handleMessage(e.nativeEvent.data)}
-            onShouldStartLoadWithRequest={(req) => {
-              const url = req.url;
-              if (url.startsWith('vnd.youtube') || url.startsWith('youtube://') ||
-                  url.startsWith('intent://') || url.startsWith('market://')) return false;
-              return true;
-            }}
-          />
+          // pointerEvents="none" so the parent FlatList owns ALL gestures —
+          // swipe-to-next AND pull-to-refresh. Without this the WebView grabs
+          // the touch-down at the top and the RefreshControl never engages.
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <WebView
+              ref={videoRef}
+              source={{ html: playerHtml, baseUrl: 'https://www.youtube.com' }}
+              style={StyleSheet.absoluteFill}
+              javaScriptEnabled
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              allowsFullscreenVideo
+              onLoad={() => setPlayerReady(true)}
+              onMessage={(e) => handleMessage(e.nativeEvent.data)}
+              onShouldStartLoadWithRequest={(req) => {
+                const url = req.url;
+                if (url.startsWith('vnd.youtube') || url.startsWith('youtube://') ||
+                    url.startsWith('intent://') || url.startsWith('market://')) return false;
+                return true;
+              }}
+            />
+          </View>
         )
       ) : (
         /* Thumbnail when not active or embed error */
@@ -667,23 +672,26 @@ const ShortItem = React.memo(function ShortItem({
             onLoad: () => setPlayerReady(true),
           })
         ) : (
-          <WebView
-            ref={videoRef}
-            source={{ html: playerHtml, baseUrl: 'https://www.youtube.com' }}
-            style={StyleSheet.absoluteFill}
-            javaScriptEnabled
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            allowsFullscreenVideo={false}
-            onLoad={() => setPlayerReady(true)}
-            onMessage={(e) => handleMessage(e.nativeEvent.data)}
-            onShouldStartLoadWithRequest={(req) => {
-              const url = req.url;
-              if (url.startsWith('vnd.youtube') || url.startsWith('youtube://') ||
-                  url.startsWith('intent://') || url.startsWith('market://')) return false;
-              return true;
-            }}
-          />
+          // pointerEvents="none" so the FlatList owns swipe + pull-to-refresh.
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <WebView
+              ref={videoRef}
+              source={{ html: playerHtml, baseUrl: 'https://www.youtube.com' }}
+              style={StyleSheet.absoluteFill}
+              javaScriptEnabled
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              allowsFullscreenVideo={false}
+              onLoad={() => setPlayerReady(true)}
+              onMessage={(e) => handleMessage(e.nativeEvent.data)}
+              onShouldStartLoadWithRequest={(req) => {
+                const url = req.url;
+                if (url.startsWith('vnd.youtube') || url.startsWith('youtube://') ||
+                    url.startsWith('intent://') || url.startsWith('market://')) return false;
+                return true;
+              }}
+            />
+          </View>
         )
       ) : (
         <LinearGradient
