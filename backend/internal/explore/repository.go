@@ -250,6 +250,57 @@ func (r *Repository) DeactivateOldVideos(category, language, today string) error
 	return err
 }
 
+// FilterUnseenYoutubeIDs returns the subset of the given YouTube video IDs that
+// have NEVER been stored before (active or inactive). Used so on-demand fetches
+// only ever ingest brand-new videos and never re-ingest ones already fetched.
+func (r *Repository) FilterUnseenYoutubeIDs(ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	rows, err := r.db.Query(
+		`SELECT youtube_id FROM explore_videos WHERE youtube_id = ANY($1)`,
+		pqStringArray(ids),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	known := make(map[string]struct{})
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			known[id] = struct{}{}
+		}
+	}
+
+	unseen := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, seen := known[id]; !seen {
+			unseen = append(unseen, id)
+		}
+	}
+	return unseen, rows.Err()
+}
+
+// pqStringArray formats a Go string slice as a Postgres text array literal so it
+// can be passed to `= ANY($1)` without importing the pq array helper here.
+func pqStringArray(items []string) string {
+	var b strings.Builder
+	b.WriteByte('{')
+	for i, s := range items {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		// Quote and escape each element for safety.
+		b.WriteByte('"')
+		b.WriteString(strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`))
+		b.WriteByte('"')
+	}
+	b.WriteByte('}')
+	return b.String()
+}
+
 // CountActiveVideos returns how many active videos exist for a language.
 // Used by the one-time startup pre-warm to decide whether the catalogue needs
 // an initial broad fetch.

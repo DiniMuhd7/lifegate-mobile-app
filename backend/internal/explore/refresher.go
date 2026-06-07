@@ -380,56 +380,85 @@ func (r *Refresher) run(ctx context.Context, language string) {
 // range ready for the DB.
 func (r *Refresher) searchCategory(ctx context.Context, category, query, language string) ([]Video, error) {
 	type searchResp struct {
-		Items []ytSearchItem `json:"items"`
+		Items         []ytSearchItem `json:"items"`
+		NextPageToken string         `json:"nextPageToken"`
 	}
 
-	// ── 1. Search medium duration band (4–20 min) ──────────────────────────
+	// ── 1. Search medium duration band, paging until we collect NEW videos ──
 	// YouTube API: medium = 4–20 min. We filter precisely to 5–20 min in code.
-	allIDs := make([]string, 0, r.videosPerCat)
-	byID := make(map[string]ytSearchItem, r.videosPerCat)
+	byID := make(map[string]ytSearchItem)
 
-	// Rotate publishedAfter through 12 bi-weekly windows over ~6 months so
-	// each run queries a different slice of YouTube's content history and
-	// gradually diversifies the pool. Window index cycles 0-11 by week-of-year.
-	weekOfYear := time.Now().UTC().YearDay() / 7 // 0–52
-	windowIndex := weekOfYear % 12               // 0–11
-	// Older window = older content, newer window = recent uploads.
-	// Range: 14–180 days back in 14-day steps across 12 windows.
-	daysBack := 14 + windowIndex*14
+	// Varied publishedAfter each call (7–365 days back) so successive fetches
+	// query a different slice of YouTube history and surface different content.
+	daysBack := 7 + int(time.Now().UnixNano()/1e6)%358
 	publishedAfter := time.Now().UTC().AddDate(0, 0, -daysBack).Format(time.RFC3339)
 
 	// Append exclusion terms to suppress AI-generated content at the API level.
 	fullQuery := query + aiExclusionSuffix
 
-	// Fetch twice the target count so the trusted-source filter has enough
-	// candidates to fill the ≥70 % quota without shrinking the final set.
-	searchMaxResults := r.videosPerCat * 2
-	if searchMaxResults > 50 {
-		searchMaxResults = 50 // YouTube API hard cap per request
+	// Target number of NEW (never-fetched) candidate IDs to collect.
+	target := r.videosPerCat * 2
+	if target > 50 {
+		target = 50
 	}
 
-	searchURL := fmt.Sprintf(
-		"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=medium&maxResults=%d&relevanceLanguage=en&safeSearch=strict&publishedAfter=%s&key=%s",
-		url.QueryEscape(fullQuery),
-		searchMaxResults,
-		url.QueryEscape(publishedAfter),
-		r.apiKey,
-	)
-	searchURL = strings.Replace(searchURL, "relevanceLanguage=en", "relevanceLanguage="+url.QueryEscape(language), 1)
-	sr, err := ytGet[searchResp](ctx, searchURL)
-	if err != nil {
-		return nil, fmt.Errorf("search (medium) request: %w", err)
-	}
-	for _, it := range sr.Items {
-		vid := it.ID.VideoID
-		if _, seen := byID[vid]; !seen {
-			allIDs = append(allIDs, vid)
-			byID[vid] = it
+	allIDs := make([]string, 0, target) // only IDs that have NEVER been fetched
+	pageToken := ""
+	const maxPages = 3 // cap quota; each page is one search request
+
+	for page := 0; page < maxPages && len(allIDs) < target; page++ {
+		searchURL := fmt.Sprintf(
+			"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=medium&maxResults=50&relevanceLanguage=%s&safeSearch=strict&publishedAfter=%s&key=%s",
+			url.QueryEscape(fullQuery),
+			url.QueryEscape(language),
+			url.QueryEscape(publishedAfter),
+			r.apiKey,
+		)
+		if pageToken != "" {
+			searchURL += "&pageToken=" + url.QueryEscape(pageToken)
 		}
+
+		sr, err := ytGet[searchResp](ctx, searchURL)
+		if err != nil {
+			if page == 0 {
+				return nil, fmt.Errorf("search (medium) request: %w", err)
+			}
+			break // partial results from earlier pages are still usable
+		}
+
+		// Gather this page's candidate IDs (deduped within this fetch).
+		pageIDs := make([]string, 0, len(sr.Items))
+		for _, it := range sr.Items {
+			vid := it.ID.VideoID
+			if vid == "" {
+				continue
+			}
+			if _, dup := byID[vid]; dup {
+				continue
+			}
+			byID[vid] = it
+			pageIDs = append(pageIDs, vid)
+		}
+
+		// Keep only videos that have NEVER been fetched before.
+		unseen, ferr := r.repo.FilterUnseenYoutubeIDs(pageIDs)
+		if ferr == nil {
+			allIDs = append(allIDs, unseen...)
+		} else {
+			allIDs = append(allIDs, pageIDs...) // dedup unavailable — fall back
+		}
+
+		if sr.NextPageToken == "" {
+			break
+		}
+		pageToken = sr.NextPageToken
 	}
 
 	if len(allIDs) == 0 {
 		return nil, nil
+	}
+	if len(allIDs) > target {
+		allIDs = allIDs[:target]
 	}
 
 	// ── 2. Fetch exact durations via videos.list ──────────────────────────
@@ -537,40 +566,70 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 // content is often produced by qualified creators without institution branding.
 func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, language string) ([]Video, error) {
 	type searchResp struct {
-		Items []ytSearchItem `json:"items"`
+		Items         []ytSearchItem `json:"items"`
+		NextPageToken string         `json:"nextPageToken"`
 	}
 
 	shortsPerCat := 3 // Shorts fetched per category per run
 	fullQuery := query + aiExclusionSuffix
-	searchMaxResults := shortsPerCat * 3
-	if searchMaxResults > 50 {
-		searchMaxResults = 50
+	target := shortsPerCat * 3
+
+	byID := make(map[string]ytSearchItem)
+	ids := make([]string, 0, target) // only never-fetched IDs
+	pageToken := ""
+	const maxPages = 3
+
+	for page := 0; page < maxPages && len(ids) < target; page++ {
+		searchURL := fmt.Sprintf(
+			"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=short&maxResults=50&relevanceLanguage=%s&safeSearch=strict&key=%s",
+			url.QueryEscape(fullQuery),
+			url.QueryEscape(language),
+			r.apiKey,
+		)
+		if pageToken != "" {
+			searchURL += "&pageToken=" + url.QueryEscape(pageToken)
+		}
+
+		sr, err := ytGet[searchResp](ctx, searchURL)
+		if err != nil {
+			if page == 0 {
+				return nil, fmt.Errorf("shorts search request: %w", err)
+			}
+			break
+		}
+
+		pageIDs := make([]string, 0, len(sr.Items))
+		for _, it := range sr.Items {
+			vid := it.ID.VideoID
+			if vid == "" {
+				continue
+			}
+			if _, dup := byID[vid]; dup {
+				continue
+			}
+			byID[vid] = it
+			pageIDs = append(pageIDs, vid)
+		}
+
+		// Keep only Shorts that have never been fetched before.
+		unseen, ferr := r.repo.FilterUnseenYoutubeIDs(pageIDs)
+		if ferr == nil {
+			ids = append(ids, unseen...)
+		} else {
+			ids = append(ids, pageIDs...)
+		}
+
+		if sr.NextPageToken == "" {
+			break
+		}
+		pageToken = sr.NextPageToken
 	}
 
-	searchURL := fmt.Sprintf(
-		"https://www.googleapis.com/youtube/v3/search?part=snippet&q=%s&type=video&videoDuration=short&maxResults=%d&relevanceLanguage=en&safeSearch=strict&key=%s",
-		url.QueryEscape(fullQuery),
-		searchMaxResults,
-		r.apiKey,
-	)
-	searchURL = strings.Replace(searchURL, "relevanceLanguage=en", "relevanceLanguage="+url.QueryEscape(language), 1)
-
-	sr, err := ytGet[searchResp](ctx, searchURL)
-	if err != nil {
-		return nil, fmt.Errorf("shorts search request: %w", err)
-	}
-	if len(sr.Items) == 0 {
+	if len(ids) == 0 {
 		return nil, nil
 	}
-
-	ids := make([]string, 0, len(sr.Items))
-	byID := make(map[string]ytSearchItem, len(sr.Items))
-	for _, it := range sr.Items {
-		vid := it.ID.VideoID
-		if _, seen := byID[vid]; !seen {
-			ids = append(ids, vid)
-			byID[vid] = it
-		}
+	if len(ids) > target {
+		ids = ids[:target]
 	}
 
 	detailsURL := fmt.Sprintf(
