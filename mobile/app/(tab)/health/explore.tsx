@@ -18,6 +18,7 @@ import {
   BackHandler,
   ScrollView,
   ViewToken,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BannerAd } from 'components/BannerAd';
@@ -56,6 +57,22 @@ function darken(hex: string): string {
   } catch {
     return hex;
   }
+}
+
+// Deterministic Fisher–Yates shuffle seeded by `seed`. Used by pull-to-refresh
+// so each pull reorders the feed in a fresh but stable-per-pull arrangement.
+function shuffleWithSeed<T>(arr: readonly T[], seed: number): T[] {
+  const a = [...arr];
+  let s = (seed * 9301 + 49297) % 233280 || 1;
+  const rand = () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 // ── ReelCard — full-screen portrait card ─────────────────────────────────────
@@ -1098,6 +1115,11 @@ export default function ExploreScreen() {
   const [adRewarded,  setAdRewarded]  = useState(false);
   const [viewedIds,   setViewedIds]   = useState<Set<string>>(new Set());
   const [isFetching,  setIsFetching]  = useState(false);
+  // Pull-to-refresh state. shuffleSeed > 0 reshuffles the feed on each pull;
+  // 0 preserves the backend's personalised order on first load.
+  const [refreshing,  setRefreshing]  = useState(false);
+  const [shuffleSeed, setShuffleSeed] = useState(0);
+  const reelListRef = useRef<FlatList<ExploreVideo>>(null);
 
   // Stable refs required by FlatList's viewability API
   const onViewableItemsChangedRef = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -1154,11 +1176,34 @@ export default function ExploreScreen() {
     return () => sub.remove();
   }, [handleBack]);
 
-  // Preserve the backend's per-user personalised ranking. The server already
-  // ranks videos against this user's health profile, engagement and novelty
-  // and excludes ones they've watched — re-shuffling here would flatten that
-  // into the same date-seeded order for everyone, so we use `videos` as-is.
-  const shuffledVideos = videos;
+  // Pull-to-refresh: refetch fresh/personalised videos from the backend, then
+  // reshuffle the feed and scroll back to the top.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshVideos();
+    } catch {
+      /* keep existing videos on failure */
+    }
+    setShuffleSeed((seed) => seed + 1);
+    setActiveIndex(0);
+    requestAnimationFrame(() => {
+      try {
+        reelListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      } catch {
+        /* list may be empty */
+      }
+    });
+    setRefreshing(false);
+  }, [refreshVideos]);
+
+  // First load preserves the backend's per-user personalised ranking. After a
+  // pull-to-refresh, shuffleSeed > 0 reshuffles the fetched videos so the user
+  // sees a fresh arrangement on demand.
+  const shuffledVideos = useMemo(
+    () => (shuffleSeed > 0 ? shuffleWithSeed(videos, shuffleSeed) : videos),
+    [videos, shuffleSeed],
+  );
 
   const showToast = useCallback((message: string, coins: number) => {
     setToast({ message, coins });
@@ -1250,6 +1295,7 @@ export default function ExploreScreen() {
           No ListHeaderComponent: variable-height headers break pagingEnabled snap
           boundaries. The Shorts lane lives in the floating overlay instead. */}
       <FlatList
+        ref={reelListRef}
         data={filteredVideos}
         keyExtractor={(v) => v.id}
         renderItem={renderReelCard}
@@ -1265,9 +1311,20 @@ export default function ExploreScreen() {
         windowSize={5}
         maxToRenderPerBatch={3}
         initialNumToRender={3}
-        extraData={`${filteredVideos.length}:${activeIndex}`}
+        extraData={`${filteredVideos.length}:${activeIndex}:${shuffleSeed}`}
         onViewableItemsChanged={onViewableItemsChangedRef.current}
         viewabilityConfig={viewabilityConfig}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#0AADA2"
+            colors={['#0AADA2']}
+            progressBackgroundColor="#0f172a"
+            title="Refreshing videos…"
+            titleColor="rgba(255,255,255,0.6)"
+          />
+        }
         ListEmptyComponent={
           <View
             style={{
