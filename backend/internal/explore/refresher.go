@@ -411,15 +411,17 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 	// Append exclusion terms to suppress AI-generated content at the API level.
 	fullQuery := query + aiExclusionSuffix
 
-	// Target number of NEW (never-fetched) candidate IDs to collect.
-	target := r.videosPerCat * 2
-	if target > 50 {
-		target = 50
+	// Collect a LARGE pool of new candidate IDs so the subscriber + quality
+	// filters can drop many and still leave more than enough videos. ~8× the
+	// final per-category target, capped at 150.
+	target := r.videosPerCat * 8
+	if target > 150 {
+		target = 150
 	}
 
 	allIDs := make([]string, 0, target) // only IDs that have NEVER been fetched
 	pageToken := ""
-	const maxPages = 3 // cap quota; each page is one search request
+	const maxPages = 6 // cap quota; each page is one search request
 
 	for page := 0; page < maxPages && len(allIDs) < target; page++ {
 		searchURL := fmt.Sprintf(
@@ -476,19 +478,12 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 		allIDs = allIDs[:target]
 	}
 
-	// ── 2. Fetch exact durations via videos.list ──────────────────────────
-	detailsURL := fmt.Sprintf(
-		"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=%s&key=%s",
-		url.QueryEscape(strings.Join(allIDs, ",")),
-		r.apiKey,
-	)
-	type detailsResp struct {
-		Items []ytVideoDetails `json:"items"`
-	}
-	dr, err := ytGet[detailsResp](ctx, detailsURL)
+	// ── 2. Fetch exact durations via videos.list (batched in 50s) ──────────
+	drItems, err := r.fetchVideoDetails(ctx, allIDs)
 	if err != nil {
 		return nil, fmt.Errorf("details request: %w", err)
 	}
+	dr := struct{ Items []ytVideoDetails }{Items: drItems}
 
 	// ── 3. Build Video list — keep only real (non-AI) videos in 3–20 min ──
 	meta := categoryMeta[category]
@@ -599,12 +594,17 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 		shortsPerCat = 1
 	}
 	fullQuery := query + aiExclusionSuffix
-	target := shortsPerCat * 3
+	// Large candidate pool so the subscriber/quality filters can drop many and
+	// still leave enough shorts.
+	target := shortsPerCat * 8
+	if target > 150 {
+		target = 150
+	}
 
 	byID := make(map[string]ytSearchItem)
 	ids := make([]string, 0, target) // only never-fetched IDs
 	pageToken := ""
-	const maxPages = 3
+	const maxPages = 6
 
 	for page := 0; page < maxPages && len(ids) < target; page++ {
 		searchURL := fmt.Sprintf(
@@ -659,18 +659,11 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 		ids = ids[:target]
 	}
 
-	detailsURL := fmt.Sprintf(
-		"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=%s&key=%s",
-		url.QueryEscape(strings.Join(ids, ",")),
-		r.apiKey,
-	)
-	type detailsResp struct {
-		Items []ytVideoDetails `json:"items"`
-	}
-	dr, err := ytGet[detailsResp](ctx, detailsURL)
+	drItems, err := r.fetchVideoDetails(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("shorts details request: %w", err)
 	}
+	dr := struct{ Items []ytVideoDetails }{Items: drItems}
 
 	meta := categoryMeta[category]
 	if meta.color == "" {
@@ -720,6 +713,36 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 		out = out[:shortsPerCat]
 	}
 	return out, nil
+}
+
+// fetchVideoDetails fetches contentDetails for many video IDs, batching the
+// videos.list call in groups of 50 (the API's per-request cap) so the candidate
+// pool can be far larger than 50 before the subscriber/quality filters trim it.
+func (r *Refresher) fetchVideoDetails(ctx context.Context, ids []string) ([]ytVideoDetails, error) {
+	type detailsResp struct {
+		Items []ytVideoDetails `json:"items"`
+	}
+	var all []ytVideoDetails
+	for i := 0; i < len(ids); i += 50 {
+		end := i + 50
+		if end > len(ids) {
+			end = len(ids)
+		}
+		u := fmt.Sprintf(
+			"https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=%s&key=%s",
+			url.QueryEscape(strings.Join(ids[i:end], ",")),
+			r.apiKey,
+		)
+		dr, err := ytGet[detailsResp](ctx, u)
+		if err != nil {
+			if len(all) > 0 {
+				return all, nil // keep what we already have
+			}
+			return nil, err
+		}
+		all = append(all, dr.Items...)
+	}
+	return all, nil
 }
 
 // isQuotaError reports whether a YouTube API error is a daily-quota exhaustion.
