@@ -41,10 +41,33 @@ type Service struct {
 	// Per-user on-demand fetch throttle (in-memory; resets on restart).
 	userFetchMu   sync.Mutex
 	lastUserFetch map[string]time.Time
+
+	// YouTube daily-quota state. When a fetch hits the quota we flag it so the
+	// client can tell the user. The quota resets at midnight Pacific; we clear
+	// the flag after quotaCooldown as a safety net.
+	quotaMu            sync.Mutex
+	quotaExceededUntil time.Time
 }
+
+const quotaCooldown = 2 * time.Hour
 
 func NewService(repo *Repository) *Service {
 	return &Service{repo: repo, lastUserFetch: make(map[string]time.Time)}
+}
+
+// markQuotaExceeded records that the YouTube daily quota was hit.
+func (s *Service) markQuotaExceeded() {
+	s.quotaMu.Lock()
+	s.quotaExceededUntil = time.Now().Add(quotaCooldown)
+	s.quotaMu.Unlock()
+}
+
+// IsQuotaLimited reports whether the YouTube quota was recently exhausted, so
+// the client can show the user a "video limit reached" message.
+func (s *Service) IsQuotaLimited() bool {
+	s.quotaMu.Lock()
+	defer s.quotaMu.Unlock()
+	return time.Now().Before(s.quotaExceededUntil)
 }
 
 func (s *Service) SetLifecoinsAdder(a LifecoinsAdder) { s.lifecoins = a }
@@ -404,16 +427,22 @@ func (s *Service) ListVideos(userID, category, langOverride string) ([]Video, er
 			// Otherwise top up in the BACKGROUND and serve existing videos now.
 			if len(videos) == 0 || freshInPreferred == 0 {
 				s.refreshMu.Lock()
-				s.refresher.FetchForQueries(context.Background(), queries, language)
+				_, quotaHit := s.refresher.FetchForQueries(context.Background(), queries, language)
 				s.refreshMu.Unlock()
+				if quotaHit {
+					s.markQuotaExceeded()
+				}
 				if v2, e := freshFor(); e == nil {
 					videos = v2
 				}
 			} else {
 				go func() {
 					s.refreshMu.Lock()
-					defer s.refreshMu.Unlock()
-					s.refresher.FetchForQueries(context.Background(), queries, language)
+					_, quotaHit := s.refresher.FetchForQueries(context.Background(), queries, language)
+					s.refreshMu.Unlock()
+					if quotaHit {
+						s.markQuotaExceeded()
+					}
 				}()
 			}
 		}

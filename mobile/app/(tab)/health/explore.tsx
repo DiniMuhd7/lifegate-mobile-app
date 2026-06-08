@@ -860,6 +860,7 @@ function ShortPlayerModal({
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [refreshing, setRefreshing] = useState(false);
   const [shuffleSeed, setShuffleSeed] = useState(0);
+  const [quotaMsg, setQuotaMsg] = useState(false);
   const listRef = useRef<FlatList<ExploreVideo>>(null);
 
   // First view preserves order (so the tapped short opens); after a pull, the
@@ -913,6 +914,11 @@ function ShortPlayerModal({
       }
     });
     setRefreshing(false);
+    // Show a transient banner if YouTube's daily fetch limit was reached.
+    if (useExploreStore.getState().quotaLimited) {
+      setQuotaMsg(true);
+      setTimeout(() => setQuotaMsg(false), 3500);
+    }
   }, [onRefresh]);
 
   return (
@@ -994,6 +1000,25 @@ function ShortPlayerModal({
             </View>
           </LinearGradient>
         </View>
+
+        {/* Quota-limit banner */}
+        {quotaMsg && (
+          <View
+            style={{
+              position: 'absolute', left: 18, right: 18, top: insets.top + 70,
+              backgroundColor: 'rgba(17,24,39,0.96)', borderRadius: 14,
+              paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row',
+              alignItems: 'center', gap: 10, zIndex: 30,
+              borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+            }}
+            pointerEvents="none"
+          >
+            <Ionicons name="information-circle-outline" size={20} color="#fbbf24" />
+            <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: '#fff' }}>
+              Daily video limit reached — showing saved Shorts. New ones resume soon.
+            </Text>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -1247,7 +1272,11 @@ export default function ExploreScreen() {
       }
     });
     setRefreshing(false);
-  }, [refreshVideos]);
+    // Inform the user if YouTube's daily fetch limit was reached.
+    if (useExploreStore.getState().quotaLimited) {
+      showToast("Daily video limit reached — showing your saved videos. New videos resume soon.", 0);
+    }
+  }, [refreshVideos, showToast]);
 
   // First load preserves the backend's per-user personalised ranking. After a
   // pull-to-refresh, shuffleSeed > 0 reshuffles the fetched videos so the user

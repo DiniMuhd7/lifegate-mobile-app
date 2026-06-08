@@ -60,6 +60,9 @@ func (h *Handler) ListVideos(c *gin.Context) {
 			"dailyCap":           DailyVideoCap,
 			"rewardedIds":        rewardedIDs,
 			"trendingCategories": trendingCategories,
+			// True when YouTube's daily fetch quota was recently exhausted, so
+			// the client can inform the user fresh videos are temporarily limited.
+			"quotaLimited": h.svc.IsQuotaLimited(),
 		},
 	})
 }

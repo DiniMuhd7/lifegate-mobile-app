@@ -635,6 +635,8 @@ interface ExploreState extends PersistedExploreData {
   dailyCap: number;
   /** YYYY-MM-DD of the last successful remote video fetch (in-memory only). */
   lastVideoRefreshDate: string | null;
+  /** True when the server reports YouTube's daily fetch quota is exhausted. */
+  quotaLimited: boolean;
   initialize: () => Promise<void>;
   /** Refreshes the video catalogue, today's rewards, and trending categories from the API. */
   refreshVideos: () => Promise<void>;
@@ -672,38 +674,39 @@ async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing
  *      refresher has run). This preserves quota for the backend refresher and
  *      ensures all 16 categories are populated consistently for every user.
  */
-async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number; trendingCategories: TrendingCategory[] } | null> {
+async function fetchRemote(): Promise<{ videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number; trendingCategories: TrendingCategory[]; quotaLimited: boolean } | null> {
   const userLanguage = resolveExploreLanguage(useAuthStore.getState().user?.language);
   // ── 1. Primary: backend catalogue ────────────────────────────────────────
   try {
     const res = await api.get<{
       success: boolean;
-      data: { videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number; trendingCategories?: TrendingCategory[] };
+      data: { videos: ExploreVideo[]; rewardedIds: string[]; dailyCap: number; trendingCategories?: TrendingCategory[]; quotaLimited?: boolean };
     }>(`/explore/videos?lang=${encodeURIComponent(userLanguage)}`);
 
     if (res.data.success) {
       const rewardedIds        = res.data.data.rewardedIds        ?? [];
       const dailyCap           = res.data.data.dailyCap           ?? DAILY_VIDEO_CAP;
       const trendingCategories = res.data.data.trendingCategories ?? [];
+      const quotaLimited       = res.data.data.quotaLimited       ?? false;
       const backendVideos =
         Array.isArray(res.data.data.videos) && res.data.data.videos.length > 0
           ? (res.data.data.videos as ExploreVideo[])
           : null;
 
       if (backendVideos) {
-        return { videos: backendVideos, rewardedIds, dailyCap, trendingCategories };
+        return { videos: backendVideos, rewardedIds, dailyCap, trendingCategories, quotaLimited };
       }
 
       // Backend reachable but catalogue is empty (refresher hasn't run yet).
       // Fall back to a direct YouTube fetch so the screen isn't empty.
       const ytVideos = await fetchFromYouTube(userLanguage, trendingCategories);
-      if (ytVideos) return { videos: ytVideos, rewardedIds, dailyCap, trendingCategories };
+      if (ytVideos) return { videos: ytVideos, rewardedIds, dailyCap, trendingCategories, quotaLimited };
       return null;
     }
   } catch {
     // Backend unreachable — try YouTube so the screen isn't left empty.
     const ytVideos = await fetchFromYouTube(userLanguage, []);
-    if (ytVideos) return { videos: ytVideos, rewardedIds: [], dailyCap: DAILY_VIDEO_CAP, trendingCategories: [] };
+    if (ytVideos) return { videos: ytVideos, rewardedIds: [], dailyCap: DAILY_VIDEO_CAP, trendingCategories: [], quotaLimited: false };
     return null;
   }
 
@@ -723,6 +726,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
   videos: [],
   dailyCap: DAILY_VIDEO_CAP,
   lastVideoRefreshDate: null,
+  quotaLimited: false,
 
   initialize: async () => {
     const today = todayStr();
@@ -823,6 +827,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       dailyWatchedCount: remote.rewardedIds.length,
       lastVideoRefreshDate: today,
       lastVideoFetchDate: today,  // keep in-memory state in sync with storage
+      quotaLimited: remote.quotaLimited,
     });
     // Persist updated video cache
     const current = get();

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -167,8 +168,13 @@ type ytSearchItem struct {
 		Title        string `json:"title"`
 		Description  string `json:"description"`
 		ChannelTitle string `json:"channelTitle"`
+		ChannelID    string `json:"channelId"`
 	} `json:"snippet"`
 }
+
+// minChannelSubscribers is the minimum subscriber count a channel must have for
+// its videos to be ingested into the catalogue.
+const minChannelSubscribers = 1000
 
 // ytVideoDetails holds contentDetails returned by the videos.list endpoint.
 type ytVideoDetails struct {
@@ -209,19 +215,21 @@ func NewRefresher(repo *Repository, apiKey string, videosPerCat int) *Refresher 
 // the fixed category taxonomy.
 //
 // It is safe to call concurrently — the service serialises calls behind its
-// refresh mutex. Returns the number of videos upserted.
-func (r *Refresher) FetchForQueries(ctx context.Context, queries []userQuery, language string) int {
+// refresh mutex. Returns the number of videos upserted and whether the YouTube
+// daily quota was hit during the fetch.
+func (r *Refresher) FetchForQueries(ctx context.Context, queries []userQuery, language string) (int, bool) {
 	if r.apiKey == "" || len(queries) == 0 {
-		return 0
+		return 0, false
 	}
 	language = normalizeExploreLanguage(language)
 	sortBase := int(time.Now().Unix())
 	total := 0
+	quotaHit := false
 
 	for i, uq := range queries {
 		select {
 		case <-ctx.Done():
-			return total
+			return total, quotaHit
 		default:
 		}
 
@@ -229,6 +237,9 @@ func (r *Refresher) FetchForQueries(ctx context.Context, queries []userQuery, la
 		videos, err := r.searchCategory(ctx, uq.Category, uq.Query, language)
 		if err != nil {
 			log.Printf("[explore/refresher] on-demand search failed for %q: %v", uq.Query, err)
+			if isQuotaError(err) {
+				return total, true // quota exhausted — stop, nothing more will succeed
+			}
 		} else {
 			for j, v := range videos {
 				if err := r.repo.UpsertVideo(v, sortBase+i*200+j); err != nil {
@@ -240,7 +251,11 @@ func (r *Refresher) FetchForQueries(ctx context.Context, queries []userQuery, la
 
 		// Shorts for the same query.
 		shorts, err := r.searchCategoryShorts(ctx, uq.Category, uq.Query, language)
-		if err == nil {
+		if err != nil {
+			if isQuotaError(err) {
+				return total, true
+			}
+		} else {
 			for j, v := range shorts {
 				if err := r.repo.UpsertVideo(v, sortBase+100000+i*200+j); err != nil {
 					log.Printf("[explore/refresher] upsert (short) failed (%s): %v", v.ID, err)
@@ -255,7 +270,7 @@ func (r *Refresher) FetchForQueries(ctx context.Context, queries []userQuery, la
 
 	log.Printf("[explore/refresher] on-demand fetch: %d video(s) for %d query(ies), lang=%s",
 		total, len(queries), language)
-	return total
+	return total, quotaHit
 }
 
 // RunOnce executes a single refresh cycle synchronously. It is safe to call
@@ -482,6 +497,7 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 		meta = struct{ color, icon string }{"#0AADA2", "play-circle-outline"}
 	}
 	var out []Video
+	chanByYt := make(map[string]string) // youtubeID → channelID
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)
 		// Keep only videos in the 3–20 min range (180–1200 s).
@@ -510,6 +526,7 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 			coins = 3
 		}
 
+		chanByYt[d.ID] = snippet.ChannelID
 		out = append(out, Video{
 			ID:              fmt.Sprintf("yt_%s_%s_%s", sanitizeID(language), sanitizeID(category), d.ID),
 			Title:           snippet.Title,
@@ -523,6 +540,12 @@ func (r *Refresher) searchCategory(ctx context.Context, category, query, languag
 			Instructor:      snippet.ChannelTitle,
 			YoutubeID:       d.ID,
 		})
+	}
+
+	// Keep only videos from channels with ≥ minChannelSubscribers subscribers.
+	out = r.filterBySubscribers(ctx, out, chanByYt)
+	if len(out) == 0 {
+		return nil, nil
 	}
 
 	// ── Enforce ≥70 % trusted healthcare source target ────────────────────
@@ -570,7 +593,11 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 		NextPageToken string         `json:"nextPageToken"`
 	}
 
-	shortsPerCat := 3 // Shorts fetched per category per run
+	// Shorts target = half the number of reel videos per category (rounded up).
+	shortsPerCat := (r.videosPerCat + 1) / 2
+	if shortsPerCat < 1 {
+		shortsPerCat = 1
+	}
 	fullQuery := query + aiExclusionSuffix
 	target := shortsPerCat * 3
 
@@ -650,6 +677,7 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 		meta = struct{ color, icon string }{"#0AADA2", "play-circle-outline"}
 	}
 	var out []Video
+	chanByYt := make(map[string]string) // youtubeID → channelID
 	for _, d := range dr.Items {
 		dur := parseISO8601Duration(d.ContentDetails.Duration)
 		// Keep only genuine Shorts (≤60 s).
@@ -668,6 +696,7 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 		}
 		desc = strings.ReplaceAll(desc, "\n", " ")
 
+		chanByYt[d.ID] = snippet.ChannelID
 		out = append(out, Video{
 			ID:              fmt.Sprintf("yt_short_%s_%s_%s", sanitizeID(language), sanitizeID(category), d.ID),
 			Title:           snippet.Title,
@@ -682,12 +711,109 @@ func (r *Refresher) searchCategoryShorts(ctx context.Context, category, query, l
 			YoutubeID:       d.ID,
 			IsShort:         true,
 		})
+	}
 
-		if len(out) >= shortsPerCat {
-			break
-		}
+	// Keep only Shorts from channels with ≥ minChannelSubscribers, then cap to
+	// the per-category target (half the reels count).
+	out = r.filterBySubscribers(ctx, out, chanByYt)
+	if len(out) > shortsPerCat {
+		out = out[:shortsPerCat]
 	}
 	return out, nil
+}
+
+// isQuotaError reports whether a YouTube API error is a daily-quota exhaustion.
+func isQuotaError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "quotaExceeded") ||
+		strings.Contains(s, "dailyLimitExceeded") ||
+		strings.Contains(s, "HTTP 403")
+}
+
+// fetchChannelSubscribers returns channelID → subscriber count for the given
+// channels (batched 50 per channels.list call). Channels that hide their
+// subscriber count are omitted, so callers treat them as below threshold.
+func (r *Refresher) fetchChannelSubscribers(ctx context.Context, channelIDs []string) (map[string]int64, error) {
+	result := make(map[string]int64, len(channelIDs))
+	if len(channelIDs) == 0 {
+		return result, nil
+	}
+	type channelsResp struct {
+		Items []struct {
+			ID         string `json:"id"`
+			Statistics struct {
+				SubscriberCount       string `json:"subscriberCount"`
+				HiddenSubscriberCount bool   `json:"hiddenSubscriberCount"`
+			} `json:"statistics"`
+		} `json:"items"`
+	}
+
+	for i := 0; i < len(channelIDs); i += 50 {
+		end := i + 50
+		if end > len(channelIDs) {
+			end = len(channelIDs)
+		}
+		batch := channelIDs[i:end]
+		u := fmt.Sprintf(
+			"https://www.googleapis.com/youtube/v3/channels?part=statistics&id=%s&key=%s",
+			url.QueryEscape(strings.Join(batch, ",")),
+			r.apiKey,
+		)
+		resp, err := ytGet[channelsResp](ctx, u)
+		if err != nil {
+			return result, err // propagate so quota errors surface
+		}
+		for _, it := range resp.Items {
+			if it.Statistics.HiddenSubscriberCount {
+				continue // unknown count — treat as below threshold
+			}
+			n, _ := strconv.ParseInt(it.Statistics.SubscriberCount, 10, 64)
+			result[it.ID] = n
+		}
+	}
+	return result, nil
+}
+
+// filterBySubscribers keeps only videos whose channel has at least
+// minChannelSubscribers. chanByYt maps a video's YouTube ID to its channel ID.
+func (r *Refresher) filterBySubscribers(ctx context.Context, vids []Video, chanByYt map[string]string) []Video {
+	if len(vids) == 0 {
+		return vids
+	}
+	// Collect unique channel IDs referenced by these videos.
+	seen := make(map[string]struct{})
+	chanIDs := make([]string, 0, len(vids))
+	for _, v := range vids {
+		ch := chanByYt[v.YoutubeID]
+		if ch == "" {
+			continue
+		}
+		if _, dup := seen[ch]; dup {
+			continue
+		}
+		seen[ch] = struct{}{}
+		chanIDs = append(chanIDs, ch)
+	}
+
+	subs, err := r.fetchChannelSubscribers(ctx, chanIDs)
+	if err != nil {
+		// On a stats lookup failure (e.g. quota) don't silently keep everything —
+		// but also don't drop everything: skip the filter so we still return
+		// content, and let the quota flag surface via the search calls.
+		log.Printf("[explore/refresher] subscriber lookup failed: %v — skipping subscriber filter", err)
+		return vids
+	}
+
+	kept := vids[:0]
+	for _, v := range vids {
+		if subs[chanByYt[v.YoutubeID]] >= minChannelSubscribers {
+			kept = append(kept, v)
+		}
+	}
+	return kept
 }
 
 // ytGet performs a GET request to the YouTube API and unmarshals the response
