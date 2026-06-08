@@ -229,7 +229,20 @@ function initShowcaseSlider() {
   const scrollToIndex = (index, smooth = true) => {
     const target = cards[index];
     if (!target) return;
-    target.scrollIntoView({ behavior: smooth ? "smooth" : "auto", inline: "center", block: "nearest" });
+    // Scroll ONLY the horizontal carousel track — never the page. Using
+    // element.scrollIntoView() also scrolls the whole document vertically to
+    // bring the showcase into view, which (on load and on every autoplay tick)
+    // yanked the visitor down to the App Preview section. We compute the card's
+    // position relative to the track via bounding rects (robust regardless of
+    // the offsetParent) and scroll the track's own scrollLeft, leaving the page
+    // exactly where the visitor is.
+    const trackRect = track.getBoundingClientRect();
+    const cardRect = target.getBoundingClientRect();
+    const left =
+      track.scrollLeft +
+      (cardRect.left - trackRect.left) -
+      (track.clientWidth - cardRect.width) / 2;
+    track.scrollTo({ left: Math.max(0, left), behavior: smooth ? "smooth" : "auto" });
     currentIndex = index;
     updateDots(index);
   };
