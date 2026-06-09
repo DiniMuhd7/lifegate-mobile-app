@@ -1253,6 +1253,11 @@ export default function ExploreScreen() {
     return () => sub.remove();
   }, [handleBack]);
 
+  const showToast = useCallback((message: string, coins: number) => {
+    setToast({ message, coins });
+    setTimeout(() => setToast(null), 2800);
+  }, []);
+
   // Pull-to-refresh: refetch fresh/personalised videos from the backend, then
   // reshuffle the feed and scroll back to the top.
   const onRefresh = useCallback(async () => {
@@ -1285,11 +1290,6 @@ export default function ExploreScreen() {
     () => (shuffleSeed > 0 ? shuffleWithSeed(videos, shuffleSeed) : videos),
     [videos, shuffleSeed],
   );
-
-  const showToast = useCallback((message: string, coins: number) => {
-    setToast({ message, coins });
-    setTimeout(() => setToast(null), 2800);
-  }, []);
 
   const handleAdRewarded = useCallback(() => {
     useLifecoinsWalletStore.getState().addCoins('ad_reward', AD_BONUS_COINS, 'Rewarded ad bonus');
