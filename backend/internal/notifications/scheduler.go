@@ -316,9 +316,8 @@ func (sc *Scheduler) sendReEngagement(ctx context.Context) {
 // ─── 4. Explore health-videos reminder ────────────────────────────────────────
 
 // runExploreReminder fires every day at 13:00 WAT (early afternoon).
-// It nudges users to watch today's personalised health videos and earn
-// Lifecoins, but only those who haven't already claimed a video reward today
-// (so users who are already engaged aren't pinged unnecessarily).
+// It nudges EVERY patient to watch today's personalised health videos and earn
+// Lifecoins — including users who have already watched today.
 func (sc *Scheduler) runExploreReminder(ctx context.Context) {
 	for {
 		next := nextOccurrence(13, 0, watLocation)
@@ -332,40 +331,61 @@ func (sc *Scheduler) runExploreReminder(ctx context.Context) {
 }
 
 func (sc *Scheduler) sendExploreReminders(ctx context.Context) {
-	today := time.Now().In(watLocation).Format("2006-01-02")
-
-	// All patients who have NOT claimed any explore video reward today.
-	rows, err := sc.db.QueryContext(ctx, `
-		SELECT u.id::text, COALESCE(u.name, 'there')
-		FROM   users u
-		WHERE  u.role = 'user'
-		  AND  NOT EXISTS (
-		         SELECT 1 FROM explore_video_rewards evr
-		         WHERE  evr.user_id    = u.id
-		           AND  evr.rewarded_on = $1::date
-		       )
-		LIMIT  10000`, today)
-	if err != nil {
-		log.Printf("[scheduler] explore reminder query error: %v", err)
-		return
-	}
-	defer rows.Close()
-
+	// Keyset-paginate through ALL patients (no LIMIT cap, no skipping of
+	// already-engaged users) so every user is reached each day.
+	const batchSize = 2000
+	lastID := "00000000-0000-0000-0000-000000000000"
 	sent := 0
-	for rows.Next() {
-		var userID, name string
-		if err := rows.Scan(&userID, &name); err != nil {
-			continue
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
 		}
-		title := "New health videos for you 🎬"
-		body := fmt.Sprintf(
-			"Hi %s, fresh health videos picked for you are ready in Explore. Watch a few and earn Lifecoins today!",
-			name)
-		sc.push.SendToUser(ctx, userID, title, body, map[string]string{
-			"type":   "explore_reminder",
-			"screen": "/(tab)/health/explore",
-		})
-		sent++
+
+		rows, err := sc.db.QueryContext(ctx, `
+			SELECT u.id::text, COALESCE(u.name, 'there')
+			FROM   users u
+			WHERE  u.role = 'user'
+			  AND  u.id > $1::uuid
+			ORDER  BY u.id
+			LIMIT  $2`, lastID, batchSize)
+		if err != nil {
+			log.Printf("[scheduler] explore reminder query error: %v", err)
+			return
+		}
+
+		type target struct{ id, name string }
+		batch := make([]target, 0, batchSize)
+		for rows.Next() {
+			var t target
+			if err := rows.Scan(&t.id, &t.name); err == nil {
+				batch = append(batch, t)
+			}
+		}
+		rows.Close()
+
+		if len(batch) == 0 {
+			break
+		}
+
+		for _, t := range batch {
+			title := "New health videos for you 🎬"
+			body := fmt.Sprintf(
+				"Hi %s, fresh health videos picked for you are ready in Explore. Watch a few and earn Lifecoins today!",
+				t.name)
+			sc.push.SendToUser(ctx, t.id, title, body, map[string]string{
+				"type":   "explore_reminder",
+				"screen": "/(tab)/health/explore",
+			})
+			sent++
+		}
+
+		lastID = batch[len(batch)-1].id
+		if len(batch) < batchSize {
+			break // last page
+		}
 	}
 	log.Printf("[scheduler] explore reminders sent to %d users", sent)
 }

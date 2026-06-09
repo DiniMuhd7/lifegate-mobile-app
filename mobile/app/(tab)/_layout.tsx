@@ -200,6 +200,20 @@ export default function TabLayout() {
     registerWebPush().catch(() => {/* best-effort */});
   }, [isAuthenticated, user]);
 
+  // Re-register the push token every time the app returns to the foreground so
+  // the backend's 30-day token TTL is refreshed on each open — an active user's
+  // token therefore never expires and they keep receiving daily notifications.
+  useEffect(() => {
+    if (!isAuthenticated || !user || user.role !== 'user') return;
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        registerPatientPushToken().catch(() => {/* best-effort */});
+        registerWebPush().catch(() => {/* best-effort */});
+      }
+    });
+    return () => sub.remove();
+  }, [isAuthenticated, user?.id]);
+
   // ── Continuous background health monitoring ────────────────────────────────
   // Start when patient authenticates; stop on logout to release pedometer and
   // unregister the background-fetch task.
