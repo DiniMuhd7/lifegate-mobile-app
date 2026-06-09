@@ -1,32 +1,35 @@
 /**
  * houseVideos.ts — LifeGate's self-hosted promo videos.
  *
- * Used as rewarded/interstitial ad inventory of last resort: the web
- * RewardedAdButton plays these directly, and the shorts/reels claim flow
- * falls back to them when AdMob/AdSense has no fill.
+ * Used as rewarded ad inventory: the RewardedAdButton and the shorts/reels
+ * claim flow play these fullscreen and grant coins on completion.
  *
+ * The videos are baked into the Render web deployment at build time by
+ * mobile/scripts/download-house-videos.js and served first-party from
+ * https://mobile.dshub.com.ng/videos/ (native apps stream the same URLs).
  * Override with EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS (comma-separated URLs).
- * Note: Google Drive enforces per-file download quotas — move these to a
- * proper CDN if traffic grows.
  */
+import { Platform } from 'react-native';
 
-const DEFAULT_VIDEO_IDS = [
-  '1MD05PTJXlKLif3s6YdAJUk5qfKeLzWQ8',
-  '1eCUblwhPekf6cRF7xMg1kRuJWa3MTTC4',
-  '1V_ndFSaDCJRLsq7aEWWFduxAE0j_ARmu',
-  '1jBOL2o10PPF9aBXGwYnEpUphVaNqJB2y',
+const VIDEO_FILES = [
+  'lifegate-promo-1.mp4',
+  'lifegate-promo-2.mp4',
+  'lifegate-promo-3.mp4',
+  'lifegate-promo-4.mp4',
 ];
+
+const VIDEO_BASE_URL = 'https://mobile.dshub.com.ng/videos';
 
 export const HOUSE_VIDEO_URLS: string[] = (() => {
   const env = process.env.EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS;
   if (env) return env.split(',').map((s) => s.trim()).filter(Boolean);
-  // drive.usercontent.google.com serves the bytes directly with
-  // Content-Type: video/mp4. The drive.google.com/uc URL 303-redirects there,
-  // but its first response is application/binary + nosniff, which some video
-  // players (notably ExoPlayer on Android) reject.
-  return DEFAULT_VIDEO_IDS.map(
-    (id) => `https://drive.usercontent.google.com/download?id=${id}&export=download`
-  );
+  // In local dev the Metro/Expo dev server has no /videos directory — stream
+  // from the production deployment instead so the flow stays testable.
+  if (__DEV__) return VIDEO_FILES.map((f) => `${VIDEO_BASE_URL}/${f}`);
+  // On web, same-origin relative URLs keep working on preview deploys and
+  // custom domains alike; native needs the absolute production URL.
+  const base = Platform.OS === 'web' ? '/videos' : VIDEO_BASE_URL;
+  return VIDEO_FILES.map((f) => `${base}/${f}`);
 })();
 
 export function pickHouseVideoUrl(): string {

@@ -152,14 +152,16 @@ services:
     name: lifegate-mobile-web
     runtime: static
     rootDir: mobile
-    buildCommand: npm ci && npm run export:web
+    # download-house-videos.js bakes the rewarded/house videos into dist/videos
+    # so they are served first-party instead of streamed from Google Drive.
+    buildCommand: npm ci && npm run export:web && node scripts/download-house-videos.js dist
     staticPublishPath: dist
 
     envVars:
       - key: EXPO_PUBLIC_API_URL
         value: https://edis.dshub.com.ng/api
-      # Self-hosted rewarded videos (RewardedAdButton.web.tsx) — comma-separated
-      # direct video URLs; defaults to bundled Google Drive links when unset.
+      # Self-hosted rewarded videos — comma-separated direct video URLs.
+      # Defaults to https://mobile.dshub.com.ng/videos/* (baked at build time).
       # - key: EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS
       #   value: https://cdn.example.com/v1.mp4,https://cdn.example.com/v2.mp4
 
