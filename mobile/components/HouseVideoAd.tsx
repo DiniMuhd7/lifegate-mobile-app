@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-import { pickHouseVideoUrl } from '../utils/houseVideos';
+import { shuffledHouseVideoUrls } from '../utils/houseVideos';
 
 export interface HouseVideoAdProps {
   visible: boolean;
@@ -27,22 +27,36 @@ export function HouseVideoAd({ visible, onCompleted, onClosed, onError }: HouseV
   const [buffering, setBuffering] = useState(true);
   const [remaining, setRemaining] = useState<number | null>(null);
   const completed = useRef(false);
+  const queue = useRef<string[]>([]);
 
-  // Pick a fresh video each time the modal opens.
+  // Pick a fresh shuffled playlist each time the modal opens.
   useEffect(() => {
     if (visible) {
       completed.current = false;
       setBuffering(true);
       setRemaining(null);
-      setUrl(pickHouseVideoUrl());
+      queue.current = shuffledHouseVideoUrls();
+      setUrl(queue.current.shift() ?? null);
     } else {
       setUrl(null);
     }
   }, [visible]);
 
+  // A video failed to load — try the next one before giving up.
+  const handleError = () => {
+    const next = queue.current.shift();
+    if (next) {
+      setBuffering(true);
+      setRemaining(null);
+      setUrl(next);
+    } else {
+      onError?.();
+    }
+  };
+
   const handleStatus = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) {
-      if (status.error) onError?.();
+      if (status.error) handleError();
       return;
     }
     setBuffering(status.isBuffering && !status.isPlaying);
@@ -110,6 +124,8 @@ export function HouseVideoAd({ visible, onCompleted, onClosed, onError }: HouseV
 
         {url && (
           <Video
+            // Key forces a full remount when falling through to the next URL.
+            key={url}
             source={{ uri: url }}
             shouldPlay
             isLooping={false}
@@ -118,7 +134,7 @@ export function HouseVideoAd({ visible, onCompleted, onClosed, onError }: HouseV
             resizeMode={ResizeMode.CONTAIN}
             style={{ width: '100%', height: '80%' }}
             onPlaybackStatusUpdate={handleStatus}
-            onError={() => onError?.()}
+            onError={handleError}
           />
         )}
       </View>
