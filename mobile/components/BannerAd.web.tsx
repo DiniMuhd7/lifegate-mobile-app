@@ -9,15 +9,15 @@
  *     Mobile app unit IDs (from AdMob) will NOT serve ads on web.
  *     Set EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT in render.yaml to the web slot ID.
  *
- * Publisher ID : ca-pub-8968729342650927
+ * Publisher ID : ca-pub-4516568539037938
  */
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-4516568539037938';
 const AD_SLOT =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '9217916017';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT ?? '8453139420';
 
 // Extend window type for adsbygoogle
 declare global {

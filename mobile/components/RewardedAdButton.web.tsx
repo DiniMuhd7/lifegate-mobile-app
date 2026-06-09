@@ -1,59 +1,40 @@
 /**
- * RewardedAdButton.web.tsx — AdSense vignette-backed reward button for Expo Web.
+ * RewardedAdButton.web.tsx — In-article AdSense unit for Expo Web.
  *
- * AdSense does not offer true rewarded ads for non-game web apps. This
- * implementation shows a vignette interstitial (adBreak type='next') instead.
- * The reward is granted via `afterAd`, which fires once the vignette is
- * dismissed — whether the user watched it fully or closed it early. This is
- * the best available mechanism on standard AdSense.
+ * Web has no true rewarded ads on standard AdSense, so in place of the native
+ * rewarded button this renders an in-article fluid display unit. It is a
+ * passive impression: no reward is granted on web (`onRewarded` is never
+ * called) — granting coins for a mere impression violates AdSense policy.
  *
- * Requires "Auto ads → Vignettes" to be enabled in your AdSense dashboard.
- * No additional ad unit ID is needed — vignettes are managed by Auto Ads.
- *
- * Publisher ID : ca-pub-8968729342650927
+ * Publisher ID : ca-pub-4516568539037938
+ * Ad slot      : 4158671196 (in-article, fluid)
  */
-import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, View, Text, ActivityIndicator } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef } from 'react';
+import { View } from 'react-native';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-4516568539037938';
+const AD_SLOT =
+  process.env.EXPO_PUBLIC_ADMOB_WEB_INARTICLE_SLOT ?? '4158671196';
 
 declare global {
   interface Window {
     adsbygoogle: unknown[];
-    adBreak?: (config: AdBreakConfig) => void;
   }
 }
 
-interface AdBreakConfig {
-  type: 'start' | 'pause' | 'next' | 'browse' | 'reward';
-  name?: string;
-  beforeAd?: () => void;
-  afterAd?: () => void;
-  adDismissed?: () => void;
-}
+function loadAdScript() {
+  if (typeof document === 'undefined') return;
+  // The web shell (web/index.html) already loads adsbygoogle.js — only inject
+  // if it's somehow missing. Loading the SDK twice triggers console errors.
+  if (document.querySelector('script[src*="adsbygoogle.js"]')) return;
 
-let adConfigured = false;
-
-function ensureAdConfig() {
-  if (typeof document === 'undefined' || adConfigured) return;
-  adConfigured = true;
-
-  if (!document.getElementById('adsense-vignette-script')) {
-    const s = document.createElement('script');
-    s.id = 'adsense-vignette-script';
-    s.async = true;
-    s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
-    s.crossOrigin = 'anonymous';
-    document.head.appendChild(s);
-  }
-
-  window.adsbygoogle = window.adsbygoogle || [];
-  (window.adsbygoogle as unknown[]).push({
-    preloadAdBreaks: 'on',
-    google_ad_client: PUBLISHER_ID,
-  });
+  const script = document.createElement('script');
+  script.id = 'adsense-web-script';
+  script.async = true;
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
+  script.crossOrigin = 'anonymous';
+  document.head.appendChild(script);
 }
 
 export interface RewardedAdButtonProps {
@@ -65,99 +46,78 @@ export interface RewardedAdButtonProps {
   disabled?: boolean;
 }
 
-export function RewardedAdButton({
-  onRewarded,
-  onDismissed,
-  label = 'Watch a short ad',
-  sublabel,
-  coinsLabel,
-  disabled = false,
-}: RewardedAdButtonProps) {
-  const [loading, setLoading] = useState(false);
-  const pendingRef = useRef(false);
+// Props are accepted for parity with the native rewarded button but unused on
+// web — this renders a passive in-article ad and never grants a reward.
+export function RewardedAdButton(_props: RewardedAdButtonProps) {
+  const adRef = useRef<HTMLElement | null>(null);
+  const pushed = useRef(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') ensureAdConfig();
+    if (typeof window === 'undefined') return;
+
+    loadAdScript();
+
+    const el = adRef.current as (HTMLElement & { dataset: DOMStringMap }) | null;
+    if (!el) return;
+
+    let frameId: number | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+
+    const tryPushAd = () => {
+      if (pushed.current) return true;
+
+      // Wait until layout has produced a measurable slot width; otherwise
+      // AdSense throws "No slot size for availableWidth=0".
+      const width = el.getBoundingClientRect().width;
+      if (!width || width <= 0 || el.dataset['adsbygoogleStatus']) {
+        return false;
+      }
+
+      try {
+        window.adsbygoogle = window.adsbygoogle || [];
+        (window.adsbygoogle as unknown[]).push({});
+        pushed.current = true;
+        return true;
+      } catch {
+        // Non-fatal — slot stays empty rather than crashing the UI.
+        return false;
+      }
+    };
+
+    frameId = window.requestAnimationFrame(() => {
+      if (tryPushAd()) return;
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          if (tryPushAd()) {
+            resizeObserver?.disconnect();
+            resizeObserver = null;
+          }
+        });
+        resizeObserver.observe(el);
+      }
+    });
+
+    return () => {
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+      resizeObserver?.disconnect();
+    };
   }, []);
 
+  // SSR: render nothing on the server.
   if (typeof window === 'undefined') return null;
 
-  const handlePress = () => {
-    if (disabled || loading || pendingRef.current) return;
-    setLoading(true);
-    pendingRef.current = true;
-
-    const adBreak: (cfg: AdBreakConfig) => void =
-      window.adBreak ??
-      ((cfg) => {
-        window.adsbygoogle = window.adsbygoogle || [];
-        (window.adsbygoogle as unknown[]).push(cfg);
-      });
-
-    adBreak({
-      type: 'next',
-      name: 'lifecoins-vignette-reward',
-      beforeAd: () => { /* fullscreen ad shown by SDK */ },
-      afterAd: () => {
-        // Fires after the ad is dismissed (watched or skipped).
-        // Grant the reward here — best available mechanism on AdSense web.
-        setLoading(false);
-        pendingRef.current = false;
-        onRewarded();
-      },
-      adDismissed: () => {
-        setLoading(false);
-        pendingRef.current = false;
-        onDismissed?.();
-      },
-    });
-  };
-
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={disabled || loading}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        paddingVertical: 13,
-        paddingHorizontal: 20,
-        borderRadius: 14,
-        borderWidth: 1.5,
-        borderColor: '#fde68a',
-        backgroundColor: pressed ? '#fffbeb' : '#fff',
-        opacity: disabled ? 0.5 : 1,
-      })}
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color="#d97706" />
-      ) : (
-        <Ionicons name="play-circle-outline" size={20} color="#d97706" />
-      )}
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#92400e' }}>
-          {loading ? 'Loading ad…' : label}
-        </Text>
-        {sublabel && !loading && (
-          <Text style={{ fontSize: 11, color: '#b45309', marginTop: 1 }}>{sublabel}</Text>
-        )}
-      </View>
-      {coinsLabel && !loading && (
-        <View
-          style={{
-            backgroundColor: '#fef3c7',
-            borderRadius: 8,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            borderWidth: 1,
-            borderColor: '#fde68a',
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '800', color: '#d97706' }}>{coinsLabel}</Text>
-        </View>
-      )}
-    </Pressable>
+    <View style={{ width: '100%' }}>
+      {/* @ts-expect-error — ins is a valid HTML element not typed in RN */}
+      <ins
+        ref={adRef}
+        className="adsbygoogle"
+        style={{ display: 'block', textAlign: 'center' }}
+        data-ad-layout="in-article"
+        data-ad-format="fluid"
+        data-ad-client={PUBLISHER_ID}
+        data-ad-slot={AD_SLOT}
+      />
+    </View>
   );
 }

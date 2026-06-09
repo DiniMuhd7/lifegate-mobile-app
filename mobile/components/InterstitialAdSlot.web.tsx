@@ -6,12 +6,12 @@
  * enabled in your AdSense account (adsense.google.com → Ads → Auto ads).
  * No ad unit ID is needed — AdSense auto ads manages interstitials centrally.
  *
- * Publisher ID : ca-pub-8968729342650927
+ * Publisher ID : ca-pub-4516568539037938
  */
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
 const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-8968729342650927';
+  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-4516568539037938';
 // Interstitial unit ID is optional for AdSense auto-ads vignettes.
 // Only set this if you have a dedicated AdSense interstitial unit.
 const AD_UNIT_ID = process.env.EXPO_PUBLIC_ADMOB_WEB_INTERSTITIAL_UNIT_ID ?? undefined;
