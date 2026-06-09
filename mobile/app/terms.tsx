@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 
 const TEAL = '#0AADA2';
-const LAST_UPDATED = 'May 26, 2026';
+const LAST_UPDATED = 'June 9, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -265,9 +265,10 @@ export default function TermsScreen() {
           <Para>
             The Platform integrates third-party services including but not limited to YouTube (video
             content), Firebase and Expo Notifications (push alerts and badges), Flutterwave
-            (payments), Google AdMob / AdSense (advertising), analytics tools, and AI providers
-            used for triage, OCR, report generation, and public health insights. Your use of these
-            services is subject to the respective third-party terms and privacy policies.
+            (payments), and AI providers used for triage, OCR, report generation, and public health
+            insights. Your use of these services is subject to the respective third-party terms and
+            privacy policies. Promotional content shown in the app is LifeGate&apos;s own and does
+            not involve third-party advertising networks.
           </Para>
           <Para>
             We are not responsible for the content, accuracy, or practices of any third-party service.

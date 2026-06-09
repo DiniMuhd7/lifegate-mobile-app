@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 
 const TEAL = '#0AADA2';
-const LAST_UPDATED = 'May 6, 2026';
+const LAST_UPDATED = 'June 9, 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -303,8 +303,9 @@ export default function PolicyScreen() {
             session and remember your preferences. We do not use cross-site tracking cookies.
           </Para>
           <Para>
-            We use Google AdMob advertising services on the web platform, which may use cookies or
-            similar technologies. You may opt out of personalised ads via Google's Ad Settings.
+            We do not use third-party advertising networks. Promotional content shown in the app
+            (such as banners for LifeGate Premium, referrals, or LifeCoins) is our own, served
+            directly by us without third-party tracking, cookies, or data sharing.
           </Para>
         </Section>
 
@@ -324,7 +325,6 @@ export default function PolicyScreen() {
           <Bullet>Google Firebase — Push notifications and analytics</Bullet>
           <Bullet>YouTube — Educational video content playback</Bullet>
           <Bullet>Flutterwave — Payment processing</Bullet>
-          <Bullet>Google AdMob — In-app and web advertising</Bullet>
           <Para>
             We encourage you to review the privacy policies of these services.
           </Para>
