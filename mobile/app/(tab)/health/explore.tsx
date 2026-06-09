@@ -23,7 +23,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BannerAd } from 'components/BannerAd';
 import { RewardedAdButton } from 'components/RewardedAdButton';
-import { InterstitialAdSlot, InterstitialAdSlotHandle } from 'components/InterstitialAdSlot';
+import { HouseVideoAd } from 'components/HouseVideoAd';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
@@ -85,6 +85,7 @@ const ReelCard = React.memo(function ReelCard({
   cardHeight,
   onClaim,
   onWatchEvent,
+  onClaimableChange,
 }: {
   video: ExploreVideo;
   isActive: boolean;
@@ -92,34 +93,36 @@ const ReelCard = React.memo(function ReelCard({
   cardHeight: number;
   onClaim: (videoId: string) => Promise<void>;
   onWatchEvent: (videoId: string, category: string, watchSeconds: number, completed: boolean, isShort: boolean) => void;
+  onClaimableChange?: (claimable: boolean) => void;
 }) {
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   // ── Player state (all local — each card owns its own lifecycle) ────────────
   const videoRef    = useRef<WebView>(null);
-  const adRef       = useRef<InterstitialAdSlotHandle>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef(0);
-  const claimTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [playerReady,     setPlayerReady]     = useState(false);
   const [embedError,      setEmbedError]      = useState<number | null>(null);
   const [canClaim,        setCanClaim]        = useState(false);
   const [secondsLeft,     setSecondsLeft]     = useState(0);
-  const [adReady,         setAdReady]         = useState(false);
-  const [adFailed,        setAdFailed]        = useState(false);
   const [claiming,        setClaiming]        = useState(false);
-  const [claimPending,    setClaimPending]    = useState(false);
   const [noAdVisible,     setNoAdVisible]     = useState(false);
+  const [houseAdVisible,  setHouseAdVisible]  = useState(false);
 
   const requiredSeconds = Math.ceil(video.durationSeconds * 0.7);
+
+  // Let the parent react when this card becomes claimable (e.g. hide the
+  // bottom house-ad banner so it doesn't cover the claim button).
+  useEffect(() => {
+    if (isActive) onClaimableChange?.(canClaim);
+  }, [canClaim, isActive, onClaimableChange]);
 
   // Reset everything when this card leaves / enters the viewport
   useEffect(() => {
     if (!isActive) {
       // Stop timer
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-      if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
       try { videoRef.current?.stopLoading(); } catch (_) {}
       // Report how much the user watched before swiping away
       const watched = requiredSeconds - Math.max(remainingRef.current, 0);
@@ -131,11 +134,9 @@ const ReelCard = React.memo(function ReelCard({
       setEmbedError(null);
       setCanClaim(false);
       setSecondsLeft(requiredSeconds);
-      setAdReady(false);
-      setAdFailed(false);
       setClaiming(false);
-      setClaimPending(false);
       setNoAdVisible(false);
+      setHouseAdVisible(false);
       remainingRef.current = requiredSeconds;
     } else {
       remainingRef.current = requiredSeconds;
@@ -143,14 +144,8 @@ const ReelCard = React.memo(function ReelCard({
     }
     return () => {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-      if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
     };
   }, [isActive, requiredSeconds, onWatchEvent, video.id, video.category, canClaim]);
-
-  // Show no-ad overlay when ad has failed and the user just earned the right to claim
-  useEffect(() => {
-    if (adFailed && canClaim) setNoAdVisible(true);
-  }, [adFailed, canClaim]);
 
   const startTimer = useCallback(() => {
     if (intervalRef.current) return;
@@ -195,25 +190,18 @@ const ReelCard = React.memo(function ReelCard({
     if (playerReady && isActive) startTimer();
   }, [playerReady, startTimer, isActive]);
 
-  const handleClaim = useCallback(async () => {
-    if (!adReady) { setNoAdVisible(true); return; }
-    setClaimPending(true);
-    setClaiming(true);
-    claimTimeoutRef.current = setTimeout(() => {
-      setClaiming(false);
-      setClaimPending(false);
-      setNoAdVisible(true);
-    }, 20000);
-    adRef.current?.show();
-  }, [adReady]);
+  // Claim = watch a self-hosted house video to the end.
+  const handleClaim = useCallback(() => {
+    setHouseAdVisible(true);
+  }, []);
 
-  const handleAdDismissed = useCallback(async () => {
-    if (!claimPending) return;
-    if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
-    setClaimPending(false);
+  // House video watched to the end — grant the claim.
+  const handleHouseCompleted = useCallback(async () => {
+    setHouseAdVisible(false);
+    setClaiming(true);
     await onClaim(video.id);
     setClaiming(false);
-  }, [claimPending, onClaim, video.id]);
+  }, [onClaim, video.id]);
 
   const progress = canClaim ? 1 : (requiredSeconds - secondsLeft) / Math.max(requiredSeconds, 1);
 
@@ -412,21 +400,16 @@ const ReelCard = React.memo(function ReelCard({
         {/* Claim button (only when active and can claim) */}
         {isActive && !rewarded && (
           <Pressable
-            onPress={canClaim && !claiming && adReady ? handleClaim : undefined}
-            style={({ pressed }) => ({ opacity: !canClaim || claiming || !adReady ? 0.42 : pressed ? 0.82 : 1, marginTop: 4 })}
+            onPress={canClaim && !claiming ? handleClaim : undefined}
+            style={({ pressed }) => ({ opacity: !canClaim || claiming ? 0.42 : pressed ? 0.82 : 1, marginTop: 4 })}
           >
             <LinearGradient
-              colors={canClaim && adReady ? ['#16a34a', '#15803d'] : ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.04)']}
+              colors={canClaim ? ['#16a34a', '#15803d'] : ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.04)']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 14, borderRadius: 16, borderWidth: canClaim && adReady ? 0 : 1, borderColor: 'rgba(255,255,255,0.12)' }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 14, borderRadius: 16, borderWidth: canClaim ? 0 : 1, borderColor: 'rgba(255,255,255,0.12)' }}
             >
               {claiming ? (
                 <ActivityIndicator size="small" color="#fff" />
-              ) : canClaim && !adReady ? (
-                <>
-                  <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>Loading ad…</Text>
-                </>
               ) : (
                 <>
                   <Ionicons name={canClaim ? 'play-circle' : 'lock-closed-outline'} size={18} color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />
@@ -465,13 +448,13 @@ const ReelCard = React.memo(function ReelCard({
         </View>
       )}
 
-      {/* Ad slot — only mounted when this card is active */}
+      {/* Self-hosted video ad shown on claim */}
       {isActive && (
-        <InterstitialAdSlot
-          ref={adRef}
-          onLoaded={() => setAdReady(true)}
-          onFailed={() => { setAdReady(false); setAdFailed(true); }}
-          onDismissed={handleAdDismissed}
+        <HouseVideoAd
+          visible={houseAdVisible}
+          onCompleted={handleHouseCompleted}
+          onClosed={() => setHouseAdVisible(false)}
+          onError={() => { setHouseAdVisible(false); setNoAdVisible(true); }}
         />
       )}
     </View>
@@ -500,11 +483,8 @@ const ShortItem = React.memo(function ShortItem({
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   const videoRef    = useRef<WebView>(null);
-  const adRef       = useRef<InterstitialAdSlotHandle>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const remainingRef = useRef(0);
-  const claimTimeoutRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const adFailTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const requiredSeconds = Math.max(Math.ceil(video.durationSeconds * 0.8), video.durationSeconds);
 
@@ -512,18 +492,14 @@ const ShortItem = React.memo(function ShortItem({
   const [embedError,   setEmbedError]   = useState<number | null>(null);
   const [canClaim,     setCanClaim]     = useState(false);
   const [secondsLeft,  setSecondsLeft]  = useState(requiredSeconds);
-  const [adReady,      setAdReady]      = useState(false);
-  const [adFailed,     setAdFailed]     = useState(false);
   const [claiming,     setClaiming]     = useState(false);
-  const [claimPending, setClaimPending] = useState(false);
   const [noAdVisible,  setNoAdVisible]  = useState(false);
+  const [houseAdVisible, setHouseAdVisible] = useState(false);
 
   // Reset all state when this item leaves the viewport; re-arm when it returns
   useEffect(() => {
     if (!isActive) {
       if (intervalRef.current)  { clearInterval(intervalRef.current);  intervalRef.current  = null; }
-      if (claimTimeoutRef.current)  { clearTimeout(claimTimeoutRef.current);  claimTimeoutRef.current  = null; }
-      if (adFailTimeoutRef.current) { clearTimeout(adFailTimeoutRef.current); adFailTimeoutRef.current = null; }
       try { videoRef.current?.stopLoading(); } catch (_) {}
       // Report watch event before resetting
       const watched = requiredSeconds - Math.max(remainingRef.current, 0);
@@ -531,25 +507,19 @@ const ShortItem = React.memo(function ShortItem({
         onWatchEvent(video.id, video.category, watched, canClaim, true);
       }
       setPlayerReady(false); setEmbedError(null); setCanClaim(false);
-      setSecondsLeft(requiredSeconds); setAdReady(false); setAdFailed(false);
-      setClaiming(false); setClaimPending(false); setNoAdVisible(false);
+      setSecondsLeft(requiredSeconds);
+      setClaiming(false); setNoAdVisible(false);
+      setHouseAdVisible(false);
       remainingRef.current = requiredSeconds;
     } else {
       remainingRef.current = requiredSeconds;
       setSecondsLeft(requiredSeconds);
-      // 8-second ad-load failsafe
-      adFailTimeoutRef.current = setTimeout(() => setAdFailed(true), 8000);
     }
     return () => {
-      if (intervalRef.current)      clearInterval(intervalRef.current);
-      if (claimTimeoutRef.current)  clearTimeout(claimTimeoutRef.current);
-      if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isActive, requiredSeconds, onWatchEvent, video.id, video.category, canClaim]);
 
-  useEffect(() => {
-    if (adFailed && canClaim) setNoAdVisible(true);
-  }, [adFailed, canClaim]);
 
   const startTimer = useCallback(() => {
     if (intervalRef.current) return;
@@ -594,25 +564,19 @@ const ShortItem = React.memo(function ShortItem({
     return () => window.removeEventListener('message', listener);
   }, [handleMessage]);
 
-  const handleClaimPress = useCallback(async () => {
-    if (!adReady) { setNoAdVisible(true); return; }
-    setClaimPending(true);
-    setClaiming(true);
-    claimTimeoutRef.current = setTimeout(() => {
-      setClaiming(false); setClaimPending(false); setNoAdVisible(true);
-    }, 20000);
-    adRef.current?.show();
-  }, [adReady]);
+  // Claim = watch a self-hosted house video to the end.
+  const handleClaimPress = useCallback(() => {
+    setHouseAdVisible(true);
+  }, []);
 
-  const handleAdDismissed = useCallback(async () => {
-    if (!claimPending) return;
-    if (claimTimeoutRef.current) { clearTimeout(claimTimeoutRef.current); claimTimeoutRef.current = null; }
-    setClaimPending(false);
+  // House video watched to the end — grant the claim and close the player.
+  const handleHouseCompleted = useCallback(async () => {
+    setHouseAdVisible(false);
+    setClaiming(true);
     await onClaim(video.id);
     setClaiming(false);
-    // Claimed — close the whole shorts player so the user returns to the feed
     onClose();
-  }, [claimPending, onClaim, video.id, onClose]);
+  }, [onClaim, video.id, onClose]);
 
   const progress = canClaim ? 1 : (requiredSeconds - secondsLeft) / Math.max(requiredSeconds, 1);
 
@@ -772,21 +736,16 @@ const ShortItem = React.memo(function ShortItem({
         {/* Claim button (active only) */}
         {isActive && (
           <Pressable
-            onPress={canClaim && !claiming && adReady ? handleClaimPress : undefined}
-            style={({ pressed }) => ({ opacity: !canClaim || claiming || !adReady ? 0.42 : pressed ? 0.82 : 1, marginTop: 4 })}
+            onPress={canClaim && !claiming ? handleClaimPress : undefined}
+            style={({ pressed }) => ({ opacity: !canClaim || claiming ? 0.42 : pressed ? 0.82 : 1, marginTop: 4 })}
           >
             <LinearGradient
-              colors={canClaim && adReady ? ['#16a34a', '#15803d'] : ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.04)']}
+              colors={canClaim ? ['#16a34a', '#15803d'] : ['rgba(255,255,255,0.07)', 'rgba(255,255,255,0.04)']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, borderWidth: canClaim && adReady ? 0 : 1, borderColor: 'rgba(255,255,255,0.1)' }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 14, borderWidth: canClaim ? 0 : 1, borderColor: 'rgba(255,255,255,0.1)' }}
             >
               {claiming ? (
                 <ActivityIndicator size="small" color="#fff" />
-              ) : canClaim && !adReady ? (
-                <>
-                  <ActivityIndicator size="small" color="rgba(255,255,255,0.5)" />
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.5)' }}>Loading ad…</Text>
-                </>
               ) : (
                 <>
                   <Ionicons name={canClaim ? 'play-circle' : 'lock-closed-outline'} size={16} color={canClaim ? '#fbbf24' : 'rgba(255,255,255,0.3)'} />
@@ -825,13 +784,13 @@ const ShortItem = React.memo(function ShortItem({
         </View>
       )}
 
-      {/* Ad slot — only when active */}
+      {/* Self-hosted video ad shown on claim */}
       {isActive && (
-        <InterstitialAdSlot
-          ref={adRef}
-          onLoaded={() => { setAdReady(true); if (adFailTimeoutRef.current) clearTimeout(adFailTimeoutRef.current); }}
-          onFailed={() => { setAdReady(false); setAdFailed(true); }}
-          onDismissed={handleAdDismissed}
+        <HouseVideoAd
+          visible={houseAdVisible}
+          onCompleted={handleHouseCompleted}
+          onClosed={() => setHouseAdVisible(false)}
+          onError={() => { setHouseAdVisible(false); setNoAdVisible(true); }}
         />
       )}
     </View>
@@ -1361,6 +1320,10 @@ export default function ExploreScreen() {
     [CARD_HEIGHT],
   );
 
+  // True while the active reel is ready to claim — used to hide the bottom
+  // house-ad banner so it doesn't sit over the claim button.
+  const [activeClaimable, setActiveClaimable] = useState(false);
+
   const renderReelCard = useCallback(
     ({ item: video, index }: { item: ExploreVideo; index: number }) => (
       <ReelCard
@@ -1370,6 +1333,7 @@ export default function ExploreScreen() {
         cardHeight={CARD_HEIGHT}
         onClaim={handleClaim}
         onWatchEvent={reportWatch}
+        onClaimableChange={setActiveClaimable}
       />
     ),
     [isRewarded, handleClaim, CARD_HEIGHT, activeIndex, reportWatch, screenFocused],
@@ -1667,7 +1631,9 @@ export default function ExploreScreen() {
         </View>
       )}
 
-      {!balance?.isPremium && (
+      {/* House-ad banner — hidden while the active reel is ready to claim so
+          it never covers the claim button */}
+      {!balance?.isPremium && !activeClaimable && (
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 5 }}>
           <BannerAd />
         </View>

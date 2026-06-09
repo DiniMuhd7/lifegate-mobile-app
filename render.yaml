@@ -162,21 +162,6 @@ services:
       # direct video URLs; defaults to bundled Google Drive links when unset.
       # - key: EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS
       #   value: https://cdn.example.com/v1.mp4,https://cdn.example.com/v2.mp4
-      # AdMob — Native App IDs (used by react-native-google-mobile-ads plugin)
-      - key: EXPO_PUBLIC_ADMOB_ANDROID_APP_ID
-        value: ca-app-pub-4516568539037938~3922174578
-      - key: EXPO_PUBLIC_ADMOB_IOS_APP_ID
-        value: ca-app-pub-4516568539037938~3952077665
-      # AdMob — Native Banner Unit IDs
-      - key: EXPO_PUBLIC_ADMOB_ANDROID_BANNER_UNIT_ID
-        value: ca-app-pub-4516568539037938/4524809808
-      - key: EXPO_PUBLIC_ADMOB_IOS_BANNER_UNIT_ID
-        value: ca-app-pub-4516568539037938/1507250875
-      # AdMob — Native Rewarded Unit IDs
-      - key: EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID
-        value: ca-app-pub-4516568539037938/1561718040
-      - key: EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID
-        value: ca-app-pub-4516568539037938/4827548784
 
     routes:
       - type: rewrite

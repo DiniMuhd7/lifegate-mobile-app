@@ -57,7 +57,7 @@ const CREATIVES: HouseCreative[] = [
     title: 'Redeem your LifeCoins',
     body: 'Trade coins for rewards and discounts.',
     cta: 'Redeem',
-    route: '/(tab)/health/redeem',
+    route: '/(tab)/profile',
     bg: '#fffbeb',
     border: '#fde68a',
     accent: '#d97706',

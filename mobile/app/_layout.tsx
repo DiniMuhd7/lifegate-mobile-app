@@ -12,7 +12,6 @@ import { VideoCallScreen } from '../components/VideoCallScreen';
 import { useAuthStore } from '../stores/auth-store';
 import { useCallStore } from '../stores/call-store';
 import { installWebAlertPolyfill } from '../utils/installWebAlertPolyfill';
-import { initializeAdsWithConsent } from '../utils/adsConsent';
 import wsService from '../services/websocket-service';
 import type {
   CallRingingPayload,
@@ -165,11 +164,6 @@ export default function RootLayout() {
     installWebAlertPolyfill();
     restoreSession();
 
-    // Run the full consent + SDK init flow on native only.
-    // Order: UMP consent form (EU/GDPR) → ATT permission (iOS) → initialize.
-    if (Platform.OS !== 'web') {
-      initializeAdsWithConsent();
-    }
   }, []);
 
   // ── Call WebSocket event listeners ─────────────────────────────────────────
