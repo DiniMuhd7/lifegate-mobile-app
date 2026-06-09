@@ -33,7 +33,7 @@ const CREATIVES: HouseCreative[] = [
     title: 'Go Premium',
     body: 'Remove ads and unlock full health reports.',
     cta: 'Upgrade',
-    route: '/(tab)/health/offers',
+    route: '/(tab)/settings/subscription',
     bg: '#eef2ff',
     border: '#c7d2fe',
     accent: '#4f46e5',
