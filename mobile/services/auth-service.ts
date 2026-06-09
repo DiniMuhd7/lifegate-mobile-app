@@ -286,38 +286,6 @@ export const AuthService = {
   },
 
   /**
-   * Send OTP during signup for email verification.
-   * TODO: wire to real endpoint when backend is ready.
-   */
-  async sendOtpForSignup(email: string): Promise<{ success: boolean; message: string }> {
-    try {
-      // Placeholder — replace with real API call when endpoint exists
-      void email;
-      return { success: true, message: 'Verification code sent' };
-    } catch (error: unknown) {
-      return { success: false, message: extractErrorMessage(error) };
-    }
-  },
-
-  /**
-   * Verify OTP during signup.
-   * TODO: wire to real endpoint when backend is ready.
-   */
-  async verifyOtpForSignup(
-    email: string,
-    otp: string
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      // Placeholder — replace with real API call when endpoint exists
-      void email;
-      void otp;
-      return { success: true, message: 'Email verified successfully' };
-    } catch (error: unknown) {
-      return { success: false, message: extractErrorMessage(error) };
-    }
-  },
-
-  /**
    * Resend OTP (both password reset and signup flows).
    */
   async resendOtp(

@@ -1,5 +1,6 @@
 export { Background } from './Background';
 export { BannerAd } from './BannerAd';
+export { HouseAd } from './HouseAd';
 export { RewardedAdButton } from './RewardedAdButton';
 export { ProfileMenu } from './ProfileMenu';
 export { GreetingSection } from './GreetingSection';

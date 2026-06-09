@@ -95,27 +95,6 @@ export const ProfessionalService = {
   },
 
   /**
-   * Placeholder: Get consultations (not yet on backend)
-   */
-  async getConsultations(): Promise<any[]> {
-    return [];
-  },
-
-  /**
-   * Placeholder: Get chat conversations (not yet on backend)
-   */
-  async getConversations(): Promise<any[]> {
-    return [];
-  },
-
-  /**
-   * Placeholder: Get specific patient details (not yet on backend)
-   */
-  async getPatientDetails(patientId: string): Promise<any> {
-    return { id: patientId };
-  },
-
-  /**
    * Fetch case queue grouped by status
    * GET /physician/cases
    */

@@ -1,40 +1,37 @@
 /**
- * RewardedAdButton.web.tsx — In-article AdSense unit for Expo Web.
+ * RewardedAdButton.web.tsx — self-hosted rewarded video for Expo Web.
  *
- * Web has no true rewarded ads on standard AdSense, so in place of the native
- * rewarded button this renders an in-article fluid display unit. It is a
- * passive impression: no reward is granted on web (`onRewarded` is never
- * called) — granting coins for a mere impression violates AdSense policy.
+ * Web AdSense has no rewarded format, so this plays LifeGate's own promo
+ * videos (hosted on Google Drive) in a fullscreen overlay. The reward is
+ * granted ONLY when the video plays to the end ('ended' event); closing
+ * early fires `onDismissed` with no reward — same contract as the native
+ * AdMob rewarded flow in RewardedAdButton.tsx.
  *
- * Publisher ID : ca-pub-4516568539037938
- * Ad slot      : 4158671196 (in-article, fluid)
+ * Video sources: set EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS (comma-separated)
+ * to override the built-in list.
  */
-import React, { useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Pressable, View, Text, ActivityIndicator, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-const PUBLISHER_ID =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID ?? 'ca-pub-4516568539037938';
-const AD_SLOT =
-  process.env.EXPO_PUBLIC_ADMOB_WEB_INARTICLE_SLOT ?? '4158671196';
+// Google Drive direct-download links stream fine in an HTML5 <video> tag.
+const DEFAULT_VIDEO_IDS = [
+  '1MD05PTJXlKLif3s6YdAJUk5qfKeLzWQ8',
+  '1eCUblwhPekf6cRF7xMg1kRuJWa3MTTC4',
+  '1V_ndFSaDCJRLsq7aEWWFduxAE0j_ARmu',
+  '1jBOL2o10PPF9aBXGwYnEpUphVaNqJB2y',
+];
 
-declare global {
-  interface Window {
-    adsbygoogle: unknown[];
-  }
-}
+const VIDEO_URLS: string[] = (() => {
+  const env = process.env.EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS;
+  if (env) return env.split(',').map((s) => s.trim()).filter(Boolean);
+  return DEFAULT_VIDEO_IDS.map(
+    (id) => `https://drive.google.com/uc?export=download&id=${id}`
+  );
+})();
 
-function loadAdScript() {
-  if (typeof document === 'undefined') return;
-  // The web shell (web/index.html) already loads adsbygoogle.js — only inject
-  // if it's somehow missing. Loading the SDK twice triggers console errors.
-  if (document.querySelector('script[src*="adsbygoogle.js"]')) return;
-
-  const script = document.createElement('script');
-  script.id = 'adsense-web-script';
-  script.async = true;
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${PUBLISHER_ID}`;
-  script.crossOrigin = 'anonymous';
-  document.head.appendChild(script);
+function pickVideoUrl(): string {
+  return VIDEO_URLS[Math.floor(Math.random() * VIDEO_URLS.length)];
 }
 
 export interface RewardedAdButtonProps {
@@ -46,78 +43,182 @@ export interface RewardedAdButtonProps {
   disabled?: boolean;
 }
 
-// Props are accepted for parity with the native rewarded button but unused on
-// web — this renders a passive in-article ad and never grants a reward.
-export function RewardedAdButton(_props: RewardedAdButtonProps) {
-  const adRef = useRef<HTMLElement | null>(null);
-  const pushed = useRef(false);
+export function RewardedAdButton({
+  onRewarded,
+  onDismissed,
+  label = 'Watch a short ad',
+  sublabel,
+  coinsLabel,
+  disabled = false,
+}: RewardedAdButtonProps) {
+  const [playing, setPlaying] = useState(false);
+  const [buffering, setBuffering] = useState(true);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [error, setError] = useState(false);
+  const videoUrl = useRef<string>('');
+  const completed = useRef(false);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    loadAdScript();
-
-    const el = adRef.current as (HTMLElement & { dataset: DOMStringMap }) | null;
-    if (!el) return;
-
-    let frameId: number | null = null;
-    let resizeObserver: ResizeObserver | null = null;
-
-    const tryPushAd = () => {
-      if (pushed.current) return true;
-
-      // Wait until layout has produced a measurable slot width; otherwise
-      // AdSense throws "No slot size for availableWidth=0".
-      const width = el.getBoundingClientRect().width;
-      if (!width || width <= 0 || el.dataset['adsbygoogleStatus']) {
-        return false;
-      }
-
-      try {
-        window.adsbygoogle = window.adsbygoogle || [];
-        (window.adsbygoogle as unknown[]).push({});
-        pushed.current = true;
-        return true;
-      } catch {
-        // Non-fatal — slot stays empty rather than crashing the UI.
-        return false;
-      }
-    };
-
-    frameId = window.requestAnimationFrame(() => {
-      if (tryPushAd()) return;
-      if (typeof ResizeObserver !== 'undefined') {
-        resizeObserver = new ResizeObserver(() => {
-          if (tryPushAd()) {
-            resizeObserver?.disconnect();
-            resizeObserver = null;
-          }
-        });
-        resizeObserver.observe(el);
-      }
-    });
-
-    return () => {
-      if (frameId !== null) window.cancelAnimationFrame(frameId);
-      resizeObserver?.disconnect();
-    };
-  }, []);
-
-  // SSR: render nothing on the server.
   if (typeof window === 'undefined') return null;
 
+  const open = () => {
+    if (disabled || playing) return;
+    videoUrl.current = pickVideoUrl();
+    completed.current = false;
+    setBuffering(true);
+    setRemaining(null);
+    setError(false);
+    setPlaying(true);
+  };
+
+  const close = (rewarded: boolean) => {
+    setPlaying(false);
+    if (rewarded) onRewarded();
+    else onDismissed?.();
+  };
+
   return (
-    <View style={{ width: '100%' }}>
-      {/* @ts-expect-error — ins is a valid HTML element not typed in RN */}
-      <ins
-        ref={adRef}
-        className="adsbygoogle"
-        style={{ display: 'block', textAlign: 'center' }}
-        data-ad-layout="in-article"
-        data-ad-format="fluid"
-        data-ad-client={PUBLISHER_ID}
-        data-ad-slot={AD_SLOT}
-      />
-    </View>
+    <>
+      <Pressable
+        onPress={open}
+        disabled={disabled || playing}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          paddingVertical: 13,
+          paddingHorizontal: 20,
+          borderRadius: 14,
+          borderWidth: 1.5,
+          borderColor: '#fde68a',
+          backgroundColor: pressed ? '#fffbeb' : '#fff',
+          opacity: disabled ? 0.5 : 1,
+        })}
+      >
+        <Ionicons name="play-circle-outline" size={20} color="#d97706" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#92400e' }}>{label}</Text>
+          {sublabel && (
+            <Text style={{ fontSize: 11, color: '#b45309', marginTop: 1 }}>{sublabel}</Text>
+          )}
+        </View>
+        {coinsLabel && (
+          <View
+            style={{
+              backgroundColor: '#fef3c7',
+              borderRadius: 8,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderWidth: 1,
+              borderColor: '#fde68a',
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#d97706' }}>{coinsLabel}</Text>
+          </View>
+        )}
+      </Pressable>
+
+      <Modal visible={playing} transparent animationType="fade" onRequestClose={() => close(false)}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.95)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Close (no reward) */}
+          <Pressable
+            onPress={() => close(completed.current)}
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              zIndex: 10,
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="close" size={22} color="#fff" />
+          </Pressable>
+
+          {/* Countdown / status chip */}
+          <View
+            style={{
+              position: 'absolute',
+              top: 24,
+              left: 20,
+              zIndex: 10,
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+              {error
+                ? 'Could not load video'
+                : completed.current
+                  ? 'Reward earned 🎉'
+                  : remaining !== null
+                    ? `Reward in ${remaining}s`
+                    : 'Loading…'}
+            </Text>
+          </View>
+
+          {buffering && !error && (
+            <ActivityIndicator size="large" color="#fff" style={{ position: 'absolute' }} />
+          )}
+
+          {error ? (
+            <Pressable
+              onPress={() => close(false)}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 12,
+                paddingHorizontal: 20,
+                paddingVertical: 12,
+              }}
+            >
+              <Text style={{ fontWeight: '700', color: '#111' }}>Close</Text>
+            </Pressable>
+          ) : (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              src={videoUrl.current}
+              autoPlay
+              playsInline
+              // No controls — the user must watch to the end to earn the
+              // reward; seeking/skipping would defeat the mechanic.
+              controls={false}
+              style={{ width: '100%', maxWidth: 720, maxHeight: '80%' }}
+              onCanPlay={() => setBuffering(false)}
+              onWaiting={() => setBuffering(true)}
+              onPlaying={() => setBuffering(false)}
+              onTimeUpdate={(e) => {
+                const v = e.currentTarget;
+                if (Number.isFinite(v.duration) && v.duration > 0) {
+                  setRemaining(Math.max(0, Math.ceil(v.duration - v.currentTime)));
+                }
+              }}
+              onEnded={() => {
+                completed.current = true;
+                setRemaining(0);
+                // Brief beat so the "Reward earned" chip is visible.
+                setTimeout(() => close(true), 900);
+              }}
+              onError={() => {
+                setBuffering(false);
+                setError(true);
+              }}
+            />
+          )}
+        </View>
+      </Modal>
+    </>
   );
 }

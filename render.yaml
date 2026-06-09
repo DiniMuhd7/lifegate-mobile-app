@@ -158,14 +158,10 @@ services:
     envVars:
       - key: EXPO_PUBLIC_API_URL
         value: https://edis.dshub.com.ng/api
-      # AdSense — Web display ads (ca-pub-... not ca-app-pub-...)
-      - key: EXPO_PUBLIC_ADMOB_WEB_PUBLISHER_ID
-        value: ca-pub-4516568539037938
-      - key: EXPO_PUBLIC_ADMOB_WEB_BANNER_SLOT
-        value: "8453139420"
-      # In-article fluid unit shown in place of rewarded ads on web
-      - key: EXPO_PUBLIC_ADMOB_WEB_INARTICLE_SLOT
-        value: "4158671196"
+      # Self-hosted rewarded videos (RewardedAdButton.web.tsx) — comma-separated
+      # direct video URLs; defaults to bundled Google Drive links when unset.
+      # - key: EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS
+      #   value: https://cdn.example.com/v1.mp4,https://cdn.example.com/v2.mp4
       # AdMob — Native App IDs (used by react-native-google-mobile-ads plugin)
       - key: EXPO_PUBLIC_ADMOB_ANDROID_APP_ID
         value: ca-app-pub-4516568539037938~3922174578
