@@ -1234,24 +1234,43 @@ export default function ExploreScreen() {
     }, [initialized, lastVideoFetchDate, refreshVideos]),
   );
 
+  // Guard so a double-tap / repeated hardware back never fires navigation twice
+  // (a second navigate from an unmounting screen crashes).
+  const navigatingRef = useRef(false);
+
   // Safe back: stop/unmount the active video first, then navigate on the next
   // tick so the WebView is gone before the screen unmounts (prevents Android
-  // WebView teardown crash).
+  // WebView teardown crash). Falls back to a tab replace when there is no
+  // back-stack entry.
   const handleBack = useCallback(() => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
     setScreenFocused(false);
     setActiveIndex(null);
-    setTimeout(() => router.replace('/(tab)/health'), 60);
+    setTimeout(() => {
+      try {
+        if (router.canGoBack()) router.back();
+        else router.replace('/(tab)/health');
+      } catch {
+        router.replace('/(tab)/health');
+      }
+    }, 60);
   }, []);
 
-  // Route the Android hardware back button through the same safe path so it
-  // also tears the WebView down before navigating.
+  // Route the Android hardware back button through the same safe path. When the
+  // Shorts player modal is open, close it instead of navigating away — otherwise
+  // the screen unmounts while the modal's WebView is still mounted and crashes.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (activeShortIndex >= 0) {
+        setActiveShortIndex(-1);
+        return true;
+      }
       handleBack();
       return true; // consume — we handle navigation ourselves
     });
     return () => sub.remove();
-  }, [handleBack]);
+  }, [handleBack, activeShortIndex]);
 
   const showToast = useCallback((message: string, coins: number) => {
     setToast({ message, coins });
