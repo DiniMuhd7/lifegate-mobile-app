@@ -474,10 +474,16 @@ func (r *Repository) GetDashboardStats() (*DashboardStats, error) {
 		return nil, err
 	}
 
-	// Active users in last 7 days (users with at least one diagnosis).
+	// Active users in last 7 days: any app session or diagnosis activity.
 	if err := r.db.QueryRow(`
-		SELECT COUNT(DISTINCT user_id) FROM diagnoses
-		WHERE created_at >= NOW() - INTERVAL '7 days'`,
+		SELECT COUNT(DISTINCT user_id) FROM (
+		  SELECT user_id FROM app_sessions
+		  WHERE started_at >= NOW() - INTERVAL '7 days'
+		    AND role IN ('user','patient')
+		  UNION
+		  SELECT user_id FROM diagnoses
+		  WHERE created_at >= NOW() - INTERVAL '7 days'
+		) activity`,
 	).Scan(&stats.ActiveUsers7d); err != nil {
 		return nil, err
 	}
@@ -1483,7 +1489,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	a := &AnalyticsData{PeriodDays: days}
 
 	// ── Global KPIs ──────────────────────────────────────────────────────────
-	r.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'patient'`).Scan(&a.TotalRegisteredUsers)
+	r.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role IN ('user','patient')`).Scan(&a.TotalRegisteredUsers)
 	r.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'professional'`).Scan(&a.TotalRegisteredPhysicians)
 	var totalCases int
 	r.db.QueryRow(`SELECT COUNT(*) FROM diagnoses`).Scan(&totalCases)
@@ -1495,7 +1501,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	rows, err := r.db.Query(`
 		SELECT to_char(created_at::date, 'YYYY-MM-DD'), COUNT(*)
 		FROM users
-		WHERE role = 'patient'
+		WHERE role IN ('user','patient')
 		  AND created_at >= NOW() - ($1 || ' days')::interval
 		GROUP BY created_at::date
 		ORDER BY created_at::date`, days)
@@ -1583,12 +1589,21 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	rows.Close()
 
 	// ── Daily active patients ────────────────────────────────────────────────
+	// Activity = any app session (foreground use) OR diagnosis activity, so
+	// users who watch videos, take tests, or chat count — not just triage.
 	rows, err = r.db.Query(`
-		SELECT to_char(updated_at::date, 'YYYY-MM-DD'), COUNT(DISTINCT user_id)
-		FROM diagnoses
-		WHERE updated_at >= NOW() - ($1 || ' days')::interval
-		GROUP BY updated_at::date
-		ORDER BY updated_at::date`, days)
+		SELECT to_char(day, 'YYYY-MM-DD'), COUNT(DISTINCT user_id) FROM (
+		  SELECT started_at::date AS day, user_id
+		  FROM app_sessions
+		  WHERE started_at >= NOW() - ($1 || ' days')::interval
+		    AND role IN ('user','patient')
+		  UNION
+		  SELECT updated_at::date AS day, user_id
+		  FROM diagnoses
+		  WHERE updated_at >= NOW() - ($1 || ' days')::interval
+		) activity
+		GROUP BY day
+		ORDER BY day`, days)
 	if err != nil {
 		return nil, fmt.Errorf("daily active patients: %w", err)
 	}
@@ -1622,24 +1637,38 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	).Scan(&a.AvgCaseDurationMins)
 
 	// ── Retention ────────────────────────────────────────────────────────────
-	var cohortD7, retainedD7 int
-	r.db.QueryRow(`SELECT COUNT(DISTINCT user_id) FROM diagnoses WHERE created_at BETWEEN NOW()-'14 days'::interval AND NOW()-'7 days'::interval`).Scan(&cohortD7)
-	r.db.QueryRow(`SELECT COUNT(DISTINCT d1.user_id) FROM diagnoses d1
-		JOIN diagnoses d2 ON d2.user_id = d1.user_id AND d2.created_at >= NOW()-'7 days'::interval
-		WHERE d1.created_at BETWEEN NOW()-'14 days'::interval AND NOW()-'7 days'::interval`).Scan(&retainedD7)
-	if cohortD7 > 0 { a.RetentionD7 = float64(retainedD7) / float64(cohortD7) * 100 }
-
-	var cohortD30, retainedD30 int
-	r.db.QueryRow(`SELECT COUNT(DISTINCT user_id) FROM diagnoses WHERE created_at BETWEEN NOW()-'60 days'::interval AND NOW()-'30 days'::interval`).Scan(&cohortD30)
-	r.db.QueryRow(`SELECT COUNT(DISTINCT d1.user_id) FROM diagnoses d1
-		JOIN diagnoses d2 ON d2.user_id = d1.user_id AND d2.created_at >= NOW()-'30 days'::interval
-		WHERE d1.created_at BETWEEN NOW()-'60 days'::interval AND NOW()-'30 days'::interval`).Scan(&retainedD30)
-	if cohortD30 > 0 { a.RetentionD30 = float64(retainedD30) / float64(cohortD30) * 100 }
+	// Cohort = new patient signups in the window; retained = any app session
+	// or diagnosis activity afterwards (all in-app activity counts).
+	retention := func(windowStart, windowEnd string) float64 {
+		var cohort, retained int
+		r.db.QueryRow(`
+			SELECT COUNT(*) FROM users
+			WHERE role IN ('user','patient')
+			  AND created_at BETWEEN NOW()-($1||' days')::interval AND NOW()-($2||' days')::interval`,
+			windowStart, windowEnd,
+		).Scan(&cohort)
+		r.db.QueryRow(`
+			SELECT COUNT(DISTINCT u.id) FROM users u
+			WHERE u.role IN ('user','patient')
+			  AND u.created_at BETWEEN NOW()-($1||' days')::interval AND NOW()-($2||' days')::interval
+			  AND (
+			    EXISTS (SELECT 1 FROM app_sessions s WHERE s.user_id = u.id AND s.started_at >= NOW()-($2||' days')::interval)
+			    OR EXISTS (SELECT 1 FROM diagnoses d WHERE d.user_id = u.id AND d.created_at >= NOW()-($2||' days')::interval)
+			  )`,
+			windowStart, windowEnd,
+		).Scan(&retained)
+		if cohort > 0 {
+			return float64(retained) / float64(cohort) * 100
+		}
+		return 0
+	}
+	a.RetentionD7 = retention("14", "7")
+	a.RetentionD30 = retention("60", "30")
 
 	// ── Gender breakdown ─────────────────────────────────────────────────────
 	rows, err = r.db.Query(`
 		SELECT COALESCE(NULLIF(gender,''), 'Unknown'), COUNT(*)
-		FROM users WHERE role = 'patient'
+		FROM users WHERE role IN ('user','patient')
 		GROUP BY gender ORDER BY COUNT(*) DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("gender breakdown: %w", err)
@@ -1676,7 +1705,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 		  END AS age_group,
 		  COUNT(*) AS cnt
 		FROM users
-		WHERE role = 'patient'
+		WHERE role IN ('user','patient')
 		  AND dob IS NOT NULL AND dob <> ''
 		GROUP BY age_group
 		ORDER BY MIN(
@@ -1713,7 +1742,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	// ── Blood type breakdown ─────────────────────────────────────────────────
 	rows, err = r.db.Query(`
 		SELECT COALESCE(NULLIF(blood_type,''), 'Unknown'), COUNT(*)
-		FROM users WHERE role = 'patient'
+		FROM users WHERE role IN ('user','patient')
 		GROUP BY blood_type ORDER BY COUNT(*) DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("blood type breakdown: %w", err)
@@ -1739,7 +1768,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	// ── Genotype breakdown ───────────────────────────────────────────────────
 	rows, err = r.db.Query(`
 		SELECT COALESCE(NULLIF(UPPER(genotype),''), 'Unknown'), COUNT(*)
-		FROM users WHERE role = 'patient'
+		FROM users WHERE role IN ('user','patient')
 		GROUP BY genotype ORDER BY COUNT(*) DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("genotype breakdown: %w", err)
@@ -1765,7 +1794,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	// ── Language breakdown ───────────────────────────────────────────────────
 	rows, err = r.db.Query(`
 		SELECT COALESCE(NULLIF(language,''), 'Unknown'), COUNT(*)
-		FROM users WHERE role = 'patient'
+		FROM users WHERE role IN ('user','patient')
 		GROUP BY language ORDER BY COUNT(*) DESC LIMIT 10`)
 	if err != nil {
 		return nil, fmt.Errorf("language breakdown: %w", err)
@@ -1791,7 +1820,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	// ── Country breakdown (top 10) ────────────────────────────────────────────
 	rows, err = r.db.Query(`
 		SELECT COALESCE(NULLIF(country,''), 'Unknown'), COUNT(*)
-		FROM users WHERE role = 'patient'
+		FROM users WHERE role IN ('user','patient')
 		GROUP BY country ORDER BY COUNT(*) DESC LIMIT 10`)
 	if err != nil {
 		return nil, fmt.Errorf("country breakdown: %w", err)
@@ -1817,7 +1846,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	// ── State breakdown (top 10) ─────────────────────────────────────────────
 	rows, err = r.db.Query(`
 		SELECT COALESCE(NULLIF(state,''), 'Unknown'), COUNT(*)
-		FROM users WHERE role = 'patient'
+		FROM users WHERE role IN ('user','patient')
 		GROUP BY state ORDER BY COUNT(*) DESC LIMIT 10`)
 	if err != nil {
 		return nil, fmt.Errorf("state breakdown: %w", err)
@@ -1979,9 +2008,9 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	// Aggregate stats per role for completed sessions (duration_secs IS NOT NULL)
 	r.db.QueryRow(`
 		SELECT
-		  COALESCE(AVG(duration_secs) FILTER (WHERE role='patient'),0)        / 60.0,
+		  COALESCE(AVG(duration_secs) FILTER (WHERE role IN ('user','patient')),0)        / 60.0,
 		  COALESCE(AVG(duration_secs) FILTER (WHERE role='professional'),0)   / 60.0,
-		  COUNT(*)  FILTER (WHERE role='patient'),
+		  COUNT(*)  FILTER (WHERE role IN ('user','patient')),
 		  COUNT(*)  FILTER (WHERE role='professional')
 		FROM app_sessions
 		WHERE duration_secs IS NOT NULL
@@ -1998,7 +2027,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	r.db.QueryRow(`
 		SELECT COUNT(DISTINCT user_id)
 		FROM app_sessions
-		WHERE role='patient'
+		WHERE role IN ('user','patient')
 		  AND started_at >= NOW() - ($1 || ' days')::interval`, days,
 	).Scan(&uniquePatientSessions)
 	if uniquePatientSessions > 0 {
@@ -2030,7 +2059,7 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	rows, err = r.db.Query(`
 		SELECT to_char(started_at::date,'YYYY-MM-DD'), COUNT(*)
 		FROM app_sessions
-		WHERE role='patient'
+		WHERE role IN ('user','patient')
 		  AND started_at >= NOW() - ($1 || ' days')::interval
 		GROUP BY started_at::date
 		ORDER BY started_at::date`, days)
