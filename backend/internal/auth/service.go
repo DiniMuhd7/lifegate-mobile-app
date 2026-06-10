@@ -947,13 +947,20 @@ func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, 
 		return nil, fmt.Errorf("failed to resolve user: %w", err)
 	}
 
-	// Grant trial credits and referral code only on first sign-in.
-	if isNew {
+	// Grant trial credits and ensure a referral code for patient accounts.
+	// Both calls are idempotent (deterministic TRIAL-<id> tx_ref / existing
+	// code lookup), so running them on every Google login is safe and
+	// self-heals users whose first-sign-in grant failed silently.
+	if user.Role != "professional" {
 		if s.trialGranter != nil {
-			_ = s.trialGranter.GrantTrialCredits(user.ID)
+			if err := s.trialGranter.GrantTrialCredits(user.ID); err != nil {
+				log.Printf("[auth] failed to grant trial credits for google user %s (isNew=%v): %v", user.ID, isNew, err)
+			}
 		}
 		if s.referralProc != nil {
-			_, _ = s.referralProc.EnsureReferralCode(user.ID)
+			if _, err := s.referralProc.EnsureReferralCode(user.ID); err != nil {
+				log.Printf("[auth] failed to ensure referral code for google user %s: %v", user.ID, err)
+			}
 		}
 	}
 
