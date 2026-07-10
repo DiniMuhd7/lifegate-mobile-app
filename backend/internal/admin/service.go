@@ -86,7 +86,7 @@ func (s *Service) GetReassignmentLog(page, pageSize int) ([]SLABreachAlert, int,
 	return s.repo.GetReassignmentLog(page, pageSize)
 }
 
-// ── Audit log ─────────────────────────────────────────────────────────────────
+// ── Audit log ──────────────────────────────────────────────────────────────────
 
 func (s *Service) WriteAuditEvent(actorID, actorRole, eventType, resource, resourceID string, oldVal, newVal, metadata interface{}, ipAddress string) {
 	s.repo.WriteAuditEvent(actorID, actorRole, eventType, resource, resourceID, oldVal, newVal, metadata, ipAddress)
@@ -100,7 +100,7 @@ func (s *Service) BuildAuditCSV(f AuditFilters) ([]byte, error) {
 	return s.repo.BuildAuditCSV(f)
 }
 
-// ── Transaction log ───────────────────────────────────────────────────────────
+// ── Transaction log ────────────────────────────────────────────────────────────
 
 func (s *Service) GetAllTransactions(status string, page, pageSize int) ([]AdminTransactionRow, int, error) {
 	return s.repo.GetAllTransactions(status, page, pageSize)
@@ -114,7 +114,7 @@ func (s *Service) BuildTransactionCSV(status string) ([]byte, error) {
 	return s.repo.BuildTransactionCSV(status)
 }
 
-// ── NDPA compliance ───────────────────────────────────────────────────────────
+// ── NDPA compliance ────────────────────────────────────────────────────────────
 
 func (s *Service) GenerateNDPASnapshot() (*NDPASnapshot, error) {
 	return s.repo.GenerateNDPASnapshot()
@@ -134,12 +134,13 @@ func (s *Service) UpdateAlertThreshold(adminID, key string, value float64, enabl
 	return s.repo.UpdateAlertThreshold(adminID, key, value, enabled)
 }
 
-// ── Analytics ─────────────────────────────────────────────────────────────────
+// ── Analytics ──────────────────────────────────────────────────────────────────
 
 func (s *Service) GetAnalytics(days int) (*AnalyticsData, error) {
 	return s.repo.GetAnalytics(days)
 }
 
+<<<<<<< HEAD
 // ── Patients (registration export & clinical-data CSV import) ────────────────
 
 func (s *Service) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow, error) {
@@ -152,4 +153,30 @@ func (s *Service) BuildPatientsCSV(dateFrom, dateTo string) ([]byte, error) {
 
 func (s *Service) UpdatePatientFromCSVRow(email string, fields map[string]string) error {
 	return s.repo.UpdatePatientFromCSVRow(email, fields)
+=======
+// ── Patient management ────────────────────────────────────────────────────────
+
+func (s *Service) GetPatientRegistrations(dateFrom, dateTo string, page, pageSize int) ([]PatientRegistrationRow, int, error) {
+	return s.repo.GetPatientRegistrations(dateFrom, dateTo, page, pageSize)
+}
+
+func (s *Service) BuildPatientRegistrationCSV(dateFrom, dateTo string) ([]byte, error) {
+	return s.repo.BuildPatientRegistrationCSV(dateFrom, dateTo)
+}
+
+func (s *Service) ParsePatientHealthCSV(csvData []byte) ([]PatientHealthImportRow, error) {
+	return ParsePatientHealthCSV(csvData)
+}
+
+func (s *Service) UpdatePatientHealthData(rows []PatientHealthImportRow, adminID string) (int, []string, error) {
+	return s.repo.UpdatePatientHealthData(rows, adminID)
+}
+
+func (s *Service) GetPatientHealth(patientID string) (map[string]interface{}, error) {
+	return s.repo.GetPatientHealth(patientID)
+}
+
+func (s *Service) UpdatePatientHealthDirect(patientID string, data map[string]interface{}, adminID string) error {
+	return s.repo.UpdatePatientHealthDirect(patientID, data, adminID)
+>>>>>>> 33e02a6ba13837992b0e91598f1ab5684fd09915
 }
