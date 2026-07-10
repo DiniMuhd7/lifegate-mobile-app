@@ -525,3 +525,22 @@ export const AuthService = {
     }
   },
 };
+
+
+// ─── Feature Flags ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch patient-facing feature flags from the public /auth/features endpoint.
+ * Returns a map of flag key → enabled boolean.
+ * Returns an empty object on error so callers can default safely.
+ */
+export async function getFeatureFlags(): Promise<Record<string, boolean>> {
+  try {
+    const res = await api.get<{ success: boolean; data: Record<string, boolean> }>(
+      '/auth/features'
+    );
+    return res.data.data ?? {};
+  } catch {
+    return {};
+  }
+}

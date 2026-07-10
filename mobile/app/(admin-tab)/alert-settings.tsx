@@ -34,6 +34,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; accent: strin
   security:   { label: 'Security',             icon: 'lock-closed',     accent: '#ef4444' },
   ndpa:       { label: 'NDPA / Data Privacy',  icon: 'shield-checkmark',accent: '#0AADA2' },
   escalation: { label: 'Escalation Rules',     icon: 'arrow-up-circle', accent: '#8b5cf6' },
+  feature:    { label: 'Feature Flags',        icon: 'toggle',          accent: '#0369a1' },
   general:    { label: 'General',              icon: 'settings',        accent: '#64748b' },
 };
 
@@ -51,14 +52,30 @@ function ThresholdRow({
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // Feature flags only use the enabled toggle — no numeric value is meaningful.
+  const isFeatureFlag = threshold.category === 'feature';
+
   const handleValueChange = (text: string) => {
     setValue(text);
     setDirty(true);
   };
 
-  const handleToggle = (val: boolean) => {
+  const handleToggle = async (val: boolean) => {
     setEnabled(val);
-    setDirty(true);
+    if (isFeatureFlag) {
+      // Auto-save immediately for feature flags — no numeric value to confirm.
+      setSaving(true);
+      try {
+        await onSave(threshold.key, val ? 1 : 0, val);
+      } catch {
+        Alert.alert('Error', 'Failed to update feature flag');
+        setEnabled(!val); // revert on error
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      setDirty(true);
+    }
   };
 
   const handleSave = async () => {
@@ -87,44 +104,51 @@ function ThresholdRow({
             <Text className="text-xs text-gray-400 mt-0.5 leading-4">{threshold.description}</Text>
           ) : null}
         </View>
-        <Switch
-          value={enabled}
-          onValueChange={handleToggle}
-          trackColor={{ false: '#d1d5db', true: '#0AADA2' }}
-          thumbColor="#fff"
-          style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
-        />
-      </View>
-
-      <View className="flex-row items-center gap-3">
-        <View className="flex-1 flex-row items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-          <TextInput
-            className="flex-1 text-sm text-gray-800"
-            value={value}
-            onChangeText={handleValueChange}
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-            selectTextOnFocus
+        {saving && isFeatureFlag ? (
+          <ActivityIndicator size="small" color="#0369a1" style={{ marginRight: 4 }} />
+        ) : (
+          <Switch
+            value={enabled}
+            onValueChange={handleToggle}
+            trackColor={{ false: '#d1d5db', true: isFeatureFlag ? '#0369a1' : '#0AADA2' }}
+            thumbColor="#fff"
+            style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
           />
-          {threshold.unit ? (
-            <Text className="text-xs text-gray-400 ml-1">{threshold.unit}</Text>
-          ) : null}
-        </View>
-
-        {dirty && (
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={saving}
-            className="flex-row items-center bg-teal-600 rounded-xl px-4 py-2">
-            {saving
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="checkmark" size={16} color="#fff" />}
-            <Text className="text-sm font-semibold text-white ml-1.5">
-              {saving ? 'Saving…' : 'Save'}
-            </Text>
-          </TouchableOpacity>
         )}
       </View>
+
+      {/* Numeric input row — hidden for feature flags */}
+      {!isFeatureFlag && (
+        <View className="flex-row items-center gap-3">
+          <View className="flex-1 flex-row items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+            <TextInput
+              className="flex-1 text-sm text-gray-800"
+              value={value}
+              onChangeText={handleValueChange}
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+              selectTextOnFocus
+            />
+            {threshold.unit ? (
+              <Text className="text-xs text-gray-400 ml-1">{threshold.unit}</Text>
+            ) : null}
+          </View>
+
+          {dirty && (
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving}
+              className="flex-row items-center bg-teal-600 rounded-xl px-4 py-2">
+              {saving
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="checkmark" size={16} color="#fff" />}
+              <Text className="text-sm font-semibold text-white ml-1.5">
+                {saving ? 'Saving…' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {threshold.updatedBy && (
         <Text className="text-[10px] text-gray-400 mt-1.5">

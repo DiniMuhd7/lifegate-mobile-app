@@ -428,38 +428,3 @@ func (r *Repository) FindOrCreateGoogleUser(email, name, userID, patientID strin
 	return u, true, nil
 }
 
-// ─── Feature Flags ────────────────────────────────────────────────────────────
-
-// FeatureFlag is a simple key→enabled map entry read from the alert_thresholds
-// table (category = 'feature').  Value >= 1 means enabled; 0 means disabled.
-type FeatureFlag struct {
-	Key     string `json:"key"`
-	Enabled bool   `json:"enabled"`
-}
-
-// GetFeatureFlags returns all rows in the alert_thresholds table whose
-// category is 'feature', expressed as a map of key → bool for easy client use.
-// The query is intentionally lightweight (no JOIN, indexed PK scan) so it can
-// run on every registration page load with minimal overhead.
-func (r *Repository) GetFeatureFlags() (map[string]bool, error) {
-	rows, err := r.db.Query(`
-		SELECT key, (value >= 1 AND enabled)
-		FROM alert_thresholds
-		WHERE category = 'feature'
-		ORDER BY key`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	flags := map[string]bool{}
-	for rows.Next() {
-		var key string
-		var on bool
-		if err := rows.Scan(&key, &on); err != nil {
-			return nil, err
-		}
-		flags[key] = on
-	}
-	return flags, rows.Err()
-}

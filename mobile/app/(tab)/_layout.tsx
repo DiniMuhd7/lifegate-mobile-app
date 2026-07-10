@@ -417,6 +417,17 @@ export default function TabLayout() {
             ),
           }}
         />
+        {/* LiveVoiceScreen — Gemini-style full-screen voice overlay.
+            Hidden from the drawer menu; pushed programmatically from ChatInputBar. */}
+        <Drawer.Screen
+          name="liveVoiceScreen"
+          options={{
+            title: 'Voice',
+            headerShown: false,
+            drawerItemStyle: { display: 'none' },
+            swipeEnabled: false,
+          }}
+        />
         {/* Patient Profile Screen */}
         <Drawer.Screen
           name="profile"

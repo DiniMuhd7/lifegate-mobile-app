@@ -671,6 +671,30 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => router.push('/(admin-tab)/patients')}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+            }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#e0f2fe', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="people-outline" size={20} color="#0369a1" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Patient Management</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Export registrations CSV · bulk-import lab results</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => router.push('/(admin-tab)/lifecoins-approvals')}
             style={{
               backgroundColor: '#fff',

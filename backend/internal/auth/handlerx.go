@@ -784,30 +784,3 @@ func (h *Handler) GoogleLogin(c *gin.Context) {
 }
 
 
-
-// ─── GET /api/auth/features ───────────────────────────────────────────────────
-
-// GetFeatureFlags returns a map of feature-flag keys to their current
-// enabled/disabled state.  This endpoint is intentionally public (no auth
-// required) because it is called during the registration flow before the user
-// has an account.  It is rate-limited at the router level (30 req/min/IP).
-//
-// Response shape: { "success": true, "data": { "feature.free_health_screening": true, … } }
-//
-// @Summary      Get patient-facing feature flags
-// @Tags         auth
-// @Produce      json
-// @Success      200  {object}  object{success=bool,data=object}
-// @Failure      500  {object}  object{success=bool,message=string}
-// @Router       /auth/features [get]
-func (h *Handler) GetFeatureFlags(c *gin.Context) {
-	flags, err := h.svc.GetFeatureFlags()
-	if err != nil {
-		log.Printf("[auth] GetFeatureFlags: %v", err)
-		// Return an empty-but-safe response so registration never hard-blocks
-		// on a database error: all flags default to false (off) on error.
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": map[string]bool{}})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": flags})
-}

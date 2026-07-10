@@ -975,11 +975,3 @@ func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, 
 	return &TokenPair{Token: accessToken, RefreshToken: refreshToken, User: user}, nil
 }
 
-
-// ─── Feature Flags ────────────────────────────────────────────────────────────
-
-// GetFeatureFlags returns the current enabled/disabled state of all
-// patient-facing feature flags (from the alert_thresholds 'feature' category).
-func (s *Service) GetFeatureFlags() (map[string]bool, error) {
-	return s.repo.GetFeatureFlags()
-}

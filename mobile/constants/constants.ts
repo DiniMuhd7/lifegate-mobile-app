@@ -8,6 +8,18 @@ export const GENDER_OPTIONS = [
   { label: 'Female', value: 'Female' },
 ];
 
+export const FREE_HEALTH_SCREENING_OPTIONS = [
+  { label: 'Subsidized Genotype Test', value: 'subsidized_genotype_test' },
+  { label: 'Vital Signs Check', value: 'vital_signs_check' },
+  { label: 'BMI Assessment', value: 'bmi_assessment' },
+  { label: 'Blood Group Test', value: 'blood_group_test' },
+  { label: 'Packed Cell Volume', value: 'packed_cell_volume' },
+  { label: 'Malaria Test', value: 'malaria_test' },
+  { label: 'Hepatitis Screening', value: 'hepatitis_screening' },
+  { label: 'HIV Screening', value: 'hiv_screening' },
+  { label: 'Other basic health screening', value: 'other_basic' },
+];
+
 export const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
   { label: 'Hausa', value: 'Hausa' },

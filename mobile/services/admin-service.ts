@@ -1,3 +1,6 @@
+import { File as FSFile, Paths as FSPaths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import api from './api';
 import type {
   DashboardStats,
@@ -21,6 +24,8 @@ import type {
   AlertThreshold,
   MedicationReleaseRow,
   AnalyticsData,
+  PatientRow,
+  PatientImportSummary,
 } from '../types/admin-types';
 
 export const AdminService = {
@@ -209,5 +214,66 @@ export const AdminService = {
   async getAnalytics(days = 30): Promise<AnalyticsData> {
     const { data } = await api.get('/admin/analytics', { params: { days } });
     return data.data as AnalyticsData;
+  },
+
+  // ── Patients: registration export & clinical-data CSV import ─────────────
+
+  /** Returns patients registered within the given inclusive date range. */
+  async getPatients(dateFrom: string, dateTo: string): Promise<PatientRow[]> {
+    const { data } = await api.get('/admin/patients', { params: { dateFrom, dateTo } });
+    return data.data as PatientRow[];
+  },
+
+  /**
+   * Downloads the patients-by-registration-date CSV and opens the native
+   * share/save sheet so the admin can save it or send it elsewhere.
+   * Returns the local file URI.
+   */
+  async exportPatientsCSV(dateFrom: string, dateTo: string): Promise<string> {
+    const { data: csvText } = await api.get<string>('/admin/patients/export', {
+      params: { dateFrom, dateTo },
+      responseType: 'text',
+      transformResponse: [(d) => d], // keep raw CSV string, skip JSON parsing
+    });
+
+    const filename = `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
+    const file = new FSFile(FSPaths.cache, filename);
+    file.write(csvText);
+
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Export Patients CSV',
+      });
+    }
+    return file.uri;
+  },
+
+  /**
+   * Opens the native document picker for the admin to choose a CSV file,
+   * then uploads it to bulk-update patients' blood group, genotype, BMI
+   * inputs, and other test-result fields (matched by email). Returns null
+   * if the admin cancels the picker.
+   */
+  async importPatientsCSV(): Promise<PatientImportSummary | null> {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return null;
+
+    const asset = result.assets[0];
+    const form = new FormData();
+    form.append('file', {
+      uri: asset.uri,
+      name: asset.name || 'patients.csv',
+      type: asset.mimeType || 'text/csv',
+    } as unknown as Blob);
+
+    const { data } = await api.post('/admin/patients/import', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data.data as PatientImportSummary;
   },
 };

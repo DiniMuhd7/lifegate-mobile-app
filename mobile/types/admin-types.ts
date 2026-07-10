@@ -364,3 +364,36 @@ export type FloatPoint = {
   date: string;
   value: number;
 };
+
+// ── Patients: registration export & clinical-data CSV import ─────────────────
+
+export type PatientRow = {
+  id: string;
+  patientId: string;
+  name: string;
+  email: string;
+  phone: string;
+  gender: string;
+  dob: string;
+  bloodGroup: string;
+  genotype: string;
+  heightCm: number;
+  weightKg: number;
+  bmi?: number;
+  testResults: string; // raw JSON object as a string, e.g. '{"hemoglobin":"13.5"}'
+  createdAt: string;
+};
+
+export type PatientImportRowResult = {
+  row: number;
+  email: string;
+  status: 'updated' | 'error';
+  message?: string;
+};
+
+export type PatientImportSummary = {
+  totalRows: number;
+  updated: number;
+  failed: number;
+  results: PatientImportRowResult[];
+};

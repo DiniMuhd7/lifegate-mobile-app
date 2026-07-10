@@ -139,17 +139,3 @@ func (s *Service) UpdateAlertThreshold(adminID, key string, value float64, enabl
 func (s *Service) GetAnalytics(days int) (*AnalyticsData, error) {
 	return s.repo.GetAnalytics(days)
 }
-
-// ── Patients (registration export & clinical-data CSV import) ────────────────
-
-func (s *Service) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow, error) {
-	return s.repo.GetPatientsForExport(dateFrom, dateTo)
-}
-
-func (s *Service) BuildPatientsCSV(dateFrom, dateTo string) ([]byte, error) {
-	return s.repo.BuildPatientsCSV(dateFrom, dateTo)
-}
-
-func (s *Service) UpdatePatientFromCSVRow(email string, fields map[string]string) error {
-	return s.repo.UpdatePatientFromCSVRow(email, fields)
-}

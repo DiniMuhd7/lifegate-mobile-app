@@ -1,7 +1,6 @@
 package genai
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -356,95 +355,4 @@ func (h *Handler) ScanImage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "text": text, "isMedical": isMedical})
-}
-
-// ─── POST /api/genai/voice-chat ───────────────────────────────────────────────
-
-// VoiceChat is the single-turn endpoint powering the mobile Gemini-Live-style
-// voice screen. It accepts a multipart form with:
-//
-//	audio    — the recorded audio file (any format Whisper supports)
-//	history  — JSON array of {role, text} chat history for context (optional)
-//	category — conversation category, e.g. "general_health" (optional)
-//
-// It responds with JSON:
-//
-//	transcript   — Whisper transcription of the audio
-//	replyText    — EDIS AI response text (in the patient's preferred language)
-//	audioBase64  — OpenAI TTS mp3 audio as base64 (empty if TTS unavailable)
-//	aiResponse   — full EDIS structured response (diagnosis, conditions, etc.)
-//
-// @Summary      Live voice-chat turn (transcribe → EDIS → TTS)
-// @Tags         genai
-// @Accept       multipart/form-data
-// @Produce      json
-// @Security     BearerAuth
-// @Param        audio     formData  file    true   "Recorded audio"
-// @Param        history   formData  string  false  "JSON chat history"
-// @Param        category  formData  string  false  "Conversation category"
-// @Success      200  {object}  object{success=bool,data=object}
-// @Failure      400  {object}  object{success=bool,message=string}
-// @Failure      500  {object}  object{success=bool,message=string}
-// @Router       /genai/voice-chat [post]
-func (h *Handler) VoiceChat(c *gin.Context) {
-	const maxUpload = 25 << 20 // 25 MB — Whisper hard limit
-	if err := c.Request.ParseMultipartForm(maxUpload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid multipart form"})
-		return
-	}
-
-	// ── Audio field ──────────────────────────────────────────────────────────
-	file, header, err := c.Request.FormFile("audio")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Missing audio field"})
-		return
-	}
-	defer file.Close()
-
-	audioData, err := io.ReadAll(io.LimitReader(file, maxUpload))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read audio"})
-		return
-	}
-
-	contentType := header.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "audio/m4a"
-	}
-
-	// ── Conversation history (optional JSON field) ───────────────────────────
-	var previousMessages []ai.ChatMessage
-	if histJSON := c.Request.FormValue("history"); histJSON != "" {
-		if jsonErr := json.Unmarshal([]byte(histJSON), &previousMessages); jsonErr != nil {
-			log.Printf("[VoiceChat] could not parse history field: %v", jsonErr)
-			previousMessages = nil
-		}
-	}
-
-	// ── Category ─────────────────────────────────────────────────────────────
-	category := strings.TrimSpace(c.Request.FormValue("category"))
-	if category == "" {
-		category = "general_health"
-	}
-
-	// ── UserID from JWT middleware ────────────────────────────────────────────
-	uid, _ := c.Get("userID")
-	userID, _ := uid.(string)
-
-	// ── Run the pipeline ─────────────────────────────────────────────────────
-	resp, err := h.svc.VoiceChat(c.Request.Context(), VoiceChatRequest{
-		AudioData:        audioData,
-		AudioFilename:    header.Filename,
-		AudioMimeType:    contentType,
-		PreviousMessages: previousMessages,
-		Category:         category,
-		UserID:           userID,
-	})
-	if err != nil {
-		log.Printf("[VoiceChat] pipeline error (user=%s): %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }

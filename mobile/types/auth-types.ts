@@ -63,6 +63,8 @@ export type UserDraft = {
   state?: string;
   country?: string;
   referredByCode?: string;
+  /** Comma-separated list of selected free health screening option values */
+  freeHealthScreening?: string;
   role?: 'user' | 'professional'; // Set based on registration choice
   // Health professional specific fields
   specialization?: string;

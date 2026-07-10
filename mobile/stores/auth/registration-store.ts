@@ -45,6 +45,7 @@ const emptyDraft: UserDraft = {
   state: '',
   country: '',
   referredByCode: '',
+  freeHealthScreening: '',
   role: undefined,
   specialization: '',
   certificateName: '',
@@ -135,6 +136,9 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
       }
       if (referredByCode?.trim()) {
         payload.append('referred_by_code', referredByCode.trim().toUpperCase());
+      }
+      if (formData.freeHealthScreening?.trim()) {
+        payload.append('free_health_screening', formData.freeHealthScreening.trim());
       }
       // Add professional-specific fields
       if (role === 'professional') {

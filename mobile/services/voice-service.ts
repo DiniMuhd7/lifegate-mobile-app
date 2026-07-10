@@ -94,3 +94,61 @@ export const VoiceService = {
     }
   },
 };
+
+// ─── VoiceChatService ─────────────────────────────────────────────────────────
+
+export type VoiceChatTurn = {
+  transcript: string;
+  replyText: string;
+  audioBase64: string; // mp3 as base64; empty string = TTS unavailable
+  aiResponse?: Record<string, unknown>;
+};
+
+/**
+ * Send one voice-chat turn to POST /genai/voice-chat.
+ *
+ * @param audioUri    - Local URI of the recorded audio file (native).
+ * @param audioBlob   - Recorded audio Blob (web). Pass null on native.
+ * @param history     - Current conversation history (for EDIS context).
+ * @param category    - Conversation category (default: "general_health").
+ */
+export const VoiceChatService = {
+  async sendTurn(params: {
+    audioUri?: string | null;
+    audioBlob?: Blob | null;
+    history: Array<{ role: string; text: string }>;
+    category?: string;
+  }): Promise<VoiceChatTurn> {
+    const { audioUri, audioBlob, history, category = 'general_health' } = params;
+
+    const form = new FormData();
+
+    if (audioBlob) {
+      form.append('audio', audioBlob, 'audio.webm');
+    } else if (audioUri) {
+      const filename = audioUri.split('/').pop() || 'audio.m4a';
+      const ext = filename.split('.').pop()?.toLowerCase() ?? 'm4a';
+      const mime = ({
+        m4a: 'audio/m4a', mp4: 'audio/mp4', aac: 'audio/aac',
+        wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg',
+        mp3: 'audio/mpeg',
+      } as Record<string, string>)[ext] ?? 'audio/m4a';
+
+      form.append('audio', { uri: audioUri, name: filename, type: mime } as unknown as Blob);
+    } else {
+      throw new Error('Either audioUri or audioBlob is required');
+    }
+
+    form.append('history', JSON.stringify(history));
+    form.append('category', category);
+
+    const res = await api.post<{ success: boolean; data: VoiceChatTurn }>(
+      '/genai/voice-chat',
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 45_000 }
+    );
+
+    if (!res.data.success) throw new Error('Voice chat request failed');
+    return res.data.data;
+  },
+};

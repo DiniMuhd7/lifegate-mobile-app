@@ -952,6 +952,7 @@ const ChatScreen: React.FC = () => {
 
             <ChatInputBar
               onSend={handleSend}
+              onLiveMicPress={() => router.push('/(tab)/liveVoiceScreen')}
               disabled={isThinking || isConnected === false}
               placeholder="Describe your symptoms..."
             />

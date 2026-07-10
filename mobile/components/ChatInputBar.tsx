@@ -47,6 +47,12 @@ interface ChatInputBarProps {
   onSend?: (message: string) => void;
   /** @deprecated voice is now self-contained. Kept for API compat. */
   onMicPress?: () => void;
+  /**
+   * Called when the user taps the mic button quickly (< 400 ms) without
+   * holding. The parent should open the Gemini-Live-style voice screen.
+   * If not provided, the original "hold longer" hint is shown instead.
+   */
+  onLiveMicPress?: () => void;
   placeholder?: string;
   disabled?: boolean;
 }
@@ -111,6 +117,7 @@ const FRAME_H = FRAME_W * 1.35;
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = ({
   onSend,
+  onLiveMicPress,
   placeholder = 'How are you feeling...',
   disabled = false,
 }) => {
@@ -653,14 +660,21 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
     const elapsed = Date.now() - recordStartRef.current;
 
     if (elapsed < MIN_RECORD_MS) {
-      // Recording too short — cancel and show hint.
+      // Recording too short — this was a quick tap, not a hold.
+      // Cancel the recording and either open the Live Voice Screen (if the
+      // parent provided onLiveMicPress) or show the "hold longer" hint.
       if (Platform.OS === 'web') await stopRecordingWeb();
       else await stopRecordingNative();
       barAnims.forEach((a) => a.setValue(0.15));
       setVoiceStateAndRef('idle');
       setRecordingDuration(0);
-      setShowHoldHint(true);
-      setTimeout(() => setShowHoldHint(false), 2000);
+      if (onLiveMicPress) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onLiveMicPress();
+      } else {
+        setShowHoldHint(true);
+        setTimeout(() => setShowHoldHint(false), 2000);
+      }
       return;
     }
 
@@ -688,7 +702,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       setVoiceStateAndRef('idle');
       setRecordingDuration(0);
     }
-  }, [stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims, setVoiceStateAndRef, autoSubmitExtractedText]);
+  }, [stopWaveAnimation, stopDurationCounter, stopRecordingWeb, stopRecordingNative, barAnims, setVoiceStateAndRef, autoSubmitExtractedText, onLiveMicPress]);
 
   // ── Platform-specific recording interaction ───────────────────────────────
   //
@@ -1004,7 +1018,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         >
           {showHoldHint
             ? (Platform.OS === 'web' ? '⬆ Tap the mic to start recording' : '⬆ Hold the mic button to record')
-            : (Platform.OS === 'web' ? 'Tap mic to record · Tap camera to scan a document' : 'Hold mic to record · Tap camera to scan a document')
+            : (Platform.OS === 'web'
+                ? 'Tap mic to record · Tap camera to scan a document'
+                : onLiveMicPress
+                  ? 'Tap mic for Live Voice · Hold to transcribe · Tap camera to scan'
+                  : 'Hold mic to record · Tap camera to scan a document'
+              )
           }
         </Text>
       )}

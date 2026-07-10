@@ -5,6 +5,7 @@ import { useRegistrationStore } from 'stores/auth-store';
 import { router, useFocusEffect } from 'expo-router';
 import { validateRegistration, ValidationError } from 'utils/validation';
 import { InfoRow } from 'components/InfoRow';
+import { FREE_HEALTH_SCREENING_OPTIONS } from 'constants/constants';
 import { Ionicons } from '@expo/vector-icons';
 import { openExternalUrl } from '@/utils/external-link';
 
@@ -122,6 +123,19 @@ export default function UserReviewStep() {
                 icon="gift-outline"
                 label="Referral Code"
                 value={userDraft.referredByCode}
+                isLast={!userDraft.freeHealthScreening && !userDraft.healthHistory}
+              />
+            ) : null}
+
+            {userDraft.freeHealthScreening ? (
+              <InfoRow
+                icon="medkit-outline"
+                label="Free Health Screening"
+                value={userDraft.freeHealthScreening
+                  .split(',')
+                  .filter(Boolean)
+                  .map((v) => FREE_HEALTH_SCREENING_OPTIONS.find((o) => o.value === v)?.label ?? v)
+                  .join(', ')}
                 isLast={!userDraft.healthHistory}
               />
             ) : null}

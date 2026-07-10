@@ -423,7 +423,6 @@ func main() {
 		authGroup.POST("/register/start", authHandler.RegisterStart)
 		authGroup.POST("/register/verify", authHandler.RegisterVerify)
 		authGroup.POST("/register/resend", authHandler.RegisterResend)
-		authGroup.GET("/features", authHandler.GetFeatureFlags)
 		authGroup.POST("/password/send-reset-code", authHandler.SendPasswordResetCode)
 		authGroup.POST("/password/verify-reset-code", authHandler.VerifyResetCode)
 		authGroup.POST("/password/reset", authHandler.ResetPassword)
@@ -518,7 +517,6 @@ func main() {
 		genaiGroup.GET("/status", genaiHandler.Status)
 		genaiGroup.POST("/transcribe", genaiHandler.Transcribe)
 		genaiGroup.POST("/scan", genaiHandler.ScanImage)
-		genaiGroup.POST("/voice-chat", genaiHandler.VoiceChat)
 	}
 
 	// Session-scoped AI routes
@@ -800,11 +798,6 @@ func main() {
 		adminGroup.POST("/medication-releases/:id/approve", adminHandler.ApproveMedicationRelease)
 		adminGroup.GET("/access-requests", accessPortalHandler.ListAccessRequests)
 		adminGroup.PATCH("/access-requests/:id/review", accessPortalHandler.ReviewAccessRequest)
-
-		// Patients: registration export & clinical-data CSV bulk import
-		adminGroup.GET("/patients", adminHandler.GetPatients)
-		adminGroup.GET("/patients/export", adminHandler.ExportPatientsCSV)
-		adminGroup.POST("/patients/import", adminHandler.ImportPatientsCSV)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)
