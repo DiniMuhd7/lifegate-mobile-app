@@ -2,7 +2,6 @@ package admin
 
 import (
 	"database/sql"
-<<<<<<< HEAD
 	"encoding/json"
 	"fmt"
 	"strconv"
