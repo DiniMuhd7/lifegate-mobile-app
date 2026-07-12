@@ -140,7 +140,6 @@ func (s *Service) GetAnalytics(days int) (*AnalyticsData, error) {
 	return s.repo.GetAnalytics(days)
 }
 
-<<<<<<< HEAD
 // ── Patients (registration export & clinical-data CSV import) ────────────────
 
 func (s *Service) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow, error) {
@@ -153,7 +152,8 @@ func (s *Service) BuildPatientsCSV(dateFrom, dateTo string) ([]byte, error) {
 
 func (s *Service) UpdatePatientFromCSVRow(email string, fields map[string]string) error {
 	return s.repo.UpdatePatientFromCSVRow(email, fields)
-=======
+}
+
 // ── Patient management ────────────────────────────────────────────────────────
 
 func (s *Service) GetPatientRegistrations(dateFrom, dateTo string, page, pageSize int) ([]PatientRegistrationRow, int, error) {
@@ -178,5 +178,4 @@ func (s *Service) GetPatientHealth(patientID string) (map[string]interface{}, er
 
 func (s *Service) UpdatePatientHealthDirect(patientID string, data map[string]interface{}, adminID string) error {
 	return s.repo.UpdatePatientHealthDirect(patientID, data, adminID)
->>>>>>> 33e02a6ba13837992b0e91598f1ab5684fd09915
 }

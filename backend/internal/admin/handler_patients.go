@@ -1,10 +1,12 @@
 package admin
 
 import (
+	"encoding/csv"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -141,9 +143,9 @@ func (h *Handler) ImportPatientHealthData(c *gin.Context) {
 	h.svc.LogAction(adminIDStr, "patient.health_data_import", "patient",
 		nil,
 		map[string]interface{}{
-			"totalRows":   len(rows),
-			"successful":  successCount,
-			"errors":      len(importErrors),
+			"totalRows":  len(rows),
+			"successful": successCount,
+			"errors":     len(importErrors),
 		})
 
 	successMsg := fmt.Sprintf("Successfully imported health data for %d patient(s)", successCount)
@@ -226,4 +228,111 @@ func (h *Handler) UpdatePatientHealth(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient health data updated"})
+}
+
+// GetPatients returns patients registered within a required date range.
+func (h *Handler) GetPatients(c *gin.Context) {
+	dateFrom := c.Query("dateFrom")
+	dateTo := c.Query("dateTo")
+	if dateFrom == "" || dateTo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "dateFrom and dateTo are required (YYYY-MM-DD)"})
+		return
+	}
+	patients, err := h.svc.GetPatientsForExport(dateFrom, dateTo)
+	if err != nil {
+		log.Printf("[admin] GetPatients: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to load patients"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": patients})
+}
+
+// ExportPatientsCSV streams a CSV of patients registered within a required date range.
+func (h *Handler) ExportPatientsCSV(c *gin.Context) {
+	dateFrom := c.Query("dateFrom")
+	dateTo := c.Query("dateTo")
+	if dateFrom == "" || dateTo == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "dateFrom and dateTo are required (YYYY-MM-DD)"})
+		return
+	}
+	csvData, err := h.svc.BuildPatientsCSV(dateFrom, dateTo)
+	if err != nil {
+		log.Printf("[admin] ExportPatientsCSV: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to generate CSV"})
+		return
+	}
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+	h.svc.LogAction(adminIDStr, "patients.export", "user", nil, map[string]interface{}{"dateFrom": dateFrom, "dateTo": dateTo})
+	filename := fmt.Sprintf("lifegate-patients-%s-to-%s.csv", dateFrom, dateTo)
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.Header("Content-Length", fmt.Sprintf("%d", len(csvData)))
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", csvData)
+}
+
+// ImportPatientsCSV accepts a CSV upload and bulk-updates existing patients by email.
+func (h *Handler) ImportPatientsCSV(c *gin.Context) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "CSV file is required (field name: file)"})
+		return
+	}
+	f, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Could not read uploaded file"})
+		return
+	}
+	defer f.Close()
+	reader := csv.NewReader(f)
+	reader.TrimLeadingSpace = true
+	headerRow, err := reader.Read()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "CSV file is empty or malformed"})
+		return
+	}
+	emailCol := -1
+	for i, col := range headerRow {
+		if normalizeHeader(col) == "email" {
+			emailCol = i
+			break
+		}
+	}
+	if emailCol == -1 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": `CSV must include an "email" column to match patients`})
+		return
+	}
+	summary := PatientImportSummary{Results: []PatientImportRowResult{}}
+	rowNum := 1
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			break
+		}
+		rowNum++
+		summary.TotalRows++
+		if emailCol >= len(record) {
+			summary.Failed++
+			continue
+		}
+		email := strings.TrimSpace(record[emailCol])
+		fields := map[string]string{}
+		for i, val := range record {
+			if i == emailCol || i >= len(headerRow) {
+				continue
+			}
+			fields[headerRow[i]] = val
+		}
+		if updErr := h.svc.UpdatePatientFromCSVRow(email, fields); updErr != nil {
+			summary.Failed++
+			summary.Results = append(summary.Results, PatientImportRowResult{Row: rowNum, Email: email, Status: "error", Message: updErr.Error()})
+			continue
+		}
+		summary.Updated++
+		summary.Results = append(summary.Results, PatientImportRowResult{Row: rowNum, Email: email, Status: "updated"})
+	}
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+	h.svc.LogAction(adminIDStr, "patients.import", "user", nil, map[string]interface{}{"totalRows": summary.TotalRows, "updated": summary.Updated, "failed": summary.Failed})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": summary})
 }
