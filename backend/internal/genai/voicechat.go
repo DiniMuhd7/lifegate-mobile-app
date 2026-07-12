@@ -136,7 +136,7 @@ func (s *Service) synthesizeTTS(ctx context.Context, text string) ([]byte, error
 	body, err := json.Marshal(map[string]string{
 		"model":           "tts-1",
 		"input":           text,
-		"voice":           "shimmer",   // warm, professional female voice
+		"voice":           "shimmer", // warm, professional female voice
 		"response_format": "mp3",
 	})
 	if err != nil {
@@ -154,7 +154,7 @@ func (s *Service) synthesizeTTS(ctx context.Context, text string) ([]byte, error
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.openAIKey)
 
-	resp, err := httpClient.Do(req)
+	resp, err := visionHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
