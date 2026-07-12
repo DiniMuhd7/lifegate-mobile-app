@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import NetInfo from '@react-native-community/netinfo';
 import { getRefreshToken, removeRefreshToken, removeToken } from '../utils/tokenStorage';
 
+const PRODUCTION_API_URL = 'https://lifegate-backend-vr9q.onrender.com/api';
+
 /**
  * Resolve the correct API base URL at runtime.
  *
@@ -11,7 +13,8 @@ import { getRefreshToken, removeRefreshToken, removeToken } from '../utils/token
  * 2. On native (no window), fall back to the Render prod URL.
  * 3. On web with a Codespaces hostname, derive the URL from window.location
  *    by replacing the forwarded port segment with -80 (nginx backend).
- * 4. Plain localhost/LAN dev — use the same host on port 80.
+ * 4. Localhost/LAN dev — use the same host on port 80.
+ * 5. Hosted web builds without EXPO_PUBLIC_API_URL fall back to Render prod.
  */
 function resolveBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
@@ -23,7 +26,7 @@ function resolveBaseUrl(): string {
 
   // Native (React Native) — no window object
   if (typeof window === 'undefined') {
-    return envUrl ?? 'https://edis.dshub.com.ng/api';
+    return envUrl ?? PRODUCTION_API_URL;
   }
 
   const hostname = window.location.hostname;
@@ -35,8 +38,15 @@ function resolveBaseUrl(): string {
     return `https://${codespaceMatch[1]}-80${codespaceMatch[3]}/api`;
   }
 
-  // Localhost / LAN dev — nginx is on port 80 of the same host
-  return `http://${hostname}/api`;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    // Localhost / LAN dev — nginx is on port 80 of the same host
+    return `http://${hostname}/api`;
+  }
+
+  // Hosted web builds must not derive http://<frontend-host>/api because that
+  // causes mixed-content failures on HTTPS and points at the static site, not
+  // the Go API. Use the known Render backend unless an env override was baked in.
+  return PRODUCTION_API_URL;
 }
 
 const BASE_URL = resolveBaseUrl();
