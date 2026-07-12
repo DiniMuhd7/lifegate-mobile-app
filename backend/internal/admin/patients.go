@@ -46,6 +46,7 @@ var recognizedPatientColumns = map[string]string{
 	"bloodgroup": "blood_type",
 	"bloodtype":  "blood_type",
 	"genotype":   "genotype",
+	"bmi":        "bmi",
 	"heightcm":   "height_cm",
 	"height":     "height_cm",
 	"weightkg":   "weight_kg",

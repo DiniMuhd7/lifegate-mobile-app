@@ -139,9 +139,11 @@ services:
 
       # Admin account — override the seeded defaults with real credentials in Render dashboard
       - key: ADMIN_EMAIL
-        sync: false            # secret — production admin email
+        value: lifegatebydshub@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false            # secret — preferred plaintext password, hashed on startup
       - key: ADMIN_PASSWORD_HASH
-        sync: false            # secret — bcrypt hash of the production admin password
+        sync: false            # optional fallback bcrypt hash when ADMIN_PASSWORD is unset
 
       # Upload directory (must match the disk mountPath above)
       - key: UPLOAD_DIR

@@ -697,7 +697,10 @@ const LiveVoiceScreen: React.FC = () => {
     error:      '#e11d48',
   }[phase];
 
-  const canRecord = phase === 'idle' || (Platform.OS === 'web' && phase === 'recording');
+  const currentPhase = phase as Phase;
+  const isProcessing = currentPhase === 'processing';
+  const isSpeaking = currentPhase === 'speaking';
+  const canRecord = currentPhase === 'idle' || (Platform.OS === 'web' && currentPhase === 'recording');
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -886,13 +889,13 @@ const LiveVoiceScreen: React.FC = () => {
             {Platform.OS === 'web' ? (
               <TouchableOpacity
                 onPress={handleWebTap}
-                disabled={phase === 'processing'}
+                disabled={isProcessing}
                 activeOpacity={0.85}
                 style={{
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: phase === 'processing' ? '#1e293b' : recordButtonColor,
+                  backgroundColor: isProcessing ? '#1e293b' : recordButtonColor,
                   alignItems: 'center',
                   justifyContent: 'center',
                   shadowColor: recordButtonColor,
@@ -905,7 +908,7 @@ const LiveVoiceScreen: React.FC = () => {
                 }}
               >
                 <Ionicons
-                  name={phase === 'recording' ? 'stop' : phase === 'processing' ? 'hourglass-outline' : 'mic'}
+                  name={phase === 'recording' ? 'stop' : isProcessing ? 'hourglass-outline' : 'mic'}
                   size={34}
                   color="#ffffff"
                 />
@@ -914,13 +917,13 @@ const LiveVoiceScreen: React.FC = () => {
               <TouchableOpacity
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
-                disabled={!canRecord || phase === 'processing' || phase === 'speaking'}
+                disabled={!canRecord || isProcessing || isSpeaking}
                 activeOpacity={0.85}
                 style={{
                   width: 80,
                   height: 80,
                   borderRadius: 40,
-                  backgroundColor: (phase === 'processing' || phase === 'speaking') ? '#1e293b' : recordButtonColor,
+                  backgroundColor: (isProcessing || isSpeaking) ? '#1e293b' : recordButtonColor,
                   alignItems: 'center',
                   justifyContent: 'center',
                   shadowColor: recordButtonColor,

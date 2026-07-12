@@ -26,53 +26,55 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	docs "github.com/DiniMuhd7/lifegate-mobile-app/backend/docs"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/accessportal"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/admin"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/ai"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/alerts"
 	auditpkg "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/audit"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/auth"
+	callssvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/calls"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/config"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/db"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/demography"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/diagnosis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/disparities"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/downloadstats"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/edis"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/engagement"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/explore"
 	followupsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/followup"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/genai"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthaccess"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthmetrics"
-	callssvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/calls"
 	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/institutional"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/openclaw"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/payments"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/physician"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/openclaw"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/pubinsights"
 	redisclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/redis"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/referral"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/research"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/resourcegaps"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/review"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sensortests"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sessions"
 	slasvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/sla"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/support"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/surveillance"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthaccess"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/resourcegaps"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/pubinsights"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/demography"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/accessportal"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/disparities"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/institutional"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/research"
 	wshub "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/websocket"
-	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/engagement"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/migrations"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -107,11 +109,19 @@ func main() {
 	}
 
 	// Ensure the default admin account always exists (idempotent upsert).
-	// The env vars ADMIN_EMAIL / ADMIN_PASSWORD_HASH let ops teams rotate
-	// credentials without a code change; they fall back to the seeded defaults.
-	adminEmail := getEnvOrDefault("ADMIN_EMAIL", "adewale@dshub.com.ng")
+	// ADMIN_PASSWORD (preferred) and ADMIN_PASSWORD_HASH let ops teams rotate
+	// credentials without a code change; they fall back to the documented defaults.
+	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "lifegatebydshub@gmail.com")))
 	adminHash := getEnvOrDefault("ADMIN_PASSWORD_HASH",
-		"$2a$10$PNZKQX8C3i8WpopCB5QMjeTpUoLkIVKu20OdsUj.KeCEFrywlPIPS")
+		"$2a$10$m7gIV1sYa070tL6T.wi/Re/3KtvwzhbQFOqvvuwhOe1Nm6w6EDDhy")
+	if adminPassword := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")); adminPassword != "" {
+		generatedHash, hashErr := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+		if hashErr != nil {
+			log.Printf("[startup] warn: could not hash ADMIN_PASSWORD: %v", hashErr)
+		} else {
+			adminHash = string(generatedHash)
+		}
+	}
 	if _, err := database.Exec(
 		`INSERT INTO users (name, email, password_hash, role)
 		 VALUES ('LifeGate Admin', $1, $2, 'admin')
@@ -366,11 +376,11 @@ func main() {
 	demographyRepo := demography.NewRepository(database)
 	demographyHandler := demography.NewHandler(demographyRepo)
 
-// Access Portal — institutional access requests with Flutterwave payment
-        accessPortalRepo := accessportal.NewRepository(database, cfg.FlutterwaveSecretKey, cfg.FlutterwaveWebhookHash, cfg.ResendAPIKey, cfg.EmailFrom, cfg.SupportEmail)
-        accessPortalHandler := accessportal.NewHandler(accessPortalRepo, cfg.FlutterwavePublicKey)
+	// Access Portal — institutional access requests with Flutterwave payment
+	accessPortalRepo := accessportal.NewRepository(database, cfg.FlutterwaveSecretKey, cfg.FlutterwaveWebhookHash, cfg.ResendAPIKey, cfg.EmailFrom, cfg.SupportEmail)
+	accessPortalHandler := accessportal.NewHandler(accessPortalRepo, cfg.FlutterwavePublicKey)
 
-        // Disparities — symptom burden + SES proxies, physician response-time inequality
+	// Disparities — symptom burden + SES proxies, physician response-time inequality
 	disparitiesRepo := disparities.NewRepository(database)
 	disparitiesHandler := disparities.NewHandler(disparitiesRepo)
 
@@ -392,10 +402,10 @@ func main() {
 
 	// Router
 	r := gin.New()
-	r.Use(middleware.RequestID())      // STRIDE Repudiation: attach unique ID to every request
-	r.Use(middleware.Logger())         // STRIDE Repudiation: log IP + user ID + request ID
+	r.Use(middleware.RequestID()) // STRIDE Repudiation: attach unique ID to every request
+	r.Use(middleware.Logger())    // STRIDE Repudiation: log IP + user ID + request ID
 	r.Use(middleware.CORS())
-	r.Use(middleware.SecurityHeaders()) // STRIDE InfoDisclosure/Tampering: security + cache headers
+	r.Use(middleware.SecurityHeaders())  // STRIDE InfoDisclosure/Tampering: security + cache headers
 	r.Use(middleware.RateLimit(200, 60)) // STRIDE DoS: 200 req/min per IP across all endpoints
 	r.Use(gin.Recovery())
 	// Reject requests whose body exceeds 4 MB to prevent resource exhaustion.
@@ -805,6 +815,9 @@ func main() {
 		adminGroup.GET("/patients", adminHandler.GetPatients)
 		adminGroup.GET("/patients/export", adminHandler.ExportPatientsCSV)
 		adminGroup.POST("/patients/import", adminHandler.ImportPatientsCSV)
+		adminGroup.PATCH("/patients/health-data", adminHandler.UpdatePatientHealthByEmail)
+		adminGroup.GET("/patients/:id/health", adminHandler.GetPatientHealth)
+		adminGroup.PATCH("/patients/:id/health", adminHandler.UpdatePatientHealth)
 	}
 
 	// Sensor-test interpretation (EDIS-backed vision + hearing)
@@ -863,11 +876,11 @@ func main() {
 		dispGroup.GET("/symptom-burden", disparitiesHandler.GetSymptomBurden)
 		dispGroup.GET("/response-times", disparitiesHandler.GetResponseTimeInequality)
 
-                apGroup := publicGroup.Group("/access")
-                apGroup.GET("/config", accessPortalHandler.GetConfig)
-                apGroup.POST("/submit", accessPortalHandler.Submit)
-                apGroup.POST("/webhook", accessPortalHandler.Webhook)
-				apGroup.POST("/status", accessPortalHandler.CheckStatus)
+		apGroup := publicGroup.Group("/access")
+		apGroup.GET("/config", accessPortalHandler.GetConfig)
+		apGroup.POST("/submit", accessPortalHandler.Submit)
+		apGroup.POST("/webhook", accessPortalHandler.Webhook)
+		apGroup.POST("/status", accessPortalHandler.CheckStatus)
 	}
 
 	// ── Institutional Analytics API (API-key auth, 200 req/min) ────────────────

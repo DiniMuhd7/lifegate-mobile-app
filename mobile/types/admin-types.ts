@@ -397,3 +397,8 @@ export type PatientImportSummary = {
   failed: number;
   results: PatientImportRowResult[];
 };
+
+export type PatientHealthUpdatePayload = {
+  email: string;
+  fields: Record<string, string>;
+};

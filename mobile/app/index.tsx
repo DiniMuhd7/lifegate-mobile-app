@@ -5,9 +5,7 @@ import { router, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from 'stores/auth-store';
 import { useSessionStore } from 'stores/session-store';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Logo from 'assets/logo.svg';
-import { INTRO_SEEN_KEY } from './intro';
 import { SessionErrorScreen } from 'components/SessionErrorScreen';
 
 
@@ -51,17 +49,8 @@ export default function SplashScreen() {
           }
         }
 
-        // Check if first-launch intro has been seen
-        const introSeen = await AsyncStorage.getItem(INTRO_SEEN_KEY);
-
-        // Navigate based on auth state
+        // Navigate based on auth state. The intro/onboarding screen is hidden.
         setTimeout(() => {
-          // First-ever launch: show onboarding regardless of auth state
-          if (!introSeen) {
-            router.replace('/intro');
-            return;
-          }
-
           if (isAuthenticated) {
             const { user } = useAuthStore.getState();
             if (user?.role === 'admin') {
@@ -112,7 +101,7 @@ export default function SplashScreen() {
         LifeGate
       </Text>
       <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6 }}>
-        By DSHub
+        Your Trusted Digital Health Companion
       </Text>
 
       {/* Bottom tagline */}
