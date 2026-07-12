@@ -15,7 +15,9 @@ func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 		allow := resolveOrigin(origin, allowedOrigins)
-		c.Header("Access-Control-Allow-Origin", allow)
+		if allow != "" {
+			c.Header("Access-Control-Allow-Origin", allow)
+		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, Accept")
 		c.Header("Access-Control-Max-Age", "86400")
@@ -46,10 +48,17 @@ func resolveOrigin(origin string, allowed []string) string {
 		return "*"
 	}
 	for _, a := range allowed {
-		if a == origin {
+		if a == "*" || a == origin || wildcardOriginMatch(a, origin) {
 			return origin
 		}
 	}
-	return allowed[0]
+	return ""
 }
 
+func wildcardOriginMatch(pattern, origin string) bool {
+	if !strings.Contains(pattern, "://*.") {
+		return false
+	}
+	prefix, suffix, ok := strings.Cut(pattern, "*")
+	return ok && strings.HasPrefix(origin, prefix) && strings.HasSuffix(origin, suffix)
+}

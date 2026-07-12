@@ -63,6 +63,22 @@ function isValidDate(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
 }
 
+const HEALTH_FIELDS = [
+  { key: 'subsidized_genotype_test', label: 'Subsidized Genotype Test', placeholder: 'e.g. AA / AS / SS or completed' },
+  { key: 'vital_signs_check', label: 'Vital Signs Check', placeholder: 'e.g. BP 120/80, pulse 76' },
+  { key: 'bmi', label: 'BMI Assessment', placeholder: 'e.g. 24.8' },
+  { key: 'blood_group', label: 'Blood Group Test', placeholder: 'e.g. O+' },
+  { key: 'packed_cell_volume', label: 'Packed Cell Volume', placeholder: 'e.g. 38%' },
+  { key: 'malaria_test', label: 'Malaria Test', placeholder: 'e.g. Negative / Positive' },
+  { key: 'hepatitis_screening', label: 'Hepatitis Screening', placeholder: 'e.g. HBsAg negative' },
+  { key: 'hiv_screening', label: 'HIV Screening', placeholder: 'e.g. Non-reactive' },
+] as const;
+
+type HealthFieldKey = typeof HEALTH_FIELDS[number]['key'];
+
+const emptyHealthFields = (): Record<HealthFieldKey, string> =>
+  HEALTH_FIELDS.reduce((acc, field) => ({ ...acc, [field.key]: '' }), {} as Record<HealthFieldKey, string>);
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function SectionCard({
@@ -249,6 +265,11 @@ export default function PatientsScreen() {
   const [importing, setImporting]       = useState(false);
   const [importSummary, setImportSummary] = useState<PatientImportSummary | null>(null);
 
+  // ── Direct health update state ───────────────────────────────────────────
+  const [healthEmail, setHealthEmail] = useState('');
+  const [healthFields, setHealthFields] = useState<Record<HealthFieldKey, string>>(emptyHealthFields);
+  const [updatingHealth, setUpdatingHealth] = useState(false);
+
   // ── Export handler ────────────────────────────────────────────────────────
   const handleExport = useCallback(async () => {
     // Validate dates before hitting the network
@@ -304,6 +325,37 @@ export default function PatientsScreen() {
       setImporting(false);
     }
   }, []);
+
+  // ── Direct health update handler ─────────────────────────────────────────
+  const handleHealthUpdate = useCallback(async () => {
+    const email = healthEmail.trim().toLowerCase();
+    const fields = Object.fromEntries(
+      Object.entries(healthFields)
+        .map(([key, value]) => [key, value.trim()])
+        .filter(([, value]) => value)
+    ) as Record<string, string>;
+
+    if (!email) {
+      Alert.alert('Patient email required', 'Enter the patient email address to update.');
+      return;
+    }
+    if (Object.keys(fields).length === 0) {
+      Alert.alert('No health data entered', 'Enter at least one result before saving.');
+      return;
+    }
+
+    setUpdatingHealth(true);
+    try {
+      await AdminService.updatePatientHealthData({ email, fields });
+      Alert.alert('Health data updated', 'The patient health data has been saved.');
+      setHealthFields(emptyHealthFields());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Could not update patient health data.';
+      Alert.alert('Update failed', msg);
+    } finally {
+      setUpdatingHealth(false);
+    }
+  }, [healthEmail, healthFields]);
 
   // ── CSV template helper ───────────────────────────────────────────────────
   const showTemplateInfo = () => {
@@ -472,6 +524,89 @@ export default function PatientsScreen() {
 
           {/* Per-row import summary */}
           {importSummary && <ImportResultCard summary={importSummary} />}
+        </SectionCard>
+
+
+        {/* ── DIRECT HEALTH UPDATE SECTION ─────────────────────────────── */}
+        <SectionCard>
+          <SectionTitle icon="medkit-outline" label="Update Patient Health Data" color="#7c3aed" />
+
+          <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 14, lineHeight: 18 }}>
+            Enter a patient email address and save individual screening results directly from the
+            admin dashboard. Blank fields are ignored.
+          </Text>
+
+          <View style={{ marginBottom: 12 }}>
+            <Text style={{ fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: '600' }}>
+              Patient email
+            </Text>
+            <TextInput
+              value={healthEmail}
+              onChangeText={setHealthEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholder="patient@example.com"
+              placeholderTextColor="#94a3b8"
+              style={{
+                borderWidth: 1,
+                borderColor: '#e2e8f0',
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                fontSize: 14,
+                color: '#1e293b',
+                backgroundColor: '#f8fafc',
+              }}
+            />
+          </View>
+
+          {HEALTH_FIELDS.map((field) => (
+            <View key={field.key} style={{ marginBottom: 10 }}>
+              <Text style={{ fontSize: 12, color: '#475569', marginBottom: 4, fontWeight: '600' }}>
+                {field.label}
+              </Text>
+              <TextInput
+                value={healthFields[field.key]}
+                onChangeText={(value) => setHealthFields((prev) => ({ ...prev, [field.key]: value }))}
+                placeholder={field.placeholder}
+                placeholderTextColor="#94a3b8"
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#e2e8f0',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  fontSize: 14,
+                  color: '#1e293b',
+                  backgroundColor: '#f8fafc',
+                }}
+              />
+            </View>
+          ))}
+
+          <TouchableOpacity
+            onPress={handleHealthUpdate}
+            disabled={updatingHealth}
+            style={{
+              backgroundColor: updatingHealth ? '#94a3b8' : '#7c3aed',
+              borderRadius: 12,
+              paddingVertical: 13,
+              alignItems: 'center',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 4,
+            }}
+          >
+            {updatingHealth ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Ionicons name="save-outline" size={18} color="white" />
+            )}
+            <Text style={{ color: 'white', fontWeight: '700', fontSize: 15 }}>
+              {updatingHealth ? 'Saving…' : 'Save Health Data'}
+            </Text>
+          </TouchableOpacity>
         </SectionCard>
 
         {/* ── HOW IT WORKS ─────────────────────────────────────────────── */}

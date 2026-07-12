@@ -26,6 +26,7 @@ import type {
   AnalyticsData,
   PatientRow,
   PatientImportSummary,
+  PatientHealthUpdatePayload,
 } from '../types/admin-types';
 
 export const AdminService = {
@@ -256,6 +257,10 @@ export const AdminService = {
    * inputs, and other test-result fields (matched by email). Returns null
    * if the admin cancels the picker.
    */
+  async updatePatientHealthData(payload: PatientHealthUpdatePayload): Promise<void> {
+    await api.patch('/admin/patients/health-data', payload);
+  },
+
   async importPatientsCSV(): Promise<PatientImportSummary | null> {
     const result = await DocumentPicker.getDocumentAsync({
       type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],

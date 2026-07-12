@@ -205,8 +205,6 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           {/* Splash first — no back gesture so auth can't be reached from authenticated area */}
           <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-          {/* First-launch onboarding */}
-          <Stack.Screen name="intro" options={{ gestureEnabled: false, animation: 'fade' }} />
           {/* Landing screen for unauthenticated users */}
           <Stack.Screen name="welcome" options={{ gestureEnabled: false, animation: 'fade' }} />
           {/* Physician post-registration: verification pending notice */}

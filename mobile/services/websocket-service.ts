@@ -20,6 +20,7 @@
 type EventCallback = (data: unknown) => void;
 
 const MAX_BACKOFF_MS = 30_000;
+const PRODUCTION_WS_URL = 'wss://lifegate-backend-vr9q.onrender.com/ws';
 
 function resolveWsUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
@@ -31,7 +32,7 @@ function resolveWsUrl(): string {
 
   if (typeof window === 'undefined') {
     // Native fallback
-    return 'wss://edis.dshub.com.ng/ws';
+    return PRODUCTION_WS_URL;
   }
 
   const { hostname, protocol } = window.location;
@@ -42,7 +43,11 @@ function resolveWsUrl(): string {
     return `wss://${codespaceMatch[1]}-80${codespaceMatch[3]}/ws`;
   }
 
-  return `${wsProtocol}//${hostname}/ws`;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    return `${wsProtocol}//${hostname}/ws`;
+  }
+
+  return PRODUCTION_WS_URL;
 }
 
 class WebSocketService {
