@@ -58,7 +58,7 @@ services:
 
       # Swagger UI host — set to the public Render URL so "Try it out" works in production
       - key: SWAGGER_HOST
-        value: edis.dshub.com.ng
+        value: lifegate-backend-vr9q.onrender.com
 
       # AI — set the provider and fill in the key(s) via Render dashboard
       - key: AI_PROVIDER
@@ -133,9 +133,9 @@ services:
         value: contact@dshub.com.ng
 
       # CORS — comma-separated list of allowed origins (Expo Go, web client, etc.)
-      # Example: https://mobile.dshub.com.ng,exp://...
+      # Supports exact origins and wildcard subdomains such as https://*.onrender.com.
       - key: ALLOWED_ORIGINS
-        sync: false            # secret — enter production origin(s) in Render dashboard
+        value: https://*.onrender.com,https://mobile.dshub.com.ng,https://edis.dshub.com.ng
 
       # Admin account — override the seeded defaults with real credentials in Render dashboard
       - key: ADMIN_EMAIL
@@ -159,7 +159,7 @@ services:
 
     envVars:
       - key: EXPO_PUBLIC_API_URL
-        value: https://edis.dshub.com.ng/api
+        value: https://lifegate-backend-vr9q.onrender.com/api
       # Self-hosted rewarded videos — comma-separated direct video URLs.
       # Defaults to https://mobile.dshub.com.ng/videos/* (baked at build time).
       # - key: EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS
