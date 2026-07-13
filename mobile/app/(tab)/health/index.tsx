@@ -865,7 +865,6 @@ export default function HealthDashboardScreen() {
     [patientTimeline]
   );
   const recentCases = useMemo(() => patientTimeline.slice(0, 3), [patientTimeline]);
-  const firstName = user?.name?.split(' ')[0] ?? 'there';
 
   // ── FAB pulse animation ────────────────────────────────────────────────────
   const insets = useSafeAreaInsets();
@@ -993,6 +992,7 @@ export default function HealthDashboardScreen() {
             />
           </View>
 
+
           <PromotionsSection />
 
           <ActivityMonitorCard />
@@ -1077,6 +1077,30 @@ export default function HealthDashboardScreen() {
     </SafeAreaView>
     {!balance?.isPremium && <BannerAd />}
     <PatientBottomTabBar activeTab="health" />
+
+      {/* ── Live Voice mini FAB ── */}
+      <TouchableOpacity
+        onPress={() => router.push('/(tab)/liveVoiceScreen' as never)}
+        activeOpacity={0.85}
+        style={{
+          position: 'absolute',
+          bottom: insets.bottom + 152,
+          right: 26,
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          backgroundColor: '#111827',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#111827',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.28,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+      >
+        <Ionicons name="mic" size={22} color="#fff" />
+      </TouchableOpacity>
 
       {/* ── AI Chat FAB ── */}
       <View

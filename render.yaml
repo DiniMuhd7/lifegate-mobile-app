@@ -139,7 +139,7 @@ services:
 
       # Admin account — override the seeded defaults with real credentials in Render dashboard
       - key: ADMIN_EMAIL
-        value: lifegatebydshub@gmail.com
+        value: span@dshub.com.ng
       - key: ADMIN_PASSWORD
         sync: false            # secret — preferred plaintext password, hashed on startup
       - key: ADMIN_PASSWORD_HASH
