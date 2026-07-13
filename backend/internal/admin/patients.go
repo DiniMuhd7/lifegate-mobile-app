@@ -46,7 +46,6 @@ var recognizedPatientColumns = map[string]string{
 	"bloodgroup": "blood_type",
 	"bloodtype":  "blood_type",
 	"genotype":   "genotype",
-	"bmi":        "bmi",
 	"heightcm":   "height_cm",
 	"height":     "height_cm",
 	"weightkg":   "weight_kg",
@@ -162,7 +161,10 @@ func (r *Repository) GetPatientRegistrations(dateFrom, dateTo string, page, page
 	rows, err := r.db.Query(fmt.Sprintf(`
 		SELECT u.id::text, COALESCE(u.name, ''), COALESCE(u.email, ''), COALESCE(u.phone, ''),
 		       COALESCE(u.dob, ''), COALESCE(u.gender, ''), COALESCE(u.blood_type, ''),
-		       COALESCE(u.genotype, ''), COALESCE(u.bmi::text, ''), COALESCE(u.language, ''),
+		       COALESCE(u.genotype, ''),
+		       CASE WHEN COALESCE(u.height_cm,0) > 0 AND COALESCE(u.weight_kg,0) > 0
+		            THEN ROUND((u.weight_kg / POWER(u.height_cm / 100.0, 2))::numeric, 1)::text
+		            ELSE '' END, COALESCE(u.language, ''),
 		       COALESCE(u.country, ''), COALESCE(u.state, ''), u.created_at::text,
 		       COALESCE(u.updated_at::text, u.created_at::text)
 		FROM users u %s ORDER BY u.created_at DESC LIMIT $%d OFFSET $%d`, where, n, n+1), limitArgs...)
@@ -202,7 +204,7 @@ func (r *Repository) UpdatePatientFromCSVRow(email string, fields map[string]str
 		return fmt.Errorf("email is required")
 	}
 	var userID string
-	err := r.db.QueryRow(`SELECT id::text FROM users WHERE email = $1 AND role IN ('user', 'patient')`, email).Scan(&userID)
+	err := r.db.QueryRow(`SELECT id::text FROM users WHERE LOWER(email) = LOWER($1) AND role IN ('user', 'patient')`, email).Scan(&userID)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("no patient found with email %s", email)
 	}

@@ -865,16 +865,6 @@ export default function HealthDashboardScreen() {
     [patientTimeline]
   );
   const recentCases = useMemo(() => patientTimeline.slice(0, 3), [patientTimeline]);
-  const firstName = user?.name?.split(' ')[0] ?? 'there';
-  const healthReportResults = useMemo(() => [
-    { label: 'Blood Type', value: user?.blood_type, icon: 'water-outline' as const },
-    { label: 'Genotype', value: user?.genotype, icon: 'git-branch-outline' as const },
-    { label: 'Allergies', value: user?.allergies, icon: 'warning-outline' as const },
-    { label: 'Medications', value: user?.current_medications, icon: 'medkit-outline' as const },
-    { label: 'Medical History', value: user?.medical_history || user?.health_history, icon: 'document-text-outline' as const },
-    { label: 'Height', value: user?.height_cm ? `${user.height_cm} cm` : null, icon: 'resize-outline' as const },
-    { label: 'Weight', value: user?.weight_kg ? `${user.weight_kg} kg` : null, icon: 'scale-outline' as const },
-  ].filter((item) => String(item.value ?? '').trim().length > 0), [user]);
 
   // ── FAB pulse animation ────────────────────────────────────────────────────
   const insets = useSafeAreaInsets();
@@ -1002,36 +992,6 @@ export default function HealthDashboardScreen() {
             />
           </View>
 
-
-          {/* Health report card — patient test/profile results */}
-          <View style={{ marginHorizontal: 16, marginBottom: 12, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccfbf1', overflow: 'hidden' }}>
-            <Pressable
-              onPress={() => router.push('/(tab)/health/report' as never)}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, backgroundColor: '#f0fdfa', borderBottomWidth: 1, borderBottomColor: '#ccfbf1' }}
-            >
-              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#0AADA222', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                <Ionicons name="document-text-outline" size={18} color="#0AADA2" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#0f766e', textTransform: 'uppercase', letterSpacing: 0.8 }}>Health Report</Text>
-                <Text style={{ fontSize: 17, fontWeight: '900', color: '#111827' }}>{firstName}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={17} color="#0AADA2" />
-            </Pressable>
-            <View style={{ padding: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {healthReportResults.length > 0 ? healthReportResults.map((item) => (
-                <View key={item.label} style={{ width: '48%', borderRadius: 12, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e5e7eb', padding: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                    <Ionicons name={item.icon} size={13} color="#0AADA2" />
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: '#64748b' }}>{item.label}</Text>
-                  </View>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#111827' }} numberOfLines={2}>{String(item.value)}</Text>
-                </View>
-              )) : (
-                <Text style={{ fontSize: 13, color: '#64748b' }}>No patient test results available yet. Update your health profile or complete a screening test.</Text>
-              )}
-            </View>
-          </View>
 
           <PromotionsSection />
 

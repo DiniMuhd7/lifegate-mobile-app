@@ -305,27 +305,6 @@ export default function PatientProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Completion bar */}
-              <View className="mb-3">
-                <View className="flex-row items-center justify-between mb-1.5">
-                  <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Profile Completion
-                  </Text>
-                  <Text className="text-sm font-bold text-gray-800">{profileCompletion}%</Text>
-                </View>
-                <View className="flex-row items-center gap-3">
-                  <View className="flex-1 h-2.5 rounded-full bg-[#E8F3F3] overflow-hidden">
-                    <View className="h-2.5 rounded-full bg-[#0EA5A4]" style={{ width: `${profileCompletion}%` }} />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => router.push('/(tab)/health/report')}
-                    activeOpacity={0.75}
-                    style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: '#F1FAFA', borderWidth: 1, borderColor: '#CDE9E8', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Ionicons name="document-text-outline" size={20} color="#0EA5A4" />
-                  </TouchableOpacity>
-                </View>
-              </View>
             </View>
           </View>
 
@@ -363,6 +342,25 @@ export default function PatientProfileScreen() {
                   ? 'Your critical safety details are complete for faster and safer triage.'
                   : `Add ${missingCritical.slice(0, 2).map((item) => item.label.toLowerCase()).join(' and ')} to improve diagnosis safety.`}
               </Text>
+
+              <View style={{ marginBottom: 14, padding: 12, borderRadius: 14, backgroundColor: '#F8FEFE', borderWidth: 1, borderColor: '#D7EEEE' }}>
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">Profile Completion</Text>
+                  <Text className="text-sm font-bold text-gray-800">{profileCompletion}%</Text>
+                </View>
+                <View className="flex-row items-center gap-3">
+                  <View className="flex-1 h-2.5 rounded-full bg-[#E8F3F3] overflow-hidden">
+                    <View className="h-2.5 rounded-full bg-[#0EA5A4]" style={{ width: `${profileCompletion}%` }} />
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => router.push('/(tab)/health/report')}
+                    activeOpacity={0.75}
+                    style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: '#F1FAFA', borderWidth: 1, borderColor: '#CDE9E8', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Ionicons name="document-text-outline" size={20} color="#0EA5A4" />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               <View className="flex-row gap-2">
                 <TouchableOpacity

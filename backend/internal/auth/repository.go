@@ -29,6 +29,7 @@ type User struct {
 	Genotype             *string    `json:"genotype,omitempty" db:"genotype"`
 	HeightCm             *float64   `json:"height_cm,omitempty" db:"height_cm"`
 	WeightKg             *float64   `json:"weight_kg,omitempty" db:"weight_kg"`
+	TestResults          string     `json:"test_results,omitempty" db:"test_results"`
 	State                *string    `json:"state,omitempty" db:"state"`
 	Country              *string    `json:"country,omitempty" db:"country"`
 	Specialization       string     `json:"specialization,omitempty" db:"specialization"`
@@ -75,7 +76,7 @@ func (r *Repository) FindUserByEmail(email string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+        current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country,
         COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at
@@ -104,7 +105,7 @@ func (r *Repository) FindUserByID(id string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+        current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country,
         COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at
@@ -118,7 +119,7 @@ func scanUser(row *sql.Row) (*User, error) {
 		&u.ID, &u.UserID, &u.PatientID, &u.Name, &u.Email, &u.Role,
 		&u.Phone, &u.DOB, &u.Gender, &u.Language,
 		&u.HealthHistory, &u.ReferralCode, &u.BloodType, &u.Allergies, &u.MedicalHistory,
-		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.HeightCm, &u.WeightKg,
+		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.HeightCm, &u.WeightKg, &u.TestResults,
 		&u.State, &u.Country, &u.Specialization,
 		&u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
 		&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
@@ -139,7 +140,7 @@ func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
  RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
            COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		   COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+           current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country,
            COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
            COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
            mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
@@ -356,7 +357,7 @@ func (r *Repository) ScheduleAccountDeletion(userID string) (*User, error) {
 		 RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
 		           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		           COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-	           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country, COALESCE(specialization,''),
+	           current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country, COALESCE(specialization,''),
 		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
 		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
 		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
@@ -373,7 +374,7 @@ func (r *Repository) CancelAccountDeletion(userID string) (*User, error) {
 		 RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
 		           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		           COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-	           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country, COALESCE(specialization,''),
+	           current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country, COALESCE(specialization,''),
 		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
 		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
 		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,

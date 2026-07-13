@@ -1,4 +1,4 @@
-import { File as FSFile, Paths as FSPaths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import api from './api';
@@ -238,17 +238,29 @@ export const AdminService = {
     });
 
     const filename = `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
-    const file = new FSFile(FSPaths.cache, filename);
-    file.write(csvText);
+    const fs = FileSystem as unknown as {
+      cacheDirectory?: string;
+      Paths?: { cache?: { uri?: string } };
+      EncodingType?: { UTF8?: string };
+      writeAsStringAsync?: (uri: string, contents: string, options?: { encoding?: string }) => Promise<void>;
+    };
+    const cacheBase = fs.cacheDirectory ?? fs.Paths?.cache?.uri ?? '';
+    const uri = `${cacheBase}${filename}`;
+    if (fs.writeAsStringAsync) {
+      await fs.writeAsStringAsync(uri, String(csvText), { encoding: fs.EncodingType?.UTF8 ?? 'utf8' });
+    } else {
+      const file = new FileSystem.File(FileSystem.Paths.cache, filename);
+      file.write(String(csvText));
+    }
 
     const canShare = await Sharing.isAvailableAsync();
     if (canShare) {
-      await Sharing.shareAsync(file.uri, {
+      await Sharing.shareAsync(uri, {
         mimeType: 'text/csv',
         dialogTitle: 'Export Patients CSV',
       });
     }
-    return file.uri;
+    return uri;
   },
 
   /**
