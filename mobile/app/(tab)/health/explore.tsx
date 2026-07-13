@@ -190,6 +190,12 @@ const ReelCard = React.memo(function ReelCard({
     if (playerReady && isActive) startTimer();
   }, [playerReady, startTimer, isActive]);
 
+  useEffect(() => {
+    if (!isActive || playerReady || embedError !== null) return;
+    const timeout = setTimeout(() => setEmbedError(-408), 12000);
+    return () => clearTimeout(timeout);
+  }, [isActive, playerReady, embedError]);
+
   // Claim = watch a self-hosted house video to the end.
   const handleClaim = useCallback(() => {
     setHouseAdVisible(true);
@@ -1349,6 +1355,19 @@ export default function ExploreScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#059669" />
+      </View>
+    );
+  }
+
+  if (initialized && !isFetching && filteredVideos.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Ionicons name="videocam-off-outline" size={48} color="#6b7280" />
+        <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 12, textAlign: 'center' }}>No Explore videos available</Text>
+        <Text style={{ color: '#9ca3af', fontSize: 13, marginTop: 6, textAlign: 'center' }}>Pull refresh could not load videos. Check your connection or try again shortly.</Text>
+        <Pressable onPress={onRefresh} style={{ marginTop: 18, backgroundColor: '#0AADA2', borderRadius: 22, paddingHorizontal: 22, paddingVertical: 11 }}>
+          <Text style={{ color: '#fff', fontWeight: '800' }}>Retry</Text>
+        </Pressable>
       </View>
     );
   }

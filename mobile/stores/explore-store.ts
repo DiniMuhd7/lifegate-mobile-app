@@ -734,14 +734,14 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
 
     // 1. Restore all persisted data from AsyncStorage and mark initialized
     //    immediately so the screen can render cached content right away.
-    const currentUserId = useAuthStore.getState().user?.id ?? '';
+    const activeUserId = useAuthStore.getState().user?.id ?? '';
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         const stored = JSON.parse(raw) as PersistedExploreData;
         // Ignore cache that belongs to a different user (account switch on the
         // same device) so we never show the previous user's personalised feed.
-        if (stored.userId && stored.userId !== currentUserId) {
+        if (stored.userId && stored.userId !== activeUserId) {
           set({ initialized: true, lastVideoRefreshDate: null, videos: [], cachedVideos: [], lastVideoFetchDate: null });
         } else {
           persisted = stored;
