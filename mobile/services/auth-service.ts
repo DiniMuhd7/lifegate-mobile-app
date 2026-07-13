@@ -410,6 +410,11 @@ export const AuthService = {
     current_medications?: string | null;
     emergency_contact?: string | null;
     language?: string | null;
+    country?: string | null;
+    state?: string | null;
+    height_cm?: number | null;
+    weight_kg?: number | null;
+    test_results?: Record<string, unknown> | null;
   }): Promise<{ success: boolean; message: string; user?: import('../types/auth-types').User }> {
     try {
       const response = await api.put<{ success: boolean; message: string; data?: { user: import('../types/auth-types').User } }>(

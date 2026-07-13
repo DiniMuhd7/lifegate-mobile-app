@@ -30,6 +30,7 @@ type ProfileState = {
     state?: string | null;
     height_cm?: number | null;
     weight_kg?: number | null;
+    test_results?: Record<string, unknown> | null;
   }) => Promise<boolean>;
   changePassword: (
     currentPassword: string,

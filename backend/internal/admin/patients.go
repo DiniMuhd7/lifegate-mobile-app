@@ -198,16 +198,25 @@ func (r *Repository) BuildPatientRegistrationCSV(dateFrom, dateTo string) ([]byt
 	return buf, nil
 }
 
+func (r *Repository) FindPatientUserIDByEmail(email string) (string, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return "", fmt.Errorf("email is required")
+	}
+	var userID string
+	err := r.db.QueryRow(`SELECT id::text FROM users WHERE LOWER(email) = LOWER($1) AND role IN ('user', 'patient')`, email).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return "", fmt.Errorf("no patient found with email %s", email)
+	}
+	return userID, err
+}
+
 func (r *Repository) UpdatePatientFromCSVRow(email string, fields map[string]string) error {
 	email = strings.TrimSpace(email)
 	if email == "" {
 		return fmt.Errorf("email is required")
 	}
-	var userID string
-	err := r.db.QueryRow(`SELECT id::text FROM users WHERE LOWER(email) = LOWER($1) AND role IN ('user', 'patient')`, email).Scan(&userID)
-	if err == sql.ErrNoRows {
-		return fmt.Errorf("no patient found with email %s", email)
-	}
+	userID, err := r.FindPatientUserIDByEmail(email)
 	if err != nil {
 		return err
 	}

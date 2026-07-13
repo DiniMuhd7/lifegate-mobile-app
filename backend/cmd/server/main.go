@@ -348,6 +348,7 @@ func main() {
 	adminRepo := admin.NewRepository(database)
 	adminSvc := admin.NewService(adminRepo)
 	adminHandler := admin.NewHandler(adminSvc, diagnosisSvc)
+	adminHandler.SetPushNotifier(pushSvc)
 
 	// Wire the admin SLA breach recorder into the physician service so that
 	// completed cases which exceed the SLA are automatically logged and the

@@ -668,16 +668,16 @@ export default function HealthReportScreen() {
 
 
           {/* Free Health Test Results */}
-          <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#ccfbf1', padding: 14 }}>
+          <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e0f2f1', padding: 12 }}>
             <SectionHeader title="Free Health Test Results" icon="flask-outline" />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {healthTestResults.map((item) => (
-                <View key={item.key} style={{ width: '48%', minHeight: 74, borderRadius: 12, backgroundColor: item.value ? '#f0fdfa' : '#f8fafc', borderWidth: 1, borderColor: item.value ? '#99f6e4' : '#e5e7eb', padding: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                <View key={item.key} style={{ width: '22.5%', minHeight: 58, borderRadius: 12, backgroundColor: item.value ? '#f0fdfa' : '#f8fafc', borderWidth: 1, borderColor: item.value ? '#99f6e4' : '#e5e7eb', padding: 7, justifyContent: 'space-between' }}>
+                  <View style={{ alignItems: 'center', gap: 3, marginBottom: 4 }}>
                     <Ionicons name={item.icon} size={13} color={item.value ? '#0AADA2' : '#94a3b8'} />
-                    <Text style={{ flex: 1, fontSize: 10, fontWeight: '700', color: item.value ? '#0f766e' : '#64748b' }} numberOfLines={2}>{item.label}</Text>
+                    <Text style={{ fontSize: 8.5, fontWeight: '700', color: item.value ? '#0f766e' : '#64748b', textAlign: 'center', lineHeight: 10 }} numberOfLines={2}>{item.label}</Text>
                   </View>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: item.value ? '#111827' : '#94a3b8' }} numberOfLines={2}>
+                  <Text style={{ fontSize: 10.5, fontWeight: '800', color: item.value ? '#111827' : '#94a3b8', textAlign: 'center' }} numberOfLines={1}>
                     {item.value || 'Not recorded'}
                   </Text>
                 </View>

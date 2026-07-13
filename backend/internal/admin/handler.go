@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,13 +12,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type PatientPushNotifier interface {
+	SendToUser(ctx context.Context, userID, title, body string, data map[string]string)
+}
+
 type Handler struct {
 	svc     *Service
 	diagSvc *diagnosis.Service
+	push    PatientPushNotifier
 }
 
 func NewHandler(svc *Service, diagSvc *diagnosis.Service) *Handler {
 	return &Handler{svc: svc, diagSvc: diagSvc}
+}
+
+func (h *Handler) SetPushNotifier(push PatientPushNotifier) {
+	h.push = push
+}
+
+func (h *Handler) notifyPatientTestResultsAvailable(userID string) {
+	if h.push == nil || strings.TrimSpace(userID) == "" {
+		return
+	}
+	h.push.SendToUser(context.Background(), userID, "Free health test results ready", "Your LifeGate Health Report has new test results available for review.", map[string]string{
+		"type":  "health_test_results",
+		"route": "/(tab)/health/report",
+	})
 }
 
 // ─── GET /api/admin/dashboard ─────────────────────────────────────────────────

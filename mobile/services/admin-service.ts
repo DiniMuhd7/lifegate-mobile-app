@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import api from './api';
@@ -238,20 +238,10 @@ export const AdminService = {
     });
 
     const filename = `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
-    const fs = FileSystem as unknown as {
-      cacheDirectory?: string;
-      Paths?: { cache?: { uri?: string } };
-      EncodingType?: { UTF8?: string };
-      writeAsStringAsync?: (uri: string, contents: string, options?: { encoding?: string }) => Promise<void>;
-    };
-    const cacheBase = fs.cacheDirectory ?? fs.Paths?.cache?.uri ?? '';
-    const uri = `${cacheBase}${filename}`;
-    if (fs.writeAsStringAsync) {
-      await fs.writeAsStringAsync(uri, String(csvText), { encoding: fs.EncodingType?.UTF8 ?? 'utf8' });
-    } else {
-      const file = new FileSystem.File(FileSystem.Paths.cache, filename);
-      file.write(String(csvText));
-    }
+    const uri = `${FileSystem.cacheDirectory ?? ''}${filename}`;
+    await FileSystem.writeAsStringAsync(uri, String(csvText), {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
 
     const canShare = await Sharing.isAvailableAsync();
     if (canShare) {
@@ -288,9 +278,7 @@ export const AdminService = {
       type: asset.mimeType || 'text/csv',
     } as unknown as Blob);
 
-    const { data } = await api.post('/admin/patients/import', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const { data } = await api.post('/admin/patients/import', form);
     return data.data as PatientImportSummary;
   },
 };

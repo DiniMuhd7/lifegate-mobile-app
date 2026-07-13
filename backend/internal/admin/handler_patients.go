@@ -330,6 +330,9 @@ func (h *Handler) ImportPatientsCSV(c *gin.Context) {
 		}
 		summary.Updated++
 		summary.Results = append(summary.Results, PatientImportRowResult{Row: rowNum, Email: email, Status: "updated"})
+		if patientID, idErr := h.svc.FindPatientUserIDByEmail(email); idErr == nil {
+			h.notifyPatientTestResultsAvailable(patientID)
+		}
 	}
 	adminID, _ := c.Get("userID")
 	adminIDStr, _ := adminID.(string)
@@ -360,6 +363,9 @@ func (h *Handler) UpdatePatientHealthByEmail(c *gin.Context) {
 		log.Printf("[admin] UpdatePatientHealthByEmail %s: %v", body.Email, err)
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
+	}
+	if patientID, idErr := h.svc.FindPatientUserIDByEmail(body.Email); idErr == nil {
+		h.notifyPatientTestResultsAvailable(patientID)
 	}
 	adminID, _ := c.Get("userID")
 	adminIDStr, _ := adminID.(string)

@@ -2,6 +2,7 @@ package alerts
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -38,14 +39,14 @@ type Alert struct {
 
 // rawDiagnosis is the minimal shape read from the DB to generate alerts.
 type rawDiagnosis struct {
-	id          string
-	condition   string
-	urgency     string
-	status      string
-	escalated   bool
+	id              string
+	condition       string
+	urgency         string
+	status          string
+	escalated       bool
 	hasPrescription bool
-	createdAt   time.Time
-	updatedAt   time.Time
+	createdAt       time.Time
+	updatedAt       time.Time
 }
 
 // Service computes preventive alerts for patients from their diagnosis history.
@@ -91,7 +92,40 @@ func (s *Service) GetAlertsForPatient(userID string) ([]Alert, error) {
 		return nil, err
 	}
 
-	return computeAlerts(diags), nil
+	alerts := computeAlerts(diags)
+	if testAlert, ok := s.getLatestTestResultAlert(userID); ok {
+		alerts = append([]Alert{testAlert}, alerts...)
+	}
+	return alerts, nil
+}
+
+func (s *Service) getLatestTestResultAlert(userID string) (Alert, bool) {
+	var raw string
+	var updatedAt time.Time
+	err := s.db.QueryRow(`
+		SELECT COALESCE(test_results::text, '{}'), updated_at
+		FROM users
+		WHERE id = $1::uuid
+	`, userID).Scan(&raw, &updatedAt)
+	if err != nil {
+		return Alert{}, false
+	}
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || trimmed == "{}" || trimmed == "null" {
+		return Alert{}, false
+	}
+	if time.Since(updatedAt) > 30*24*time.Hour {
+		return Alert{}, false
+	}
+	return Alert{
+		ID:        "health-test-results-" + updatedAt.Format("20060102"),
+		Category:  CategoryPreventive,
+		Severity:  SeverityLow,
+		Title:     "Free health test results ready",
+		Message:   "Your latest free health test results are now available in your LifeGate Health Report.",
+		IsRead:    false,
+		CreatedAt: updatedAt.Format(time.RFC3339),
+	}, true
 }
 
 // GetAlertsForPhysician returns escalated or pending cases that need attention.
