@@ -265,14 +265,13 @@ function buildReportHTML(
     </div>
   </div>
 
-  <!-- ── Free Health Test Results ── -->
+  <!-- ── Test Results ── -->
   <div class="section">
-    <h2>Free Health Test Results</h2>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       ${healthTestResults.map((r) => `
-        <div style="flex:1;min-width:170px;padding:12px;background:${r.value ? '#f0fdfa' : '#f9fafb'};border:1px solid ${r.value ? '#99f6e4' : '#e5e7eb'};border-radius:12px;">
-          <div style="font-size:10px;color:#0f766e;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">${r.label}</div>
-          <div style="font-size:13px;color:${r.value ? '#111827' : '#9ca3af'};font-weight:700;margin-top:5px;">${r.value || 'Not recorded'}</div>
+        <div style="flex:1;min-width:180px;padding:14px;background:${r.value ? '#f0fdfa' : '#f9fafb'};border:1px solid ${r.value ? '#99f6e4' : '#e5e7eb'};border-radius:14px;">
+          <div style="font-size:11px;color:#0f766e;font-weight:800;line-height:1.35;">${r.label}</div>
+          <div style="font-size:15px;color:${r.value ? '#111827' : '#9ca3af'};font-weight:800;margin-top:7px;line-height:1.35;word-break:break-word;">${r.value || 'Not recorded'}</div>
         </div>`).join('')}
     </div>
   </div>
@@ -667,17 +666,16 @@ export default function HealthReportScreen() {
           </View>
 
 
-          {/* Free Health Test Results */}
+          {/* Test Results */}
           <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e0f2f1', padding: 12 }}>
-            <SectionHeader title="Free Health Test Results" icon="flask-outline" />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
               {healthTestResults.map((item) => (
-                <View key={item.key} style={{ width: '22.5%', minHeight: 58, borderRadius: 12, backgroundColor: item.value ? '#f0fdfa' : '#f8fafc', borderWidth: 1, borderColor: item.value ? '#99f6e4' : '#e5e7eb', padding: 7, justifyContent: 'space-between' }}>
-                  <View style={{ alignItems: 'center', gap: 3, marginBottom: 4 }}>
-                    <Ionicons name={item.icon} size={13} color={item.value ? '#0AADA2' : '#94a3b8'} />
-                    <Text style={{ fontSize: 8.5, fontWeight: '700', color: item.value ? '#0f766e' : '#64748b', textAlign: 'center', lineHeight: 10 }} numberOfLines={2}>{item.label}</Text>
+                <View key={item.key} style={{ flexBasis: '47%', flexGrow: 1, minHeight: 86, borderRadius: 14, backgroundColor: item.value ? '#f0fdfa' : '#f8fafc', borderWidth: 1, borderColor: item.value ? '#99f6e4' : '#e5e7eb', padding: 12, justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                    <Ionicons name={item.icon} size={17} color={item.value ? '#0AADA2' : '#94a3b8'} />
+                    <Text style={{ flex: 1, fontSize: 12, fontWeight: '800', color: item.value ? '#0f766e' : '#64748b', lineHeight: 16 }}>{item.label}</Text>
                   </View>
-                  <Text style={{ fontSize: 10.5, fontWeight: '800', color: item.value ? '#111827' : '#94a3b8', textAlign: 'center' }} numberOfLines={1}>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: item.value ? '#111827' : '#94a3b8', lineHeight: 20 }}>
                     {item.value || 'Not recorded'}
                   </Text>
                 </View>
