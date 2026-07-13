@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -238,8 +239,23 @@ export const AdminService = {
     });
 
     const filename = `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
+    const csv = String(csvText);
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      return filename;
+    }
+
     const uri = `${FileSystem.cacheDirectory ?? ''}${filename}`;
-    await FileSystem.writeAsStringAsync(uri, String(csvText), {
+    await FileSystem.writeAsStringAsync(uri, csv, {
       encoding: FileSystem.EncodingType.UTF8,
     });
 
@@ -272,13 +288,19 @@ export const AdminService = {
 
     const asset = result.assets[0];
     const form = new FormData();
-    form.append('file', {
-      uri: asset.uri,
-      name: asset.name || 'patients.csv',
-      type: asset.mimeType || 'text/csv',
-    } as unknown as Blob);
+    if (Platform.OS === 'web' && asset.file) {
+      form.append('file', asset.file, asset.name || 'patients.csv');
+    } else {
+      form.append('file', {
+        uri: asset.uri,
+        name: asset.name || 'patients.csv',
+        type: asset.mimeType || 'text/csv',
+      } as unknown as Blob);
+    }
 
-    const { data } = await api.post('/admin/patients/import', form);
+    const { data } = await api.post('/admin/patients/import', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return data.data as PatientImportSummary;
   },
 };
