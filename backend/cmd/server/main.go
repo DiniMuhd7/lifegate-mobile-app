@@ -111,9 +111,9 @@ func main() {
 	// Ensure the default admin account always exists (idempotent upsert).
 	// ADMIN_PASSWORD (preferred) and ADMIN_PASSWORD_HASH let ops teams rotate
 	// credentials without a code change; they fall back to the documented defaults.
-	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "lifegatebydshub@gmail.com")))
+	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "span@dshub.com.ng")))
 	adminHash := getEnvOrDefault("ADMIN_PASSWORD_HASH",
-		"$2a$10$m7gIV1sYa070tL6T.wi/Re/3KtvwzhbQFOqvvuwhOe1Nm6w6EDDhy")
+		"$2a$10$nwkD/kv1H6aLAymdMxLOi.Zo4JK/xijkN2SW/BYAL14SEdXDeVUOW")
 	if adminPassword := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")); adminPassword != "" {
 		generatedHash, hashErr := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 		if hashErr != nil {
@@ -124,8 +124,8 @@ func main() {
 	}
 	if _, err := database.Exec(
 		`INSERT INTO users (name, email, password_hash, role)
-		 VALUES ('LifeGate Admin', $1, $2, 'admin')
-		 ON CONFLICT (email) DO UPDATE SET password_hash = $2, role = 'admin'`,
+		 VALUES ('SPAN Admin', $1, $2, 'admin')
+		 ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password_hash = $2, role = 'admin'`,
 		adminEmail, adminHash,
 	); err != nil {
 		log.Printf("[startup] warn: could not ensure admin user: %v", err)
@@ -348,6 +348,7 @@ func main() {
 	adminRepo := admin.NewRepository(database)
 	adminSvc := admin.NewService(adminRepo)
 	adminHandler := admin.NewHandler(adminSvc, diagnosisSvc)
+	adminHandler.SetPushNotifier(pushSvc)
 
 	// Wire the admin SLA breach recorder into the physician service so that
 	// completed cases which exceed the SLA are automatically logged and the

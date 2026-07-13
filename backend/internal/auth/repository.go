@@ -29,6 +29,7 @@ type User struct {
 	Genotype             *string    `json:"genotype,omitempty" db:"genotype"`
 	HeightCm             *float64   `json:"height_cm,omitempty" db:"height_cm"`
 	WeightKg             *float64   `json:"weight_kg,omitempty" db:"weight_kg"`
+	TestResults          string     `json:"test_results,omitempty" db:"test_results"`
 	State                *string    `json:"state,omitempty" db:"state"`
 	Country              *string    `json:"country,omitempty" db:"country"`
 	Specialization       string     `json:"specialization,omitempty" db:"specialization"`
@@ -36,13 +37,13 @@ type User struct {
 	CertificateID        string     `json:"certificateId,omitempty" db:"certificate_id"`
 	CertificateIssueDate string     `json:"certificateIssueDate,omitempty" db:"certificate_issue_date"`
 	YearsOfExperience    string     `json:"yearsOfExperience,omitempty" db:"years_of_experience"`
-	MdcnVerified           bool       `json:"mdcn_verified" db:"mdcn_verified"`
-	MdcnVerifiedAt         *time.Time `json:"mdcn_verified_at,omitempty" db:"mdcn_verified_at"`
-	OpenClawAgentSlug      *string    `json:"openclaw_agent_slug,omitempty" db:"openclaw_agent_slug"`
-	AIModeEnabled          bool       `json:"ai_mode_enabled" db:"ai_mode_enabled"`
-	DeletionScheduledAt    *time.Time `json:"deletion_scheduled_at,omitempty" db:"deletion_scheduled_at"`
-	CreatedAt              time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt              time.Time  `json:"updated_at" db:"updated_at"`
+	MdcnVerified         bool       `json:"mdcn_verified" db:"mdcn_verified"`
+	MdcnVerifiedAt       *time.Time `json:"mdcn_verified_at,omitempty" db:"mdcn_verified_at"`
+	OpenClawAgentSlug    *string    `json:"openclaw_agent_slug,omitempty" db:"openclaw_agent_slug"`
+	AIModeEnabled        bool       `json:"ai_mode_enabled" db:"ai_mode_enabled"`
+	DeletionScheduledAt  *time.Time `json:"deletion_scheduled_at,omitempty" db:"deletion_scheduled_at"`
+	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type PendingRegistration struct {
@@ -75,7 +76,7 @@ func (r *Repository) FindUserByEmail(email string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+        current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country,
         COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at
@@ -104,7 +105,7 @@ func (r *Repository) FindUserByID(id string) (*User, error) {
 		`SELECT id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
         COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 	COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-        current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+        current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country,
         COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
         COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
         mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at
@@ -118,7 +119,7 @@ func scanUser(row *sql.Row) (*User, error) {
 		&u.ID, &u.UserID, &u.PatientID, &u.Name, &u.Email, &u.Role,
 		&u.Phone, &u.DOB, &u.Gender, &u.Language,
 		&u.HealthHistory, &u.ReferralCode, &u.BloodType, &u.Allergies, &u.MedicalHistory,
-		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.HeightCm, &u.WeightKg,
+		&u.CurrentMedications, &u.EmergencyContact, &u.Genotype, &u.HeightCm, &u.WeightKg, &u.TestResults,
 		&u.State, &u.Country, &u.Specialization,
 		&u.CertificateName, &u.CertificateID, &u.CertificateIssueDate,
 		&u.YearsOfExperience, &u.MdcnVerified, &u.MdcnVerifiedAt,
@@ -139,7 +140,7 @@ func (r *Repository) SetMDCNVerified(userID string) (*User, error) {
  RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
            COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		   COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country,
+           current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country,
            COALESCE(specialization,''), COALESCE(certificate_name,''), COALESCE(certificate_id,''),
            COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
            mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
@@ -206,17 +207,29 @@ func (r *Repository) GetPendingRegistration(email string) (*PendingRegistration,
 
 // UpdateHealthProfile updates the patient-editable health fields for a given user.
 type HealthProfileInput struct {
-	BloodType          *string  `json:"blood_type"`
-	Allergies          *string  `json:"allergies"`
-	MedicalHistory     *string  `json:"medical_history"`
-	CurrentMedications *string  `json:"current_medications"`
-	EmergencyContact   *string  `json:"emergency_contact"`
-	Genotype           *string  `json:"genotype"`
-	Language           *string  `json:"language"`
-	Country            *string  `json:"country"`
-	State              *string  `json:"state"`
-	HeightCm           *float64 `json:"height_cm"`
-	WeightKg           *float64 `json:"weight_kg"`
+	BloodType          *string                `json:"blood_type"`
+	Allergies          *string                `json:"allergies"`
+	MedicalHistory     *string                `json:"medical_history"`
+	CurrentMedications *string                `json:"current_medications"`
+	EmergencyContact   *string                `json:"emergency_contact"`
+	Genotype           *string                `json:"genotype"`
+	Language           *string                `json:"language"`
+	Country            *string                `json:"country"`
+	State              *string                `json:"state"`
+	HeightCm           *float64               `json:"height_cm"`
+	WeightKg           *float64               `json:"weight_kg"`
+	TestResults        map[string]interface{} `json:"test_results"`
+}
+
+func jsonOrNil(v map[string]interface{}) interface{} {
+	if len(v) == 0 {
+		return nil
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	return string(b)
 }
 
 func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (*User, error) {
@@ -233,9 +246,10 @@ func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (
 		    state               = COALESCE($10, state),
 		    height_cm           = COALESCE($11, height_cm),
 		    weight_kg           = COALESCE($12, weight_kg),
+		    test_results        = CASE WHEN $13::jsonb IS NULL THEN test_results ELSE COALESCE(test_results, '{}'::jsonb) || $13::jsonb END,
 		    updated_at          = NOW()
 		WHERE id = $1::uuid`,
-		userID, in.BloodType, in.Allergies, in.MedicalHistory, in.CurrentMedications, in.EmergencyContact, in.Genotype, in.Language, in.Country, in.State, in.HeightCm, in.WeightKg,
+		userID, in.BloodType, in.Allergies, in.MedicalHistory, in.CurrentMedications, in.EmergencyContact, in.Genotype, in.Language, in.Country, in.State, in.HeightCm, in.WeightKg, jsonOrNil(in.TestResults),
 	)
 	if err != nil {
 		return nil, err
@@ -356,7 +370,7 @@ func (r *Repository) ScheduleAccountDeletion(userID string) (*User, error) {
 		 RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
 		           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		           COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-	           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country, COALESCE(specialization,''),
+	           current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country, COALESCE(specialization,''),
 		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
 		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
 		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,
@@ -373,7 +387,7 @@ func (r *Repository) CancelAccountDeletion(userID string) (*User, error) {
 		 RETURNING id, COALESCE(user_id,''), COALESCE(patient_id,''), name, email, role,
 		           COALESCE(phone,''), COALESCE(dob,''), COALESCE(gender,''), COALESCE(language,''),
 		           COALESCE(health_history,''), COALESCE(referral_code,''), blood_type, allergies, medical_history,
-	           current_medications, emergency_contact, genotype, height_cm, weight_kg, state, country, COALESCE(specialization,''),
+	           current_medications, emergency_contact, genotype, height_cm, weight_kg, COALESCE(test_results::text, '{}'), state, country, COALESCE(specialization,''),
 		           COALESCE(certificate_name,''), COALESCE(certificate_id,''),
 		           COALESCE(certificate_issue_date,''), COALESCE(years_of_experience,''),
 		           mdcn_verified, mdcn_verified_at, openclaw_agent_slug, ai_mode_enabled, deletion_scheduled_at, created_at, updated_at`,

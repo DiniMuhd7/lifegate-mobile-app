@@ -29,6 +29,7 @@ export type User = {
   emergency_contact?: string | null;
   height_cm?: number | null;
   weight_kg?: number | null;
+  test_results?: Record<string, unknown> | string | null;
   
   // Timestamps
   created_at: string;

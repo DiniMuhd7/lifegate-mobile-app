@@ -1,4 +1,4 @@
-import { File as FSFile, Paths as FSPaths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import api from './api';
@@ -238,17 +238,19 @@ export const AdminService = {
     });
 
     const filename = `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
-    const file = new FSFile(FSPaths.cache, filename);
-    file.write(csvText);
+    const uri = `${FileSystem.cacheDirectory ?? ''}${filename}`;
+    await FileSystem.writeAsStringAsync(uri, String(csvText), {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
 
     const canShare = await Sharing.isAvailableAsync();
     if (canShare) {
-      await Sharing.shareAsync(file.uri, {
+      await Sharing.shareAsync(uri, {
         mimeType: 'text/csv',
         dialogTitle: 'Export Patients CSV',
       });
     }
-    return file.uri;
+    return uri;
   },
 
   /**
@@ -276,9 +278,7 @@ export const AdminService = {
       type: asset.mimeType || 'text/csv',
     } as unknown as Blob);
 
-    const { data } = await api.post('/admin/patients/import', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const { data } = await api.post('/admin/patients/import', form);
     return data.data as PatientImportSummary;
   },
 };

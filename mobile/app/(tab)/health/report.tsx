@@ -43,6 +43,38 @@ const STATUS_COLOR: Record<string, string> = {
 
 type ExportFormat = 'pdf' | 'png' | 'jpeg';
 
+const FREE_HEALTH_TEST_FIELDS = [
+  { key: 'subsidized_genotype_test', label: 'Subsidized Genotype Test', icon: 'git-branch-outline' as const },
+  { key: 'vital_signs_check', label: 'Vital Signs Check', icon: 'pulse-outline' as const },
+  { key: 'bmi', label: 'BMI Assessment', icon: 'scale-outline' as const },
+  { key: 'blood_group', label: 'Blood Group Test', icon: 'water-outline' as const },
+  { key: 'packed_cell_volume', label: 'Packed Cell Volume', icon: 'flask-outline' as const },
+  { key: 'malaria_test', label: 'Malaria Test', icon: 'bug-outline' as const },
+  { key: 'hepatitis_screening', label: 'Hepatitis Screening', icon: 'medkit-outline' as const },
+  { key: 'hiv_screening', label: 'HIV Screening', icon: 'shield-checkmark-outline' as const },
+] as const;
+
+function parseUserTestResults(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+}
+
+function formatResultValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return JSON.stringify(value);
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function normalizeDate(raw: string): string {
@@ -104,7 +136,8 @@ function buildReportHTML(
   entries: HealthTimelineEntry[],
   reportDate: string,
   prescriptionMap: Map<string, DiagnosisPrescription>,
-  pendingRxSet: Set<string>
+  pendingRxSet: Set<string>,
+  healthTestResults: Array<{ label: string; value: string }>
 ): string {
   const status = deriveOverallStatus(entries);
   const dist = urgencyDistribution(entries);
@@ -229,6 +262,18 @@ function buildReportHTML(
         <div style="font-size:22px;font-weight:800;margin-top:4px;">${status.label}</div>
         <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px;">${entries.length} total record${entries.length !== 1 ? 's' : ''}</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Free Health Test Results ── -->
+  <div class="section">
+    <h2>Free Health Test Results</h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${healthTestResults.map((r) => `
+        <div style="flex:1;min-width:170px;padding:12px;background:${r.value ? '#f0fdfa' : '#f9fafb'};border:1px solid ${r.value ? '#99f6e4' : '#e5e7eb'};border-radius:12px;">
+          <div style="font-size:10px;color:#0f766e;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">${r.label}</div>
+          <div style="font-size:13px;color:${r.value ? '#111827' : '#9ca3af'};font-weight:700;margin-top:5px;">${r.value || 'Not recorded'}</div>
+        </div>`).join('')}
     </div>
   </div>
 
@@ -498,6 +543,20 @@ export default function HealthReportScreen() {
 
   const patientName = user?.name ?? 'Patient';
   const reportDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const healthTestResults = useMemo(() => {
+    const stored = parseUserTestResults(user?.test_results);
+    const bmi = user?.height_cm && user?.weight_kg ? (user.weight_kg / Math.pow(user.height_cm / 100, 2)).toFixed(1) : '';
+    const values: Record<string, unknown> = {
+      ...stored,
+      blood_group: stored.blood_group ?? stored.blood_type ?? user?.blood_type,
+      subsidized_genotype_test: stored.subsidized_genotype_test ?? user?.genotype,
+      bmi: stored.bmi ?? bmi,
+    };
+    return FREE_HEALTH_TEST_FIELDS.map((field) => ({
+      ...field,
+      value: formatResultValue(values[field.key]),
+    }));
+  }, [user]);
 
   const recurringSet = useMemo(() => detectRecurring(patientTimeline), [patientTimeline]);
   const dist = useMemo(() => urgencyDistribution(patientTimeline), [patientTimeline]);
@@ -511,7 +570,7 @@ export default function HealthReportScreen() {
   const exportPDF = useCallback(async () => {
     try {
       setExporting('pdf');
-      const html = buildReportHTML(patientName, patientTimeline, reportDate, prescriptionMap, pendingRxSet);
+      const html = buildReportHTML(patientName, patientTimeline, reportDate, prescriptionMap, pendingRxSet, healthTestResults);
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
@@ -524,7 +583,7 @@ export default function HealthReportScreen() {
     } finally {
       setExporting(null);
     }
-  }, [patientName, patientTimeline, reportDate]);
+  }, [patientName, patientTimeline, reportDate, prescriptionMap, pendingRxSet, healthTestResults]);
 
   const exportImage = useCallback(async (format: 'png' | 'jpeg') => {
     try {
@@ -604,6 +663,25 @@ export default function HealthReportScreen() {
                   <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', marginTop: 1 }}>{status.label}</Text>
                 </View>
               </View>
+            </View>
+          </View>
+
+
+          {/* Free Health Test Results */}
+          <View style={{ marginHorizontal: 16, marginBottom: 12, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#e0f2f1', padding: 12 }}>
+            <SectionHeader title="Free Health Test Results" icon="flask-outline" />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {healthTestResults.map((item) => (
+                <View key={item.key} style={{ width: '22.5%', minHeight: 58, borderRadius: 12, backgroundColor: item.value ? '#f0fdfa' : '#f8fafc', borderWidth: 1, borderColor: item.value ? '#99f6e4' : '#e5e7eb', padding: 7, justifyContent: 'space-between' }}>
+                  <View style={{ alignItems: 'center', gap: 3, marginBottom: 4 }}>
+                    <Ionicons name={item.icon} size={13} color={item.value ? '#0AADA2' : '#94a3b8'} />
+                    <Text style={{ fontSize: 8.5, fontWeight: '700', color: item.value ? '#0f766e' : '#64748b', textAlign: 'center', lineHeight: 10 }} numberOfLines={2}>{item.label}</Text>
+                  </View>
+                  <Text style={{ fontSize: 10.5, fontWeight: '800', color: item.value ? '#111827' : '#94a3b8', textAlign: 'center' }} numberOfLines={1}>
+                    {item.value || 'Not recorded'}
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
 

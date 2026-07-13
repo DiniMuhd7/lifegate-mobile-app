@@ -142,6 +142,10 @@ func (s *Service) GetAnalytics(days int) (*AnalyticsData, error) {
 
 // ── Patients (registration export & clinical-data CSV import) ────────────────
 
+func (s *Service) FindPatientUserIDByEmail(email string) (string, error) {
+	return s.repo.FindPatientUserIDByEmail(email)
+}
+
 func (s *Service) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow, error) {
 	return s.repo.GetPatientsForExport(dateFrom, dateTo)
 }
