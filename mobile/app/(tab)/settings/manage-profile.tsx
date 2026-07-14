@@ -25,29 +25,7 @@ const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GENOTYPES = ['AA', 'AS', 'SS', 'SC', 'AC', 'CC'];
 const COMMON_ALLERGIES = ['Penicillin', 'Sulfa drugs', 'NSAIDs', 'Seafood', 'Peanuts'];
 const COMMON_MEDICATIONS = ['Metformin', 'Lisinopril', 'Amlodipine', 'Atorvastatin'];
-const FREE_HEALTH_TEST_OPTIONS = [
-  { key: 'subsidized_genotype_test', label: 'Subsidized Genotype' },
-  { key: 'vital_signs_check', label: 'Vital Signs' },
-  { key: 'bmi', label: 'BMI' },
-  { key: 'blood_group', label: 'Blood Group' },
-  { key: 'packed_cell_volume', label: 'PCV' },
-  { key: 'malaria_test', label: 'Malaria' },
-  { key: 'hepatitis_screening', label: 'Hepatitis' },
-  { key: 'hiv_screening', label: 'HIV' },
-] as const;
 
-function parseTestResults(raw: unknown): Record<string, unknown> {
-  if (!raw) return {};
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
-    } catch {
-      return {};
-    }
-  }
-  return typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -214,10 +192,6 @@ export default function ManageProfileScreen() {
   const [heightCm, setHeightCm] = useState(user?.height_cm != null ? String(user.height_cm) : '');
   const [weightKg, setWeightKg] = useState(user?.weight_kg != null ? String(user.weight_kg) : '');
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedFreeTests, setSelectedFreeTests] = useState<string[]>(() => {
-    const raw = parseTestResults(user?.test_results).free_health_screening_options;
-    return Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : [];
-  });
 
   // Track whether the user has made any changes
   const isDirty =
@@ -228,8 +202,7 @@ export default function ManageProfileScreen() {
     (currentMedications ?? '') !== (user?.current_medications ?? '') ||
     (emergencyContact ?? '') !== (user?.emergency_contact ?? '') ||
     heightCm !== (user?.height_cm != null ? String(user.height_cm) : '') ||
-    weightKg !== (user?.weight_kg != null ? String(user.weight_kg) : '') ||
-    selectedFreeTests.join('|') !== ((Array.isArray(parseTestResults(user?.test_results).free_health_screening_options) ? parseTestResults(user?.test_results).free_health_screening_options as string[] : []).join('|'));
+    weightKg !== (user?.weight_kg != null ? String(user.weight_kg) : '');
 
   // Sync form whenever the auth store user updates (e.g. after save)
   useEffect(() => {
@@ -241,8 +214,6 @@ export default function ManageProfileScreen() {
     setEmergencyContact(user?.emergency_contact ?? '');
     setHeightCm(user?.height_cm != null ? String(user.height_cm) : '');
     setWeightKg(user?.weight_kg != null ? String(user.weight_kg) : '');
-    const rawFreeTests = parseTestResults(user?.test_results).free_health_screening_options;
-    setSelectedFreeTests(Array.isArray(rawFreeTests) ? rawFreeTests.filter((v): v is string => typeof v === 'string') : []);
   }, [user]);
 
   useEffect(() => {
@@ -266,7 +237,6 @@ export default function ManageProfileScreen() {
       emergency_contact: emergencyContact.trim() || null,
       height_cm: heightCm.trim() ? parseFloat(heightCm) || null : null,
       weight_kg: weightKg.trim() ? parseFloat(weightKg) || null : null,
-      test_results: { free_health_screening_options: selectedFreeTests },
     });
     if (ok) {
       Alert.alert('Saved', 'Your health profile has been updated.');
@@ -491,40 +461,6 @@ export default function ManageProfileScreen() {
             />
           </View>
 
-          {/* ── Free Health Test Options ── */}
-          <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
-            <SectionHeader icon="flask-outline" title="Free Health Test Options" />
-            <Text className="text-xs text-gray-500 leading-5 mb-3">
-              Select the free health screening options you want LifeGate to track in your Health Report.
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {FREE_HEALTH_TEST_OPTIONS.map((option) => {
-                const active = selectedFreeTests.includes(option.key);
-                return (
-                  <Pressable
-                    key={option.key}
-                    onPress={() => setSelectedFreeTests((prev) => active ? prev.filter((key) => key !== option.key) : [...prev, option.key])}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: active }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      paddingHorizontal: 10,
-                      paddingVertical: 8,
-                      borderRadius: 12,
-                      borderWidth: active ? 1.5 : 1,
-                      borderColor: active ? TEAL : '#e5e7eb',
-                      backgroundColor: active ? '#f0fffe' : '#f9fafb',
-                    }}
-                  >
-                    <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={15} color={active ? TEAL : '#9ca3af'} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: active ? TEAL : '#374151' }}>{option.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
 
           {/* ── Body Measurements ── */}
           <View className="bg-white rounded-2xl p-4 mb-4 border border-[#EAF2F2]">
