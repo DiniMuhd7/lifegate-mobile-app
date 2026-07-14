@@ -34,6 +34,7 @@ const FREE_HEALTH_TEST_OPTIONS = [
   { key: 'malaria_test', label: 'Malaria' },
   { key: 'hepatitis_screening', label: 'Hepatitis' },
   { key: 'hiv_screening', label: 'HIV' },
+  { key: 'other', label: 'Other' },
 ] as const;
 
 function parseTestResults(raw: unknown): Record<string, unknown> {

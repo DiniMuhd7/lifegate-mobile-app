@@ -52,6 +52,7 @@ const FREE_HEALTH_TEST_FIELDS = [
   { key: 'malaria_test', label: 'Malaria Test', icon: 'bug-outline' as const },
   { key: 'hepatitis_screening', label: 'Hepatitis Screening', icon: 'medkit-outline' as const },
   { key: 'hiv_screening', label: 'HIV Screening', icon: 'shield-checkmark-outline' as const },
+  { key: 'other', label: 'Other Test', icon: 'add-circle-outline' as const },
 ] as const;
 
 function parseUserTestResults(raw: unknown): Record<string, unknown> {
@@ -278,7 +279,7 @@ function buildReportHTML(
 
   <!-- ── Executive Summary ── -->
   <div class="section">
-    <h2>Executive Summary</h2>
+    <h2>COMPLAINT</h2>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       ${[
         { label: 'Total Cases', value: entries.length, color: '#0891b2' },
@@ -685,6 +686,9 @@ export default function HealthReportScreen() {
 
           {/* Summary strip */}
           <View style={{ marginHorizontal: 16, marginBottom: 16, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden' }}>
+            <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4 }}>
+              <SectionHeader title="COMPLAINT" icon="clipboard-outline" />
+            </View>
             <View style={{ flexDirection: 'row' }}>
               {[
                 { label: 'Total', value: patientTimeline.length, color: '#0891b2' },
