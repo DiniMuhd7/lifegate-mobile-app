@@ -26,6 +26,41 @@ export const FREE_HEALTH_SCREENING_OPTIONS = [
   { label: 'Other basic health screening', value: 'other_basic' },
 ];
 
+export const DEPARTMENT_OPTIONS = [
+  'Medicine and Surgery',
+  'Nursing Science',
+  'Medical Laboratory Science',
+  'Pharmacy',
+  'Public Health',
+  'Computer Science',
+  'Biochemistry',
+  'Microbiology',
+  'Anatomy',
+  'Physiology',
+];
+
+export const FACULTY_OPTIONS = [
+  'Faculty of Clinical Sciences',
+  'Faculty of Basic Medical Sciences',
+  'Faculty of Health Sciences',
+  'Faculty of Pharmacy',
+  'Faculty of Science',
+  'Faculty of Computing',
+  'Faculty of Social Sciences',
+  'Faculty of Arts',
+  'Faculty of Engineering',
+];
+
+export const ACADEMIC_LEVEL_OPTIONS = [
+  '100 Level',
+  '200 Level',
+  '300 Level',
+  '400 Level',
+  '500 Level',
+  '600 Level',
+  'Postgraduate',
+];
+
 export const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
   { label: 'Hausa', value: 'Hausa' },

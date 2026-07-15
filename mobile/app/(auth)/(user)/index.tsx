@@ -8,7 +8,8 @@ import { Dropdown } from 'components/DropDown';
 import { useRegistrationStore } from 'stores/auth-store';
 import { router } from 'expo-router';
 import { validateNewPasswordMatch, validateSingleField } from 'utils/validation';
-import { OCCUPATION_STATUS_OPTIONS } from 'constants/constants';
+import { ACADEMIC_LEVEL_OPTIONS, DEPARTMENT_OPTIONS, FACULTY_OPTIONS, OCCUPATION_STATUS_OPTIONS } from 'constants/constants';
+import { SuggestInput } from 'components/SuggestInput';
 
 const STEP_FIELDS = ['name', 'email', 'password', 'confirmPassword', 'occupationStatus'] as const;
 type StepField = (typeof STEP_FIELDS)[number];
@@ -99,28 +100,34 @@ export default function UserAccountStep() {
 
         {userDraft.occupationStatus === 'Student' && (
           <>
-            <LabeledInput
-              label="Department"
-              required
-              placeholder="Enter your department"
+            <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>Department *</Text>
+            <SuggestInput
               value={userDraft.department || ''}
               onChangeText={(v) => setUserField('department', v)}
+              suggestions={DEPARTMENT_OPTIONS}
+              placeholder="Search or enter your department"
+              placeholderTextColor="#9CA3AF"
+              inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
             />
 
-            <LabeledInput
-              label="Faculty"
-              required
-              placeholder="Enter your faculty"
+            <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>Faculty *</Text>
+            <SuggestInput
               value={userDraft.faculty || ''}
               onChangeText={(v) => setUserField('faculty', v)}
+              suggestions={FACULTY_OPTIONS}
+              placeholder="Search or enter your faculty"
+              placeholderTextColor="#9CA3AF"
+              inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
             />
 
-            <LabeledInput
-              label="Level"
-              required
-              placeholder="e.g. 100 Level"
+            <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>Level *</Text>
+            <SuggestInput
               value={userDraft.academicLevel || ''}
               onChangeText={(v) => setUserField('academicLevel', v)}
+              suggestions={ACADEMIC_LEVEL_OPTIONS}
+              placeholder="Search or enter your level"
+              placeholderTextColor="#9CA3AF"
+              inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
             />
           </>
         )}
