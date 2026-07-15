@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useHealthStore } from 'stores/health-store';
+import { useIMStore } from 'stores/im-store';
+import { useNotificationStore } from 'stores/notification-store';
 import type { PreventiveAlert, AlertCategory, AlertSeverity } from 'types/health-types';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -172,6 +174,73 @@ function AlertCard({
   );
 }
 
+
+function MessageAlertCard({
+  id,
+  diagnosisId,
+  message,
+  unreadCount,
+  onRead,
+}: {
+  id?: string;
+  diagnosisId?: string;
+  message: string;
+  unreadCount: number;
+  onRead?: (id: string) => void;
+}) {
+  const handlePress = () => {
+    if (id && onRead) onRead(id);
+    if (diagnosisId) {
+      router.push({ pathname: `/(tab)/diagnosis/${diagnosisId}`, params: { openIM: 'true' } } as never);
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => ({ opacity: pressed ? 0.87 : 1, marginHorizontal: 16, marginBottom: 10 })}
+    >
+      <View
+        style={{
+          backgroundColor: '#eff6ff',
+          borderRadius: 14,
+          borderWidth: 1.5,
+          borderColor: '#bfdbfe',
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 12,
+        }}
+        className="m-2"
+      >
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color="#2563eb" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827', flex: 1, marginRight: 8 }} numberOfLines={2}>
+              Unread instant message
+            </Text>
+            <View style={{ minWidth: 18, height: 18, borderRadius: 9, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
+              <Text style={{ fontSize: 10, color: '#fff', fontWeight: '800' }}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 12, color: '#6b7280', lineHeight: 17, marginBottom: 8 }}>
+            {message}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#dbeafe', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, gap: 4 }}>
+              <Ionicons name="chatbubble-outline" size={10} color="#2563eb" />
+              <Text style={{ fontSize: 10, color: '#2563eb', fontWeight: '600' }}>Instant Message</Text>
+            </View>
+            <Text style={{ fontSize: 10, color: '#9ca3af', alignSelf: 'center' }}>Tap to open chat</Text>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 // ─── Main Screen ─────────────────────────────────────────────────────────────────────────────
 
 export default function PatientAlertsScreen() {
@@ -184,6 +253,10 @@ export default function PatientAlertsScreen() {
     markAllAlertsRead,
     unreadAlertCount,
   } = useHealthStore();
+  const conversations = useIMStore((state) => state.conversations);
+  const notifications = useNotificationStore((state) => state.notifications);
+  const markNotificationRead = useNotificationStore((state) => state.markRead);
+  const markAllNotificationsRead = useNotificationStore((state) => state.markAllRead);
 
   useEffect(() => {
     fetchPatientAlerts();
@@ -199,6 +272,23 @@ export default function PatientAlertsScreen() {
     if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
     return (severityOrder[a.severity] ?? 4) - (severityOrder[b.severity] ?? 4);
   });
+  const unreadMessageAlerts = notifications.filter((n) => n.type === 'im_message' && !n.isRead);
+  const conversationMessageAlerts = Object.values(conversations)
+    .filter((conversation) => conversation.unreadCount > 0)
+    .filter((conversation) => !unreadMessageAlerts.some((n) => n.diagnosisId === conversation.diagnosisId || n.caseId === conversation.diagnosisId))
+    .map((conversation) => ({
+      diagnosisId: conversation.diagnosisId,
+      message: `${conversation.unreadCount} unread message${conversation.unreadCount !== 1 ? 's' : ''} from your care team.`,
+      unreadCount: conversation.unreadCount,
+    }));
+  const totalUnreadMessages = unreadMessageAlerts.length + conversationMessageAlerts.reduce((sum, item) => sum + item.unreadCount, 0);
+  const totalUnread = unreadAlertCount + totalUnreadMessages;
+  const totalItems = sorted.length + unreadMessageAlerts.length + conversationMessageAlerts.length;
+
+  const handleMarkAllRead = () => {
+    markAllAlertsRead();
+    markAllNotificationsRead();
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }} edges={['top']}>
@@ -225,15 +315,15 @@ export default function PatientAlertsScreen() {
           <Text style={{ fontSize: 18, fontWeight: '800', color: '#111827' }}>
             Health Alerts
           </Text>
-          {unreadAlertCount > 0 && (
+          {totalUnread > 0 && (
             <Text style={{ fontSize: 12, color: '#dc2626', marginTop: 1, fontWeight: '600' }}>
-              {unreadAlertCount} unread
+              {totalUnread} unread
             </Text>
           )}
         </View>
-        {unreadAlertCount > 0 && (
+        {totalUnread > 0 && (
           <Pressable
-            onPress={markAllAlertsRead}
+            onPress={handleMarkAllRead}
             style={{ padding: 6, borderRadius: 20, backgroundColor: '#f3f4f6' }}
             hitSlop={8}
           >
@@ -267,7 +357,7 @@ export default function PatientAlertsScreen() {
       )}
 
       {/* Empty state */}
-      {!alertsLoading && !alertsError && patientAlerts.length === 0 && (
+      {!alertsLoading && !alertsError && totalItems === 0 && (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <View
             style={{
@@ -290,7 +380,7 @@ export default function PatientAlertsScreen() {
       )}
 
       {/* Alert list */}
-      {sorted.length > 0 && (
+      {totalItems > 0 && (
         <ScrollView
           contentContainerStyle={{ paddingTop: 14, paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
@@ -310,8 +400,26 @@ export default function PatientAlertsScreen() {
               fontWeight: '600',
             }}
           >
-            {sorted.length} alert{sorted.length !== 1 ? 's' : ''} · tap to view report
+            {totalItems} alert{totalItems !== 1 ? 's' : ''} · tap to view report or chat
           </Text>
+          {unreadMessageAlerts.map((notification) => (
+            <MessageAlertCard
+              key={notification.id}
+              id={notification.id}
+              diagnosisId={notification.diagnosisId ?? notification.caseId}
+              message={notification.message}
+              unreadCount={1}
+              onRead={markNotificationRead}
+            />
+          ))}
+          {conversationMessageAlerts.map((item) => (
+            <MessageAlertCard
+              key={`im-${item.diagnosisId}`}
+              diagnosisId={item.diagnosisId}
+              message={item.message}
+              unreadCount={item.unreadCount}
+            />
+          ))}
           {sorted.map((alert) => (
             <AlertCard key={alert.id} alert={alert} onRead={markAlertRead} />
           ))}

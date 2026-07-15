@@ -251,6 +251,10 @@ func (h *Handler) RegisterStart(c *gin.Context) {
 		CertificateIssueDate: c.PostForm("certificateIssueDate"),
 		YearsOfExperience:    c.PostForm("yearsOfExperience"),
 		ReferredByCode:       c.PostForm("referred_by_code"),
+		OccupationStatus:     c.PostForm("occupation_status"),
+		Department:           c.PostForm("department"),
+		Faculty:              c.PostForm("faculty"),
+		AcademicLevel:        c.PostForm("academic_level"),
 	}
 
 	if payload.Email == "" || payload.Password == "" || payload.Name == "" {
@@ -777,13 +781,11 @@ func (h *Handler) GoogleLogin(c *gin.Context) {
 	}
 
 	respond(c, http.StatusOK, true, "Login successful", gin.H{
-		"token":        pair.Token,
+		"token":         pair.Token,
 		"refresh_token": pair.RefreshToken,
-		"user":         pair.User,
+		"user":          pair.User,
 	})
 }
-
-
 
 // ─── GET /api/auth/features ───────────────────────────────────────────────────
 

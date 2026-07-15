@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useHealthStore } from 'stores/health-store';
 import { useAuthStore } from 'stores/auth/auth-store';
 import { useNotificationStore } from 'stores/notification-store';
+import { useIMStore } from 'stores/im-store';
 import { useHealthMetricsStore } from 'stores/health-metrics-store';
 import { DAILY_STEP_GOAL } from 'utils/backgroundHealthMonitor';
 import { scheduleHealthInsightNotification } from 'utils/pushNotifications';
@@ -783,7 +784,10 @@ export default function HealthDashboardScreen() {
     reset: resetHealthStore,
   } = useHealthStore();
 
-  const imNotifCount = useNotificationStore((s) => s.unreadCount);
+  const notificationUnreadCount = useNotificationStore((s) => s.unreadCount);
+  const imUnreadCount = useIMStore((s) =>
+    Object.values(s.conversations).reduce((sum, conversation) => sum + conversation.unreadCount, 0),
+  );
 
   const { user, sessionLoading } = useAuthStore();
 
@@ -928,7 +932,7 @@ export default function HealthDashboardScreen() {
           style={{ padding: 6, position: 'relative' }}
         >
           <Ionicons name="notifications-outline" size={24} color="#0f766e" />
-          {(unreadAlertCount + imNotifCount) > 0 && (
+          {(unreadAlertCount + notificationUnreadCount + imUnreadCount) > 0 && (
             <View
               style={{
                 position: 'absolute',
@@ -944,7 +948,7 @@ export default function HealthDashboardScreen() {
               }}
             >
               <Text style={{ fontSize: 9, color: '#fff', fontWeight: '800' }}>
-                {(unreadAlertCount + imNotifCount) > 9 ? '9+' : (unreadAlertCount + imNotifCount)}
+                {(unreadAlertCount + notificationUnreadCount + imUnreadCount) > 9 ? '9+' : (unreadAlertCount + notificationUnreadCount + imUnreadCount)}
               </Text>
             </View>
           )}

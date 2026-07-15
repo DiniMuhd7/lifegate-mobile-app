@@ -280,6 +280,10 @@ type RegisterStartPayload struct {
 	YearsOfExperience    string `json:"yearsOfExperience"`
 	CertificateURL       string `json:"certificateUrl"`
 	ReferredByCode       string `json:"referred_by_code"`
+	OccupationStatus     string `json:"occupation_status"`
+	Department           string `json:"department"`
+	Faculty              string `json:"faculty"`
+	AcademicLevel        string `json:"academic_level"`
 }
 
 const otpTTL = 600
@@ -466,6 +470,10 @@ func (s *Service) completeRegistrationFromDB(ctx context.Context, pr *PendingReg
 		CertificateID:        payload.CertificateID,
 		CertificateIssueDate: payload.CertificateIssueDate,
 		YearsOfExperience:    payload.YearsOfExperience,
+		OccupationStatus:     payload.OccupationStatus,
+		Department:           payload.Department,
+		Faculty:              payload.Faculty,
+		AcademicLevel:        payload.AcademicLevel,
 	}
 
 	if payload.CertificateURL != "" {
@@ -904,9 +912,9 @@ func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, 
 		IDToken string `json:"idToken"`
 	}
 	type firebaseUser struct {
-		LocalID      string `json:"localId"`
-		Email        string `json:"email"`
-		DisplayName  string `json:"displayName"`
+		LocalID       string `json:"localId"`
+		Email         string `json:"email"`
+		DisplayName   string `json:"displayName"`
 		EmailVerified bool   `json:"emailVerified"`
 	}
 	type firebaseResponse struct {
@@ -974,7 +982,6 @@ func (s *Service) GoogleLogin(ctx context.Context, idToken string) (*TokenPair, 
 	}
 	return &TokenPair{Token: accessToken, RefreshToken: refreshToken, User: user}, nil
 }
-
 
 // ─── Feature Flags ────────────────────────────────────────────────────────────
 

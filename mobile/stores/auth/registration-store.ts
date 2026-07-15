@@ -46,6 +46,10 @@ const emptyDraft: UserDraft = {
   country: '',
   referredByCode: '',
   freeHealthScreening: '',
+  occupationStatus: '',
+  department: '',
+  faculty: '',
+  academicLevel: '',
   role: undefined,
   specialization: '',
   certificateName: '',
@@ -140,6 +144,15 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
       if (formData.freeHealthScreening?.trim()) {
         payload.append('free_health_screening', formData.freeHealthScreening.trim());
       }
+      if (formData.occupationStatus?.trim()) {
+        payload.append('occupation_status', formData.occupationStatus.trim());
+      }
+      if (formData.occupationStatus === 'Student') {
+        if (formData.department?.trim()) payload.append('department', formData.department.trim());
+        if (formData.faculty?.trim()) payload.append('faculty', formData.faculty.trim());
+        if (formData.academicLevel?.trim())
+          payload.append('academic_level', formData.academicLevel.trim());
+      }
       // Add professional-specific fields
       if (role === 'professional') {
         if (specialization) payload.append('specialization', specialization);
@@ -182,7 +195,7 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await AuthService.verifyRegistration({ email, otp });
-      
+
       if (!response.success || !response.data) {
         const errorMessage = extractErrorMessage({
           response: { data: { message: response.message } },

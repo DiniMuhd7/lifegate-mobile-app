@@ -24,6 +24,32 @@ import { SearchableDropdown } from 'components/SearchableDropdown';
 import { SuggestInput } from 'components/SuggestInput';
 import { NIGERIA_STATES, COUNTRIES } from 'constants/geo';
 
+
+const FREE_HEALTH_TEST_OPTIONS = [
+  { key: 'subsidized_genotype_test', label: 'Subsidized Genotype' },
+  { key: 'vital_signs_check', label: 'Vital Signs' },
+  { key: 'bmi', label: 'BMI' },
+  { key: 'blood_group', label: 'Blood Group' },
+  { key: 'packed_cell_volume', label: 'PCV' },
+  { key: 'malaria_test', label: 'Malaria' },
+  { key: 'hepatitis_screening', label: 'Hepatitis' },
+  { key: 'hiv_screening', label: 'HIV' },
+  { key: 'other', label: 'Other' },
+] as const;
+
+function parseTestResults(raw: unknown): Record<string, unknown> {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {};
+}
+
 const LANGUAGE_OPTIONS = [
   { label: 'English', value: 'English' },
   { label: 'Hausa', value: 'Hausa' },
@@ -109,6 +135,8 @@ export default function ItemScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [freeTestsSaving, setFreeTestsSaving] = useState(false);
+  const [selectedFreeTests, setSelectedFreeTests] = useState<string[]>([]);
 
   useEffect(() => {
     getProfile();
@@ -125,6 +153,8 @@ export default function ItemScreen() {
     setLanguage(user.language ?? '');
     setCountry(user.country ?? '');
     setState(user.state ?? '');
+    const rawFreeTests = parseTestResults(user.test_results).free_health_screening_options;
+    setSelectedFreeTests(Array.isArray(rawFreeTests) ? rawFreeTests.filter((v): v is string => typeof v === 'string') : []);
   }, [user]);
 
   const initials = useMemo(
@@ -205,6 +235,20 @@ export default function ItemScreen() {
     setConfirmPassword('');
     setShowPwdModal(false);
     Alert.alert('Saved', 'Password changed successfully.');
+  };
+
+  const handleSaveFreeHealthTests = async () => {
+    setFreeTestsSaving(true);
+    const existingResults = parseTestResults(user?.test_results);
+    const ok = await updateHealthProfile({
+      test_results: { ...existingResults, free_health_screening_options: selectedFreeTests },
+    });
+    setFreeTestsSaving(false);
+    if (ok) {
+      Alert.alert('Saved', 'Free health test options updated successfully.');
+      return;
+    }
+    Alert.alert('Update Failed', 'Could not save free health test options.');
   };
 
   const handleSaveLanguage = async () => {
@@ -462,6 +506,54 @@ export default function ItemScreen() {
                 <Text className="text-white font-bold text-base">
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </Text>
+              </TouchableOpacity>
+            </View>
+
+
+            <View className="bg-white rounded-3xl p-5 border border-[#DCEFEF] mt-4">
+              <View className="flex-row items-center mb-2">
+                <View className="h-9 w-9 rounded-xl bg-[#E4F6F6] items-center justify-center mr-3">
+                  <Ionicons name="flask-outline" size={18} color="#0B8E8D" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-lg font-black text-gray-900">Free Health Test Options</Text>
+                  <Text className="text-xs text-gray-500 mt-0.5">Choose screenings to track in your Health Report.</Text>
+                </View>
+              </View>
+              <View className="flex-row flex-wrap gap-2 mt-3">
+                {FREE_HEALTH_TEST_OPTIONS.map((option) => {
+                  const active = selectedFreeTests.includes(option.key);
+                  return (
+                    <Pressable
+                      key={option.key}
+                      onPress={() => setSelectedFreeTests((prev) => active ? prev.filter((key) => key !== option.key) : [...prev, option.key])}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: active }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                        paddingHorizontal: 10,
+                        paddingVertical: 8,
+                        borderRadius: 12,
+                        borderWidth: active ? 1.5 : 1,
+                        borderColor: active ? '#0B8E8D' : '#e5e7eb',
+                        backgroundColor: active ? '#f0fffe' : '#f9fafb',
+                      }}
+                    >
+                      <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={15} color={active ? '#0B8E8D' : '#9ca3af'} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: active ? '#0B8E8D' : '#374151' }}>{option.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <TouchableOpacity
+                onPress={handleSaveFreeHealthTests}
+                activeOpacity={0.85}
+                disabled={freeTestsSaving}
+                className="mt-4 bg-[#0B8E8D] rounded-xl py-3 items-center"
+              >
+                {freeTestsSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-bold text-base">Save Test Options</Text>}
               </TouchableOpacity>
             </View>
 

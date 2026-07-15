@@ -3,6 +3,12 @@ export const USER_TYPE_OPTIONS = [
   { label: 'Healthcare Professional', value: 'healthcare' },
 ];
 
+export const OCCUPATION_STATUS_OPTIONS = [
+  { label: 'Student', value: 'Student' },
+  { label: 'Civil Servant', value: 'Civil Servant' },
+  { label: 'Unemployed', value: 'Unemployed' },
+];
+
 export const GENDER_OPTIONS = [
   { label: 'Male', value: 'Male' },
   { label: 'Female', value: 'Female' },
@@ -29,8 +35,7 @@ export const LANGUAGE_OPTIONS = [
 
 export const CERTIFICATE_TYPE_OPTIONS = [
   { label: 'General', value: 'General' },
-  { label: 'Specialist', value: 'Specialist' }
-
+  { label: 'Specialist', value: 'Specialist' },
 ];
 
 export const STEP_TITLES: Record<number, string> = {
@@ -41,11 +46,10 @@ export const STEP_TITLES: Record<number, string> = {
 };
 
 export const issues = [
-            { label: 'Consultation Issues', value: 'Consultation Issues' },
-            { label: 'Subscription Issue', value: 'Subscription Issues' },
-            { label: 'Others', value: 'Others' },
-          ]
-
+  { label: 'Consultation Issues', value: 'Consultation Issues' },
+  { label: 'Subscription Issue', value: 'Subscription Issues' },
+  { label: 'Others', value: 'Others' },
+];
 
 /**
  * UI Font Sizes - Modifiable for consistent sizing across chat screen

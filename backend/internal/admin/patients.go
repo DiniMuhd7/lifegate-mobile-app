@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -50,6 +51,59 @@ var recognizedPatientColumns = map[string]string{
 	"height":     "height_cm",
 	"weightkg":   "weight_kg",
 	"weight":     "weight_kg",
+}
+
+var freeHealthScreeningTestColumns = map[string]string{
+	"subsidizedgenotypetest":    "Subsidized Genotype Test",
+	"subsidizedgenotype":        "Subsidized Genotype Test",
+	"vitalsignscheck":           "Vital Signs Check",
+	"vitalsigns":                "Vital Signs Check",
+	"bmiassessment":             "BMI Assessment",
+	"bloodgrouptest":            "Blood Group Test",
+	"packedcellvolume":          "Packed Cell Volume",
+	"pcv":                       "Packed Cell Volume",
+	"malariatest":               "Malaria Test",
+	"hepatitisscreening":        "Hepatitis Screening",
+	"hivscreening":              "HIV Screening",
+	"otherbasichealthscreening": "Other Basic Health Screening",
+	"othertest":                 "Other Test",
+	"other":                     "Other Test",
+}
+
+func isFreeHealthScreeningTestColumn(header string) bool {
+	_, ok := freeHealthScreeningTestColumns[normalizeHeader(header)]
+	return ok
+}
+
+func freeHealthScreeningLabel(header string) string {
+	if label, ok := freeHealthScreeningTestColumns[normalizeHeader(header)]; ok {
+		return label
+	}
+	return strings.TrimSpace(header)
+}
+
+func formatFreeHealthScreeningResults(raw string) string {
+	results := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(raw), &results); err != nil {
+		return ""
+	}
+	keys := make([]string, 0, len(results))
+	for key, value := range results {
+		if !isFreeHealthScreeningTestColumn(key) {
+			continue
+		}
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text == "" || strings.EqualFold(text, "<nil>") {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return freeHealthScreeningLabel(keys[i]) < freeHealthScreeningLabel(keys[j]) })
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s: %s", freeHealthScreeningLabel(key), strings.TrimSpace(fmt.Sprint(results[key]))))
+	}
+	return strings.Join(parts, "; ")
 }
 
 func normalizeHeader(h string) string {
@@ -107,7 +161,7 @@ func (r *Repository) BuildPatientsCSV(dateFrom, dateTo string) ([]byte, error) {
 		if p.WeightKG > 0 {
 			weight = strconv.FormatFloat(p.WeightKG, 'f', 1, 64)
 		}
-		line := fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", csvEscape(p.PatientID), csvEscape(p.Name), csvEscape(p.Email), csvEscape(p.Phone), csvEscape(p.Gender), csvEscape(p.DOB), csvEscape(p.BloodGroup), csvEscape(p.Genotype), csvEscape(height), csvEscape(weight), csvEscape(bmi), csvEscape(p.TestResults), csvEscape(p.CreatedAt))
+		line := fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", csvEscape(p.PatientID), csvEscape(p.Name), csvEscape(p.Email), csvEscape(p.Phone), csvEscape(p.Gender), csvEscape(p.DOB), csvEscape(p.BloodGroup), csvEscape(p.Genotype), csvEscape(height), csvEscape(weight), csvEscape(bmi), csvEscape(formatFreeHealthScreeningResults(p.TestResults)), csvEscape(p.CreatedAt))
 		buf = append(buf, []byte(line)...)
 	}
 	return buf, nil
@@ -227,13 +281,18 @@ func (r *Repository) UpdatePatientFromCSVRow(email string, fields map[string]str
 		if value == "" || normalizeHeader(header) == "email" {
 			continue
 		}
+		if normalizeHeader(header) == "testresults" {
+			continue
+		}
 		if col, ok := recognizedPatientColumns[normalizeHeader(header)]; ok {
 			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, n))
 			args = append(args, value)
 			n++
 			continue
 		}
-		extra[header] = value
+		if isFreeHealthScreeningTestColumn(header) {
+			extra[freeHealthScreeningLabel(header)] = value
+		}
 	}
 	if len(extra) > 0 {
 		extraJSON, err := json.Marshal(extra)

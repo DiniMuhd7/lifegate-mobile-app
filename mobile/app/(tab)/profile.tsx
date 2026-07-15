@@ -352,13 +352,6 @@ export default function PatientProfileScreen() {
                   <View className="flex-1 h-2.5 rounded-full bg-[#E8F3F3] overflow-hidden">
                     <View className="h-2.5 rounded-full bg-[#0EA5A4]" style={{ width: `${profileCompletion}%` }} />
                   </View>
-                  <TouchableOpacity
-                    onPress={() => router.push('/(tab)/health/report')}
-                    activeOpacity={0.75}
-                    style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: '#F1FAFA', borderWidth: 1, borderColor: '#CDE9E8', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <Ionicons name="document-text-outline" size={20} color="#0EA5A4" />
-                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -370,10 +363,10 @@ export default function PatientProfileScreen() {
                   <Text className="text-sm font-bold text-white">Update Health Profile</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => router.push('/(tab)/settings/notification')}
+                  onPress={() => router.push('/(tab)/health/report')}
                   className="h-10 px-3 rounded-xl border border-[#CDE9E8] bg-[#F1FAFA] items-center justify-center active:opacity-80"
                 >
-                  <Ionicons name="notifications-outline" size={18} color="#0EA5A4" />
+                  <Ionicons name="document-text-outline" size={18} color="#0EA5A4" />
                 </TouchableOpacity>
               </View>
             </View>

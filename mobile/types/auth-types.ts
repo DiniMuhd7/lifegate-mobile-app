@@ -4,12 +4,12 @@ export type User = {
   id: string;
   user_id: string;
   patient_id: string;
-  
+
   // Basic info
   name: string;
   email: string;
   role: 'user' | 'professional' | 'admin';
-  
+
   // Contact & Demographics
   phone?: string;
   dob?: string;
@@ -17,7 +17,11 @@ export type User = {
   language?: string;
   country?: string | null;
   state?: string | null;
-  
+  occupation_status?: string | null;
+  department?: string | null;
+  faculty?: string | null;
+  academic_level?: string | null;
+
   // Health information
   health_history?: string;
   referral_code?: string;
@@ -30,11 +34,11 @@ export type User = {
   height_cm?: number | null;
   weight_kg?: number | null;
   test_results?: Record<string, unknown> | string | null;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
-  
+
   // Health professional specific fields
   specialization?: string;
   certificateName?: string;
@@ -66,6 +70,10 @@ export type UserDraft = {
   referredByCode?: string;
   /** Comma-separated list of selected free health screening option values */
   freeHealthScreening?: string;
+  occupationStatus?: string;
+  department?: string;
+  faculty?: string;
+  academicLevel?: string;
   role?: 'user' | 'professional'; // Set based on registration choice
   // Health professional specific fields
   specialization?: string;
