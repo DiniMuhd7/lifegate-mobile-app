@@ -412,6 +412,10 @@ export const AuthService = {
     language?: string | null;
     country?: string | null;
     state?: string | null;
+    occupation_status?: string | null;
+    department?: string | null;
+    faculty?: string | null;
+    academic_level?: string | null;
     height_cm?: number | null;
     weight_kg?: number | null;
     test_results?: Record<string, unknown> | null;

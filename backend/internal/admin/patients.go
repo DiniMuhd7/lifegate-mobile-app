@@ -59,13 +59,17 @@ var freeHealthScreeningTestColumns = map[string]string{
 	"vitalsignscheck":           "Vital Signs Check",
 	"vitalsigns":                "Vital Signs Check",
 	"bmiassessment":             "BMI Assessment",
+	"bmi":                       "BMI Assessment",
 	"bloodgrouptest":            "Blood Group Test",
+	"bloodgroup":                "Blood Group Test",
 	"packedcellvolume":          "Packed Cell Volume",
 	"pcv":                       "Packed Cell Volume",
 	"malariatest":               "Malaria Test",
 	"hepatitisscreening":        "Hepatitis Screening",
 	"hivscreening":              "HIV Screening",
 	"otherbasichealthscreening": "Other Basic Health Screening",
+	"otherbasichealth":          "Other Basic Health Screening",
+	"otherbasic":                "Other Basic Health Screening",
 	"othertest":                 "Other Test",
 	"other":                     "Other Test",
 }
@@ -80,6 +84,25 @@ func freeHealthScreeningLabel(header string) string {
 		return label
 	}
 	return strings.TrimSpace(header)
+}
+
+func freeHealthScreeningResultFor(raw, testType string) (string, bool) {
+	results := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(raw), &results); err != nil {
+		return "", false
+	}
+	wanted := freeHealthScreeningLabel(testType)
+	for key, value := range results {
+		if !strings.EqualFold(freeHealthScreeningLabel(key), wanted) {
+			continue
+		}
+		text := strings.TrimSpace(fmt.Sprint(value))
+		if text == "" || strings.EqualFold(text, "<nil>") {
+			return "", false
+		}
+		return text, true
+	}
+	return "", false
 }
 
 func formatFreeHealthScreeningResults(raw string) string {
@@ -142,13 +165,26 @@ func (r *Repository) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow
 	return out, rows.Err()
 }
 
-func (r *Repository) BuildPatientsCSV(dateFrom, dateTo string) ([]byte, error) {
+func (r *Repository) BuildPatientsCSV(dateFrom, dateTo, testType string) ([]byte, error) {
 	patients, err := r.GetPatientsForExport(dateFrom, dateTo)
 	if err != nil {
 		return nil, err
 	}
 
 	buf := []byte{0xEF, 0xBB, 0xBF}
+	if strings.TrimSpace(testType) != "" {
+		buf = append(buf, []byte("Email,Full Name,DOB,Gender,Test Result\n")...)
+		for _, p := range patients {
+			result, ok := freeHealthScreeningResultFor(p.TestResults, testType)
+			if !ok {
+				continue
+			}
+			line := fmt.Sprintf("%s,%s,%s,%s,%s\n", csvEscape(p.Email), csvEscape(p.Name), csvEscape(p.DOB), csvEscape(p.Gender), csvEscape(result))
+			buf = append(buf, []byte(line)...)
+		}
+		return buf, nil
+	}
+
 	buf = append(buf, []byte("Patient ID,Name,Email,Phone,Gender,DOB,Blood Group,Genotype,Height (cm),Weight (kg),BMI,Test Results,Registered At\n")...)
 	for _, p := range patients {
 		bmi, height, weight := "", "", ""
@@ -266,6 +302,10 @@ func (r *Repository) FindPatientUserIDByEmail(email string) (string, error) {
 }
 
 func (r *Repository) UpdatePatientFromCSVRow(email string, fields map[string]string) error {
+	return r.UpdatePatientFromCSVRowForTest(email, fields, "")
+}
+
+func (r *Repository) UpdatePatientFromCSVRowForTest(email string, fields map[string]string, testType string) error {
 	email = strings.TrimSpace(email)
 	if email == "" {
 		return fmt.Errorf("email is required")
@@ -276,22 +316,34 @@ func (r *Repository) UpdatePatientFromCSVRow(email string, fields map[string]str
 	}
 
 	setClauses, args, extra, n := []string{}, []interface{}{}, map[string]string{}, 1
-	for header, value := range fields {
-		value = strings.TrimSpace(value)
-		if value == "" || normalizeHeader(header) == "email" {
-			continue
+	if strings.TrimSpace(testType) != "" {
+		for header, value := range fields {
+			if normalizeHeader(header) != "testresult" {
+				continue
+			}
+			value = strings.TrimSpace(value)
+			if value != "" {
+				extra[freeHealthScreeningLabel(testType)] = value
+			}
 		}
-		if normalizeHeader(header) == "testresults" {
-			continue
-		}
-		if col, ok := recognizedPatientColumns[normalizeHeader(header)]; ok {
-			setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, n))
-			args = append(args, value)
-			n++
-			continue
-		}
-		if isFreeHealthScreeningTestColumn(header) {
-			extra[freeHealthScreeningLabel(header)] = value
+	} else {
+		for header, value := range fields {
+			value = strings.TrimSpace(value)
+			if value == "" || normalizeHeader(header) == "email" {
+				continue
+			}
+			if normalizeHeader(header) == "testresults" {
+				continue
+			}
+			if col, ok := recognizedPatientColumns[normalizeHeader(header)]; ok {
+				setClauses = append(setClauses, fmt.Sprintf("%s = $%d", col, n))
+				args = append(args, value)
+				n++
+				continue
+			}
+			if isFreeHealthScreeningTestColumn(header) {
+				extra[freeHealthScreeningLabel(header)] = value
+			}
 		}
 	}
 	if len(extra) > 0 {
