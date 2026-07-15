@@ -220,6 +220,10 @@ type HealthProfileInput struct {
 	Language           *string                `json:"language"`
 	Country            *string                `json:"country"`
 	State              *string                `json:"state"`
+	OccupationStatus   *string                `json:"occupation_status"`
+	Department         *string                `json:"department"`
+	Faculty            *string                `json:"faculty"`
+	AcademicLevel      *string                `json:"academic_level"`
 	HeightCm           *float64               `json:"height_cm"`
 	WeightKg           *float64               `json:"weight_kg"`
 	TestResults        map[string]interface{} `json:"test_results"`
@@ -251,9 +255,13 @@ func (r *Repository) UpdateHealthProfile(userID string, in HealthProfileInput) (
 		    height_cm           = COALESCE($11, height_cm),
 		    weight_kg           = COALESCE($12, weight_kg),
 		    test_results        = CASE WHEN $13::jsonb IS NULL THEN test_results ELSE COALESCE(test_results, '{}'::jsonb) || $13::jsonb END,
+		    occupation_status   = COALESCE($14, occupation_status),
+		    department          = COALESCE($15, department),
+		    faculty             = COALESCE($16, faculty),
+		    academic_level      = COALESCE($17, academic_level),
 		    updated_at          = NOW()
 		WHERE id = $1::uuid`,
-		userID, in.BloodType, in.Allergies, in.MedicalHistory, in.CurrentMedications, in.EmergencyContact, in.Genotype, in.Language, in.Country, in.State, in.HeightCm, in.WeightKg, jsonOrNil(in.TestResults),
+		userID, in.BloodType, in.Allergies, in.MedicalHistory, in.CurrentMedications, in.EmergencyContact, in.Genotype, in.Language, in.Country, in.State, in.HeightCm, in.WeightKg, jsonOrNil(in.TestResults), in.OccupationStatus, in.Department, in.Faculty, in.AcademicLevel,
 	)
 	if err != nil {
 		return nil, err

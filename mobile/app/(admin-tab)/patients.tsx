@@ -31,6 +31,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { AdminService } from '../../services/admin-service';
 import type { PatientImportSummary } from '../../types/admin-types';
+import { FREE_HEALTH_SCREENING_OPTIONS } from '../../constants/constants';
+import { Dropdown } from '../../components/DropDown';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -259,14 +261,18 @@ export default function PatientsScreen() {
   const [exportFrom, setExportFrom] = useState(thirtyDaysAgo());
   const [exportTo, setExportTo]     = useState(today());
   const [exporting, setExporting]   = useState(false);
+  const [exportTestType, setExportTestType] = useState('');
   const [exportDateError, setExportDateError] = useState('');
 
   // ── Import state ──────────────────────────────────────────────────────────
   const [importing, setImporting]       = useState(false);
+  const [importTestType, setImportTestType] = useState('');
   const [importSummary, setImportSummary] = useState<PatientImportSummary | null>(null);
 
   // ── Direct health update state ───────────────────────────────────────────
   const [healthEmail, setHealthEmail] = useState('');
+  const [healthTestType, setHealthTestType] = useState('');
+  const [healthTestResult, setHealthTestResult] = useState('');
   const [healthFields, setHealthFields] = useState<Record<HealthFieldKey, string>>(emptyHealthFields);
   const [updatingHealth, setUpdatingHealth] = useState(false);
 
@@ -284,7 +290,7 @@ export default function PatientsScreen() {
     setExportDateError('');
     setExporting(true);
     try {
-      await AdminService.exportPatientsCSV(exportFrom, exportTo);
+      await AdminService.exportPatientsCSV(exportFrom, exportTo, exportTestType || undefined);
       // Share sheet opens inside exportPatientsCSV; nothing more to do here.
     } catch (err: unknown) {
       const msg =
@@ -293,14 +299,14 @@ export default function PatientsScreen() {
     } finally {
       setExporting(false);
     }
-  }, [exportFrom, exportTo]);
+  }, [exportFrom, exportTo, exportTestType]);
 
   // ── Import handler ────────────────────────────────────────────────────────
   const handleImport = useCallback(async () => {
     setImportSummary(null);
     setImporting(true);
     try {
-      const summary = await AdminService.importPatientsCSV();
+      const summary = await AdminService.importPatientsCSV(importTestType || undefined);
       if (!summary) {
         // User cancelled the picker — nothing to do
         return;
@@ -324,19 +330,25 @@ export default function PatientsScreen() {
     } finally {
       setImporting(false);
     }
-  }, []);
+  }, [importTestType]);
 
   // ── Direct health update handler ─────────────────────────────────────────
   const handleHealthUpdate = useCallback(async () => {
     const email = healthEmail.trim().toLowerCase();
-    const fields = Object.fromEntries(
-      Object.entries(healthFields)
-        .map(([key, value]) => [key, value.trim()])
-        .filter(([, value]) => value)
-    ) as Record<string, string>;
+    const fields = healthTestType
+      ? { 'Test Result': healthTestResult.trim() }
+      : Object.fromEntries(
+          Object.entries(healthFields)
+            .map(([key, value]) => [key, value.trim()])
+            .filter(([, value]) => value)
+        ) as Record<string, string>;
 
     if (!email) {
       Alert.alert('Patient email required', 'Enter the patient email address to update.');
+      return;
+    }
+    if (healthTestType && !healthTestResult.trim()) {
+      Alert.alert('No test result entered', 'Enter the selected test result before saving.');
       return;
     }
     if (Object.keys(fields).length === 0) {
@@ -346,8 +358,9 @@ export default function PatientsScreen() {
 
     setUpdatingHealth(true);
     try {
-      await AdminService.updatePatientHealthData({ email, fields });
+      await AdminService.updatePatientHealthData({ email, fields, testType: healthTestType || undefined });
       Alert.alert('Health data updated', 'The patient health data has been saved.');
+      setHealthTestResult('');
       setHealthFields(emptyHealthFields());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not update patient health data.';
@@ -355,7 +368,7 @@ export default function PatientsScreen() {
     } finally {
       setUpdatingHealth(false);
     }
-  }, [healthEmail, healthFields]);
+  }, [healthEmail, healthFields, healthTestResult, healthTestType]);
 
   // ── CSV template helper ───────────────────────────────────────────────────
   const showTemplateInfo = () => {
@@ -368,7 +381,7 @@ export default function PatientsScreen() {
         '• genotype\n' +
         '• height_cm / height\n' +
         '• weight_kg / weight\n\n' +
-        'Any other column (e.g. hemoglobin, glucose, cholesterol) is saved as a test result.\n\n' +
+        'Free health test columns (for example, Vital Signs Check or Malaria Test) update only that specific test result.\n\n' +
         'Only existing patients are updated — no new accounts are created.',
       [{ text: 'Got it' }]
     );
@@ -412,8 +425,7 @@ export default function PatientsScreen() {
           <SectionTitle icon="download-outline" label="Export Registrations (CSV)" color="#0369a1" />
 
           <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 14, lineHeight: 18 }}>
-            Download a CSV of all patients who registered in the selected date window. Includes
-            name, email, blood group, genotype, BMI inputs, and lab results.
+            Download registrations by date. Choose a free health test filter to export only email, full name, DOB, gender, and the selected test result.
           </Text>
 
           {/* Date range row */}
@@ -431,6 +443,18 @@ export default function PatientsScreen() {
               error={!!exportDateError}
             />
           </View>
+
+          <Dropdown
+            label="Test filter"
+            options={[{ label: 'All patient registration fields', value: '' }, ...FREE_HEALTH_SCREENING_OPTIONS]}
+            placeholder="Select a free health test filter"
+            selectedValue={exportTestType}
+            onChange={(value: string) => setExportTestType(value)}
+          />
+
+          <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+            Selecting a test exports only Email, Full Name, DOB, Gender, and that test result.
+          </Text>
 
           {exportDateError ? (
             <Text style={{ fontSize: 12, color: '#ef4444', marginBottom: 10 }}>
@@ -475,6 +499,18 @@ export default function PatientsScreen() {
             and other test results (hemoglobin, glucose, etc.). Patients are matched by{' '}
             <Text style={{ fontWeight: '700', color: '#1e293b' }}>email address</Text>. Rows with
             unrecognised emails are skipped — no new accounts are created.
+          </Text>
+
+          <Dropdown
+            label="Import test type"
+            options={[{ label: 'Auto-detect from free health test columns', value: '' }, ...FREE_HEALTH_SCREENING_OPTIONS]}
+            placeholder="Select the test result column to update"
+            selectedValue={importTestType}
+            onChange={(value: string) => setImportTestType(value)}
+          />
+
+          <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+            If selected, only the CSV's “Test Result” column updates that specific test type.
           </Text>
 
           {/* CSV format hint */}
@@ -560,15 +596,30 @@ export default function PatientsScreen() {
             />
           </View>
 
-          {HEALTH_FIELDS.map((field) => (
-            <View key={field.key} style={{ marginBottom: 10 }}>
+          <Dropdown
+            label="Test type filter"
+            options={[{ label: 'Manual fields', value: '' }, ...FREE_HEALTH_SCREENING_OPTIONS]}
+            placeholder="Select a test type to update"
+            selectedValue={healthTestType}
+            onChange={(value: string) => {
+              setHealthTestType(value);
+              setHealthTestResult('');
+            }}
+          />
+
+          <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+            Selecting a test type updates only that specific test result for this patient.
+          </Text>
+
+          {healthTestType ? (
+            <View style={{ marginBottom: 10 }}>
               <Text style={{ fontSize: 12, color: '#475569', marginBottom: 4, fontWeight: '600' }}>
-                {field.label}
+                Test Result
               </Text>
               <TextInput
-                value={healthFields[field.key]}
-                onChangeText={(value) => setHealthFields((prev) => ({ ...prev, [field.key]: value }))}
-                placeholder={field.placeholder}
+                value={healthTestResult}
+                onChangeText={setHealthTestResult}
+                placeholder="Enter selected test result"
                 placeholderTextColor="#94a3b8"
                 style={{
                   borderWidth: 1,
@@ -582,7 +633,31 @@ export default function PatientsScreen() {
                 }}
               />
             </View>
-          ))}
+          ) : (
+            HEALTH_FIELDS.map((field) => (
+              <View key={field.key} style={{ marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, color: '#475569', marginBottom: 4, fontWeight: '600' }}>
+                  {field.label}
+                </Text>
+                <TextInput
+                  value={healthFields[field.key]}
+                  onChangeText={(value) => setHealthFields((prev) => ({ ...prev, [field.key]: value }))}
+                  placeholder={field.placeholder}
+                  placeholderTextColor="#94a3b8"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    fontSize: 14,
+                    color: '#1e293b',
+                    backgroundColor: '#f8fafc',
+                  }}
+                />
+              </View>
+            ))
+          )}
 
           <TouchableOpacity
             onPress={handleHealthUpdate}

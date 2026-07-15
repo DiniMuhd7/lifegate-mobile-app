@@ -23,6 +23,7 @@ import { PatientBottomTabBar } from 'components/PatientBottomTabBar';
 import { SearchableDropdown } from 'components/SearchableDropdown';
 import { SuggestInput } from 'components/SuggestInput';
 import { NIGERIA_STATES, COUNTRIES } from 'constants/geo';
+import { ACADEMIC_LEVEL_OPTIONS, DEPARTMENT_OPTIONS, FACULTY_OPTIONS, OCCUPATION_STATUS_OPTIONS } from 'constants/constants';
 
 
 const FREE_HEALTH_TEST_OPTIONS = [
@@ -132,6 +133,10 @@ export default function ItemScreen() {
   const [language, setLanguage] = useState('');
   const [country, setCountry] = useState('');
   const [state, setState] = useState('');
+  const [occupationStatus, setOccupationStatus] = useState('');
+  const [department, setDepartment] = useState('');
+  const [faculty, setFaculty] = useState('');
+  const [academicLevel, setAcademicLevel] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -153,6 +158,10 @@ export default function ItemScreen() {
     setLanguage(user.language ?? '');
     setCountry(user.country ?? '');
     setState(user.state ?? '');
+    setOccupationStatus(user.occupation_status ?? '');
+    setDepartment(user.department ?? '');
+    setFaculty(user.faculty ?? '');
+    setAcademicLevel(user.academic_level ?? '');
     const rawFreeTests = parseTestResults(user.test_results).free_health_screening_options;
     setSelectedFreeTests(Array.isArray(rawFreeTests) ? rawFreeTests.filter((v): v is string => typeof v === 'string') : []);
   }, [user]);
@@ -195,6 +204,10 @@ export default function ItemScreen() {
       await updateHealthProfile({
         country: country.trim() || null,
         state: state.trim() || null,
+        occupation_status: occupationStatus.trim() || null,
+        department: occupationStatus === 'Student' ? (department.trim() || null) : null,
+        faculty: occupationStatus === 'Student' ? (faculty.trim() || null) : null,
+        academic_level: occupationStatus === 'Student' ? (academicLevel.trim() || null) : null,
       });
     }
     setIsSaving(false);
@@ -464,6 +477,60 @@ export default function ItemScreen() {
                 value={dob}
                 onChange={(date) => setDob(date)}
               />
+
+              <Dropdown
+                label="Occupation Status"
+                options={OCCUPATION_STATUS_OPTIONS}
+                placeholder="Select occupation status"
+                selectedValue={occupationStatus}
+                onChange={(value: string) => {
+                  setOccupationStatus(value);
+                  if (value !== 'Student') {
+                    setDepartment('');
+                    setFaculty('');
+                    setAcademicLevel('');
+                  }
+                }}
+              />
+
+              {occupationStatus === 'Student' && (
+                <>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>Department</Text>
+                    <SuggestInput
+                      value={department}
+                      onChangeText={setDepartment}
+                      suggestions={DEPARTMENT_OPTIONS}
+                      placeholder="Search or enter your department"
+                      placeholderTextColor="#9CA3AF"
+                      inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
+                    />
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>Faculty</Text>
+                    <SuggestInput
+                      value={faculty}
+                      onChangeText={setFaculty}
+                      suggestions={FACULTY_OPTIONS}
+                      placeholder="Search or enter your faculty"
+                      placeholderTextColor="#9CA3AF"
+                      inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
+                    />
+                  </View>
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={{ marginBottom: 6, fontWeight: '500', color: '#374151', fontSize: 14 }}>Level</Text>
+                    <SuggestInput
+                      value={academicLevel}
+                      onChangeText={setAcademicLevel}
+                      suggestions={ACADEMIC_LEVEL_OPTIONS}
+                      placeholder="Search or enter your level"
+                      placeholderTextColor="#9CA3AF"
+                      inputClassName="rounded-xl p-3 text-sm text-gray-800 h-12 bg-[#F2F4F7]"
+                    />
+                  </View>
+                </>
+              )}
+
               <Dropdown
                 label="Gender"
                 options={[

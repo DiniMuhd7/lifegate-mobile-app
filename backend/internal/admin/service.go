@@ -150,12 +150,16 @@ func (s *Service) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow, e
 	return s.repo.GetPatientsForExport(dateFrom, dateTo)
 }
 
-func (s *Service) BuildPatientsCSV(dateFrom, dateTo string) ([]byte, error) {
-	return s.repo.BuildPatientsCSV(dateFrom, dateTo)
+func (s *Service) BuildPatientsCSV(dateFrom, dateTo, testType string) ([]byte, error) {
+	return s.repo.BuildPatientsCSV(dateFrom, dateTo, testType)
 }
 
 func (s *Service) UpdatePatientFromCSVRow(email string, fields map[string]string) error {
 	return s.repo.UpdatePatientFromCSVRow(email, fields)
+}
+
+func (s *Service) UpdatePatientFromCSVRowForTest(email string, fields map[string]string, testType string) error {
+	return s.repo.UpdatePatientFromCSVRowForTest(email, fields, testType)
 }
 
 // ── Patient management ────────────────────────────────────────────────────────
