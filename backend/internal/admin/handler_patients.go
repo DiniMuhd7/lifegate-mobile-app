@@ -255,7 +255,8 @@ func (h *Handler) ExportPatientsCSV(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "dateFrom and dateTo are required (YYYY-MM-DD)"})
 		return
 	}
-	csvData, err := h.svc.BuildPatientsCSV(dateFrom, dateTo)
+	testType := c.Query("testType")
+	csvData, err := h.svc.BuildPatientsCSV(dateFrom, dateTo, testType)
 	if err != nil {
 		log.Printf("[admin] ExportPatientsCSV: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to generate CSV"})
@@ -263,8 +264,11 @@ func (h *Handler) ExportPatientsCSV(c *gin.Context) {
 	}
 	adminID, _ := c.Get("userID")
 	adminIDStr, _ := adminID.(string)
-	h.svc.LogAction(adminIDStr, "patients.export", "user", nil, map[string]interface{}{"dateFrom": dateFrom, "dateTo": dateTo})
+	h.svc.LogAction(adminIDStr, "patients.export", "user", nil, map[string]interface{}{"dateFrom": dateFrom, "dateTo": dateTo, "testType": testType})
 	filename := fmt.Sprintf("lifegate-patients-%s-to-%s.csv", dateFrom, dateTo)
+	if strings.TrimSpace(testType) != "" {
+		filename = fmt.Sprintf("lifegate-patients-%s-%s-to-%s.csv", normalizeHeader(testType), dateFrom, dateTo)
+	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	c.Header("Content-Length", fmt.Sprintf("%d", len(csvData)))
@@ -302,6 +306,7 @@ func (h *Handler) ImportPatientsCSV(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": `CSV must include an "email" column to match patients`})
 		return
 	}
+	testType := c.PostForm("testType")
 	summary := PatientImportSummary{Results: []PatientImportRowResult{}}
 	rowNum := 1
 	for {
@@ -323,7 +328,7 @@ func (h *Handler) ImportPatientsCSV(c *gin.Context) {
 			}
 			fields[headerRow[i]] = val
 		}
-		if updErr := h.svc.UpdatePatientFromCSVRow(email, fields); updErr != nil {
+		if updErr := h.svc.UpdatePatientFromCSVRowForTest(email, fields, testType); updErr != nil {
 			summary.Failed++
 			summary.Results = append(summary.Results, PatientImportRowResult{Row: rowNum, Email: email, Status: "error", Message: updErr.Error()})
 			continue
@@ -336,15 +341,16 @@ func (h *Handler) ImportPatientsCSV(c *gin.Context) {
 	}
 	adminID, _ := c.Get("userID")
 	adminIDStr, _ := adminID.(string)
-	h.svc.LogAction(adminIDStr, "patients.import", "user", nil, map[string]interface{}{"totalRows": summary.TotalRows, "updated": summary.Updated, "failed": summary.Failed})
+	h.svc.LogAction(adminIDStr, "patients.import", "user", nil, map[string]interface{}{"totalRows": summary.TotalRows, "updated": summary.Updated, "failed": summary.Failed, "testType": testType})
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": summary})
 }
 
 // UpdatePatientHealthByEmail updates a patient's health data from the admin dashboard.
 func (h *Handler) UpdatePatientHealthByEmail(c *gin.Context) {
 	var body struct {
-		Email  string            `json:"email"`
-		Fields map[string]string `json:"fields"`
+		Email    string            `json:"email"`
+		Fields   map[string]string `json:"fields"`
+		TestType string            `json:"testType"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request body"})
@@ -359,7 +365,7 @@ func (h *Handler) UpdatePatientHealthByEmail(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "At least one health field is required"})
 		return
 	}
-	if err := h.svc.UpdatePatientFromCSVRow(body.Email, body.Fields); err != nil {
+	if err := h.svc.UpdatePatientFromCSVRowForTest(body.Email, body.Fields, body.TestType); err != nil {
 		log.Printf("[admin] UpdatePatientHealthByEmail %s: %v", body.Email, err)
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
@@ -369,6 +375,6 @@ func (h *Handler) UpdatePatientHealthByEmail(c *gin.Context) {
 	}
 	adminID, _ := c.Get("userID")
 	adminIDStr, _ := adminID.(string)
-	h.svc.LogAction(adminIDStr, "patients.health_data_update", "user", nil, map[string]interface{}{"email": body.Email, "fields": body.Fields})
+	h.svc.LogAction(adminIDStr, "patients.health_data_update", "user", nil, map[string]interface{}{"email": body.Email, "fields": body.Fields, "testType": body.TestType})
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient health data updated"})
 }

@@ -401,4 +401,5 @@ export type PatientImportSummary = {
 export type PatientHealthUpdatePayload = {
   email: string;
   fields: Record<string, string>;
+  testType?: string;
 };

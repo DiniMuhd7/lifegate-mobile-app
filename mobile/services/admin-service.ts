@@ -231,14 +231,16 @@ export const AdminService = {
    * share/save sheet so the admin can save it or send it elsewhere.
    * Returns the local file URI.
    */
-  async exportPatientsCSV(dateFrom: string, dateTo: string): Promise<string> {
+  async exportPatientsCSV(dateFrom: string, dateTo: string, testType?: string): Promise<string> {
     const { data: csvText } = await api.get<string>('/admin/patients/export', {
-      params: { dateFrom, dateTo },
+      params: { dateFrom, dateTo, ...(testType ? { testType } : {}) },
       responseType: 'text',
       transformResponse: [(d) => d], // keep raw CSV string, skip JSON parsing
     });
 
-    const filename = `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
+    const filename = testType
+      ? `lifegate-patients-${testType}-${dateFrom}-to-${dateTo}.csv`
+      : `lifegate-patients-${dateFrom}-to-${dateTo}.csv`;
     const csv = String(csvText);
 
     if (Platform.OS === 'web') {
@@ -279,7 +281,7 @@ export const AdminService = {
     await api.patch('/admin/patients/health-data', payload);
   },
 
-  async importPatientsCSV(): Promise<PatientImportSummary | null> {
+  async importPatientsCSV(testType?: string): Promise<PatientImportSummary | null> {
     const result = await DocumentPicker.getDocumentAsync({
       type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel'],
       copyToCacheDirectory: true,
@@ -288,6 +290,7 @@ export const AdminService = {
 
     const asset = result.assets[0];
     const form = new FormData();
+    if (testType) form.append('testType', testType);
     if (Platform.OS === 'web' && asset.file) {
       form.append('file', asset.file, asset.name || 'patients.csv');
     } else {
