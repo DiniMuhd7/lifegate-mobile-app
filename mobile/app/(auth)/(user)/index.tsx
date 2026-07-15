@@ -4,11 +4,13 @@ import { PrimaryButton } from 'components/Button';
 import { LabeledInput } from 'components/LabeledInput';
 import { ErrorMessage } from 'components/ErrorMessage';
 import { PasswordStrengthBar } from 'components/PasswordStrength';
+import { Dropdown } from 'components/DropDown';
 import { useRegistrationStore } from 'stores/auth-store';
 import { router } from 'expo-router';
 import { validateNewPasswordMatch, validateSingleField } from 'utils/validation';
+import { OCCUPATION_STATUS_OPTIONS } from 'constants/constants';
 
-const STEP_FIELDS = ['name', 'email', 'password', 'confirmPassword'] as const;
+const STEP_FIELDS = ['name', 'email', 'password', 'confirmPassword', 'occupationStatus'] as const;
 type StepField = (typeof STEP_FIELDS)[number];
 
 export default function UserAccountStep() {
@@ -36,10 +38,20 @@ export default function UserAccountStep() {
   };
 
   const canProceed = (): boolean => {
-    return STEP_FIELDS.every((field) => {
+    const requiredFieldsComplete = STEP_FIELDS.every((field) => {
       const value = userDraft[field];
       return value && value.trim() !== '' && !fieldErrors[field];
     });
+
+    if (!requiredFieldsComplete) return false;
+
+    if (userDraft.occupationStatus === 'Student') {
+      return Boolean(
+        userDraft.department?.trim() && userDraft.faculty?.trim() && userDraft.academicLevel?.trim()
+      );
+    }
+
+    return true;
   };
 
   return (
@@ -69,6 +81,50 @@ export default function UserAccountStep() {
         />
         <ErrorMessage fieldName="email" fieldErrors={fieldErrors} />
 
+        <Dropdown
+          label="Occupation Status"
+          required
+          selectedValue={userDraft.occupationStatus || ''}
+          onChange={(value: string) => {
+            setUserField('occupationStatus', value);
+            if (value !== 'Student') {
+              setUserField('department', '');
+              setUserField('faculty', '');
+              setUserField('academicLevel', '');
+            }
+          }}
+          options={OCCUPATION_STATUS_OPTIONS}
+          placeholder="Select occupation status"
+        />
+
+        {userDraft.occupationStatus === 'Student' && (
+          <>
+            <LabeledInput
+              label="Department"
+              required
+              placeholder="Enter your department"
+              value={userDraft.department || ''}
+              onChangeText={(v) => setUserField('department', v)}
+            />
+
+            <LabeledInput
+              label="Faculty"
+              required
+              placeholder="Enter your faculty"
+              value={userDraft.faculty || ''}
+              onChangeText={(v) => setUserField('faculty', v)}
+            />
+
+            <LabeledInput
+              label="Level"
+              required
+              placeholder="e.g. 100 Level"
+              value={userDraft.academicLevel || ''}
+              onChangeText={(v) => setUserField('academicLevel', v)}
+            />
+          </>
+        )}
+
         <LabeledInput
           label="Password"
           required
@@ -92,7 +148,7 @@ export default function UserAccountStep() {
         />
         <ErrorMessage fieldName="confirmPassword" fieldErrors={fieldErrors} />
 
-        <View className="mt-6 mb-4">
+        <View className="mb-4 mt-6">
           <PrimaryButton
             title="Continue"
             onPress={() => router.push('/(auth)/(user)/profile')}

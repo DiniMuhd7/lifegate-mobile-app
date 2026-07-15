@@ -21,6 +21,10 @@ type User struct {
 	ReferralCode  string `json:"referral_code,omitempty" db:"referral_code"`
 	// ReferredByCode is transient (not stored in users table); used during registration only.
 	ReferredByCode       string     `json:"referred_by_code,omitempty" db:"-"`
+	OccupationStatus     string     `json:"occupation_status,omitempty" db:"occupation_status"`
+	Department           string     `json:"department,omitempty" db:"department"`
+	Faculty              string     `json:"faculty,omitempty" db:"faculty"`
+	AcademicLevel        string     `json:"academic_level,omitempty" db:"academic_level"`
 	BloodType            *string    `json:"blood_type,omitempty" db:"blood_type"`
 	Allergies            *string    `json:"allergies,omitempty" db:"allergies"`
 	MedicalHistory       *string    `json:"medical_history,omitempty" db:"medical_history"`
@@ -158,13 +162,13 @@ func (r *Repository) CreateUser(u *User, passwordHash string) error {
 	return r.db.QueryRow(
 		`INSERT INTO users (user_id, patient_id, name, email, password_hash, role, phone, dob, gender, language,
                     health_history, specialization, certificate_name, certificate_id,
-                    certificate_issue_date, years_of_experience)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+                    certificate_issue_date, years_of_experience, occupation_status, department, faculty, academic_level)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
  RETURNING id, created_at, updated_at`,
 		u.UserID, u.PatientID, u.Name, u.Email, passwordHash, u.Role,
 		u.Phone, u.DOB, u.Gender, u.Language, u.HealthHistory,
 		u.Specialization, u.CertificateName, u.CertificateID,
-		u.CertificateIssueDate, u.YearsOfExperience,
+		u.CertificateIssueDate, u.YearsOfExperience, u.OccupationStatus, u.Department, u.Faculty, u.AcademicLevel,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
@@ -172,13 +176,13 @@ func (r *Repository) CreateUserWithCertURL(u *User, passwordHash, certURL string
 	return r.db.QueryRow(
 		`INSERT INTO users (user_id, patient_id, name, email, password_hash, role, phone, dob, gender, language,
                     health_history, specialization, certificate_name, certificate_id,
-                    certificate_issue_date, years_of_experience, certificate_url)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                    certificate_issue_date, years_of_experience, certificate_url, occupation_status, department, faculty, academic_level)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
  RETURNING id, created_at, updated_at`,
 		u.UserID, u.PatientID, u.Name, u.Email, passwordHash, u.Role,
 		u.Phone, u.DOB, u.Gender, u.Language, u.HealthHistory,
 		u.Specialization, u.CertificateName, u.CertificateID,
-		u.CertificateIssueDate, u.YearsOfExperience, certURL,
+		u.CertificateIssueDate, u.YearsOfExperience, certURL, u.OccupationStatus, u.Department, u.Faculty, u.AcademicLevel,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
