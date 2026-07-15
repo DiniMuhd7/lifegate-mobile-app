@@ -271,6 +271,8 @@ export default function PatientsScreen() {
 
   // ── Direct health update state ───────────────────────────────────────────
   const [healthEmail, setHealthEmail] = useState('');
+  const [healthTestType, setHealthTestType] = useState('');
+  const [healthTestResult, setHealthTestResult] = useState('');
   const [healthFields, setHealthFields] = useState<Record<HealthFieldKey, string>>(emptyHealthFields);
   const [updatingHealth, setUpdatingHealth] = useState(false);
 
@@ -333,14 +335,20 @@ export default function PatientsScreen() {
   // ── Direct health update handler ─────────────────────────────────────────
   const handleHealthUpdate = useCallback(async () => {
     const email = healthEmail.trim().toLowerCase();
-    const fields = Object.fromEntries(
-      Object.entries(healthFields)
-        .map(([key, value]) => [key, value.trim()])
-        .filter(([, value]) => value)
-    ) as Record<string, string>;
+    const fields = healthTestType
+      ? { 'Test Result': healthTestResult.trim() }
+      : Object.fromEntries(
+          Object.entries(healthFields)
+            .map(([key, value]) => [key, value.trim()])
+            .filter(([, value]) => value)
+        ) as Record<string, string>;
 
     if (!email) {
       Alert.alert('Patient email required', 'Enter the patient email address to update.');
+      return;
+    }
+    if (healthTestType && !healthTestResult.trim()) {
+      Alert.alert('No test result entered', 'Enter the selected test result before saving.');
       return;
     }
     if (Object.keys(fields).length === 0) {
@@ -350,8 +358,9 @@ export default function PatientsScreen() {
 
     setUpdatingHealth(true);
     try {
-      await AdminService.updatePatientHealthData({ email, fields });
+      await AdminService.updatePatientHealthData({ email, fields, testType: healthTestType || undefined });
       Alert.alert('Health data updated', 'The patient health data has been saved.');
+      setHealthTestResult('');
       setHealthFields(emptyHealthFields());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not update patient health data.';
@@ -359,7 +368,7 @@ export default function PatientsScreen() {
     } finally {
       setUpdatingHealth(false);
     }
-  }, [healthEmail, healthFields]);
+  }, [healthEmail, healthFields, healthTestResult, healthTestType]);
 
   // ── CSV template helper ───────────────────────────────────────────────────
   const showTemplateInfo = () => {
@@ -587,15 +596,30 @@ export default function PatientsScreen() {
             />
           </View>
 
-          {HEALTH_FIELDS.map((field) => (
-            <View key={field.key} style={{ marginBottom: 10 }}>
+          <Dropdown
+            label="Test type filter"
+            options={[{ label: 'Manual fields', value: '' }, ...FREE_HEALTH_SCREENING_OPTIONS]}
+            placeholder="Select a test type to update"
+            selectedValue={healthTestType}
+            onChange={(value: string) => {
+              setHealthTestType(value);
+              setHealthTestResult('');
+            }}
+          />
+
+          <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+            Selecting a test type updates only that specific test result for this patient.
+          </Text>
+
+          {healthTestType ? (
+            <View style={{ marginBottom: 10 }}>
               <Text style={{ fontSize: 12, color: '#475569', marginBottom: 4, fontWeight: '600' }}>
-                {field.label}
+                Test Result
               </Text>
               <TextInput
-                value={healthFields[field.key]}
-                onChangeText={(value) => setHealthFields((prev) => ({ ...prev, [field.key]: value }))}
-                placeholder={field.placeholder}
+                value={healthTestResult}
+                onChangeText={setHealthTestResult}
+                placeholder="Enter selected test result"
                 placeholderTextColor="#94a3b8"
                 style={{
                   borderWidth: 1,
@@ -609,7 +633,31 @@ export default function PatientsScreen() {
                 }}
               />
             </View>
-          ))}
+          ) : (
+            HEALTH_FIELDS.map((field) => (
+              <View key={field.key} style={{ marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, color: '#475569', marginBottom: 4, fontWeight: '600' }}>
+                  {field.label}
+                </Text>
+                <TextInput
+                  value={healthFields[field.key]}
+                  onChangeText={(value) => setHealthFields((prev) => ({ ...prev, [field.key]: value }))}
+                  placeholder={field.placeholder}
+                  placeholderTextColor="#94a3b8"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#e2e8f0',
+                    borderRadius: 10,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    fontSize: 14,
+                    color: '#1e293b',
+                    backgroundColor: '#f8fafc',
+                  }}
+                />
+              </View>
+            ))
+          )}
 
           <TouchableOpacity
             onPress={handleHealthUpdate}
