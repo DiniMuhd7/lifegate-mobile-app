@@ -425,7 +425,7 @@ export default function PatientsScreen() {
           <SectionTitle icon="download-outline" label="Export Registrations (CSV)" color="#0369a1" />
 
           <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 14, lineHeight: 18 }}>
-            Download registrations by date. Choose a free health test filter to export only email, full name, DOB, gender, and the selected test result.
+            Download all patient data by date, or choose a free health test filter to export only email, full name, DOB, gender, and the selected test result.
           </Text>
 
           {/* Date range row */}
@@ -446,7 +446,7 @@ export default function PatientsScreen() {
 
           <Dropdown
             label="Test filter"
-            options={[{ label: 'All patient registration fields', value: '' }, ...FREE_HEALTH_SCREENING_OPTIONS]}
+            options={[{ label: 'All patient data', value: '' }, ...FREE_HEALTH_SCREENING_OPTIONS]}
             placeholder="Select a free health test filter"
             selectedValue={exportTestType}
             onChange={(value: string) => setExportTestType(value)}

@@ -13,20 +13,34 @@ import (
 
 // PatientRow is a single patient/user record for the admin patients list & CSV export.
 type PatientRow struct {
-	ID          string  `json:"id"`
-	PatientID   string  `json:"patientId"`
-	Name        string  `json:"name"`
-	Email       string  `json:"email"`
-	Phone       string  `json:"phone"`
-	Gender      string  `json:"gender"`
-	DOB         string  `json:"dob"`
-	BloodGroup  string  `json:"bloodGroup"`
-	Genotype    string  `json:"genotype"`
-	HeightCM    float64 `json:"heightCm"`
-	WeightKG    float64 `json:"weightKg"`
-	BMI         float64 `json:"bmi,omitempty"`
-	TestResults string  `json:"testResults"`
-	CreatedAt   string  `json:"createdAt"`
+	ID                 string  `json:"id"`
+	UserID             string  `json:"userId"`
+	PatientID          string  `json:"patientId"`
+	Name               string  `json:"name"`
+	Email              string  `json:"email"`
+	Phone              string  `json:"phone"`
+	Gender             string  `json:"gender"`
+	DOB                string  `json:"dob"`
+	Language           string  `json:"language"`
+	Country            string  `json:"country"`
+	State              string  `json:"state"`
+	OccupationStatus   string  `json:"occupationStatus"`
+	Department         string  `json:"department"`
+	Faculty            string  `json:"faculty"`
+	AcademicLevel      string  `json:"academicLevel"`
+	HealthHistory      string  `json:"healthHistory"`
+	BloodGroup         string  `json:"bloodGroup"`
+	Genotype           string  `json:"genotype"`
+	Allergies          string  `json:"allergies"`
+	MedicalHistory     string  `json:"medicalHistory"`
+	CurrentMedications string  `json:"currentMedications"`
+	EmergencyContact   string  `json:"emergencyContact"`
+	HeightCM           float64 `json:"heightCm"`
+	WeightKG           float64 `json:"weightKg"`
+	BMI                float64 `json:"bmi,omitempty"`
+	TestResults        string  `json:"testResults"`
+	CreatedAt          string  `json:"createdAt"`
+	UpdatedAt          string  `json:"updatedAt"`
 }
 
 type PatientImportRowResult struct {
@@ -136,10 +150,14 @@ func normalizeHeader(h string) string {
 
 func (r *Repository) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow, error) {
 	rows, err := r.db.Query(`
-		SELECT id::text, COALESCE(patient_id,''), name, email, COALESCE(phone,''),
-		       COALESCE(gender,''), COALESCE(dob,''), COALESCE(blood_type,''),
-		       COALESCE(genotype,''), COALESCE(height_cm,0), COALESCE(weight_kg,0),
-		       COALESCE(test_results::text, '{}'), created_at::text
+		SELECT id::text, COALESCE(user_id,''), COALESCE(patient_id,''), COALESCE(name,''), COALESCE(email,''),
+		       COALESCE(phone,''), COALESCE(gender,''), COALESCE(dob,''), COALESCE(language,''),
+		       COALESCE(country,''), COALESCE(state,''), COALESCE(occupation_status,''),
+		       COALESCE(department,''), COALESCE(faculty,''), COALESCE(academic_level,''),
+		       COALESCE(health_history,''), COALESCE(blood_type,''), COALESCE(genotype,''),
+		       COALESCE(allergies,''), COALESCE(medical_history,''), COALESCE(current_medications,''),
+		       COALESCE(emergency_contact,''), COALESCE(height_cm,0), COALESCE(weight_kg,0),
+		       COALESCE(test_results::text, '{}'), created_at::text, COALESCE(updated_at::text, '')
 		FROM users
 		WHERE role IN ('user', 'patient')
 		  AND created_at::date >= $1::date
@@ -153,7 +171,7 @@ func (r *Repository) GetPatientsForExport(dateFrom, dateTo string) ([]PatientRow
 	out := []PatientRow{}
 	for rows.Next() {
 		var p PatientRow
-		if err := rows.Scan(&p.ID, &p.PatientID, &p.Name, &p.Email, &p.Phone, &p.Gender, &p.DOB, &p.BloodGroup, &p.Genotype, &p.HeightCM, &p.WeightKG, &p.TestResults, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.PatientID, &p.Name, &p.Email, &p.Phone, &p.Gender, &p.DOB, &p.Language, &p.Country, &p.State, &p.OccupationStatus, &p.Department, &p.Faculty, &p.AcademicLevel, &p.HealthHistory, &p.BloodGroup, &p.Genotype, &p.Allergies, &p.MedicalHistory, &p.CurrentMedications, &p.EmergencyContact, &p.HeightCM, &p.WeightKG, &p.TestResults, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if p.HeightCM > 0 && p.WeightKG > 0 {
@@ -185,7 +203,7 @@ func (r *Repository) BuildPatientsCSV(dateFrom, dateTo, testType string) ([]byte
 		return buf, nil
 	}
 
-	buf = append(buf, []byte("Patient ID,Name,Email,Phone,Gender,DOB,Blood Group,Genotype,Height (cm),Weight (kg),BMI,Test Results,Registered At\n")...)
+	buf = append(buf, []byte("ID,User ID,Patient ID,Full Name,Email,Phone,Gender,DOB,Language,Country,State,Occupation Status,Department,Faculty,Academic Level,Health History,Blood Group,Genotype,Allergies,Medical History,Current Medications,Emergency Contact,Height (cm),Weight (kg),BMI,Test Results,Registered At,Updated At\n")...)
 	for _, p := range patients {
 		bmi, height, weight := "", "", ""
 		if p.BMI > 0 {
@@ -197,7 +215,7 @@ func (r *Repository) BuildPatientsCSV(dateFrom, dateTo, testType string) ([]byte
 		if p.WeightKG > 0 {
 			weight = strconv.FormatFloat(p.WeightKG, 'f', 1, 64)
 		}
-		line := fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", csvEscape(p.PatientID), csvEscape(p.Name), csvEscape(p.Email), csvEscape(p.Phone), csvEscape(p.Gender), csvEscape(p.DOB), csvEscape(p.BloodGroup), csvEscape(p.Genotype), csvEscape(height), csvEscape(weight), csvEscape(bmi), csvEscape(formatFreeHealthScreeningResults(p.TestResults)), csvEscape(p.CreatedAt))
+		line := fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", csvEscape(p.ID), csvEscape(p.UserID), csvEscape(p.PatientID), csvEscape(p.Name), csvEscape(p.Email), csvEscape(p.Phone), csvEscape(p.Gender), csvEscape(p.DOB), csvEscape(p.Language), csvEscape(p.Country), csvEscape(p.State), csvEscape(p.OccupationStatus), csvEscape(p.Department), csvEscape(p.Faculty), csvEscape(p.AcademicLevel), csvEscape(p.HealthHistory), csvEscape(p.BloodGroup), csvEscape(p.Genotype), csvEscape(p.Allergies), csvEscape(p.MedicalHistory), csvEscape(p.CurrentMedications), csvEscape(p.EmergencyContact), csvEscape(height), csvEscape(weight), csvEscape(bmi), csvEscape(formatFreeHealthScreeningResults(p.TestResults)), csvEscape(p.CreatedAt), csvEscape(p.UpdatedAt))
 		buf = append(buf, []byte(line)...)
 	}
 	return buf, nil
