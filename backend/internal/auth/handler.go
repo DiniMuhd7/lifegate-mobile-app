@@ -255,6 +255,7 @@ func (h *Handler) RegisterStart(c *gin.Context) {
 		Department:           c.PostForm("department"),
 		Faculty:              c.PostForm("faculty"),
 		AcademicLevel:        c.PostForm("academic_level"),
+		FreeHealthScreening:  c.PostForm("free_health_screening"),
 	}
 
 	if payload.Email == "" || payload.Password == "" || payload.Name == "" {

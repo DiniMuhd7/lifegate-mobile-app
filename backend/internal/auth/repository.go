@@ -162,13 +162,13 @@ func (r *Repository) CreateUser(u *User, passwordHash string) error {
 	return r.db.QueryRow(
 		`INSERT INTO users (user_id, patient_id, name, email, password_hash, role, phone, dob, gender, language,
                     health_history, specialization, certificate_name, certificate_id,
-                    certificate_issue_date, years_of_experience, occupation_status, department, faculty, academic_level)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+                    certificate_issue_date, years_of_experience, occupation_status, department, faculty, academic_level, test_results)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, COALESCE(NULLIF($21, '')::jsonb, '{}'::jsonb))
  RETURNING id, created_at, updated_at`,
 		u.UserID, u.PatientID, u.Name, u.Email, passwordHash, u.Role,
 		u.Phone, u.DOB, u.Gender, u.Language, u.HealthHistory,
 		u.Specialization, u.CertificateName, u.CertificateID,
-		u.CertificateIssueDate, u.YearsOfExperience, u.OccupationStatus, u.Department, u.Faculty, u.AcademicLevel,
+		u.CertificateIssueDate, u.YearsOfExperience, u.OccupationStatus, u.Department, u.Faculty, u.AcademicLevel, u.TestResults,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
@@ -176,13 +176,13 @@ func (r *Repository) CreateUserWithCertURL(u *User, passwordHash, certURL string
 	return r.db.QueryRow(
 		`INSERT INTO users (user_id, patient_id, name, email, password_hash, role, phone, dob, gender, language,
                     health_history, specialization, certificate_name, certificate_id,
-                    certificate_issue_date, years_of_experience, certificate_url, occupation_status, department, faculty, academic_level)
- VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+                    certificate_issue_date, years_of_experience, certificate_url, occupation_status, department, faculty, academic_level, test_results)
+ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21, COALESCE(NULLIF($22, '')::jsonb, '{}'::jsonb))
  RETURNING id, created_at, updated_at`,
 		u.UserID, u.PatientID, u.Name, u.Email, passwordHash, u.Role,
 		u.Phone, u.DOB, u.Gender, u.Language, u.HealthHistory,
 		u.Specialization, u.CertificateName, u.CertificateID,
-		u.CertificateIssueDate, u.YearsOfExperience, certURL, u.OccupationStatus, u.Department, u.Faculty, u.AcademicLevel,
+		u.CertificateIssueDate, u.YearsOfExperience, certURL, u.OccupationStatus, u.Department, u.Faculty, u.AcademicLevel, u.TestResults,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
