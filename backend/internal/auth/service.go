@@ -284,6 +284,7 @@ type RegisterStartPayload struct {
 	Department           string `json:"department"`
 	Faculty              string `json:"faculty"`
 	AcademicLevel        string `json:"academic_level"`
+	FreeHealthScreening  string `json:"free_health_screening"`
 }
 
 const otpTTL = 600
@@ -445,6 +446,30 @@ func normalizePhoneDigits(phone string) string {
 	return b.String()
 }
 
+func freeHealthScreeningTestResults(raw string) string {
+	parts := strings.Split(raw, ",")
+	options := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		option := strings.TrimSpace(part)
+		if option == "" || seen[option] {
+			continue
+		}
+		seen[option] = true
+		options = append(options, option)
+	}
+	if len(options) == 0 {
+		return ""
+	}
+	payload, err := json.Marshal(map[string]interface{}{
+		"free_health_screening_options": options,
+	})
+	if err != nil {
+		return ""
+	}
+	return string(payload)
+}
+
 func (s *Service) completeRegistrationFromDB(ctx context.Context, pr *PendingRegistration) (*TokenPair, error) {
 	var payload RegisterStartPayload
 	if err := json.Unmarshal(pr.Payload, &payload); err != nil {
@@ -474,6 +499,7 @@ func (s *Service) completeRegistrationFromDB(ctx context.Context, pr *PendingReg
 		Department:           payload.Department,
 		Faculty:              payload.Faculty,
 		AcademicLevel:        payload.AcademicLevel,
+		TestResults:          freeHealthScreeningTestResults(payload.FreeHealthScreening),
 	}
 
 	if payload.CertificateURL != "" {
