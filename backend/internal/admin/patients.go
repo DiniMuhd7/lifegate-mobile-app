@@ -107,6 +107,9 @@ func freeHealthScreeningResultFor(raw, testType string) (string, bool) {
 	}
 	wanted := freeHealthScreeningLabel(testType)
 	for key, value := range results {
+		if normalizeHeader(key) == "freehealthscreeningoptions" {
+			continue
+		}
 		if !strings.EqualFold(freeHealthScreeningLabel(key), wanted) {
 			continue
 		}
@@ -117,6 +120,43 @@ func freeHealthScreeningResultFor(raw, testType string) (string, bool) {
 		return text, true
 	}
 	return "", false
+}
+
+func freeHealthScreeningInterestFor(raw, testType string) bool {
+	results := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(raw), &results); err != nil {
+		return false
+	}
+	value, ok := results["free_health_screening_options"]
+	if !ok {
+		return false
+	}
+	wanted := normalizeHeader(testType)
+	matches := func(option interface{}) bool {
+		text := strings.TrimSpace(fmt.Sprint(option))
+		return text != "" && (normalizeHeader(text) == wanted || normalizeHeader(freeHealthScreeningLabel(text)) == normalizeHeader(freeHealthScreeningLabel(testType)))
+	}
+	switch v := value.(type) {
+	case []interface{}:
+		for _, option := range v {
+			if matches(option) {
+				return true
+			}
+		}
+	case []string:
+		for _, option := range v {
+			if matches(option) {
+				return true
+			}
+		}
+	case string:
+		for _, option := range strings.Split(v, ",") {
+			if matches(option) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func formatFreeHealthScreeningResults(raw string) string {
@@ -193,10 +233,10 @@ func (r *Repository) BuildPatientsCSV(dateFrom, dateTo, testType string) ([]byte
 	if strings.TrimSpace(testType) != "" {
 		buf = append(buf, []byte("Email,Full Name,DOB,Gender,Test Result\n")...)
 		for _, p := range patients {
-			result, ok := freeHealthScreeningResultFor(p.TestResults, testType)
-			if !ok {
+			if !freeHealthScreeningInterestFor(p.TestResults, testType) {
 				continue
 			}
+			result, _ := freeHealthScreeningResultFor(p.TestResults, testType)
 			line := fmt.Sprintf("%s,%s,%s,%s,%s\n", csvEscape(p.Email), csvEscape(p.Name), csvEscape(p.DOB), csvEscape(p.Gender), csvEscape(result))
 			buf = append(buf, []byte(line)...)
 		}
