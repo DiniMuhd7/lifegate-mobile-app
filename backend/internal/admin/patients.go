@@ -122,6 +122,26 @@ func freeHealthScreeningResultFor(raw, testType string) (string, bool) {
 	return "", false
 }
 
+func hasFreeHealthScreeningInterests(raw string) bool {
+	results := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(raw), &results); err != nil {
+		return false
+	}
+	value, ok := results["free_health_screening_options"]
+	if !ok {
+		return false
+	}
+	switch v := value.(type) {
+	case []interface{}:
+		return len(v) > 0
+	case []string:
+		return len(v) > 0
+	case string:
+		return strings.TrimSpace(v) != ""
+	}
+	return false
+}
+
 func freeHealthScreeningInterestFor(raw, testType string) bool {
 	results := map[string]interface{}{}
 	if err := json.Unmarshal([]byte(raw), &results); err != nil {
@@ -157,6 +177,10 @@ func freeHealthScreeningInterestFor(raw, testType string) bool {
 		}
 	}
 	return false
+}
+
+func includePatientForFreeHealthScreeningExport(raw, testType string) bool {
+	return !hasFreeHealthScreeningInterests(raw) || freeHealthScreeningInterestFor(raw, testType)
 }
 
 func formatFreeHealthScreeningResults(raw string) string {
@@ -233,7 +257,10 @@ func (r *Repository) BuildPatientsCSV(dateFrom, dateTo, testType string) ([]byte
 	if strings.TrimSpace(testType) != "" {
 		buf = append(buf, []byte("Email,Full Name,DOB,Gender,Test Result\n")...)
 		for _, p := range patients {
-			if !freeHealthScreeningInterestFor(p.TestResults, testType) {
+			// Legacy registrations created before screening interests were persisted do
+			// not have free_health_screening_options, so include them instead of
+			// incorrectly shrinking exports to patients with already-entered results.
+			if !includePatientForFreeHealthScreeningExport(p.TestResults, testType) {
 				continue
 			}
 			result, _ := freeHealthScreeningResultFor(p.TestResults, testType)
