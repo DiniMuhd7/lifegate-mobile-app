@@ -1,6 +1,11 @@
 package admin
 
-import "golang.org/x/crypto/bcrypt"
+import (
+	"context"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 // Service wraps the admin Repository with thin business logic.
 // Currently business logic is minimal — the repository does the heavy lifting.
@@ -186,4 +191,17 @@ func (s *Service) GetPatientHealth(patientID string) (map[string]interface{}, er
 
 func (s *Service) UpdatePatientHealthDirect(patientID string, data map[string]interface{}, adminID string) error {
 	return s.repo.UpdatePatientHealthDirect(patientID, data, adminID)
+}
+
+func (s *Service) CountPatientEmailRecipients(ctx context.Context) (int, error) {
+	return s.repo.CountPatientEmailRecipients(ctx)
+}
+
+func (s *Service) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEmailRequest) (BulkPatientEmailResult, error) {
+	msg.Subject = strings.TrimSpace(msg.Subject)
+	msg.Preheader = strings.TrimSpace(msg.Preheader)
+	msg.Body = strings.TrimSpace(msg.Body)
+	msg.CTA = strings.TrimSpace(msg.CTA)
+	msg.CTAURL = strings.TrimSpace(msg.CTAURL)
+	return s.repo.SendBulkPatientEmail(ctx, msg)
 }

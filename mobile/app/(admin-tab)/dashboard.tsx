@@ -671,6 +671,30 @@ export default function AdminDashboardScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => router.push('/(admin-tab)/patient-messaging')}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+            }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#fce7f3', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="mail-outline" size={20} color="#be185d" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Patient Email Broadcasts</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Draft reminders and promotional messages for all patients</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => router.push('/(admin-tab)/patients')}
             style={{
               backgroundColor: '#fff',

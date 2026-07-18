@@ -345,7 +345,7 @@ func main() {
 	supportHandler := support.NewHandler(supportSvc)
 
 	// Admin system
-	adminRepo := admin.NewRepository(database)
+	adminRepo := admin.NewRepository(database, cfg.ResendAPIKey, cfg.EmailFrom)
 	adminSvc := admin.NewService(adminRepo)
 	adminHandler := admin.NewHandler(adminSvc, diagnosisSvc)
 	adminHandler.SetPushNotifier(pushSvc)
@@ -817,6 +817,8 @@ func main() {
 		adminGroup.GET("/patients/export", adminHandler.ExportPatientsCSV)
 		adminGroup.POST("/patients/import", adminHandler.ImportPatientsCSV)
 		adminGroup.PATCH("/patients/health-data", adminHandler.UpdatePatientHealthByEmail)
+		adminGroup.GET("/patients/email-recipients/count", adminHandler.CountPatientEmailRecipients)
+		adminGroup.POST("/patients/email-broadcast", adminHandler.SendBulkPatientEmail)
 		adminGroup.GET("/patients/:id/health", adminHandler.GetPatientHealth)
 		adminGroup.PATCH("/patients/:id/health", adminHandler.UpdatePatientHealth)
 	}

@@ -74,6 +74,7 @@ export default function AdminTabLayout() {
       <Stack.Screen name="physician-payouts" />
       <Stack.Screen name="medication-releases" />
       <Stack.Screen name="patients" />
+      <Stack.Screen name="patient-messaging" />
     </Stack>
   );
 }
