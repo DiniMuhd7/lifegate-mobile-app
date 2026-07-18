@@ -930,3 +930,56 @@ func (h *Handler) GetAnalytics(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": data})
 }
+
+// CountPatientEmailRecipients returns the current reachable patient email audience size.
+func (h *Handler) CountPatientEmailRecipients(c *gin.Context) {
+	count, err := h.svc.CountPatientEmailRecipients(c.Request.Context())
+	if err != nil {
+		log.Printf("[admin] CountPatientEmailRecipients: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to count patient email recipients"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"recipientCount": count}})
+}
+
+// SendBulkPatientEmail sends a professional email broadcast to all patient accounts.
+func (h *Handler) SendBulkPatientEmail(c *gin.Context) {
+	var body BulkPatientEmailRequest
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request body"})
+		return
+	}
+	body.Subject = strings.TrimSpace(body.Subject)
+	body.Preheader = strings.TrimSpace(body.Preheader)
+	body.Body = strings.TrimSpace(body.Body)
+	body.CTA = strings.TrimSpace(body.CTA)
+	body.CTAURL = strings.TrimSpace(body.CTAURL)
+	if body.Subject == "" || len(body.Subject) > 140 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Subject is required and must be 140 characters or less"})
+		return
+	}
+	if body.Body == "" || len(body.Body) > 5000 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Message body is required and must be 5000 characters or less"})
+		return
+	}
+	if (body.CTA == "") != (body.CTAURL == "") {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "CTA label and CTA URL must be provided together"})
+		return
+	}
+
+	result, err := h.svc.SendBulkPatientEmail(c.Request.Context(), body)
+	if err != nil {
+		log.Printf("[admin] SendBulkPatientEmail: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+	h.svc.LogAction(adminIDStr, "patients.email_broadcast", "user", nil, map[string]interface{}{
+		"subject": body.Subject,
+		"sent":    result.Sent,
+		"failed":  result.Failed,
+		"total":   result.RecipientCount,
+	})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient email broadcast completed", "data": result})
+}

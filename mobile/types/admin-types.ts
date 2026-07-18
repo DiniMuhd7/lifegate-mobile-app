@@ -403,3 +403,18 @@ export type PatientHealthUpdatePayload = {
   fields: Record<string, string>;
   testType?: string;
 };
+
+export type BulkPatientEmailDraft = {
+  subject: string;
+  preheader?: string;
+  body: string;
+  cta?: string;
+  ctaUrl?: string;
+};
+
+export type BulkPatientEmailResult = {
+  recipientCount: number;
+  sent: number;
+  failed: number;
+  errors?: string[];
+};

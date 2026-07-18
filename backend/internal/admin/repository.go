@@ -1,9 +1,15 @@
 package admin
 
 import (
+	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -11,19 +17,19 @@ import (
 
 // CaseRow is a single case record for admin case management.
 type CaseRow struct {
-	ID             string  `json:"id"`
-	PatientName    string  `json:"patientName"`
-	PatientEmail   string  `json:"patientEmail"`
-	Title          string  `json:"title"`
-	Condition      string  `json:"condition"`
-	Urgency        string  `json:"urgency"`
-	Status         string  `json:"status"`
-	Category       string  `json:"category"`
-	Escalated      bool    `json:"escalated"`
-	Confidence     int     `json:"confidence"`
-	PhysicianName  string  `json:"physicianName,omitempty"`
-	CreatedAt      string  `json:"createdAt"`
-	UpdatedAt      string  `json:"updatedAt"`
+	ID            string `json:"id"`
+	PatientName   string `json:"patientName"`
+	PatientEmail  string `json:"patientEmail"`
+	Title         string `json:"title"`
+	Condition     string `json:"condition"`
+	Urgency       string `json:"urgency"`
+	Status        string `json:"status"`
+	Category      string `json:"category"`
+	Escalated     bool   `json:"escalated"`
+	Confidence    int    `json:"confidence"`
+	PhysicianName string `json:"physicianName,omitempty"`
+	CreatedAt     string `json:"createdAt"`
+	UpdatedAt     string `json:"updatedAt"`
 }
 
 // SLAItem is a Pending case with its time-in-queue and colour-coded SLA state.
@@ -38,27 +44,27 @@ type SLAItem struct {
 
 // DashboardStats is the live dashboard data.
 type DashboardStats struct {
-	TotalCases           int            `json:"totalCases"`
-	CasesByStatus        map[string]int `json:"casesByStatus"`
-	TotalPhysicians      int            `json:"totalPhysicians"`
-	AvailablePhysicians  int            `json:"availablePhysicians"`
-	ActiveUsers7d        int            `json:"activeUsers7d"`
-	TotalPatients        int            `json:"totalPatients"`
-	EscalatedToday       int            `json:"escalatedToday"`
-	CompletedToday       int            `json:"completedToday"`
+	TotalCases          int            `json:"totalCases"`
+	CasesByStatus       map[string]int `json:"casesByStatus"`
+	TotalPhysicians     int            `json:"totalPhysicians"`
+	AvailablePhysicians int            `json:"availablePhysicians"`
+	ActiveUsers7d       int            `json:"activeUsers7d"`
+	TotalPatients       int            `json:"totalPatients"`
+	EscalatedToday      int            `json:"escalatedToday"`
+	CompletedToday      int            `json:"completedToday"`
 }
 
 // EDISMetrics is the EDIS performance panel data.
 type EDISMetrics struct {
-	TotalDiagnoses       int                  `json:"totalDiagnoses"`
-	EscalationCount      int                  `json:"escalationCount"`
-	EscalationRatePct    float64              `json:"escalationRatePct"`
-	AvgConfidence        float64              `json:"avgConfidence"`
-	LowConfidenceCount   int                  `json:"lowConfidenceCount"`
-	LowConfidencePct     float64              `json:"lowConfidencePct"`
-	FlagFrequency        []FlagCount          `json:"flagFrequency"`
-	AvgConditionsPerCase float64              `json:"avgConditionsPerCase"`
-	PeriodDays           int                  `json:"periodDays"`
+	TotalDiagnoses       int         `json:"totalDiagnoses"`
+	EscalationCount      int         `json:"escalationCount"`
+	EscalationRatePct    float64     `json:"escalationRatePct"`
+	AvgConfidence        float64     `json:"avgConfidence"`
+	LowConfidenceCount   int         `json:"lowConfidenceCount"`
+	LowConfidencePct     float64     `json:"lowConfidencePct"`
+	FlagFrequency        []FlagCount `json:"flagFrequency"`
+	AvgConditionsPerCase float64     `json:"avgConditionsPerCase"`
+	PeriodDays           int         `json:"periodDays"`
 }
 
 // FlagCount is a single EDIS risk flag with its occurrence count.
@@ -69,31 +75,31 @@ type FlagCount struct {
 
 // PhysicianRow is a physician summary for admin view.
 type PhysicianRow struct {
-	ID                 string  `json:"id"`
-	Name               string  `json:"name"`
-	Email              string  `json:"email"`
-	Specialization     string  `json:"specialization"`
-	MdcnVerified       bool    `json:"mdcnVerified"`
-	MdcnOverrideStatus string  `json:"mdcnOverrideStatus"` // "" | "confirmed" | "rejected"
-	AccountStatus      string  `json:"accountStatus"`       // "active" | "suspended"
-	Flagged            bool    `json:"flagged"`
-	FlaggedReason      string  `json:"flaggedReason,omitempty"`
-	SlaBreachCountWeek int     `json:"slaBreachCountWeek"`
-	ActiveCases        int     `json:"activeCases"`
-	TotalCompleted     int     `json:"totalCompleted"`
-	Available          bool    `json:"available"` // true when ActiveCases == 0
+	ID                 string `json:"id"`
+	Name               string `json:"name"`
+	Email              string `json:"email"`
+	Specialization     string `json:"specialization"`
+	MdcnVerified       bool   `json:"mdcnVerified"`
+	MdcnOverrideStatus string `json:"mdcnOverrideStatus"` // "" | "confirmed" | "rejected"
+	AccountStatus      string `json:"accountStatus"`      // "active" | "suspended"
+	Flagged            bool   `json:"flagged"`
+	FlaggedReason      string `json:"flaggedReason,omitempty"`
+	SlaBreachCountWeek int    `json:"slaBreachCountWeek"`
+	ActiveCases        int    `json:"activeCases"`
+	TotalCompleted     int    `json:"totalCompleted"`
+	Available          bool   `json:"available"` // true when ActiveCases == 0
 }
 
 // PhysicianCaseHistory is a brief case record in a physician profile.
 type PhysicianCaseHistory struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	Condition  string `json:"condition"`
-	Urgency    string `json:"urgency"`
-	Status     string `json:"status"`
-	Escalated  bool   `json:"escalated"`
-	CreatedAt  string `json:"createdAt"`
-	UpdatedAt  string `json:"updatedAt"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Condition string `json:"condition"`
+	Urgency   string `json:"urgency"`
+	Status    string `json:"status"`
+	Escalated bool   `json:"escalated"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
 }
 
 // PhysicianDetail is the full physician profile for the admin detail view.
@@ -203,16 +209,16 @@ type AdminTransactionRow struct {
 
 // NDPASnapshot is a stored NDPA 2023 compliance snapshot.
 type NDPASnapshot struct {
-	ID                  string  `json:"id"`
-	SnapshotDate        string  `json:"snapshotDate"`
-	TotalDataSubjects   int     `json:"totalDataSubjects"`
-	ConsentCapturedPct  float64 `json:"consentCapturedPct"`
-	DataMinimisationOk  bool    `json:"dataMinimisationOk"`
-	RetentionPolicyOk   bool    `json:"retentionPolicyOk"`
-	BreachIncidents30d  int     `json:"breachIncidents30d"`
-	PendingDSAR         int     `json:"pendingDsar"`
-	Notes               string  `json:"notes"`
-	CreatedAt           string  `json:"createdAt"`
+	ID                 string  `json:"id"`
+	SnapshotDate       string  `json:"snapshotDate"`
+	TotalDataSubjects  int     `json:"totalDataSubjects"`
+	ConsentCapturedPct float64 `json:"consentCapturedPct"`
+	DataMinimisationOk bool    `json:"dataMinimisationOk"`
+	RetentionPolicyOk  bool    `json:"retentionPolicyOk"`
+	BreachIncidents30d int     `json:"breachIncidents30d"`
+	PendingDSAR        int     `json:"pendingDsar"`
+	Notes              string  `json:"notes"`
+	CreatedAt          string  `json:"createdAt"`
 }
 
 // AlertThreshold is a configurable system threshold.
@@ -281,11 +287,11 @@ type AnalyticsData struct {
 	RetentionD30 float64 `json:"retentionD30"`
 
 	// ── Patient demographics ──────────────────────────────────────────────────
-	GenderBreakdown   []DemographicPoint `json:"genderBreakdown"`
-	AgeGroupBreakdown []DemographicPoint `json:"ageGroupBreakdown"`
+	GenderBreakdown    []DemographicPoint `json:"genderBreakdown"`
+	AgeGroupBreakdown  []DemographicPoint `json:"ageGroupBreakdown"`
 	BloodTypeBreakdown []DemographicPoint `json:"bloodTypeBreakdown"`
-	GenotypeBreakdown []DemographicPoint `json:"genotypeBreakdown"`
-	LanguageBreakdown []DemographicPoint `json:"languageBreakdown"`
+	GenotypeBreakdown  []DemographicPoint `json:"genotypeBreakdown"`
+	LanguageBreakdown  []DemographicPoint `json:"languageBreakdown"`
 
 	// ── Geographic ───────────────────────────────────────────────────────────
 	CountryBreakdown []DemographicPoint `json:"countryBreakdown"`
@@ -304,18 +310,18 @@ type AnalyticsData struct {
 	DailyRevenue        []RevenuePoint `json:"dailyRevenue"`
 
 	// ── Physician productivity ────────────────────────────────────────────────
-	DailyPhysicianResolutions []DailyPoint           `json:"dailyPhysicianResolutions"`
+	DailyPhysicianResolutions []DailyPoint            `json:"dailyPhysicianResolutions"`
 	TopPhysicians             []PhysicianProductivity `json:"topPhysicians"`
 
 	// ── Session / engagement time ─────────────────────────────────────────────
-	AvgSessionMinsPatient    float64      `json:"avgSessionMinsPatient"`    // avg session duration for patients
-	AvgSessionMinsPhysician  float64      `json:"avgSessionMinsPhysician"`  // avg session duration for physicians
-	TotalSessionsPatient     int          `json:"totalSessionsPatient"`     // completed sessions by patients in period
-	TotalSessionsPhysician   int          `json:"totalSessionsPhysician"`   // completed sessions by physicians in period
-	AvgSessionsPerPatient    float64      `json:"avgSessionsPerPatient"`    // sessions per unique patient
-	DailyAvgSessionMins      []FloatPoint `json:"dailyAvgSessionMins"`      // daily avg session length (all roles)
-	DailySessionsPatient     []DailyPoint `json:"dailySessionsPatient"`     // daily session count — patients
-	DailySessionsPhysician   []DailyPoint `json:"dailySessionsPhysician"`   // daily session count — physicians
+	AvgSessionMinsPatient   float64      `json:"avgSessionMinsPatient"`   // avg session duration for patients
+	AvgSessionMinsPhysician float64      `json:"avgSessionMinsPhysician"` // avg session duration for physicians
+	TotalSessionsPatient    int          `json:"totalSessionsPatient"`    // completed sessions by patients in period
+	TotalSessionsPhysician  int          `json:"totalSessionsPhysician"`  // completed sessions by physicians in period
+	AvgSessionsPerPatient   float64      `json:"avgSessionsPerPatient"`   // sessions per unique patient
+	DailyAvgSessionMins     []FloatPoint `json:"dailyAvgSessionMins"`     // daily avg session length (all roles)
+	DailySessionsPatient    []DailyPoint `json:"dailySessionsPatient"`    // daily session count — patients
+	DailySessionsPhysician  []DailyPoint `json:"dailySessionsPhysician"`  // daily session count — physicians
 }
 
 // PhysicianProductivity is a per-physician resolved case count.
@@ -333,11 +339,21 @@ type FloatPoint struct {
 // ─── Repository ───────────────────────────────────────────────────────────────
 
 type Repository struct {
-	db *sql.DB
+	db           *sql.DB
+	resendAPIKey string
+	emailFrom    string
+	httpClient   *http.Client
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *sql.DB, emailConfig ...string) *Repository {
+	r := &Repository{db: db, httpClient: &http.Client{Timeout: 30 * time.Second}}
+	if len(emailConfig) > 0 {
+		r.resendAPIKey = strings.TrimSpace(emailConfig[0])
+	}
+	if len(emailConfig) > 1 {
+		r.emailFrom = strings.TrimSpace(emailConfig[1])
+	}
+	return r
 }
 
 // GetAllCases returns a filtered, paginated list of all diagnoses for admin management.
@@ -1481,6 +1497,7 @@ func formatDuration(seconds int64) string {
 
 // FormatWait returns a human-readable wait time (exported for handler use).
 func FormatWait(seconds int64) string { return formatDuration(seconds) }
+
 // ─── Analytics ────────────────────────────────────────────────────────────────
 
 // GetAnalytics computes the full analytics payload for the admin dashboard.
@@ -1512,7 +1529,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		newUsersTotal += p.Count
 		a.DailyNewUsers = append(a.DailyNewUsers, p)
@@ -1542,7 +1560,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyNewCases = append(a.DailyNewCases, p)
 	}
@@ -1562,7 +1581,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyActiveCases = append(a.DailyActiveCases, p)
 	}
@@ -1582,7 +1602,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyCompletedCases = append(a.DailyCompletedCases, p)
 	}
@@ -1610,7 +1631,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyActivePatients = append(a.DailyActivePatients, p)
 	}
@@ -1678,7 +1700,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		genderTotal += p.Count
 		genderRows = append(genderRows, p)
@@ -1726,7 +1749,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		ageTotal += p.Count
 		ageRows = append(ageRows, p)
@@ -1752,7 +1776,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		btTotal += p.Count
 		btRows = append(btRows, p)
@@ -1778,7 +1803,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		gtTotal += p.Count
 		gtRows = append(gtRows, p)
@@ -1804,7 +1830,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		langTotal += p.Count
 		langRows = append(langRows, p)
@@ -1830,7 +1857,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		countryTotal += p.Count
 		countryRows = append(countryRows, p)
@@ -1856,7 +1884,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		stateTotal += p.Count
 		stateRows = append(stateRows, p)
@@ -1883,7 +1912,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		urgTotal += p.Count
 		urgRows = append(urgRows, p)
@@ -1912,7 +1942,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DemographicPoint
 		if err := rows.Scan(&p.Label, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		condTotal += p.Count
 		condRows = append(condRows, p)
@@ -1955,7 +1986,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var rp RevenuePoint
 		if err := rows.Scan(&rp.Date, &rp.Amount); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyRevenue = append(a.DailyRevenue, rp)
 	}
@@ -1976,7 +2008,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyPhysicianResolutions = append(a.DailyPhysicianResolutions, p)
 	}
@@ -1998,7 +2031,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p PhysicianProductivity
 		if err := rows.Scan(&p.Name, &p.ResolvedCases); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.TopPhysicians = append(a.TopPhysicians, p)
 	}
@@ -2049,7 +2083,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var fp FloatPoint
 		if err := rows.Scan(&fp.Date, &fp.Value); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailyAvgSessionMins = append(a.DailyAvgSessionMins, fp)
 	}
@@ -2069,7 +2104,8 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailySessionsPatient = append(a.DailySessionsPatient, p)
 	}
@@ -2089,33 +2125,217 @@ func (r *Repository) GetAnalytics(days int) (*AnalyticsData, error) {
 	for rows.Next() {
 		var p DailyPoint
 		if err := rows.Scan(&p.Date, &p.Count); err != nil {
-			rows.Close(); return nil, err
+			rows.Close()
+			return nil, err
 		}
 		a.DailySessionsPhysician = append(a.DailySessionsPhysician, p)
 	}
 	rows.Close()
 
 	// Ensure nil slices become empty arrays in JSON
-	if a.DailyNewUsers == nil              { a.DailyNewUsers = []DailyPoint{} }
-	if a.DailyNewCases == nil              { a.DailyNewCases = []DailyPoint{} }
-	if a.DailyActiveCases == nil           { a.DailyActiveCases = []DailyPoint{} }
-	if a.DailyCompletedCases == nil        { a.DailyCompletedCases = []DailyPoint{} }
-	if a.DailyActivePatients == nil        { a.DailyActivePatients = []DailyPoint{} }
-	if a.DailyPhysicianResolutions == nil  { a.DailyPhysicianResolutions = []DailyPoint{} }
-	if a.GenderBreakdown == nil            { a.GenderBreakdown = []DemographicPoint{} }
-	if a.AgeGroupBreakdown == nil          { a.AgeGroupBreakdown = []DemographicPoint{} }
-	if a.BloodTypeBreakdown == nil         { a.BloodTypeBreakdown = []DemographicPoint{} }
-	if a.GenotypeBreakdown == nil          { a.GenotypeBreakdown = []DemographicPoint{} }
-	if a.LanguageBreakdown == nil          { a.LanguageBreakdown = []DemographicPoint{} }
-	if a.CountryBreakdown == nil           { a.CountryBreakdown = []DemographicPoint{} }
-	if a.StateBreakdown == nil             { a.StateBreakdown = []DemographicPoint{} }
-	if a.UrgencyBreakdown == nil           { a.UrgencyBreakdown = []DemographicPoint{} }
-	if a.TopConditions == nil              { a.TopConditions = []DemographicPoint{} }
-	if a.DailyRevenue == nil               { a.DailyRevenue = []RevenuePoint{} }
-	if a.TopPhysicians == nil              { a.TopPhysicians = []PhysicianProductivity{} }
-	if a.DailyAvgSessionMins == nil        { a.DailyAvgSessionMins = []FloatPoint{} }
-	if a.DailySessionsPatient == nil       { a.DailySessionsPatient = []DailyPoint{} }
-	if a.DailySessionsPhysician == nil     { a.DailySessionsPhysician = []DailyPoint{} }
+	if a.DailyNewUsers == nil {
+		a.DailyNewUsers = []DailyPoint{}
+	}
+	if a.DailyNewCases == nil {
+		a.DailyNewCases = []DailyPoint{}
+	}
+	if a.DailyActiveCases == nil {
+		a.DailyActiveCases = []DailyPoint{}
+	}
+	if a.DailyCompletedCases == nil {
+		a.DailyCompletedCases = []DailyPoint{}
+	}
+	if a.DailyActivePatients == nil {
+		a.DailyActivePatients = []DailyPoint{}
+	}
+	if a.DailyPhysicianResolutions == nil {
+		a.DailyPhysicianResolutions = []DailyPoint{}
+	}
+	if a.GenderBreakdown == nil {
+		a.GenderBreakdown = []DemographicPoint{}
+	}
+	if a.AgeGroupBreakdown == nil {
+		a.AgeGroupBreakdown = []DemographicPoint{}
+	}
+	if a.BloodTypeBreakdown == nil {
+		a.BloodTypeBreakdown = []DemographicPoint{}
+	}
+	if a.GenotypeBreakdown == nil {
+		a.GenotypeBreakdown = []DemographicPoint{}
+	}
+	if a.LanguageBreakdown == nil {
+		a.LanguageBreakdown = []DemographicPoint{}
+	}
+	if a.CountryBreakdown == nil {
+		a.CountryBreakdown = []DemographicPoint{}
+	}
+	if a.StateBreakdown == nil {
+		a.StateBreakdown = []DemographicPoint{}
+	}
+	if a.UrgencyBreakdown == nil {
+		a.UrgencyBreakdown = []DemographicPoint{}
+	}
+	if a.TopConditions == nil {
+		a.TopConditions = []DemographicPoint{}
+	}
+	if a.DailyRevenue == nil {
+		a.DailyRevenue = []RevenuePoint{}
+	}
+	if a.TopPhysicians == nil {
+		a.TopPhysicians = []PhysicianProductivity{}
+	}
+	if a.DailyAvgSessionMins == nil {
+		a.DailyAvgSessionMins = []FloatPoint{}
+	}
+	if a.DailySessionsPatient == nil {
+		a.DailySessionsPatient = []DailyPoint{}
+	}
+	if a.DailySessionsPhysician == nil {
+		a.DailySessionsPhysician = []DailyPoint{}
+	}
 
 	return a, nil
+}
+
+// BulkPatientEmailRequest is the admin payload for sending a broadcast email to patients.
+type BulkPatientEmailRequest struct {
+	Subject   string `json:"subject"`
+	Preheader string `json:"preheader"`
+	Body      string `json:"body"`
+	CTA       string `json:"cta"`
+	CTAURL    string `json:"ctaUrl"`
+}
+
+// BulkPatientEmailResult summarizes a patient email broadcast attempt.
+type BulkPatientEmailResult struct {
+	RecipientCount int      `json:"recipientCount"`
+	Sent           int      `json:"sent"`
+	Failed         int      `json:"failed"`
+	Errors         []string `json:"errors,omitempty"`
+}
+
+// CountPatientEmailRecipients returns the number of patient accounts with usable email addresses.
+func (r *Repository) CountPatientEmailRecipients(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM users
+		WHERE role IN ('user', 'patient')
+		  AND NULLIF(TRIM(email), '') IS NOT NULL
+		  AND LOWER(TRIM(email)) ~ '^[a-z0-9.!#$%&''*+/=?^_`+"`"+`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'`).Scan(&count)
+	return count, err
+}
+
+// SendBulkPatientEmail sends an admin-authored message to all patient email addresses.
+func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEmailRequest) (BulkPatientEmailResult, error) {
+	if r.resendAPIKey == "" || r.emailFrom == "" {
+		return BulkPatientEmailResult{}, fmt.Errorf("bulk email delivery is not configured")
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT DISTINCT ON (LOWER(TRIM(email))) COALESCE(name, ''), LOWER(TRIM(email))
+		FROM users
+		WHERE role IN ('user', 'patient')
+		  AND NULLIF(TRIM(email), '') IS NOT NULL
+		  AND LOWER(TRIM(email)) ~ '^[a-z0-9.!#$%&''*+/=?^_`+"`"+`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
+		ORDER BY LOWER(TRIM(email)), created_at DESC`)
+	if err != nil {
+		return BulkPatientEmailResult{}, err
+	}
+	defer rows.Close()
+
+	result := BulkPatientEmailResult{}
+	for rows.Next() {
+		var name, email string
+		if err := rows.Scan(&name, &email); err != nil {
+			return result, err
+		}
+		result.RecipientCount++
+		if err := r.sendPatientEmail(ctx, name, email, msg); err != nil {
+			result.Failed++
+			if len(result.Errors) < 10 {
+				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", email, err))
+			}
+			log.Printf("[admin] bulk patient email to %s failed: %v", email, err)
+			continue
+		}
+		result.Sent++
+	}
+	return result, rows.Err()
+}
+
+func (r *Repository) sendPatientEmail(ctx context.Context, name, email string, msg BulkPatientEmailRequest) error {
+	body := map[string]interface{}{
+		"from":    r.emailFrom,
+		"to":      []string{email},
+		"subject": msg.Subject,
+		"html":    renderPatientEmailHTML(name, msg),
+		"text":    renderPatientEmailText(name, msg),
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.resend.com/emails", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+r.resendAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("resend status %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+	return nil
+}
+
+func renderPatientEmailText(name string, msg BulkPatientEmailRequest) string {
+	greeting := "Hello"
+	if strings.TrimSpace(name) != "" {
+		greeting = "Hello " + strings.TrimSpace(name)
+	}
+	out := greeting + ",\n\n" + strings.TrimSpace(msg.Body) + "\n\n"
+	if strings.TrimSpace(msg.CTA) != "" && strings.TrimSpace(msg.CTAURL) != "" {
+		out += strings.TrimSpace(msg.CTA) + ": " + strings.TrimSpace(msg.CTAURL) + "\n\n"
+	}
+	out += "Regards,\nLifeGate Health Team"
+	return out
+}
+
+func renderPatientEmailHTML(name string, msg BulkPatientEmailRequest) string {
+	greeting := "Hello"
+	if strings.TrimSpace(name) != "" {
+		greeting = "Hello " + htmlEscape(strings.TrimSpace(name))
+	}
+	preheader := htmlEscape(strings.TrimSpace(msg.Preheader))
+	paragraphs := strings.Split(strings.TrimSpace(msg.Body), "\n")
+	htmlBody := ""
+	for _, p := range paragraphs {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		htmlBody += `<p style="margin:0 0 16px;color:#334155;line-height:1.65;font-size:15px;">` + htmlEscape(strings.TrimSpace(p)) + `</p>`
+	}
+	cta := ""
+	if strings.TrimSpace(msg.CTA) != "" && strings.TrimSpace(msg.CTAURL) != "" {
+		cta = `<a href="` + htmlEscape(strings.TrimSpace(msg.CTAURL)) + `" style="display:inline-block;background:#0AADA2;color:#fff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:700;">` + htmlEscape(strings.TrimSpace(msg.CTA)) + `</a>`
+	}
+	return `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif;">` +
+		`<span style="display:none!important;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">` + preheader + `</span>` +
+		`<div style="max-width:640px;margin:0 auto;padding:32px 16px;"><div style="background:#fff;border-radius:24px;padding:32px;border:1px solid #e2e8f0;">` +
+		`<div style="font-size:13px;font-weight:800;color:#0AADA2;letter-spacing:.08em;text-transform:uppercase;margin-bottom:18px;">LifeGate Health</div>` +
+		`<h1 style="margin:0 0 18px;color:#0f172a;font-size:24px;line-height:1.25;">` + htmlEscape(msg.Subject) + `</h1>` +
+		`<p style="margin:0 0 16px;color:#334155;line-height:1.65;font-size:15px;">` + greeting + `,</p>` + htmlBody + cta +
+		`<hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0;"><p style="margin:0;color:#64748b;font-size:12px;line-height:1.6;">You are receiving this message because you have a LifeGate patient account.</p>` +
+		`</div></div></body></html>`
+}
+
+func htmlEscape(s string) string {
+	replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&#39;")
+	return replacer.Replace(s)
 }

@@ -28,6 +28,8 @@ import type {
   PatientRow,
   PatientImportSummary,
   PatientHealthUpdatePayload,
+  BulkPatientEmailDraft,
+  BulkPatientEmailResult,
 } from '../types/admin-types';
 
 export const AdminService = {
@@ -279,6 +281,16 @@ export const AdminService = {
    */
   async updatePatientHealthData(payload: PatientHealthUpdatePayload): Promise<void> {
     await api.patch('/admin/patients/health-data', payload);
+  },
+
+  async getPatientEmailRecipientCount(): Promise<number> {
+    const { data } = await api.get('/admin/patients/email-recipients/count');
+    return Number(data.data?.recipientCount ?? 0);
+  },
+
+  async sendBulkPatientEmail(payload: BulkPatientEmailDraft): Promise<BulkPatientEmailResult> {
+    const { data } = await api.post('/admin/patients/email-broadcast', payload);
+    return data.data as BulkPatientEmailResult;
   },
 
   async importPatientsCSV(testType?: string): Promise<PatientImportSummary | null> {
