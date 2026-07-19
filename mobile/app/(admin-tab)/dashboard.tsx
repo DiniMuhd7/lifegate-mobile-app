@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAdminStore } from '../../stores/admin-store';
 import { useAuthStore } from '../../stores/auth-store';
+import { AdminService } from '../../services/admin-service';
 import type { AdminCaseRow, SLAItem, FlagCount, PhysicianRow, SLABreachAlert, AuditEvent, AdminTransactionRow, NDPASnapshot } from '../../types/admin-types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -484,6 +485,7 @@ export default function AdminDashboardScreen() {
   const [analyticsDays, setAnalyticsDays] = useState(30);
   const [refreshing, setRefreshing] = useState(false);
   const [exploreRefreshing, setExploreRefreshing] = useState(false);
+  const [backupDownloading, setBackupDownloading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -547,6 +549,44 @@ export default function AdminDashboardScreen() {
       ]);
     }
   }, [router, logout]);
+
+
+  const handleDatabaseBackup = useCallback(async () => {
+    const runBackup = async () => {
+      setBackupDownloading(true);
+      try {
+        const destination = await AdminService.downloadDatabaseBackup();
+        const message = `Database backup created successfully: ${destination}`;
+        if (Platform.OS === 'web') {
+          // eslint-disable-next-line no-alert
+          window.alert(message);
+        } else {
+          Alert.alert('Backup ready', message);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not create database backup. Confirm pg_dump and DATABASE_URL are configured on the backend host.';
+        if (Platform.OS === 'web') {
+          // eslint-disable-next-line no-alert
+          window.alert(message);
+        } else {
+          Alert.alert('Backup failed', message);
+        }
+      } finally {
+        setBackupDownloading(false);
+      }
+    };
+
+    const prompt = 'Create and download a gzip SQL backup of the LifeGate database now? Store this file securely.';
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (window.confirm(prompt)) void runBackup();
+    } else {
+      Alert.alert('Back up database', prompt, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Create backup', style: 'default', onPress: () => { void runBackup(); } },
+      ]);
+    }
+  }, []);
 
   const handleStatus = useCallback((s: string) => {
     setStatusFilter(s);
@@ -690,6 +730,33 @@ export default function AdminDashboardScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Patient Email Broadcasts</Text>
               <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Draft reminders and promotional messages for all patients</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+          </TouchableOpacity>
+
+
+          <TouchableOpacity
+            disabled={backupDownloading}
+            onPress={handleDatabaseBackup}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              elevation: 1,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              opacity: backupDownloading ? 0.7 : 1,
+            }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' }}>
+              {backupDownloading ? <ActivityIndicator size="small" color="#15803d" /> : <Ionicons name="cloud-download-outline" size={20} color="#15803d" />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#111827' }}>Database Backup</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Download a gzip SQL dump before host changes or maintenance</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
           </TouchableOpacity>

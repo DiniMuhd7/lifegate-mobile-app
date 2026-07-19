@@ -756,6 +756,7 @@ func main() {
 	adminGroup := api.Group("/admin", middleware.Auth(cfg.JWTSecret), middleware.AdminOnly())
 	{
 		adminGroup.GET("/dashboard", adminHandler.GetDashboard)
+		adminGroup.GET("/database/backup", adminHandler.BackupDatabase)
 		adminGroup.GET("/cases", adminHandler.GetCases)
 		adminGroup.GET("/sla", adminHandler.GetSLA)
 		adminGroup.GET("/sla/breach-alerts", adminHandler.GetSLABreachAlerts)

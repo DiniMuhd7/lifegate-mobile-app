@@ -1,0 +1,38 @@
+name: LifeGate Database Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 02:15 UTC. Store DATABASE_URL as a GitHub Actions secret.
+    - cron: '15 2 * * *'
+
+jobs:
+  backup:
+    name: Create PostgreSQL backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Create compressed SQL backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret is required" >&2
+            exit 1
+          fi
+          mkdir -p backups
+          pg_dump --no-owner --no-privileges --clean --if-exists --format=plain "$DATABASE_URL" \
+            | gzip -9 > "backups/lifegate-db-backup-$(date -u +%Y%m%d-%H%M%S).sql.gz"
+
+      - name: Upload encrypted-retention backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifegate-database-backup
+          path: backups/*.sql.gz
+          if-no-files-found: error
+          retention-days: 14

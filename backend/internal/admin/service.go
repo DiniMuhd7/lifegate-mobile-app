@@ -25,6 +25,10 @@ func (s *Service) GetDashboardStats() (*DashboardStats, error) {
 	return s.repo.GetDashboardStats()
 }
 
+func (s *Service) BackupDatabase(ctx context.Context) (*DatabaseBackup, error) {
+	return s.repo.BackupDatabase(ctx)
+}
+
 func (s *Service) GetSLAReport() ([]SLAItem, error) {
 	return s.repo.GetSLAReport()
 }

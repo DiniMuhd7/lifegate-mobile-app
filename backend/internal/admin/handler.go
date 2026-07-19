@@ -60,6 +60,23 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": stats})
 }
 
+// BackupDatabase returns a gzip-compressed SQL dump of the LifeGate database.
+func (h *Handler) BackupDatabase(c *gin.Context) {
+	backup, err := h.svc.BackupDatabase(c.Request.Context())
+	if err != nil {
+		log.Printf("[admin] BackupDatabase: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	adminID, _ := c.Get("userID")
+	adminIDStr, _ := adminID.(string)
+	h.svc.LogAction(adminIDStr, "database.backup_download", "database", nil, map[string]interface{}{"filename": backup.Filename, "bytes": len(backup.Data)})
+	c.Header("Content-Type", backup.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, backup.Filename))
+	c.Header("Cache-Control", "no-store")
+	c.Data(http.StatusOK, backup.ContentType, backup.Data)
+}
+
 // ─── GET /api/admin/cases ─────────────────────────────────────────────────────
 
 // GetCases returns a paginated, filtered list of all cases.

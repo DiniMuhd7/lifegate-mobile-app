@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -11,6 +12,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -356,6 +359,57 @@ func NewRepository(db *sql.DB, emailConfig ...string) *Repository {
 		r.emailFrom = strings.TrimSpace(emailConfig[1])
 	}
 	return r
+}
+
+// DatabaseBackup contains a compressed SQL dump suitable for off-platform restore.
+type DatabaseBackup struct {
+	Filename    string
+	ContentType string
+	Data        []byte
+}
+
+// BackupDatabase creates a gzip-compressed pg_dump backup using DATABASE_URL.
+func (r *Repository) BackupDatabase(ctx context.Context) (*DatabaseBackup, error) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		databaseURL = strings.TrimSpace(os.Getenv("POSTGRES_URL"))
+	}
+	if databaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is not configured for database backups")
+	}
+	if _, err := exec.LookPath("pg_dump"); err != nil {
+		return nil, fmt.Errorf("pg_dump is not installed in this runtime")
+	}
+
+	cmd := exec.CommandContext(ctx, "pg_dump", "--no-owner", "--no-privileges", "--clean", "--if-exists", "--format=plain", databaseURL)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	dump, err := cmd.Output()
+	if err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return nil, fmt.Errorf("database backup failed: %s", msg)
+	}
+
+	var gz bytes.Buffer
+	zw := gzip.NewWriter(&gz)
+	zw.Name = "lifegate-database.sql"
+	zw.ModTime = time.Now().UTC()
+	if _, err := zw.Write(dump); err != nil {
+		_ = zw.Close()
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+
+	return &DatabaseBackup{
+		Filename:    "lifegate-db-backup-" + time.Now().UTC().Format("20060102-150405") + ".sql.gz",
+		ContentType: "application/gzip",
+		Data:        gz.Bytes(),
+	}, nil
 }
 
 // GetAllCases returns a filtered, paginated list of all diagnoses for admin management.
