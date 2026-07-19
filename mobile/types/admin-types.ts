@@ -410,11 +410,14 @@ export type BulkPatientEmailDraft = {
   body: string;
   cta?: string;
   ctaUrl?: string;
+  batchSize?: number;
 };
 
 export type BulkPatientEmailResult = {
   recipientCount: number;
   sent: number;
   failed: number;
+  pending: number;
+  campaignKey: string;
   errors?: string[];
 };
