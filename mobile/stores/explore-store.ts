@@ -623,6 +623,8 @@ interface PersistedExploreData {
    * next API fetch completes.
    */
   trendingCategories: TrendingCategory[];
+  lastSeenVideoIds?: string[];
+  newVideoCount?: number;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────
@@ -637,6 +639,8 @@ interface ExploreState extends PersistedExploreData {
   lastVideoRefreshDate: string | null;
   /** True when the server reports YouTube's daily fetch quota is exhausted. */
   quotaLimited: boolean;
+  newVideoCount: number;
+  markExploreUpdatesSeen: () => Promise<void>;
   initialize: () => Promise<void>;
   /** Refreshes the video catalogue, today's rewards, and trending categories from the API. */
   refreshVideos: () => Promise<void>;
@@ -660,6 +664,12 @@ async function persist(data: PersistedExploreData) {
 
 async function persistVideos(videos: ExploreVideo[], fetchDate: string, existing: PersistedExploreData) {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...existing, userId: currentUserId(), cachedVideos: videos, lastVideoFetchDate: fetchDate }));
+}
+
+function countNewVideos(previousIds: string[] = [], videos: ExploreVideo[] = []): number {
+  if (previousIds.length === 0) return 0;
+  const seen = new Set(previousIds);
+  return videos.filter((video) => !seen.has(video.id)).length;
 }
 
 /**
@@ -727,6 +737,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
   dailyCap: DAILY_VIDEO_CAP,
   lastVideoRefreshDate: null,
   quotaLimited: false,
+  newVideoCount: 0,
 
   initialize: async () => {
     const today = todayStr();
@@ -749,7 +760,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           const cachedVideos = persisted.cachedVideos ?? [];
           // Set lastVideoRefreshDate: today immediately so useFocusEffect does
           // not trigger a parallel refreshVideos() while step 2 fetch is in-flight.
-          set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true, lastVideoRefreshDate: today });
+          set({ ...persisted, videos: cachedVideos, dailyWatchedCount, initialized: true, lastVideoRefreshDate: today, newVideoCount: persisted.newVideoCount ?? 0 });
         }
       } else {
         set({ initialized: true, lastVideoRefreshDate: today });
@@ -769,6 +780,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           rewardedDate: today,
         }));
         const mergedProgress = [...existingProgress, ...serverProgress];
+        const newVideoCount = Math.max(get().newVideoCount, countNewVideos(persisted?.lastSeenVideoIds ?? persisted?.cachedVideos?.map((v) => v.id) ?? [], remote.videos));
         set({
           videos: remote.videos,
           dailyCap: remote.dailyCap,
@@ -777,6 +789,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           dailyWatchedCount: remote.rewardedIds.length,
           lastVideoRefreshDate: today,
           lastVideoFetchDate: today,  // keep in-memory state in sync with storage
+          newVideoCount,
         });
         const current = get();
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -789,6 +802,8 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
           cachedVideos: remote.videos,
           lastVideoFetchDate: today,
           trendingCategories: remote.trendingCategories,
+          lastSeenVideoIds: current.lastSeenVideoIds ?? persisted?.lastSeenVideoIds ?? (persisted?.cachedVideos ?? []).map((v) => v.id),
+          newVideoCount,
         } satisfies PersistedExploreData));
       }
       return;
@@ -819,6 +834,8 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       rewardedDate: today,
     }));
     const mergedProgress = [...existingProgress, ...serverProgress];
+    const previousIds = get().lastSeenVideoIds ?? get().cachedVideos.map((v) => v.id);
+    const newVideoCount = Math.max(get().newVideoCount, countNewVideos(previousIds, remote.videos));
     set({
       videos: remote.videos,
       dailyCap: remote.dailyCap,
@@ -828,6 +845,7 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       lastVideoRefreshDate: today,
       lastVideoFetchDate: today,  // keep in-memory state in sync with storage
       quotaLimited: remote.quotaLimited,
+      newVideoCount,
     });
     // Persist updated video cache
     const current = get();
@@ -841,7 +859,27 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
       cachedVideos: remote.videos,
       lastVideoFetchDate: today,
       trendingCategories: remote.trendingCategories,
+      lastSeenVideoIds: current.lastSeenVideoIds ?? previousIds,
+      newVideoCount,
     } satisfies PersistedExploreData));
+  },
+
+  markExploreUpdatesSeen: async () => {
+    const current = get();
+    const ids = current.videos.map((video) => video.id);
+    set({ newVideoCount: 0, lastSeenVideoIds: ids });
+    await persist({
+      lifecoins: current.lifecoins,
+      totalEarned: current.totalEarned,
+      progress: current.progress,
+      lastWatchDate: current.lastWatchDate,
+      dailyWatchedCount: current.dailyWatchedCount,
+      cachedVideos: current.videos,
+      lastVideoFetchDate: current.lastVideoFetchDate,
+      trendingCategories: current.trendingCategories,
+      lastSeenVideoIds: ids,
+      newVideoCount: 0,
+    } satisfies PersistedExploreData);
   },
 
   claimReward: async (videoId) => {

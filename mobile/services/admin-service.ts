@@ -3,6 +3,22 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import api from './api';
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function filenameFromDisposition(disposition?: string): string {
+  const match = disposition?.match(/filename="?([^";]+)"?/i);
+  return match?.[1] ?? `lifegate-db-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.sql.gz`;
+}
+
 import type {
   DashboardStats,
   AdminCaseRow,
@@ -59,6 +75,39 @@ export const AdminService = {
   async getEDISMetrics(days = 30): Promise<EDISMetrics> {
     const { data } = await api.get('/admin/metrics/edis', { params: { days } });
     return data.data as EDISMetrics;
+  },
+
+
+  async downloadDatabaseBackup(): Promise<string> {
+    const response = await api.get<ArrayBuffer>('/admin/database/backup', { responseType: 'arraybuffer' });
+    const filename = filenameFromDisposition(response.headers?.['content-disposition']);
+    const bytes = response.data;
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([bytes], { type: response.headers?.['content-type'] ?? 'application/gzip' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      return filename;
+    }
+
+    const uri = `${FileSystem.cacheDirectory ?? ''}${filename}`;
+    await FileSystem.writeAsStringAsync(uri, arrayBufferToBase64(bytes), {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const canShare = await Sharing.isAvailableAsync();
+    if (canShare) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/gzip',
+        dialogTitle: 'Save LifeGate Database Backup',
+      });
+    }
+    return uri;
   },
 
   // ── Physician account management ──────────────────────────────────────────

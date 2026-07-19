@@ -25,6 +25,10 @@ func (s *Service) GetDashboardStats() (*DashboardStats, error) {
 	return s.repo.GetDashboardStats()
 }
 
+func (s *Service) BackupDatabase(ctx context.Context) (*DatabaseBackup, error) {
+	return s.repo.BackupDatabase(ctx)
+}
+
 func (s *Service) GetSLAReport() ([]SLAItem, error) {
 	return s.repo.GetSLAReport()
 }
@@ -203,5 +207,11 @@ func (s *Service) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEmail
 	msg.Body = strings.TrimSpace(msg.Body)
 	msg.CTA = strings.TrimSpace(msg.CTA)
 	msg.CTAURL = strings.TrimSpace(msg.CTAURL)
+	if msg.BatchSize <= 0 {
+		msg.BatchSize = 100
+	}
+	if msg.BatchSize > 100 {
+		msg.BatchSize = 100
+	}
 	return s.repo.SendBulkPatientEmail(ctx, msg)
 }

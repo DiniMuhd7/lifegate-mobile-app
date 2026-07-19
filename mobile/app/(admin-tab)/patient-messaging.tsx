@@ -32,6 +32,7 @@ export default function PatientMessagingScreen() {
   const [loadingCount, setLoadingCount] = useState(true);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<BulkPatientEmailResult | null>(null);
+  const [batchSize, setBatchSize] = useState('100');
   const [draft, setDraft] = useState<BulkPatientEmailDraft>({
     subject: templates[0].subject,
     preheader: templates[0].preheader,
@@ -48,6 +49,7 @@ export default function PatientMessagingScreen() {
   }, []);
 
   const bodyWords = useMemo(() => draft.body.trim().split(/\s+/).filter(Boolean).length, [draft.body]);
+  const parsedBatchSize = Math.max(1, Math.min(100, Number.parseInt(batchSize, 10) || 100));
   const canSend = draft.subject.trim().length > 0 && draft.body.trim().length > 0 && !sending;
 
   const applyTemplate = (template: typeof templates[number]) => {
@@ -62,14 +64,14 @@ export default function PatientMessagingScreen() {
   };
 
   const confirmSend = () => {
-    const message = `Send this email to ${recipientCount ?? 'all'} patient recipients?`;
+    const message = `Send the next batch of up to ${parsedBatchSize} patient emails? Already-sent patients for this exact message will be skipped.`;
     const doSend = async () => {
       setSending(true);
       setResult(null);
       try {
-        const response = await AdminService.sendBulkPatientEmail(draft);
+        const response = await AdminService.sendBulkPatientEmail({ ...draft, batchSize: parsedBatchSize });
         setResult(response);
-        const summary = `Sent: ${response.sent}\nFailed: ${response.failed}\nAudience: ${response.recipientCount}`;
+        const summary = `Sent this batch: ${response.sent}\nFailed: ${response.failed}\nRemaining for this message: ${response.pending}\nAudience: ${response.recipientCount}`;
         if (Platform.OS === 'web') {
           // eslint-disable-next-line no-alert
           window.alert(summary);
@@ -142,6 +144,12 @@ export default function PatientMessagingScreen() {
 
       <View style={{ backgroundColor: '#fff', borderRadius: 22, padding: 18, marginBottom: 18 }}>
         <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: '800', marginBottom: 12 }}>Compose message</Text>
+
+        <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 6 }}>Batch size (Resend free plan safe limit)</Text>
+        <TextInput value={batchSize} onChangeText={setBatchSize} keyboardType="number-pad" placeholder="100" style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 14, padding: 12, marginBottom: 12, color: '#0f172a' }} />
+        <Text style={{ color: '#64748b', fontSize: 12, lineHeight: 18, marginBottom: 12 }}>
+          Send one batch per day until Remaining reaches 0. LifeGate records each successful delivery by patient and message so the same patient is not emailed twice for the same campaign.
+        </Text>
         <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 6 }}>Subject</Text>
         <TextInput value={draft.subject} onChangeText={(subject) => setDraft((d) => ({ ...d, subject }))} maxLength={140} placeholder="Email subject" style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 14, padding: 12, marginBottom: 12, color: '#0f172a' }} />
         <Text style={{ color: '#475569', fontWeight: '700', marginBottom: 6 }}>Preheader</Text>
@@ -167,14 +175,14 @@ export default function PatientMessagingScreen() {
 
       {result && (
         <View style={{ backgroundColor: '#ecfdf5', borderRadius: 18, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: '#bbf7d0' }}>
-          <Text style={{ color: '#047857', fontWeight: '800' }}>Last broadcast: {result.sent} sent, {result.failed} failed</Text>
+          <Text style={{ color: '#047857', fontWeight: '800' }}>Last batch: {result.sent} sent, {result.failed} failed, {result.pending} remaining</Text>
           {!!result.errors?.length && <Text style={{ color: '#64748b', marginTop: 6 }}>{result.errors.join('\n')}</Text>}
         </View>
       )}
 
       <TouchableOpacity disabled={!canSend} onPress={confirmSend} style={{ backgroundColor: canSend ? '#0AADA2' : '#94a3b8', borderRadius: 18, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
         <Ionicons name="send" size={18} color="#fff" />
-        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{sending ? 'Sending…' : 'Send to all patients'}</Text>
+        <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>{sending ? 'Sending…' : `Send next batch (${parsedBatchSize})`}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

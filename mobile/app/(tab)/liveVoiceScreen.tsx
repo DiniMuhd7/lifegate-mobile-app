@@ -53,6 +53,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { VoiceChatService } from 'services/voice-service';
 import { useChatStore } from 'stores/chat-store';
 import { useAuthStore } from 'stores/auth/auth-store';
+import type { Message } from 'types/chat-types';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -385,10 +386,16 @@ const LiveVoiceScreen: React.FC = () => {
     return conv.messages.map((m) => ({ role: m.role, text: m.text }));
   }, [conversations, activeConvId]);
 
-  const activeCategory = useMemo(() => {
-    const conv = conversations.find((c) => c.id === activeConvId);
-    return conv?.category ?? 'general_health';
-  }, [conversations, activeConvId]);
+  const activeConversation = useMemo(() => conversations.find((c) => c.id === activeConvId), [conversations, activeConvId]);
+
+  const activeCategory = useMemo(() => activeConversation?.category ?? 'general_health', [activeConversation]);
+
+  const latestClinicalMessage = useMemo<Message | null>(() => {
+    const messages = activeConversation?.messages ?? [];
+    return [...messages].reverse().find((m) =>
+      m.role === 'AI' && (m.diagnosis || m.conditions?.length || m.riskFlags?.length || m.investigations?.length)
+    ) ?? null;
+  }, [activeConversation]);
 
   // ── Meter polling ────────────────────────────────────────────────────────
   const startMeterPoll = useCallback(() => {
@@ -768,6 +775,36 @@ const LiveVoiceScreen: React.FC = () => {
           contentContainerStyle={{ paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
         >
+
+          {latestClinicalMessage && (
+            <View style={{ backgroundColor: '#0f2032', borderWidth: 1, borderColor: 'rgba(20,184,166,0.35)', borderRadius: 18, padding: 14, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <Ionicons name="clipboard-outline" size={16} color="#5eead4" />
+                <Text style={{ color: '#ccfbf1', fontWeight: '800', fontSize: 13 }}>Live triage report card</Text>
+              </View>
+              {latestClinicalMessage.diagnosis ? (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ color: '#e2e8f0', fontWeight: '800', fontSize: 15 }}>{latestClinicalMessage.diagnosis.condition}</Text>
+                  <Text style={{ color: '#94a3b8', marginTop: 4, fontSize: 12, lineHeight: 17 }}>{latestClinicalMessage.diagnosis.description}</Text>
+                  <Text style={{ color: '#5eead4', marginTop: 6, fontSize: 11, fontWeight: '800' }}>
+                    {latestClinicalMessage.diagnosis.urgency} urgency{latestClinicalMessage.diagnosis.confidence ? ` · ${latestClinicalMessage.diagnosis.confidence}% confidence` : ''}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ color: '#94a3b8', marginBottom: 10, fontSize: 12 }}>Pre-diagnosis signals will update as LifeGate collects more symptoms.</Text>
+              )}
+              {!!latestClinicalMessage.conditions?.length && (
+                <Text style={{ color: '#cbd5e1', fontSize: 12, lineHeight: 18 }}>Top possibilities: {latestClinicalMessage.conditions.slice(0, 3).map((c) => `${c.condition} (${c.confidence}%)`).join(', ')}</Text>
+              )}
+              {!!latestClinicalMessage.riskFlags?.length && (
+                <Text style={{ color: '#fecaca', fontSize: 12, lineHeight: 18, marginTop: 6 }}>Risk flags: {latestClinicalMessage.riskFlags.slice(0, 2).map((r) => r.flag.replace(/_/g, ' ')).join(', ')}</Text>
+              )}
+              {!!latestClinicalMessage.investigations?.length && (
+                <Text style={{ color: '#bfdbfe', fontSize: 12, lineHeight: 18, marginTop: 6 }}>Suggested tests: {latestClinicalMessage.investigations.slice(0, 2).map((i) => i.test).join(', ')}</Text>
+              )}
+            </View>
+          )}
+
           {turns.length === 0 && (
             <View style={{ alignItems: 'center', paddingTop: 16, paddingHorizontal: 16 }}>
               <Text style={{ color: '#334155', fontSize: 13, textAlign: 'center', lineHeight: 20 }}>

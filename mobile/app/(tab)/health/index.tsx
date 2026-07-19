@@ -27,6 +27,7 @@ import { GreetingSection } from 'components/GreetingSection';
 import Logo from 'assets/logo.svg';
 import type { HealthTimelineEntry } from 'types/health-types';
 import { usePaymentStore } from 'stores/payment-store';
+import { useExploreStore } from 'stores/explore-store';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -644,7 +645,7 @@ function ActivityMonitorCard() {
   );
 }
 
-function PromotionsSection() {
+function PromotionsSection({ newExploreCount }: { newExploreCount: number }) {
   return (
     <View style={{ marginBottom: 16, paddingHorizontal: 16 }}>
       <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -688,6 +689,11 @@ function PromotionsSection() {
               }}
             >
               <Ionicons name={item.icon} size={22} color={item.color} />
+              {item.title === 'Explore' && newExploreCount > 0 && (
+                <View style={{ position: 'absolute', top: -6, right: -6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderWidth: 2, borderColor: '#fff' }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{newExploreCount > 9 ? '9+' : newExploreCount}</Text>
+                </View>
+              )}
             </View>
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
               {item.title}
@@ -790,6 +796,9 @@ export default function HealthDashboardScreen() {
   );
 
   const { user, sessionLoading } = useAuthStore();
+  const initializeExplore = useExploreStore((state) => state.initialize);
+  const exploreInitialized = useExploreStore((state) => state.initialized);
+  const newExploreCount = useExploreStore((state) => state.newVideoCount);
 
   // Track the last userId that triggered a fetch. When a different user
   // becomes active, drop stale data immediately so the previous user's
@@ -809,11 +818,12 @@ export default function HealthDashboardScreen() {
       fetchedForUserId.current = user.id;
       fetchPatientTimeline();
       fetchPatientAlerts();
+      if (!exploreInitialized) void initializeExplore();
     }
     if (!user?.id) {
       fetchedForUserId.current = null;
     }
-  }, [sessionLoading, user?.id]);
+  }, [sessionLoading, user?.id, exploreInitialized, initializeExplore]);
 
   // Silently re-fetch whenever the patient navigates back to this tab so
   // physician edits (condition, urgency, notes) appear without a manual
@@ -997,7 +1007,17 @@ export default function HealthDashboardScreen() {
           </View>
 
 
-          <PromotionsSection />
+          <PromotionsSection newExploreCount={newExploreCount} />
+
+          {newExploreCount > 0 && (
+            <Pressable onPress={() => router.push('/(tab)/health/explore' as never)} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#ecfdf5', borderRadius: 14, borderWidth: 1, borderColor: '#99f6e4', padding: 12 }}>
+                <Ionicons name="sparkles-outline" size={20} color="#0f766e" />
+                <Text style={{ flex: 1, fontSize: 13, color: '#0f766e', fontWeight: '700' }}>{newExploreCount} new Explore video{newExploreCount === 1 ? '' : 's'} available — tap to watch</Text>
+                <Ionicons name="chevron-forward" size={16} color="#0f766e" />
+              </View>
+            </Pressable>
+          )}
 
           <ActivityMonitorCard />
 
