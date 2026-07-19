@@ -962,6 +962,12 @@ func (h *Handler) SendBulkPatientEmail(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Message body is required and must be 5000 characters or less"})
 		return
 	}
+	if body.BatchSize <= 0 {
+		body.BatchSize = 100
+	}
+	if body.BatchSize > 100 {
+		body.BatchSize = 100
+	}
 	if (body.CTA == "") != (body.CTAURL == "") {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "CTA label and CTA URL must be provided together"})
 		return
@@ -980,6 +986,8 @@ func (h *Handler) SendBulkPatientEmail(c *gin.Context) {
 		"sent":    result.Sent,
 		"failed":  result.Failed,
 		"total":   result.RecipientCount,
+		"pending": result.Pending,
+		"batch":   body.BatchSize,
 	})
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Patient email broadcast completed", "data": result})
 }

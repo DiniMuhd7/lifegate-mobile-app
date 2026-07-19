@@ -1139,6 +1139,7 @@ export default function ExploreScreen() {
     dailyCap,
     lastVideoFetchDate,
     reportWatch,
+    markExploreUpdatesSeen,
   } = useExploreStore();
 
   const user = useAuthStore((s) => s.user);
@@ -1186,6 +1187,7 @@ export default function ExploreScreen() {
     useCallback(() => {
       // Mark focused so the visible card resumes playback.
       setScreenFocused(true);
+      void markExploreUpdatesSeen();
       if (initialized) {
         const today = new Date().toISOString().slice(0, 10);
         if (lastVideoFetchDate !== today) {
@@ -1196,7 +1198,7 @@ export default function ExploreScreen() {
       // On blur (navigating away by any means), drop focus so every card's
       // WebView unmounts cleanly before this screen is destroyed.
       return () => setScreenFocused(false);
-    }, [initialized, lastVideoFetchDate, refreshVideos]),
+    }, [initialized, lastVideoFetchDate, refreshVideos, markExploreUpdatesSeen]),
   );
 
   // Guard so a double-tap / repeated hardware back never fires navigation twice

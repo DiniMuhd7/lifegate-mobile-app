@@ -3,7 +3,9 @@ package admin
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2204,6 +2206,7 @@ type BulkPatientEmailRequest struct {
 	Body      string `json:"body"`
 	CTA       string `json:"cta"`
 	CTAURL    string `json:"ctaUrl"`
+	BatchSize int    `json:"batchSize"`
 }
 
 // BulkPatientEmailResult summarizes a patient email broadcast attempt.
@@ -2211,6 +2214,8 @@ type BulkPatientEmailResult struct {
 	RecipientCount int      `json:"recipientCount"`
 	Sent           int      `json:"sent"`
 	Failed         int      `json:"failed"`
+	Pending        int      `json:"pending"`
+	CampaignKey    string   `json:"campaignKey"`
 	Errors         []string `json:"errors,omitempty"`
 }
 
@@ -2226,42 +2231,92 @@ func (r *Repository) CountPatientEmailRecipients(ctx context.Context) (int, erro
 	return count, err
 }
 
-// SendBulkPatientEmail sends an admin-authored message to all patient email addresses.
+// SendBulkPatientEmail sends one idempotent batch of an admin-authored campaign.
 func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEmailRequest) (BulkPatientEmailResult, error) {
 	if r.resendAPIKey == "" || r.emailFrom == "" {
 		return BulkPatientEmailResult{}, fmt.Errorf("bulk email delivery is not configured")
 	}
+	if msg.BatchSize <= 0 {
+		msg.BatchSize = 100
+	}
+	if msg.BatchSize > 100 {
+		msg.BatchSize = 100
+	}
+	campaignKey := patientEmailCampaignKey(msg)
 
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT DISTINCT ON (LOWER(TRIM(email))) COALESCE(name, ''), LOWER(TRIM(email))
+	result := BulkPatientEmailResult{CampaignKey: campaignKey}
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
 		FROM users
 		WHERE role IN ('user', 'patient')
 		  AND NULLIF(TRIM(email), '') IS NOT NULL
-		  AND LOWER(TRIM(email)) ~ '^[a-z0-9.!#$%&''*+/=?^_`+"`"+`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
-		ORDER BY LOWER(TRIM(email)), created_at DESC`)
+		  AND LOWER(TRIM(email)) ~ '^[a-z0-9.!#$%&''*+/=?^_`+"`"+`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'`).Scan(&result.RecipientCount); err != nil {
+		return result, err
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT DISTINCT ON (LOWER(TRIM(u.email))) u.id::text, COALESCE(u.name, ''), LOWER(TRIM(u.email))
+		FROM users u
+		WHERE u.role IN ('user', 'patient')
+		  AND NULLIF(TRIM(u.email), '') IS NOT NULL
+		  AND LOWER(TRIM(u.email)) ~ '^[a-z0-9.!#$%&''*+/=?^_`+"`"+`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
+		  AND NOT EXISTS (
+			SELECT 1 FROM patient_email_broadcast_deliveries d
+			WHERE d.campaign_key = $1 AND d.user_id = u.id
+		  )
+		ORDER BY LOWER(TRIM(u.email)), u.created_at DESC
+		LIMIT $2`, campaignKey, msg.BatchSize)
 	if err != nil {
-		return BulkPatientEmailResult{}, err
+		return result, err
 	}
 	defer rows.Close()
 
-	result := BulkPatientEmailResult{}
 	for rows.Next() {
-		var name, email string
-		if err := rows.Scan(&name, &email); err != nil {
+		var userID, name, email string
+		if err := rows.Scan(&userID, &name, &email); err != nil {
 			return result, err
 		}
-		result.RecipientCount++
+		claim, err := r.db.ExecContext(ctx, `
+			INSERT INTO patient_email_broadcast_deliveries (campaign_key, user_id, email, status)
+			VALUES ($1, $2::uuid, $3, 'sending')
+			ON CONFLICT (campaign_key, user_id) DO NOTHING`, campaignKey, userID, email)
+		if err != nil {
+			return result, err
+		}
+		claimed, _ := claim.RowsAffected()
+		if claimed == 0 {
+			continue
+		}
+
 		if err := r.sendPatientEmail(ctx, name, email, msg); err != nil {
 			result.Failed++
 			if len(result.Errors) < 10 {
 				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", email, err))
 			}
+			_, _ = r.db.ExecContext(ctx, `UPDATE patient_email_broadcast_deliveries SET status = 'failed', error = $3 WHERE campaign_key = $1 AND user_id = $2::uuid`, campaignKey, userID, err.Error())
 			log.Printf("[admin] bulk patient email to %s failed: %v", email, err)
 			continue
 		}
+		if _, err := r.db.ExecContext(ctx, `UPDATE patient_email_broadcast_deliveries SET status = 'sent', sent_at = NOW(), error = NULL WHERE campaign_key = $1 AND user_id = $2::uuid`, campaignKey, userID); err != nil {
+			return result, err
+		}
 		result.Sent++
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return result, err
+	}
+	var delivered int
+	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM patient_email_broadcast_deliveries WHERE campaign_key = $1`, campaignKey).Scan(&delivered)
+	result.Pending = result.RecipientCount - delivered
+	if result.Pending < 0 {
+		result.Pending = 0
+	}
+	return result, nil
+}
+
+func patientEmailCampaignKey(msg BulkPatientEmailRequest) string {
+	h := sha256.Sum256([]byte(strings.Join([]string{msg.Subject, msg.Preheader, msg.Body, msg.CTA, msg.CTAURL}, "\x00")))
+	return hex.EncodeToString(h[:])[:24]
 }
 
 func (r *Repository) sendPatientEmail(ctx context.Context, name, email string, msg BulkPatientEmailRequest) error {

@@ -203,5 +203,11 @@ func (s *Service) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEmail
 	msg.Body = strings.TrimSpace(msg.Body)
 	msg.CTA = strings.TrimSpace(msg.CTA)
 	msg.CTAURL = strings.TrimSpace(msg.CTAURL)
+	if msg.BatchSize <= 0 {
+		msg.BatchSize = 100
+	}
+	if msg.BatchSize > 100 {
+		msg.BatchSize = 100
+	}
 	return s.repo.SendBulkPatientEmail(ctx, msg)
 }

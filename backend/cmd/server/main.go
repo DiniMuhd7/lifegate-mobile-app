@@ -111,7 +111,7 @@ func main() {
 	// Ensure the default admin account always exists (idempotent upsert).
 	// ADMIN_PASSWORD (preferred) and ADMIN_PASSWORD_HASH let ops teams rotate
 	// credentials without a code change; they fall back to the documented defaults.
-	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "span@dshub.com.ng")))
+	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "edis@dshub.com.ng")))
 	adminHash := getEnvOrDefault("ADMIN_PASSWORD_HASH",
 		"$2a$10$nwkD/kv1H6aLAymdMxLOi.Zo4JK/xijkN2SW/BYAL14SEdXDeVUOW")
 	if adminPassword := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")); adminPassword != "" {
@@ -124,7 +124,7 @@ func main() {
 	}
 	if _, err := database.Exec(
 		`INSERT INTO users (name, email, password_hash, role)
-		 VALUES ('SPAN Admin', $1, $2, 'admin')
+		 VALUES ('EDIS Admin', $1, $2, 'admin')
 		 ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password_hash = $2, role = 'admin'`,
 		adminEmail, adminHash,
 	); err != nil {
