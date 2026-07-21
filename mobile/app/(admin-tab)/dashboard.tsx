@@ -564,7 +564,7 @@ export default function AdminDashboardScreen() {
           Alert.alert('Backup ready', message);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Could not create database backup. Confirm pg_dump and DATABASE_URL are configured on the backend host.';
+        const message = err instanceof Error ? err.message : 'Could not create database backup. Confirm the backend database connection is healthy and try again.';
         if (Platform.OS === 'web') {
           // eslint-disable-next-line no-alert
           window.alert(message);

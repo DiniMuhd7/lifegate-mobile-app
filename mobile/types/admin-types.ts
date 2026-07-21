@@ -417,6 +417,7 @@ export type BulkPatientEmailResult = {
   recipientCount: number;
   sent: number;
   failed: number;
+  alreadySent: number;
   pending: number;
   campaignKey: string;
   errors?: string[];

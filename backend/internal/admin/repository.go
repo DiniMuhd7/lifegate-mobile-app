@@ -16,6 +16,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
@@ -368,29 +370,17 @@ type DatabaseBackup struct {
 	Data        []byte
 }
 
-// BackupDatabase creates a gzip-compressed pg_dump backup using DATABASE_URL.
+// BackupDatabase creates a gzip-compressed SQL backup. It prefers pg_dump
+// when the runtime has it installed, then falls back to a pure-Go data export
+// so the admin download still works on slim hosts.
 func (r *Repository) BackupDatabase(ctx context.Context) (*DatabaseBackup, error) {
-	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if databaseURL == "" {
-		databaseURL = strings.TrimSpace(os.Getenv("POSTGRES_URL"))
-	}
-	if databaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is not configured for database backups")
-	}
-	if _, err := exec.LookPath("pg_dump"); err != nil {
-		return nil, fmt.Errorf("pg_dump is not installed in this runtime")
-	}
-
-	cmd := exec.CommandContext(ctx, "pg_dump", "--no-owner", "--no-privileges", "--clean", "--if-exists", "--format=plain", databaseURL)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	dump, err := cmd.Output()
+	dump, err := r.pgDumpBackup(ctx)
 	if err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
+		log.Printf("[admin] pg_dump unavailable, using SQL data fallback: %v", err)
+		dump, err = r.portableDataBackup(ctx)
+		if err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("database backup failed: %s", msg)
 	}
 
 	var gz bytes.Buffer
@@ -410,6 +400,146 @@ func (r *Repository) BackupDatabase(ctx context.Context) (*DatabaseBackup, error
 		ContentType: "application/gzip",
 		Data:        gz.Bytes(),
 	}, nil
+}
+
+func (r *Repository) pgDumpBackup(ctx context.Context) ([]byte, error) {
+	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+	if databaseURL == "" {
+		databaseURL = strings.TrimSpace(os.Getenv("POSTGRES_URL"))
+	}
+	if databaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is not configured")
+	}
+	if _, err := exec.LookPath("pg_dump"); err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, "pg_dump", "--no-owner", "--no-privileges", "--clean", "--if-exists", "--format=plain", databaseURL)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	dump, err := cmd.Output()
+	if err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return nil, fmt.Errorf("pg_dump failed: %s", msg)
+	}
+	return dump, nil
+}
+
+func (r *Repository) portableDataBackup(ctx context.Context) ([]byte, error) {
+	tables, err := r.publicTableNames(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("database backup failed: %w", err)
+	}
+	var b bytes.Buffer
+	b.WriteString("-- LifeGate portable database data backup\n")
+	b.WriteString("-- Generated at " + time.Now().UTC().Format(time.RFC3339) + "\n")
+	b.WriteString("-- Restore by applying migrations first, then running this file with psql.\n\n")
+	b.WriteString("BEGIN;\n")
+	b.WriteString("SET session_replication_role = replica;\n\n")
+	for _, table := range tables {
+		if err := r.writeTableInserts(ctx, &b, table); err != nil {
+			return nil, err
+		}
+	}
+	b.WriteString("SET session_replication_role = DEFAULT;\n")
+	b.WriteString("COMMIT;\n")
+	return b.Bytes(), nil
+}
+
+func (r *Repository) publicTableNames(ctx context.Context) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT table_name
+		FROM information_schema.tables
+		WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+		ORDER BY table_name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var tables []string
+	for rows.Next() {
+		var table string
+		if err := rows.Scan(&table); err != nil {
+			return nil, err
+		}
+		tables = append(tables, table)
+	}
+	return tables, rows.Err()
+}
+
+func (r *Repository) writeTableInserts(ctx context.Context, b *bytes.Buffer, table string) error {
+	cols, err := r.tableColumns(ctx, table)
+	if err != nil {
+		return err
+	}
+	if len(cols) == 0 {
+		return nil
+	}
+	quotedTable := pq.QuoteIdentifier(table)
+	quotedCols := make([]string, 0, len(cols))
+	for _, c := range cols {
+		quotedCols = append(quotedCols, pq.QuoteIdentifier(c))
+	}
+	rows, err := r.db.QueryContext(ctx, "SELECT "+strings.Join(quotedCols, ", ")+" FROM "+quotedTable)
+	if err != nil {
+		return fmt.Errorf("backup table %s: %w", table, err)
+	}
+	defer rows.Close()
+
+	b.WriteString("\n-- Data for table " + quotedTable + "\n")
+	values := make([]interface{}, len(cols))
+	scan := make([]interface{}, len(cols))
+	for i := range values {
+		scan[i] = &values[i]
+	}
+	for rows.Next() {
+		if err := rows.Scan(scan...); err != nil {
+			return err
+		}
+		literals := make([]string, len(values))
+		for i, v := range values {
+			literals[i] = sqlLiteral(v)
+		}
+		b.WriteString("INSERT INTO " + quotedTable + " (" + strings.Join(quotedCols, ", ") + ") VALUES (" + strings.Join(literals, ", ") + ") ON CONFLICT DO NOTHING;\n")
+	}
+	return rows.Err()
+}
+
+func (r *Repository) tableColumns(ctx context.Context, table string) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT column_name
+		FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = $1
+		ORDER BY ordinal_position`, table)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var cols []string
+	for rows.Next() {
+		var col string
+		if err := rows.Scan(&col); err != nil {
+			return nil, err
+		}
+		cols = append(cols, col)
+	}
+	return cols, rows.Err()
+}
+
+func sqlLiteral(v interface{}) string {
+	if v == nil {
+		return "NULL"
+	}
+	switch t := v.(type) {
+	case []byte:
+		return pq.QuoteLiteral(string(t))
+	case time.Time:
+		return pq.QuoteLiteral(t.UTC().Format(time.RFC3339Nano))
+	default:
+		return pq.QuoteLiteral(fmt.Sprint(t))
+	}
 }
 
 // GetAllCases returns a filtered, paginated list of all diagnoses for admin management.
@@ -2268,6 +2398,7 @@ type BulkPatientEmailResult struct {
 	RecipientCount int      `json:"recipientCount"`
 	Sent           int      `json:"sent"`
 	Failed         int      `json:"failed"`
+	AlreadySent    int      `json:"alreadySent"`
 	Pending        int      `json:"pending"`
 	CampaignKey    string   `json:"campaignKey"`
 	Errors         []string `json:"errors,omitempty"`
@@ -2277,7 +2408,7 @@ type BulkPatientEmailResult struct {
 func (r *Repository) CountPatientEmailRecipients(ctx context.Context) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
+		SELECT COUNT(DISTINCT LOWER(TRIM(email)))
 		FROM users
 		WHERE role IN ('user', 'patient')
 		  AND NULLIF(TRIM(email), '') IS NOT NULL
@@ -2300,7 +2431,7 @@ func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEm
 
 	result := BulkPatientEmailResult{CampaignKey: campaignKey}
 	if err := r.db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
+		SELECT COUNT(DISTINCT LOWER(TRIM(email)))
 		FROM users
 		WHERE role IN ('user', 'patient')
 		  AND NULLIF(TRIM(email), '') IS NOT NULL
@@ -2316,7 +2447,7 @@ func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEm
 		  AND LOWER(TRIM(u.email)) ~ '^[a-z0-9.!#$%&''*+/=?^_`+"`"+`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$'
 		  AND NOT EXISTS (
 			SELECT 1 FROM patient_email_broadcast_deliveries d
-			WHERE d.campaign_key = $1 AND d.user_id = u.id
+			WHERE d.campaign_key = $1 AND d.email = LOWER(TRIM(u.email))
 		  )
 		ORDER BY LOWER(TRIM(u.email)), u.created_at DESC
 		LIMIT $2`, campaignKey, msg.BatchSize)
@@ -2333,7 +2464,7 @@ func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEm
 		claim, err := r.db.ExecContext(ctx, `
 			INSERT INTO patient_email_broadcast_deliveries (campaign_key, user_id, email, status)
 			VALUES ($1, $2::uuid, $3, 'sending')
-			ON CONFLICT (campaign_key, user_id) DO NOTHING`, campaignKey, userID, email)
+			ON CONFLICT (campaign_key, email) DO NOTHING`, campaignKey, userID, email)
 		if err != nil {
 			return result, err
 		}
@@ -2347,11 +2478,11 @@ func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEm
 			if len(result.Errors) < 10 {
 				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", email, err))
 			}
-			_, _ = r.db.ExecContext(ctx, `UPDATE patient_email_broadcast_deliveries SET status = 'failed', error = $3 WHERE campaign_key = $1 AND user_id = $2::uuid`, campaignKey, userID, err.Error())
+			_, _ = r.db.ExecContext(ctx, `UPDATE patient_email_broadcast_deliveries SET status = 'failed', error = $3 WHERE campaign_key = $1 AND email = $2`, campaignKey, email, err.Error())
 			log.Printf("[admin] bulk patient email to %s failed: %v", email, err)
 			continue
 		}
-		if _, err := r.db.ExecContext(ctx, `UPDATE patient_email_broadcast_deliveries SET status = 'sent', sent_at = NOW(), error = NULL WHERE campaign_key = $1 AND user_id = $2::uuid`, campaignKey, userID); err != nil {
+		if _, err := r.db.ExecContext(ctx, `UPDATE patient_email_broadcast_deliveries SET status = 'sent', sent_at = NOW(), error = NULL WHERE campaign_key = $1 AND email = $2`, campaignKey, email); err != nil {
 			return result, err
 		}
 		result.Sent++
@@ -2360,7 +2491,11 @@ func (r *Repository) SendBulkPatientEmail(ctx context.Context, msg BulkPatientEm
 		return result, err
 	}
 	var delivered int
-	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM patient_email_broadcast_deliveries WHERE campaign_key = $1`, campaignKey).Scan(&delivered)
+	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(DISTINCT email) FROM patient_email_broadcast_deliveries WHERE campaign_key = $1`, campaignKey).Scan(&delivered)
+	result.AlreadySent = delivered - result.Sent - result.Failed
+	if result.AlreadySent < 0 {
+		result.AlreadySent = 0
+	}
 	result.Pending = result.RecipientCount - delivered
 	if result.Pending < 0 {
 		result.Pending = 0

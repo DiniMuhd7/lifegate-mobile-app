@@ -6,7 +6,7 @@
  *
  * The videos are baked into the Render web deployment at build time by
  * mobile/scripts/download-house-videos.js and served first-party from
- * https://mobile.dshub.com.ng/videos/ (native apps stream the same URLs).
+ * https://mobile.dshub.com.ng/videos/ with https://lifegate.dshub.com.ng/videos/ as the fallback mirror (native apps stream the same URLs).
  * Override with EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS (comma-separated URLs).
  */
 import { Platform } from 'react-native';
@@ -18,18 +18,18 @@ const VIDEO_FILES = [
   'lifegate-promo-4.mp4',
 ];
 
-const VIDEO_BASE_URL = 'https://mobile.dshub.com.ng/videos';
+const VIDEO_BASE_URLS = ['https://mobile.dshub.com.ng/videos', 'https://lifegate.dshub.com.ng/videos'];
 
 export const HOUSE_VIDEO_URLS: string[] = (() => {
   const env = process.env.EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS;
-  if (env) return env.split(',').map((s) => s.trim()).filter(Boolean);
+  if (env) return env.split(',').map((s: string) => s.trim()).filter(Boolean);
   // In local dev the Metro/Expo dev server has no /videos directory — stream
   // from the production deployment instead so the flow stays testable.
-  if (__DEV__) return VIDEO_FILES.map((f) => `${VIDEO_BASE_URL}/${f}`);
+  if (__DEV__) return VIDEO_FILES.flatMap((f) => VIDEO_BASE_URLS.map((base) => `${base}/${f}`));
   // On web, same-origin relative URLs keep working on preview deploys and
   // custom domains alike; native needs the absolute production URL.
-  const base = Platform.OS === 'web' ? '/videos' : VIDEO_BASE_URL;
-  return VIDEO_FILES.map((f) => `${base}/${f}`);
+  if (Platform.OS === 'web') return VIDEO_FILES.map((f) => `/videos/${f}`);
+  return VIDEO_FILES.flatMap((f) => VIDEO_BASE_URLS.map((base) => `${base}/${f}`));
 })();
 
 export function pickHouseVideoUrl(): string {

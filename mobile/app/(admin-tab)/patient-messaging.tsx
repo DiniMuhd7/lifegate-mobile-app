@@ -71,7 +71,7 @@ export default function PatientMessagingScreen() {
       try {
         const response = await AdminService.sendBulkPatientEmail({ ...draft, batchSize: parsedBatchSize });
         setResult(response);
-        const summary = `Sent this batch: ${response.sent}\nFailed: ${response.failed}\nRemaining for this message: ${response.pending}\nAudience: ${response.recipientCount}`;
+        const summary = `Sent this batch: ${response.sent}\nFailed: ${response.failed}\nAlready completed before this batch: ${response.alreadySent ?? 0}\nRemaining for this message: ${response.pending}\nAudience: ${response.recipientCount}`;
         if (Platform.OS === 'web') {
           // eslint-disable-next-line no-alert
           window.alert(summary);
@@ -175,7 +175,7 @@ export default function PatientMessagingScreen() {
 
       {result && (
         <View style={{ backgroundColor: '#ecfdf5', borderRadius: 18, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: '#bbf7d0' }}>
-          <Text style={{ color: '#047857', fontWeight: '800' }}>Last batch: {result.sent} sent, {result.failed} failed, {result.pending} remaining</Text>
+          <Text style={{ color: '#047857', fontWeight: '800' }}>Last batch: {result.sent} sent, {result.failed} failed, {result.alreadySent ?? 0} already completed, {result.pending} remaining</Text>
           {!!result.errors?.length && <Text style={{ color: '#64748b', marginTop: 6 }}>{result.errors.join('\n')}</Text>}
         </View>
       )}
