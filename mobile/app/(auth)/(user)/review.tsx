@@ -7,7 +7,7 @@ import { validateRegistration, ValidationError } from 'utils/validation';
 import { InfoRow } from 'components/InfoRow';
 import { FREE_HEALTH_SCREENING_OPTIONS } from 'constants/constants';
 import { Ionicons } from '@expo/vector-icons';
-import { openExternalUrl } from '@/utils/external-link';
+import { openFirstSupportedExternalUrl } from '@/utils/external-link';
 
 export default function UserReviewStep() {
   const { userDraft, error: backendError, loading, startRegistration, clearError } = useRegistrationStore();
@@ -167,13 +167,13 @@ export default function UserReviewStep() {
             I confirm the information above is accurate and agree to the{' '}
             <Text
               className="font-semibold text-teal-600"
-              onPress={() => { void openExternalUrl('https://mobile.dshub.com.ng/terms'); }}>
+              onPress={() => { void openFirstSupportedExternalUrl(['https://mobile.dshub.com.ng/terms', 'https://lifegate.dshub.com.ng/terms']); }}>
               Terms of Service
             </Text>
             {' '}and{' '}
             <Text
               className="font-semibold text-teal-600"
-              onPress={() => { void openExternalUrl('https://mobile.dshub.com.ng/privacy'); }}>
+              onPress={() => { void openFirstSupportedExternalUrl(['https://mobile.dshub.com.ng/privacy', 'https://lifegate.dshub.com.ng/privacy']); }}>
               Privacy Policy
             </Text>
             .
