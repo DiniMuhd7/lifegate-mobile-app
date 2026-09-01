@@ -26,7 +26,11 @@ function resolveBaseUrl(): string {
 
   // Native (React Native) — no window object
   if (typeof window === 'undefined') {
-    return envUrl ?? PRODUCTION_API_URL;
+    // Do not send a device to localhost when a development .env file is
+    // present. On a phone, localhost refers to the phone itself rather than
+    // the development machine, so authentication fails as a network error.
+    // Remote EXPO_PUBLIC_API_URL values have already been honoured above.
+    return PRODUCTION_API_URL;
   }
 
   const hostname = window.location.hostname;
