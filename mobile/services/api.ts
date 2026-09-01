@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import NetInfo from '@react-native-community/netinfo';
 import { getRefreshToken, removeRefreshToken, removeToken } from '../utils/tokenStorage';
 
-const PRODUCTION_API_URL = 'https://lifegate-backend-vr9q.onrender.com/api';
+const PRODUCTION_API_URL = 'https://edis.dshub.com.ng/api';
 
 /**
  * Resolve the correct API base URL at runtime.
