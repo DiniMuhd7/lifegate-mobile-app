@@ -52,6 +52,7 @@ import (
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/healthmetrics"
 	imsvc "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/im"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/institutional"
+	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/lifefund"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/middleware"
 	natsclient "github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/nats"
 	"github.com/DiniMuhd7/lifegate-mobile-app/backend/internal/notifications"
@@ -291,6 +292,23 @@ func main() {
 	referralSvc := referral.NewService(database)
 	referralSvc.SetCreditGranter(paymentsSvc)
 	referralHandler := referral.NewHandler(referralSvc)
+
+	// LifeFund — healthcare financing/loan facility.
+	lifefundRepo := lifefund.NewRepository(database)
+	lifefundSvc := lifefund.NewService(lifefundRepo)
+	lifefundSvc.SetPushNotifier(pushSvc)
+	lifefundHandler := lifefund.NewHandler(lifefundSvc)
+	// Periodically flip past-due installments to OVERDUE and notify affected patients.
+	go func() {
+		for {
+			time.Sleep(6 * time.Hour)
+			if n, err := lifefundSvc.RunOverdueSweep(context.Background()); err != nil {
+				log.Printf("[lifefund] overdue sweep error: %v", err)
+			} else if n > 0 {
+				log.Printf("[lifefund] flagged %d request(s) overdue", n)
+			}
+		}
+	}()
 
 	exploreRepo := explore.NewRepository(database)
 	exploreSvc := explore.NewService(exploreRepo)
@@ -638,6 +656,17 @@ func main() {
 	}
 	api.POST("/checkins/answers", middleware.Auth(cfg.JWTSecret), paymentsHandler.SubmitCheckinAnswers)
 
+	// LifeFund — healthcare financing/loan facility. Patient-facing.
+	lifefundGroup := api.Group("/lifefund", middleware.Auth(cfg.JWTSecret))
+	{
+		lifefundGroup.GET("/account", lifefundHandler.GetAccount)
+		lifefundGroup.POST("/requests", lifefundHandler.SubmitRequest)
+		lifefundGroup.GET("/requests", lifefundHandler.ListMyRequests)
+		lifefundGroup.GET("/requests/:id", lifefundHandler.GetMyRequest)
+		lifefundGroup.POST("/requests/:id/accept", lifefundHandler.AcceptAgreement)
+		lifefundGroup.POST("/requests/:id/repayments", lifefundHandler.SubmitRepayment)
+	}
+
 	// Explore — health education videos
 	exploreGroup := api.Group("/explore", middleware.Auth(cfg.JWTSecret))
 	{
@@ -797,6 +826,13 @@ func main() {
 		adminGroup.GET("/lifecoins/redemptions", paymentsHandler.GetPendingRedemptions)
 		adminGroup.POST("/lifecoins/redemptions/:id/approve", paymentsHandler.ApproveRedemption)
 		adminGroup.POST("/lifecoins/redemptions/:id/reject", paymentsHandler.RejectRedemption)
+
+		// LifeFund review & disbursement (healthcare financing/loan facility)
+		adminGroup.GET("/lifefund/dashboard", lifefundHandler.AdminDashboard)
+		adminGroup.GET("/lifefund/requests", lifefundHandler.AdminListRequests)
+		adminGroup.GET("/lifefund/requests/:id", lifefundHandler.AdminGetRequest)
+		adminGroup.POST("/lifefund/requests/:id/action", lifefundHandler.AdminApplyAction)
+		adminGroup.POST("/lifefund/requests/:id/repayments", lifefundHandler.AdminRecordRepayment)
 
 		// Explore catalogue management
 		adminGroup.POST("/explore/refresh", exploreHandler.TriggerRefresh)
