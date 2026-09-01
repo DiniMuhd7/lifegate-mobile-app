@@ -12,6 +12,8 @@ export default function HealthLayout() {
       <Stack.Screen name="offers" />
       <Stack.Screen name="explore" />
       <Stack.Screen name="referrals" />
+      <Stack.Screen name="lifefund" />
+      <Stack.Screen name="lifefund-detail" />
     </Stack>
   );
 }
