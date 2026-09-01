@@ -519,6 +519,7 @@ const PROMOTIONS = [
   { title: 'Check-ins', subtitle: 'Log daily health check-ins & earn rewards', icon: 'checkmark-circle-outline' as const, color: '#0891b2', bg: '#e0f2fe' },
   { title: 'Explore', subtitle: 'Browse health tips, videos & articles', icon: 'compass-outline' as const, color: '#059669', bg: '#d1fae5' },
   { title: 'Referrals', subtitle: 'Invite friends and earn Diagnosis credits', icon: 'people-outline' as const, color: '#dc2626', bg: '#fee2e2' },
+  { title: 'LifeFund', subtitle: 'Finance hospital bills, pharmacy & more', icon: 'medkit-outline' as const, color: '#0f766e', bg: '#ccfbf1' },
 ];
 
 // ─── Activity Monitor Card ────────────────────────────────────────────────────
@@ -656,6 +657,7 @@ function PromotionsSection({ newExploreCount }: { newExploreCount: number }) {
               if (item.title === 'Check-ins') router.push('/(tab)/health/checkins' as never);
               if (item.title === 'Explore') router.push('/(tab)/health/explore' as never);
               if (item.title === 'Referrals') router.push('/(tab)/health/referrals' as never);
+              if (item.title === 'LifeFund') router.push('/(tab)/health/lifefund' as never);
             }}
             style={({ pressed }) => ({
               flex: 1,
