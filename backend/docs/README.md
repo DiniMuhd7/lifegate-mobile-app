@@ -11,7 +11,7 @@ http://localhost:8080/swagger/index.html
 On production (Render):
 
 ```
-https://lifegatemobilebackend-2.onrender.com/swagger/index.html
+https://edis.dshub.com.ng/swagger/index.html
 ```
 
 ---

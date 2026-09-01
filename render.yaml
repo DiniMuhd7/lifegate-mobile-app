@@ -56,9 +56,9 @@ services:
       - key: HEALTH_DATA_KEY
         generateValue: true
 
-      # Swagger UI host — set to the public Render URL so "Try it out" works in production
+      # Swagger UI host — set to the production API domain so "Try it out" works in production
       - key: SWAGGER_HOST
-        value: lifegate-backend-vr9q.onrender.com
+        value: edis.dshub.com.ng
 
       # AI — set the provider and fill in the key(s) via Render dashboard
       - key: AI_PROVIDER
@@ -139,7 +139,7 @@ services:
 
       # Admin account — override the seeded defaults with real credentials in Render dashboard
       - key: ADMIN_EMAIL
-        value: edis@dshub.com.ng
+        value: admin@dshub.com.ng
       - key: ADMIN_PASSWORD
         sync: false            # secret — preferred plaintext password, hashed on startup
       - key: ADMIN_PASSWORD_HASH
@@ -161,7 +161,7 @@ services:
 
     envVars:
       - key: EXPO_PUBLIC_API_URL
-        value: https://lifegate-backend-vr9q.onrender.com/api
+        value: https://edis.dshub.com.ng/api
       # Self-hosted rewarded videos — comma-separated direct video URLs.
       # Defaults to https://lifegate.dshub.com.ng/videos/* (baked at build time).
       # - key: EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS
