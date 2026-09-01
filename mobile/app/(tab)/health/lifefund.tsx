@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useLifeFundStore } from 'stores/lifefund-store';
 import {
   LIFEFUND_CATEGORY_LABELS,
@@ -51,6 +51,7 @@ function formatDate(iso: string): string {
 }
 
 export default function LifeFundScreen() {
+  const { request } = useLocalSearchParams<{ request?: string }>();
   const {
     account,
     eligibility,
@@ -72,6 +73,12 @@ export default function LifeFundScreen() {
   const [providerAccount, setProviderAccount] = useState('');
   const [billReference, setBillReference] = useState('');
   const [purpose, setPurpose] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (request === 'true') setShowForm(true);
+    }, [request]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -143,7 +150,7 @@ export default function LifeFundScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 20, fontWeight: '800', color: '#fff' }}>LifeFund</Text>
             <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
-              Healthcare financing, not free money
+              Flexible support for essential healthcare
             </Text>
           </View>
           {loadingAccount && <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />}
@@ -184,6 +191,22 @@ export default function LifeFundScreen() {
       </LinearGradient>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {[
+            { icon: 'document-text-outline' as const, title: 'Apply', copy: 'Tell us about your bill' },
+            { icon: 'shield-checkmark-outline' as const, title: 'Review', copy: 'Clear, fair assessment' },
+            { icon: 'heart-outline' as const, title: 'Care', copy: 'Pay your provider directly' },
+          ].map((step, index) => (
+            <View key={step.title} style={{ flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 11, borderWidth: 1, borderColor: '#e5e7eb' }}>
+              <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#ccfbf1', alignItems: 'center', justifyContent: 'center', marginBottom: 7 }}>
+                <Ionicons name={step.icon} size={14} color="#0f766e" />
+              </View>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#134e4a' }}>{index + 1}. {step.title}</Text>
+              <Text style={{ fontSize: 10, lineHeight: 14, color: '#6b7280', marginTop: 2 }}>{step.copy}</Text>
+            </View>
+          ))}
+        </View>
+
         {error && (
           <View
             style={{
@@ -221,6 +244,16 @@ export default function LifeFundScreen() {
             <Text style={{ flex: 1, fontSize: 13, color: '#92400e', fontWeight: '600' }}>
               {eligibility.reason}
             </Text>
+          </View>
+        )}
+
+        {eligible && (
+          <View style={{ backgroundColor: '#ecfdf5', borderRadius: 14, padding: 13, flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: '#a7f3d0' }}>
+            <Ionicons name="checkmark-circle" size={20} color="#047857" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#065f46' }}>You can request healthcare financing</Text>
+              <Text style={{ fontSize: 12, lineHeight: 17, color: '#047857', marginTop: 2 }}>Use it for eligible hospital, pharmacy and diagnostic bills up to your available limit.</Text>
+            </View>
           </View>
         )}
 
@@ -264,6 +297,7 @@ export default function LifeFundScreen() {
             }}
           >
             <Text style={{ fontSize: 15, fontWeight: '800', color: '#111827' }}>New LifeFund Request</Text>
+            <Text style={{ fontSize: 12, color: '#64748b', lineHeight: 17 }}>Share the provider and bill details so we can review your request. Submitting does not guarantee approval.</Text>
 
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#6b7280' }}>Expense category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -298,6 +332,11 @@ export default function LifeFundScreen() {
                 Your current available limit is {money(availableLimit)}.
               </Text>
             )}
+
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7, backgroundColor: '#f0fdfa', borderRadius: 10, padding: 10 }}>
+              <Ionicons name="information-circle-outline" size={16} color="#0f766e" />
+              <Text style={{ flex: 1, fontSize: 11, lineHeight: 16, color: '#115e59' }}>LifeFund is healthcare financing. If approved, repayment terms and any charges are shown for your review before you accept.</Text>
+            </View>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
               <Pressable

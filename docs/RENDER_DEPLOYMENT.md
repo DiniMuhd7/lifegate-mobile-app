@@ -66,7 +66,7 @@ In the Render dashboard, open the `lifegate-backend` service → **Environment**
 | `ANTHROPIC_API_KEY` | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) | If `AI_PROVIDER=anthropic` |
 | `SMTP_USER` | Your Gmail address or transactional email sender | Yes |
 | `SMTP_PASSWORD` | Gmail → [App Password](https://myaccount.google.com/apppasswords) · Resend/SendGrid → SMTP key | Yes |
-| `ALLOWED_ORIGINS` | Comma-separated list of client origins. Start with your Render backend URL: `https://lifegatemobilebackend-2.onrender.com` | Yes |
+| `ALLOWED_ORIGINS` | Comma-separated list of client origins. Start with the production frontend URL: `https://lifegate.dshub.com.ng` | Yes |
 
 > Choose only **one** AI provider and leave the others blank. Set `AI_PROVIDER` to match the key you supplied.
 
@@ -129,7 +129,7 @@ Run each file **in order**. Migration `002_mdcn_verification.sql` is a duplicate
 ### Step 6 — Verify the health endpoint
 
 ```bash
-curl https://lifegatemobilebackend-2.onrender.com/health
+curl https://edis.dshub.com.ng/health
 # Expected: 200 OK
 ```
 
@@ -208,10 +208,10 @@ npm ci
 Create `mobile/.env.production` with:
 
 ```env
-EXPO_PUBLIC_API_URL=https://lifegatemobilebackend-2.onrender.com/api
+EXPO_PUBLIC_API_URL=https://edis.dshub.com.ng/api
 ```
 
-If your Render service was given a different name, update this URL to match the **External URL** shown on the service dashboard.
+If you deploy the backend to a different domain, update this URL to match its public API base URL.
 
 ---
 
@@ -303,7 +303,7 @@ After the build completes (~10–15 min), EAS prints a download URL. Install the
 
 | Variable | Value | Description |
 |---|---|---|
-| `EXPO_PUBLIC_API_URL` | `https://lifegatemobilebackend-2.onrender.com/api` | Backend API base URL (embedded at build time) |
+| `EXPO_PUBLIC_API_URL` | `https://edis.dshub.com.ng/api` | Backend API base URL (embedded at build time) |
 
 ---
 

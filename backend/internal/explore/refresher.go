@@ -174,7 +174,7 @@ type ytSearchItem struct {
 
 // minChannelSubscribers is the minimum subscriber count a channel must have for
 // its videos to be ingested into the catalogue.
-const minChannelSubscribers = 1000
+const minChannelSubscribers = 5000
 
 // ytVideoDetails holds contentDetails returned by the videos.list endpoint.
 type ytVideoDetails struct {
@@ -823,11 +823,10 @@ func (r *Refresher) filterBySubscribers(ctx context.Context, vids []Video, chanB
 
 	subs, err := r.fetchChannelSubscribers(ctx, chanIDs)
 	if err != nil {
-		// On a stats lookup failure (e.g. quota) don't silently keep everything —
-		// but also don't drop everything: skip the filter so we still return
-		// content, and let the quota flag surface via the search calls.
-		log.Printf("[explore/refresher] subscriber lookup failed: %v — skipping subscriber filter", err)
-		return vids
+		// Subscriber counts cannot be verified, so do not publish unqualified
+		// channels. The next scheduled refresh can retry the lookup.
+		log.Printf("[explore/refresher] subscriber lookup failed: %v — skipping unverified channels", err)
+		return nil
 	}
 
 	kept := vids[:0]

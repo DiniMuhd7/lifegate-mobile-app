@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { Diagnosis } from 'types/chat-types';
+import { useLifeFundStore } from 'stores/lifefund-store';
 
 const URGENCY_CONFIG = {
   LOW: {
@@ -44,6 +45,15 @@ interface DiagnosisCardProps {
 }
 
 export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCard({ diagnosis, diagnosisId, isExistingCase, onCallPress }) {
+  const eligibility = useLifeFundStore((state) => state.eligibility);
+  const account = useLifeFundStore((state) => state.account);
+  const loadingAccount = useLifeFundStore((state) => state.loadingAccount);
+  const fetchAccount = useLifeFundStore((state) => state.fetchAccount);
+
+  useEffect(() => {
+    if (diagnosisId && !account && !loadingAccount) void fetchAccount();
+  }, [account, diagnosisId, fetchAccount, loadingAccount]);
+
   if (!diagnosis?.condition?.trim()) return null;
 
   const config =
@@ -208,6 +218,31 @@ export const DiagnosisCard = React.memo<DiagnosisCardProps>(function DiagnosisCa
             </Text>
             <Ionicons name="chevron-forward" size={12} color="#0AADA2" />
           </View>
+        ) : null}
+
+        {/* Eligible patients can turn a diagnosis into a financing request
+            without needing to hunt through the health dashboard. */}
+        {diagnosisId && eligibility?.eligible ? (
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/(tab)/health/lifefund', params: { request: 'true' } })}
+            activeOpacity={0.8}
+            style={{
+              marginTop: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              backgroundColor: '#ecfdf5',
+              borderWidth: 1,
+              borderColor: '#6ee7b7',
+              borderRadius: 10,
+              paddingVertical: 10,
+            }}
+          >
+            <Ionicons name="wallet-outline" size={15} color="#047857" />
+            <Text style={{ fontSize: 12, fontWeight: '800', color: '#047857' }}>Request healthcare financing</Text>
+            <Ionicons name="arrow-forward" size={14} color="#047857" />
+          </TouchableOpacity>
         ) : null}
 
         {/* ── Call-to-action: connect with physician ─────────────────────── */}

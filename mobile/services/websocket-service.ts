@@ -20,7 +20,7 @@
 type EventCallback = (data: unknown) => void;
 
 const MAX_BACKOFF_MS = 30_000;
-const PRODUCTION_WS_URL = 'wss://lifegate-backend-vr9q.onrender.com/ws';
+const PRODUCTION_WS_URL = 'wss://edis.dshub.com.ng/ws';
 
 function resolveWsUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
