@@ -3,7 +3,7 @@
  *
  * Run after `expo export -p web` (see render.yaml buildCommand). Downloads
  * the house-ad videos from Google Drive into <outDir>/videos so the deployed
- * site serves them first-party (https://mobile.dshub.com.ng/videos/…) instead
+ * site serves them first-party (https://lifegate.dshub.com.ng/videos/…) instead
  * of streaming from Drive at runtime (which enforces download quotas).
  *
  * Usage: node scripts/download-house-videos.js [outDir]   (default: dist)
