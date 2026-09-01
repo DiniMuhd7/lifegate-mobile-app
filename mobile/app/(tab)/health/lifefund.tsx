@@ -151,6 +151,7 @@ export default function LifeFundScreen() {
             <Text style={{ fontSize: 20, fontWeight: '800', color: '#fff' }}>LifeFund</Text>
             <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
               Healthcare should not wait for payday
+              Flexible support for essential healthcare
             </Text>
           </View>
           {loadingAccount && <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />}
