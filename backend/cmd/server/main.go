@@ -110,12 +110,14 @@ func main() {
 	}
 
 	// Ensure the default admin account always exists (idempotent upsert).
-	// ADMIN_PASSWORD (preferred) and ADMIN_PASSWORD_HASH let ops teams rotate
-	// credentials without a code change; they fall back to the documented defaults.
-	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "edis@dshub.com.ng")))
-	adminHash := getEnvOrDefault("ADMIN_PASSWORD_HASH",
-		"$2a$10$nwkD/kv1H6aLAymdMxLOi.Zo4JK/xijkN2SW/BYAL14SEdXDeVUOW")
-	if adminPassword := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")); adminPassword != "" {
+	// Operations can rotate it with ADMIN_PASSWORD or ADMIN_PASSWORD_HASH.
+	adminEmail := strings.ToLower(strings.TrimSpace(getEnvOrDefault("ADMIN_EMAIL", "admin@dshub.com.ng")))
+	adminHash := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD_HASH"))
+	adminPassword := strings.TrimSpace(os.Getenv("ADMIN_PASSWORD"))
+	if adminPassword == "" && adminHash == "" {
+		adminPassword = "DSHub@9038880035"
+	}
+	if adminPassword != "" {
 		generatedHash, hashErr := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 		if hashErr != nil {
 			log.Printf("[startup] warn: could not hash ADMIN_PASSWORD: %v", hashErr)

@@ -127,7 +127,7 @@ export default function LifeFundScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
       <LinearGradient
-        colors={['#0f766e', '#134e4a']}
+        colors={['#0f766e', '#115e59', '#0f3d3b']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ paddingTop: 8, paddingBottom: 24, paddingHorizontal: 20 }}
@@ -150,10 +150,16 @@ export default function LifeFundScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 20, fontWeight: '800', color: '#fff' }}>LifeFund</Text>
             <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 1 }}>
+              Healthcare should not wait for payday
               Flexible support for essential healthcare
             </Text>
           </View>
           {loadingAccount && <ActivityIndicator size="small" color="rgba(255,255,255,0.8)" />}
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 }}>
+          <View style={{ backgroundColor: '#5eead4', width: 8, height: 8, borderRadius: 4 }} />
+          <Text style={{ color: '#ccfbf1', fontSize: 11, fontWeight: '800', letterSpacing: 0.9 }}>CARE FINANCING, MADE CLEAR</Text>
         </View>
 
         <View
@@ -182,6 +188,9 @@ export default function LifeFundScreen() {
             </View>
           </View>
           <Text style={{ fontSize: 30, fontWeight: '900', color: '#fff' }}>{money(availableLimit)}</Text>
+          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', lineHeight: 17 }}>
+            Apply for eligible hospital, diagnostic and pharmacy bills. Review every term before you accept.
+          </Text>
           {account && account.outstandingBalance > 0 && (
             <Text style={{ fontSize: 12, color: '#fecaca', fontWeight: '600' }}>
               Outstanding: {money(account.outstandingBalance)}
@@ -205,6 +214,18 @@ export default function LifeFundScreen() {
               <Text style={{ fontSize: 10, lineHeight: 14, color: '#6b7280', marginTop: 2 }}>{step.copy}</Text>
             </View>
           ))}
+        </View>
+
+        <View style={{ backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#d1fae5', shadowColor: '#0f766e', shadowOpacity: 0.08, shadowRadius: 12, elevation: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#ccfbf1', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="medical-outline" size={20} color="#0f766e" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#134e4a' }}>Focus on getting the care you need.</Text>
+              <Text style={{ fontSize: 12, color: '#64748b', lineHeight: 18, marginTop: 3 }}>LifeFund helps eligible members request financing for verified health expenses—not cash advances.</Text>
+            </View>
+          </View>
         </View>
 
         {error && (
