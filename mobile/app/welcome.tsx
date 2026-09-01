@@ -124,7 +124,7 @@ export default function WelcomeScreen() {
               color: 'rgba(255,255,255,0.85)',
               letterSpacing: 1.5, textTransform: 'uppercase',
             }}>
-              Lifegate Health
+              LifeGate Health + LifeFund
             </Text>
           </View>
 
@@ -143,14 +143,8 @@ export default function WelcomeScreen() {
               fontSize: 36, fontWeight: '900', color: 'white',
               textAlign: 'center', lineHeight: 44, letterSpacing: -0.8,
             }}>
-              Empowering{'\n'}
-              <Text style={{ color: 'rgba(255,255,255,0.60)' }}>Clinicians,</Text>
-            </Text>
-            <Text style={{
-              fontSize: 36, fontWeight: '900', color: 'white',
-              textAlign: 'center', lineHeight: 44, letterSpacing: -0.8,
-            }}>
-              Saving Lives.
+              Care today.{'\n'}
+              <Text style={{ color: 'rgba(255,255,255,0.60)' }}>Support for tomorrow.</Text>
             </Text>
             {/* Teal accent underline */}
             <View style={{
@@ -165,8 +159,21 @@ export default function WelcomeScreen() {
             textAlign: 'center', lineHeight: 24, maxWidth: 300,
             marginBottom: 36,
           }}>
-            AI-assisted diagnosis meets certified physicians — healthcare that travels with you.
+            Understand your health, connect with care, and access transparent healthcare financing when an eligible bill cannot wait.
           </Text>
+
+          <View style={{ flexDirection: 'row', gap: 10, width: '100%', marginBottom: 28 }}>
+            <View style={{ flex: 1, borderRadius: 14, padding: 12, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)' }}>
+              <Ionicons name="pulse-outline" size={18} color="#5eead4" />
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', marginTop: 7 }}>Care guidance</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.58)', fontSize: 10, lineHeight: 14, marginTop: 2 }}>Health checks and clinician support.</Text>
+            </View>
+            <View style={{ flex: 1, borderRadius: 14, padding: 12, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)' }}>
+              <Ionicons name="wallet-outline" size={18} color="#5eead4" />
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', marginTop: 7 }}>LifeFund support</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.58)', fontSize: 10, lineHeight: 14, marginTop: 2 }}>Eligible users can request bill financing.</Text>
+            </View>
+          </View>
 
           <View style={{ width: '100%', gap: 12, marginTop: 'auto' }}>
             {/* Primary CTA */}
@@ -186,7 +193,7 @@ export default function WelcomeScreen() {
             >
               <Ionicons name="heart-outline" size={18} color="#0AADA2" />
               <Text style={{ color: '#0AADA2', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 }}>
-                Start Health Check
+                Get started with LifeGate
               </Text>
             </Pressable>
 
