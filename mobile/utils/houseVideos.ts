@@ -6,7 +6,7 @@
  *
  * The videos are baked into the Render web deployment at build time by
  * mobile/scripts/download-house-videos.js and served first-party from
- * https://mobile.dshub.com.ng/videos/ with https://lifegate.dshub.com.ng/videos/ as the fallback mirror (native apps stream the same URLs).
+ * https://lifegate.dshub.com.ng/videos/ (native apps stream the same URLs).
  * Override with EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS (comma-separated URLs).
  */
 import { Platform } from 'react-native';
@@ -18,7 +18,7 @@ const VIDEO_FILES = [
   'lifegate-promo-4.mp4',
 ];
 
-const VIDEO_BASE_URLS = ['https://mobile.dshub.com.ng/videos', 'https://lifegate.dshub.com.ng/videos'];
+const VIDEO_BASE_URLS = ['https://lifegate.dshub.com.ng/videos'];
 
 export const HOUSE_VIDEO_URLS: string[] = (() => {
   const env = process.env.EXPO_PUBLIC_WEB_REWARDED_VIDEO_URLS;

@@ -183,13 +183,13 @@ export default function ReviewScreen() {
               I confirm the information above is accurate and agree to the{' '}
               <Text
                 className="font-semibold text-teal-600"
-                onPress={() => { void openFirstSupportedExternalUrl(['https://mobile.dshub.com.ng/terms', 'https://lifegate.dshub.com.ng/terms']); }}>
+                onPress={() => { void openFirstSupportedExternalUrl(['https://lifegate.dshub.com.ng/terms']); }}>
                 Terms of Service
               </Text>
               {' '}and{' '}
               <Text
                 className="font-semibold text-teal-600"
-                onPress={() => { void openFirstSupportedExternalUrl(['https://mobile.dshub.com.ng/privacy', 'https://lifegate.dshub.com.ng/privacy']); }}>
+                onPress={() => { void openFirstSupportedExternalUrl(['https://lifegate.dshub.com.ng/privacy']); }}>
                 Privacy Policy
               </Text>
               .

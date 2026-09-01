@@ -163,7 +163,7 @@ The Blueprint now provisions a second Render service named `lifegate-mobile-web`
 After you apply the Blueprint in Render, the site will be available at:
 
 ```text
-https://mobile.dshub.com.ng
+https://lifegate.dshub.com.ng
 ```
 
 The static site uses a rewrite rule to `/index.html`, so Expo Router deep links continue to work.
@@ -175,7 +175,7 @@ The static site uses a rewrite rule to `/index.html`, so Expo Router deep links 
 In the Render dashboard, open `lifegate-backend` → **Environment** and set `ALLOWED_ORIGINS` to include the web site origin:
 
 ```env
-ALLOWED_ORIGINS=https://mobile.dshub.com.ng
+ALLOWED_ORIGINS=https://lifegate.dshub.com.ng
 ```
 
 If you also use Expo Go or another frontend origin, add them as a comma-separated list.
