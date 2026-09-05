@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { LifeFundService } from 'services/lifefund-service';
+import { extractErrorMessage } from 'utils/error-utils';
 import type {
   LifeFundAccount,
   LifeFundEligibility,
@@ -8,7 +9,8 @@ import type {
 } from 'types/lifefund-types';
 
 function errorMessage(e: unknown, fallback: string): string {
-  return e instanceof Error ? e.message : fallback;
+  const message = extractErrorMessage(e);
+  return message && message !== 'An error occurred. Please try again.' ? message : fallback;
 }
 
 interface LifeFundState {
