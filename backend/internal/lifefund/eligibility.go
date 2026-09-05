@@ -11,21 +11,20 @@ import (
 // business constant — every number here comes from the DB, with the
 // literals below used only as a last-resort fallback if a row is missing.
 type Config struct {
-	InitialLimit            float64
-	Tier2Limit              float64
-	Tier2RepaymentsRequired int
-	Tier3Limit              float64
-	Tier3RepaymentsRequired int
-	InterestRatePct         float64
-	FlatFee                 float64
-	DefaultInstallments     int
-	RepaymentFrequencyDays  int
-	MinAccountAgeDays       int
-	MaxRequestedAmount      float64
-	AutoReviewRiskThreshold float64
+	InitialLimit             float64
+	Tier2Limit               float64
+	Tier2RepaymentsRequired  int
+	Tier3Limit               float64
+	Tier3RepaymentsRequired  int
+	InterestRatePct          float64
+	FlatFee                  float64
+	DefaultInstallments      int
+	RepaymentFrequencyDays   int
+	MaxRequestedAmount       float64
+	AutoReviewRiskThreshold  float64
 	MaxDefaultsBeforeSuspend int
-	CoolingOffHours         int
-	AutoTierUpgradeEnabled  bool
+	CoolingOffHours          int
+	AutoTierUpgradeEnabled   bool
 }
 
 func defaultConfig() Config {
@@ -39,7 +38,6 @@ func defaultConfig() Config {
 		FlatFee:                  0,
 		DefaultInstallments:      3,
 		RepaymentFrequencyDays:   14,
-		MinAccountAgeDays:        30,
 		MaxRequestedAmount:       50000,
 		AutoReviewRiskThreshold:  60,
 		MaxDefaultsBeforeSuspend: 1,
@@ -53,20 +51,20 @@ func defaultConfig() Config {
 // the DB; keeping it as a plain struct makes the rules unit-testable without
 // a database.
 type EligibilityInput struct {
-	AccountExists        bool
-	AccountStatus        string
-	AdminOverrideStatus  *string
+	AccountExists          bool
+	AccountStatus          string
+	AdminOverrideStatus    *string
 	AdminOverrideAllowsNew bool // true if the admin explicitly permitted a new request despite an outstanding balance
-	CreditLimit          float64
-	OutstandingBalance   float64
-	SuccessfulRepayments int
-	DefaultsCount        int
-	UserAccountAgeDays   int
-	HasBasicIdentity     bool // name + phone on file
-	RequestedAmount      float64 // 0 when just checking eligibility, not submitting
-	OpenRequestsCount    int     // requests currently in a non-terminal state
-	RequestsLast24h      int     // fraud signal: submission velocity
-	DuplicateBillRef     bool    // fraud signal: same bill reference reused
+	CreditLimit            float64
+	OutstandingBalance     float64
+	SuccessfulRepayments   int
+	DefaultsCount          int
+	UserAccountAgeDays     int
+	HasBasicIdentity       bool    // name + phone on file
+	RequestedAmount        float64 // 0 when just checking eligibility, not submitting
+	OpenRequestsCount      int     // requests currently in a non-terminal state
+	RequestsLast24h        int     // fraud signal: submission velocity
+	DuplicateBillRef       bool    // fraud signal: same bill reference reused
 }
 
 // Evaluate runs the full LifeFund eligibility + risk engine and returns the
@@ -82,7 +80,7 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 		case StatusSuspended, StatusDefaulted, StatusIneligible, StatusRestricted:
 			return EligibilityResult{
 				Status: *in.AdminOverrideStatus, Eligible: false,
-				Reason: "Account is " + *in.AdminOverrideStatus + " by admin decision.",
+				Reason:         "Account is " + *in.AdminOverrideStatus + " by admin decision.",
 				AvailableLimit: 0, RiskScore: 100,
 			}
 		}
@@ -95,17 +93,10 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 		}
 	}
 
-	if in.UserAccountAgeDays < cfg.MinAccountAgeDays {
-		return EligibilityResult{
-			Status: StatusIneligible, Eligible: false,
-			Reason: fmt.Sprintf("Account must be at least %d days old (currently %d).", cfg.MinAccountAgeDays, in.UserAccountAgeDays),
-		}
-	}
-
 	if in.DefaultsCount >= cfg.MaxDefaultsBeforeSuspend {
 		return EligibilityResult{
 			Status: StatusSuspended, Eligible: false,
-			Reason: "Account suspended due to a previous LifeFund default. Contact support to appeal.",
+			Reason:    "Account suspended due to a previous LifeFund default. Contact support to appeal.",
 			RiskScore: 100,
 		}
 	}
@@ -116,7 +107,7 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 	if in.OutstandingBalance > 0 && !in.AdminOverrideAllowsNew {
 		return EligibilityResult{
 			Status: StatusRestricted, Eligible: false,
-			Reason: fmt.Sprintf("Outstanding LifeFund balance of %.2f must be repaid before requesting more financing.", in.OutstandingBalance),
+			Reason:         fmt.Sprintf("Outstanding LifeFund balance of %.2f must be repaid before requesting more financing.", in.OutstandingBalance),
 			AvailableLimit: 0, RiskScore: clamp(30+float64(in.DefaultsCount)*20, 0, 100),
 		}
 	}
@@ -124,7 +115,7 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 	if in.OpenRequestsCount > 0 {
 		return EligibilityResult{
 			Status: StatusRestricted, Eligible: false,
-			Reason: "An existing LifeFund request is already in progress.",
+			Reason:         "An existing LifeFund request is already in progress.",
 			AvailableLimit: 0,
 		}
 	}
@@ -164,14 +155,14 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 		if in.RequestedAmount > cfg.MaxRequestedAmount {
 			return EligibilityResult{
 				Status: StatusLimited, Eligible: false,
-				Reason: fmt.Sprintf("Requested amount exceeds the platform maximum of %.2f.", cfg.MaxRequestedAmount),
+				Reason:         fmt.Sprintf("Requested amount exceeds the platform maximum of %.2f.", cfg.MaxRequestedAmount),
 				AvailableLimit: limit, RiskScore: risk, FraudFlags: flags,
 			}
 		}
 		if in.RequestedAmount > limit {
 			return EligibilityResult{
 				Status: StatusLimited, Eligible: false,
-				Reason: fmt.Sprintf("Requested amount exceeds your current available limit of %.2f.", limit),
+				Reason:         fmt.Sprintf("Requested amount exceeds your current available limit of %.2f.", limit),
 				AvailableLimit: limit, RiskScore: risk, FraudFlags: flags,
 			}
 		}
@@ -179,9 +170,9 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 
 	status := StatusEligible
 	requiresReview := risk >= cfg.AutoReviewRiskThreshold || len(flags) > 0
-	reason := "Eligible for LifeFund financing."
+	reason := "Eligible for LifeFund financing. LifeGate Official will contact you for an eligibility interview."
 	if requiresReview {
-		reason = "Eligible, subject to admin/provider review due to elevated risk indicators."
+		reason = "Eligible, subject to admin/provider review due to elevated risk indicators. LifeGate Official will contact you for an eligibility interview."
 	}
 
 	return EligibilityResult{

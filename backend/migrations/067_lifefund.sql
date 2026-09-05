@@ -141,7 +141,6 @@ INSERT INTO alert_thresholds (key, label, description, value, unit, category) VA
   ('lifefund.flat_fee',                   'Flat Processing Fee',                'Flat fee (NGN) added to every disbursed request, 0 to disable',                   0,     'NGN',   'lifefund'),
   ('lifefund.default_installments',       'Default Installment Count',          'Number of installments a new request is split into',                              3,     'count', 'lifefund'),
   ('lifefund.repayment_frequency_days',   'Repayment Frequency (days)',         'Days between installment due dates',                                               14,    'days',  'lifefund'),
-  ('lifefund.min_account_age_days',       'Minimum Account Age',                'Days an account must exist before it can request LifeFund',                       30,    'days',  'lifefund'),
   ('lifefund.max_requested_amount',       'Maximum Single Request',             'Hard ceiling on a single request regardless of limit',                            50000, 'NGN',   'lifefund'),
   ('lifefund.auto_review_risk_threshold', 'Auto-Review Risk Threshold',         'Risk score (0-100) at or above which a request always goes to PENDING_REVIEW',    60,    'score', 'lifefund'),
   ('lifefund.max_defaults_before_suspend','Defaults Before Suspension',         'Number of past defaults after which the account is auto-SUSPENDED',              1,     'count', 'lifefund'),
