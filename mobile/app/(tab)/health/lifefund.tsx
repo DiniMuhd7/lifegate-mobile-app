@@ -435,7 +435,7 @@ export default function LifeFundScreen() {
               </Pressable>
             </View>
           </View>
-        )}
+        ) : null}
 
         {/* Request history */}
         <View style={{ gap: 10 }}>
