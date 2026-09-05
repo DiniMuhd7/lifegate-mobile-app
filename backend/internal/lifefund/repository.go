@@ -66,9 +66,6 @@ func (r *Repository) LoadConfig() (Config, error) {
 	if v, ok := values["lifefund.repayment_frequency_days"]; ok {
 		cfg.RepaymentFrequencyDays = int(v)
 	}
-	if v, ok := values["lifefund.min_account_age_days"]; ok {
-		cfg.MinAccountAgeDays = int(v)
-	}
 	if v, ok := values["lifefund.max_requested_amount"]; ok {
 		cfg.MaxRequestedAmount = v
 	}

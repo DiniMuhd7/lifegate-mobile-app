@@ -314,6 +314,7 @@ export default function LifeFundScreen() {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 13, fontWeight: '800', color: '#065f46' }}>You can request healthcare financing</Text>
               <Text style={{ fontSize: 12, lineHeight: 17, color: '#047857', marginTop: 2 }}>Use it for eligible hospital, pharmacy and diagnostic bills up to your available limit.</Text>
+              <Text style={{ fontSize: 12, lineHeight: 17, color: '#047857', marginTop: 2 }}>LifeGate Official will contact you for an eligibility interview.</Text>
             </View>
           </View>
         )}
