@@ -62,7 +62,7 @@ type EligibilityInput struct {
 	SuccessfulRepayments int
 	DefaultsCount        int
 	UserAccountAgeDays   int
-	HasBasicIdentity     bool // name + email + phone on file
+	HasBasicIdentity     bool // name + phone on file
 	RequestedAmount      float64 // 0 when just checking eligibility, not submitting
 	OpenRequestsCount    int     // requests currently in a non-terminal state
 	RequestsLast24h      int     // fraud signal: submission velocity
@@ -91,7 +91,7 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 	if !in.HasBasicIdentity {
 		return EligibilityResult{
 			Status: StatusIneligible, Eligible: false,
-			Reason: "Identity verification incomplete — name, email and phone must be on file.",
+			Reason: "Identity verification incomplete — name and phone number must be on file.",
 		}
 	}
 
