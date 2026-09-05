@@ -170,14 +170,14 @@ func (r *Repository) SetAdminOverride(userID, adminID string, status *string, re
 
 func (r *Repository) UserProfile(userID string) (ageDays int, hasBasicIdentity bool, err error) {
 	var createdAt time.Time
-	var name, email, phone sql.NullString
-	err = r.db.QueryRow(`SELECT created_at, name, email, phone FROM users WHERE id = $1::uuid`, userID).
-		Scan(&createdAt, &name, &email, &phone)
+	var name, phone sql.NullString
+	err = r.db.QueryRow(`SELECT created_at, name, phone FROM users WHERE id = $1::uuid`, userID).
+		Scan(&createdAt, &name, &phone)
 	if err != nil {
 		return 0, false, err
 	}
 	ageDays = int(time.Since(createdAt).Hours() / 24)
-	hasBasicIdentity = name.Valid && name.String != "" && email.Valid && email.String != "" && phone.Valid && phone.String != ""
+	hasBasicIdentity = name.Valid && strings.TrimSpace(name.String) != "" && phone.Valid && strings.TrimSpace(phone.String) != ""
 	return ageDays, hasBasicIdentity, nil
 }
 

@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useLifeFundStore } from 'stores/lifefund-store';
+import { useAuthStore } from 'stores/auth/auth-store';
+import { useProfileStore } from 'stores/auth/profile-store';
 import {
   LIFEFUND_CATEGORY_LABELS,
   type LifeFundExpenseCategory,
@@ -52,6 +54,9 @@ function formatDate(iso: string): string {
 
 export default function LifeFundScreen() {
   const { request } = useLocalSearchParams<{ request?: string }>();
+  const user = useAuthStore((state) => state.user);
+  const updateBasicProfile = useProfileStore((state) => state.updateBasicProfile);
+  const updatingProfile = useProfileStore((state) => state.loading);
   const {
     account,
     eligibility,
@@ -73,6 +78,7 @@ export default function LifeFundScreen() {
   const [providerAccount, setProviderAccount] = useState('');
   const [billReference, setBillReference] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [phone, setPhone] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -121,8 +127,24 @@ export default function LifeFundScreen() {
     }
   };
 
+  const handlePhoneSubmit = async () => {
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone) {
+      Alert.alert('Phone number required', 'Enter your phone number to continue with LifeFund eligibility.');
+      return;
+    }
+
+    const updated = await updateBasicProfile({ phone: trimmedPhone });
+    if (updated) {
+      setPhone('');
+      await fetchAccount();
+      Alert.alert('Phone number saved', 'Your LifeFund eligibility has been updated.');
+    }
+  };
+
   const eligible = account?.status === 'ELIGIBLE';
   const availableLimit = account?.availableLimit ?? 0;
+  const needsPhone = !user?.phone?.trim();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
@@ -249,7 +271,25 @@ export default function LifeFundScreen() {
           </View>
         )}
 
-        {eligibility && !eligible && (
+        {needsPhone ? (
+          <View style={{ backgroundColor: '#fff', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#fde68a', gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+              <Ionicons name="call-outline" size={20} color="#b45309" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: '#92400e' }}>Add a phone number to continue</Text>
+                <Text style={{ fontSize: 12, color: '#92400e', lineHeight: 17, marginTop: 3 }}>LifeFund eligibility requires a phone number on your profile. Your email address is not required.</Text>
+              </View>
+            </View>
+            <Field label="Phone number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="e.g. 08012345678" />
+            <Pressable
+              onPress={handlePhoneSubmit}
+              disabled={updatingProfile}
+              style={{ alignItems: 'center', borderRadius: 12, paddingVertical: 12, backgroundColor: '#0f766e', opacity: updatingProfile ? 0.6 : 1 }}
+            >
+              {updatingProfile ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Save phone number</Text>}
+            </Pressable>
+          </View>
+        ) : eligibility && !eligible && (
           <View
             style={{
               backgroundColor: '#fffbeb',
@@ -279,7 +319,7 @@ export default function LifeFundScreen() {
         )}
 
         {/* New request CTA / form */}
-        {!showForm ? (
+        {!needsPhone && !showForm ? (
           <Pressable
             disabled={!eligible}
             onPress={() => setShowForm(true)}
@@ -306,7 +346,7 @@ export default function LifeFundScreen() {
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>Request LifeFund Financing</Text>
             </LinearGradient>
           </Pressable>
-        ) : (
+        ) : !needsPhone ? (
           <View
             style={{
               backgroundColor: '#fff',
