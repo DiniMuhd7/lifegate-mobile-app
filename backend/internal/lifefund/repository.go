@@ -207,7 +207,7 @@ func (r *Repository) HasDuplicateBillReference(userID, billRef string) (bool, er
 // ── Requests ─────────────────────────────────────────────────────────────
 
 const requestSelectCols = `
-	r.id, r.user_id, u.name, u.email,
+	r.id, r.user_id, u.name, u.email, u.phone,
 	r.expense_category, r.purpose_description,
 	r.healthcare_provider_name, r.healthcare_provider_account, r.bill_reference, r.supporting_documents,
 	r.requested_amount, r.approved_amount, r.financing_provider,
@@ -220,7 +220,7 @@ const requestSelectCols = `
 
 func scanRequest(row interface{ Scan(...interface{}) error }) (*Request, error) {
 	var q Request
-	var purpose, providerName, providerAcct, billRef sql.NullString
+	var purpose, providerName, providerAcct, billRef, patientPhone sql.NullString
 	var docsJSON, flagsJSON, agreementJSON []byte
 	var approvedAmount, totalRepayable sql.NullFloat64
 	var firstRepay, finalRepay sql.NullString
@@ -228,7 +228,7 @@ func scanRequest(row interface{ Scan(...interface{}) error }) (*Request, error) 
 	var reviewedAt, agreementAcceptedAt, disbursedAt, completedAt sql.NullTime
 
 	if err := row.Scan(
-		&q.ID, &q.UserID, &q.PatientName, &q.PatientEmail,
+		&q.ID, &q.UserID, &q.PatientName, &q.PatientEmail, &patientPhone,
 		&q.ExpenseCategory, &purpose,
 		&providerName, &providerAcct, &billRef, &docsJSON,
 		&q.RequestedAmount, &approvedAmount, &q.FinancingProvider,
@@ -246,6 +246,7 @@ func scanRequest(row interface{ Scan(...interface{}) error }) (*Request, error) 
 	q.HealthcareProviderName = providerName.String
 	q.HealthcareProviderAccount = providerAcct.String
 	q.BillReference = billRef.String
+	q.PatientPhone = patientPhone.String
 	if len(docsJSON) > 0 {
 		_ = json.Unmarshal(docsJSON, &q.SupportingDocuments)
 	}

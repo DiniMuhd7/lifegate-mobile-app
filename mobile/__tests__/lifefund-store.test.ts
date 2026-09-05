@@ -35,4 +35,21 @@ describe('LifeFund request submission', () => {
     );
     expect(useLifeFundStore.getState().submitting).toBe(false);
   });
+
+  it('shows helpful guidance when a 422 response has no backend message', async () => {
+    mockSubmitRequest.mockRejectedValue({
+      message: 'Request failed with status code 422',
+      response: { status: 422, data: {} },
+    });
+
+    await useLifeFundStore.getState().submitRequest({
+      expenseCategory: 'HOSPITAL_BILL',
+      healthcareProviderName: 'LifeGate Hospital',
+      requestedAmount: 12000,
+    });
+
+    expect(useLifeFundStore.getState().error).toBe(
+      'We could not submit your LifeFund request. Check that your phone number is saved, the amount is within your available limit, and you do not already have a request in progress.'
+    );
+  });
 });

@@ -147,6 +147,7 @@ type Request struct {
 	UserID                    string          `json:"userId"`
 	PatientName               string          `json:"patientName,omitempty"`
 	PatientEmail              string          `json:"patientEmail,omitempty"`
+	PatientPhone              string          `json:"patientPhone,omitempty"`
 
 	ExpenseCategory           string          `json:"expenseCategory"`
 	PurposeDescription        string          `json:"purposeDescription"`

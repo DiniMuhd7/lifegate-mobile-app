@@ -34,6 +34,7 @@ interface LifeFundAdminState {
   fetchRequestDetail: (id: string) => Promise<void>;
   applyAction: (id: string, input: LifeFundAdminActionInput) => Promise<boolean>;
   recordRepayment: (id: string, amount: number, providerRef?: string) => Promise<boolean>;
+  clearSelectedRequest: () => void;
   clearError: () => void;
 }
 
@@ -85,7 +86,7 @@ export const useLifeFundAdminStore = create<LifeFundAdminState>((set, get) => ({
   setSearchQuery: (q: string) => set({ searchQuery: q }),
 
   fetchRequestDetail: async (id: string) => {
-    set({ loadingDetail: true, error: null });
+    set({ loadingDetail: true, error: null, selectedRequest: null, auditTrail: [] });
     try {
       const { request, auditTrail } = await LifeFundService.adminGetRequest(id);
       set({ selectedRequest: request, auditTrail, loadingDetail: false });
@@ -122,5 +123,6 @@ export const useLifeFundAdminStore = create<LifeFundAdminState>((set, get) => ({
     }
   },
 
+  clearSelectedRequest: () => set({ selectedRequest: null, auditTrail: [] }),
   clearError: () => set({ error: null }),
 }));

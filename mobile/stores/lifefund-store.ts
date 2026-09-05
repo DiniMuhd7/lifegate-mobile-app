@@ -82,7 +82,14 @@ export const useLifeFundStore = create<LifeFundState>((set, get) => ({
       await get().fetchAccount();
       return request;
     } catch (e: unknown) {
-      set({ error: errorMessage(e, 'Failed to submit LifeFund request'), submitting: false });
+      set({
+        error: errorMessage(
+          e,
+          'Failed to submit LifeFund request',
+          'We could not submit your LifeFund request. Check that your phone number is saved, the amount is within your available limit, and you do not already have a request in progress.'
+        ),
+        submitting: false,
+      });
       return null;
     }
   },
