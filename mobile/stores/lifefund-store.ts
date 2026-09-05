@@ -8,11 +8,8 @@ import type {
   SubmitLifeFundRequestInput,
 } from 'types/lifefund-types';
 
-function errorMessage(e: unknown, fallback: string, unprocessableMessage?: string): string {
+function errorMessage(e: unknown, fallback: string): string {
   const message = extractErrorMessage(e);
-  if (unprocessableMessage && message === 'Request failed with status code 422') {
-    return unprocessableMessage;
-  }
   return message && message !== 'An error occurred. Please try again.' ? message : fallback;
 }
 
