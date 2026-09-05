@@ -138,6 +138,7 @@ export interface LifeFundRequest {
   userId: string;
   patientName?: string;
   patientEmail?: string;
+  patientPhone?: string;
 
   expenseCategory: LifeFundExpenseCategory;
   purposeDescription: string;

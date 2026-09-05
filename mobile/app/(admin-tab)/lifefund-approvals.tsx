@@ -40,6 +40,17 @@ function formatDate(iso: string): string {
   }
 }
 
+function formatDateTime(iso?: string): string {
+  if (!iso) return 'Not available';
+  try {
+    return new Date(iso).toLocaleString('en-NG', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
 const STATUS_FILTERS: { label: string; value: string }[] = [
   { label: 'All', value: '' },
   { label: 'Pending', value: 'PENDING_REVIEW' },
@@ -198,14 +209,21 @@ function ActionModal({
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 20, maxHeight: '85%' }}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={{ fontSize: 16, fontWeight: '800', color: '#111827' }}>{request.patientName || 'Patient'}</Text>
-              <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>{request.patientEmail}</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280' }}>{request.patientEmail || 'Email not provided'}</Text>
+              <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>{request.patientPhone || 'Phone number not provided'}</Text>
 
               <View style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 12, marginBottom: 12, gap: 4 }}>
+                <Text style={{ fontSize: 11, color: '#6b7280' }}>Request ID: {request.id}</Text>
+                <Text style={{ fontSize: 11, color: '#6b7280' }}>Submitted: {formatDateTime(request.createdAt)}</Text>
+                <Text style={{ fontSize: 11, color: '#6b7280' }}>Last updated: {formatDateTime(request.updatedAt)}</Text>
                 <Text style={{ fontSize: 12, color: '#6b7280' }}>
                   {LIFEFUND_CATEGORY_LABELS[request.expenseCategory]} · {request.healthcareProviderName}
                 </Text>
                 {request.healthcareProviderAccount ? (
                   <Text style={{ fontSize: 11, color: '#9ca3af' }}>Acct: {request.healthcareProviderAccount}</Text>
+                ) : null}
+                {request.billReference ? (
+                  <Text style={{ fontSize: 11, color: '#9ca3af' }}>Bill reference: {request.billReference}</Text>
                 ) : null}
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>
                   Requested {money(request.requestedAmount)}
@@ -217,6 +235,18 @@ function ActionModal({
                 {request.purposeDescription ? (
                   <Text style={{ fontSize: 12, color: '#6b7280' }}>“{request.purposeDescription}”</Text>
                 ) : null}
+                <Text style={{ fontSize: 11, color: '#6b7280' }}>
+                  Financing charge {request.interestRatePct}% · Fee {money(request.feeAmount)} · {request.installmentsCount} installments every {request.repaymentFrequencyDays} days
+                </Text>
+                {request.totalRepayable != null ? (
+                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Total repayable: {money(request.totalRepayable)}</Text>
+                ) : null}
+                {request.reviewedAt ? (
+                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Last reviewed: {formatDateTime(request.reviewedAt)}</Text>
+                ) : null}
+                {request.supportingDocuments.length > 0 ? (
+                  <Text style={{ fontSize: 11, color: '#6b7280' }}>Supporting documents: {request.supportingDocuments.map((d) => d.name).join(', ')}</Text>
+                ) : null}
                 {request.fraudFlags.length > 0 && (
                   <View style={{ marginTop: 4, gap: 2 }}>
                     {request.fraudFlags.map((f, i) => (
@@ -227,6 +257,24 @@ function ActionModal({
                   </View>
                 )}
               </View>
+
+              {(request.schedule?.length || request.repayments?.length) ? (
+                <View style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 12, marginBottom: 12, gap: 4 }}>
+                  {request.schedule?.length ? (
+                    <>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#111827' }}>Repayment schedule</Text>
+                      {request.schedule.map((installment) => (
+                        <Text key={installment.id} style={{ fontSize: 11, color: '#6b7280' }}>
+                          {installment.installmentNo}. {money(installment.amountDue)} due {installment.dueDate} · {installment.status}
+                        </Text>
+                      ))}
+                    </>
+                  ) : null}
+                  {request.repayments?.length ? (
+                    <Text style={{ fontSize: 11, color: '#6b7280' }}>Repayments recorded: {request.repayments.length}</Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               {pendingAction ? (
                 <View style={{ gap: 10 }}>
@@ -345,13 +393,14 @@ export default function LifeFundApprovalsScreen() {
     error,
     fetchSummary,
     fetchRequests,
+    fetchRequestDetail,
+    selectedRequest,
     setStatusFilter,
     applyAction,
     recordRepayment,
+    clearSelectedRequest,
     clearError,
   } = useLifeFundAdminStore();
-
-  const [selected, setSelected] = useState<LifeFundRequest | null>(null);
 
   const load = useCallback(() => {
     fetchSummary();
@@ -366,20 +415,20 @@ export default function LifeFundApprovalsScreen() {
     if (error) Alert.alert('Error', error, [{ text: 'OK', onPress: clearError }]);
   }, [error, clearError]);
 
-  async function handleAction(action: any, notes: string, reducedAmount?: number) {
-    if (!selected) return;
-    const ok = await applyAction(selected.id, { action, notes, reducedAmount });
+  async function handleAction(action: LifeFundAdminAction, notes: string, reducedAmount?: number) {
+    if (!selectedRequest) return;
+    const ok = await applyAction(selectedRequest.id, { action, notes, reducedAmount });
     if (ok) {
-      setSelected(null);
+      clearSelectedRequest();
       Alert.alert('Done', 'Action applied and patient notified where applicable.');
     }
   }
 
   async function handleRepayment(amount: number) {
-    if (!selected) return;
-    const ok = await recordRepayment(selected.id, amount);
+    if (!selectedRequest) return;
+    const ok = await recordRepayment(selectedRequest.id, amount);
     if (ok) {
-      setSelected(null);
+      clearSelectedRequest();
       Alert.alert('Recorded', 'Repayment recorded.');
     }
   }
@@ -439,14 +488,14 @@ export default function LifeFundApprovalsScreen() {
           <Text style={{ textAlign: 'center', color: '#9ca3af', marginTop: 40 }}>No requests in this view.</Text>
         )}
         {requests.map((r) => (
-          <RequestCard key={r.id} item={r} onPress={() => setSelected(r)} />
+          <RequestCard key={r.id} item={r} onPress={() => fetchRequestDetail(r.id)} />
         ))}
       </ScrollView>
 
       <ActionModal
-        visible={!!selected}
-        request={selected}
-        onCancel={() => setSelected(null)}
+        visible={!!selectedRequest}
+        request={selectedRequest}
+        onCancel={clearSelectedRequest}
         onConfirm={handleAction}
         onRecordRepayment={handleRepayment}
         busy={applyingAction}
