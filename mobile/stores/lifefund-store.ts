@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { LifeFundService } from 'services/lifefund-service';
+import { extractErrorMessage } from 'utils/error-utils';
 import type {
   LifeFundAccount,
   LifeFundEligibility,
@@ -7,8 +8,12 @@ import type {
   SubmitLifeFundRequestInput,
 } from 'types/lifefund-types';
 
-function errorMessage(e: unknown, fallback: string): string {
-  return e instanceof Error ? e.message : fallback;
+function errorMessage(e: unknown, fallback: string, unprocessableMessage?: string): string {
+  const message = extractErrorMessage(e);
+  if (unprocessableMessage && message === 'Request failed with status code 422') {
+    return unprocessableMessage;
+  }
+  return message && message !== 'An error occurred. Please try again.' ? message : fallback;
 }
 
 interface LifeFundState {
@@ -80,7 +85,14 @@ export const useLifeFundStore = create<LifeFundState>((set, get) => ({
       await get().fetchAccount();
       return request;
     } catch (e: unknown) {
-      set({ error: errorMessage(e, 'Failed to submit LifeFund request'), submitting: false });
+      set({
+        error: errorMessage(
+          e,
+          'Failed to submit LifeFund request',
+          'We could not submit your LifeFund request. Check that your phone number is saved, the amount is within your available limit, and you do not already have a request in progress.'
+        ),
+        submitting: false,
+      });
       return null;
     }
   },
