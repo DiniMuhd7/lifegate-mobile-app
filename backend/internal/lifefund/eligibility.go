@@ -190,6 +190,13 @@ func Evaluate(cfg Config, in EligibilityInput) EligibilityResult {
 // auto-raise the limit just because they repaid" rule and the tiered-limit
 // example both true at once: the increase is rule-driven, not unconditional.
 func effectiveLimit(cfg Config, currentLimit float64, successfulRepayments, defaultsCount int) float64 {
+	// Accounts are created with a zero limit before their first eligibility
+	// evaluation. Treat that placeholder value as the configured starting
+	// limit; otherwise every first request would be rejected for exceeding 0.
+	if currentLimit <= 0 {
+		currentLimit = cfg.InitialLimit
+	}
+
 	if !cfg.AutoTierUpgradeEnabled || defaultsCount > 0 {
 		return currentLimit
 	}
